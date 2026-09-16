@@ -4,7 +4,7 @@
 
 | 模块 | 已实现及已有本机证据 | 仍需完成的验收 |
 |---|---|---|
-| M1 | 原生/社交契约、版本表及独立适配器已实现；真实原生 268 条导入，保存的重复导入为 268 unchanged / 0 new_versions；异常隔离与快照停用逻辑有工程测试 | 社交真实映射与对账；候选新增 URL 审核；持续维护来源及异常 |
+| M1 | 原生/社交契约、版本表及独立适配器已实现；真实原生 268 条导入，保存的重复导入为 268 unchanged / 0 new_versions；12 条新增 URL 已逐项审核，建议和证据另存，未改变主库 | 社交真实映射与对账；采用候选审核决定并补齐列明的来源证据；持续维护异常 |
 | M2 | 256 条可计数、221 条可检索；26 条 video 正文占位不入索引；版本、字符偏移和导航前缀有程序检查，质量清单已记录 | 20 个前缀边界及 94 个疑似截断需针对性审核；PDF 候选对应和全篇完整性不能自动认证 |
 | M3 | 英文 Dash / AG Grid 六字段表、统计、筛选、导出及来源开关已实现；浏览器实测 ExxonMobil 15 条，CSV 为 15 个不同 record_id；两视图独立状态已验证 | 持续回归与真实用户反馈；新增数据版本后的对账 |
 | M4 | 社交适配器、映射样例、独立视图与 not connected 状态已实现 | 提供真实导出、字段说明及所需原型资料，再做记录、统计及问答验收 |
@@ -15,7 +15,7 @@
 
 ## 开发运行与语义验收分开记录
 
-当前主记录为 [development_paid_context_20260916.json](../outputs/development_paid_context_20260916.json)，run_id `15434ab5000e469cbc2380f407f71e1b`，时间 `2026-09-16T17:33:16Z`，数据版本 `652ed975bbd44ea06e20af19b6a6642d`。它是一次固定版本的开发诊断，不是后续代码自动继承的成绩。
+当前主记录为 [development_paid_citation_first_20260916.json](../outputs/development_paid_citation_first_20260916.json)，run_id `0369cb87f07648359dccd28687598a6b`，时间 `2026-09-16T17:47:34Z`，数据版本 `652ed975bbd44ea06e20af19b6a6642d`。它是一次固定版本的开发诊断，不是后续代码自动继承的成绩。
 
 | 机械检查 | 该次结果 | 证据边界 |
 |---|---:|---|
@@ -23,20 +23,21 @@
 | 必需支持片段覆盖 | 13/13 | gold 原句确实出现在返回 evidence，仍不自动评价回答语义 |
 | 完整筛选计数 | 2/2 | 对照指定题目的完整记录集合 |
 | evidence 定位 | 79/79 | 原文、版本与字符位置有效 |
-| citation 定位 | 23/23 | 引句存在于指定 evidence，仍需判断支持关系 |
+| citation 定位 | 17/17 | 引句存在于指定 evidence，仍需判断支持关系 |
 | 无证据问题拒答 | 3/3 | 仅覆盖该次 3 个开发案例 |
 
 该次 `gold_status=draft_not_frozen`、`semantic_support=pending_human_review`、`overall_pass=null`。4 个社交问题与 3 个跨库问题仍 pending，不进入已运行分母。
 
-最新工程检查为 83 tests passed，Ruff 通过。它验证程序行为，与模型语义验收分开。
+最新工程检查为 93 tests passed，Ruff 通过。它验证程序行为，与模型语义验收分开。
 
-[当前 AI 辅助语义审阅](../reports/assisted_semantic_review_context.md) 将 23 条引文分为 20 supported / 3 partial / 0 unsupported，人工列仍为空；这只是待人工复核的分类，不是语义通过率。较早运行的缺口与修正过程统一保留在评估报告中。
+[当前 AI 辅助语义审阅](../reports/assisted_semantic_review_citation_first.md) 逐条检查 17 条引用，并区分必要指代上下文、广告归因和任务完整性。人工列仍为空，不能计算人工通过率。较早运行的缺口与修正过程统一保留在评估报告中。
 
 统一结果入口为 [reports/evaluation.md](../reports/evaluation.md)，以其明确记载的 run_id、数据版本、分母和未解决问题为准。当前机械复跑通过不代表人工语义支持已经通过。评价规则见 [evaluation_protocol.md](evaluation_protocol.md)。
 
 ## 证据入口
 
 - [数据字典及导入快照](data_dictionary.md)，[重复导入记录](../outputs/native_import_repeat.json)。
+- [新增 12 个 URL 审核](../reports/additional_url_review.md)：7 项建议纳入、4 项建议排除、1 项待核；其中 1 项纳入取决于 CERAWeek 范围定义，建议尚未应用。
 - [用户指南](user_guide.md)，[研究预览](../deliverables/research_preview.pptx)，[演示讲稿](../deliverables/demo_script.zh-CN.md)。
 - [数据库验证与恢复记录](local_postgres.md)，[运行维护](operations.md)，[交接索引](handoff.md)。
 

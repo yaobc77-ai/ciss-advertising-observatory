@@ -14,8 +14,9 @@ from uuid import uuid4
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .config import Settings
+from .db import digest
 from .models import Filters
-from .rag import MAX_QUOTE_WORDS
+from .rag import MAX_QUOTE_WORDS, SYSTEM
 from .service import Service
 
 
@@ -192,6 +193,15 @@ def summarize_results(rows, paid):
 
 def run_evaluation(cases, service, *, paid=False, expected_data_version=None):
     run_id = uuid4().hex
+    # Capture the implementation before requests run; do not label a historical
+    # result with whatever source happens to exist when the report is read later.
+    provenance = {
+        "prompt_sha256": digest(SYSTEM) if paid else None,
+        "module_sha256": {
+            path.name: digest(path.read_text(encoding="utf-8"))
+            for path in sorted(Path(__file__).parent.glob("*.py"))
+        },
+    }
     version = service.db.health().get("data_version")
     if not version or version == "unavailable":
         raise EvaluationInvalid("A current database version is required")
@@ -286,6 +296,7 @@ def run_evaluation(cases, service, *, paid=False, expected_data_version=None):
         "generation_model": service.settings.generation_model if paid else None,
         "embedding_model": service.settings.embedding_model if paid else None,
         "max_quote_words": MAX_QUOTE_WORDS,
+        "implementation": provenance,
         "summary": summarize_results(rows, paid), "cases": rows,
     }
 

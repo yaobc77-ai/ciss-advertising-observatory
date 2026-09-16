@@ -31,6 +31,8 @@
 
 结果默认保存到 `outputs/evaluation-<suite>-<run_id>.json`；可传 `--output` 指定新文件，已有文件不会覆盖。结果包括题库 SHA-256、数据版本、运行模式、逐题证据及当时 gold 定位信息，便于复核。
 
+从 0.1.1 的审计修订起，新运行在 `implementation` 中记录提示哈希（仅付费模式）及 Python 模块文本哈希。模块哈希基于读取后的文本，换行按 Python 文本读取规则统一，不是文件原始字节哈希。成功生成的用量账本另在 `usage.observatory_request` 保存提示、动态输出 schema 的哈希，以及供应商返回的模型名。结果文件应与对应账本一起保留；旧输出不回填这些字段。2026-09-16 的 citation-first 开发运行早于此审计修订，其原始 JSON 保持不变。
+
 ## 付费运行必须显式开启
 
 ```powershell

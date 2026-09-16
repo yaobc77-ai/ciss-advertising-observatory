@@ -68,9 +68,9 @@ The setup command prepares the dedicated `obs_test` database and its configurati
 
 ## Evaluation boundary
 
-The latest saved development run `15434ab5000e469cbc2380f407f71e1b` exercised 13 native cases. It covered 13/13 required support passages, validated 23/23 citation locations, and passed the respective record, count and refusal checks. Its gold remains `draft_not_frozen`, `semantic_support` remains `pending_human_review`, and `overall_pass` is null. The latest engineering check completed 83 tests and Ruff without failures.
+The latest saved development run `0369cb87f07648359dccd28687598a6b` exercised 13 native cases. It covered 13/13 required support passages, validated 17/17 citation locations, and passed the respective record, count and refusal checks. Its gold remains `draft_not_frozen`, `semantic_support` remains `pending_human_review`, and `overall_pass` is null. The latest engineering check completed 93 tests and Ruff without failures.
 
-The [current evaluation report](reports/evaluation.md) identifies the applicable run, data version and earlier diagnostic history. The [current AI-assisted review](reports/assisted_semantic_review_context.md) lists three items for human review; it is not a semantic acceptance score. See the [evaluation protocol](docs/evaluation_protocol.md) before interpreting any metric.
+The [current evaluation report](reports/evaluation.md) identifies the applicable run, data version and earlier diagnostic history. The [current AI-assisted review](reports/assisted_semantic_review_citation_first.md) separates quotation support, reference context and remaining human review; it is not a semantic acceptance score. See the [evaluation protocol](docs/evaluation_protocol.md) before interpreting any metric.
 
 ## Data and documentation
 

@@ -3,6 +3,7 @@
 import argparse
 import hashlib
 import os
+import posixpath
 import re
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile
@@ -39,8 +40,10 @@ RUNS = (
     "development_paid_20260916.json",
     "development_paid_quotes_20260916.json",
     "development_paid_context_20260916.json",
+    "development_paid_citation_first_20260916.json",
     "live_biogas.json",
     "live_ccs_scoped.json",
+    "live_no_evidence.json",
 )
 
 
@@ -49,7 +52,14 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     files = [
-        ROOT / n for n in ("pyproject.toml", "uv.lock", ".env.example", ".gitignore")
+        ROOT / n
+        for n in (
+            "pyproject.toml",
+            "uv.lock",
+            ".env.example",
+            ".gitignore",
+            ".gitattributes",
+        )
     ]
     files.extend(ROOT.glob("*.md"))
     for folder in FOLDERS:
@@ -71,6 +81,25 @@ def main():
                 f"Credential-like content found in {relative}; archive not created"
             )
         entries[relative] = data
+    # Adapt links only when their exact target is included in this archive.
+    # Original workspace reports and links to private, unbundled sources stay intact.
+    local_link = re.compile(r"\]\(<" + re.escape(ROOT.as_posix()) + r"/([^>]+)>\)")
+    for name, data in list(entries.items()):
+        if not name.endswith(".md"):
+            continue
+
+        def portable_link(match):
+            target_name = match.group(1)
+            if target_name not in entries:
+                return match.group(0)
+            relative_target = posixpath.relpath(
+                target_name, posixpath.dirname(name) or "."
+            )
+            return f"](<{relative_target}>)"
+
+        entries[name] = local_link.sub(portable_link, data.decode("utf-8")).encode(
+            "utf-8"
+        )
     entries["CONTENTS.sha256"] = (
         "\n".join(
             f"{hashlib.sha256(data).hexdigest()}  {name}"
