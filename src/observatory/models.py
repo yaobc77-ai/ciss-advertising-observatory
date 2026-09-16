@@ -98,3 +98,4 @@ class Answer(BaseModel):
     cost_usd: float = 0.0
     latency_ms: int = 0
     failure_reason: str = ""
+    language_check: dict[str, Any] = Field(default_factory=dict)

@@ -46,7 +46,7 @@
 ## 付费运行必须显式开启
 
 ```powershell
-# 这条命令会使用项目的付费 API 与预算限制；不是本次准备工作已执行的命令。
+# 手动开启付费诊断；普通测试和免费检索不会执行这类调用。
 .\.venv\Scripts\python.exe -m observatory.evaluate `
   --cases eval/development.jsonl --paid
 ```
@@ -75,8 +75,13 @@
 | abstention_on_no_evidence | 付费模式下 ready 无证据题数；只有 `insufficient_evidence` 计正确拒答，limited／service_unavailable 不当成正确拒答。免费模式不评分。 |
 | latency/cost | 逐题墙钟延迟、已结算账本费用、未决预留和费用未知题数。pending 不产生请求。 |
 | semantic_support | 始终 `pending_human_review`。必须由人对照 rubric 检查论断是否被支持、是否遗漏限制、是否把宣传说成事实。 |
+| language_check_statuses | 付费 ready 检索题逐题列出 match／mismatch／inconclusive／not_checked 数量；只检查生成的 claims，原文引文不参与。采用本地启发式，不能作为语义或人工通过率。短文本不确定项仍在分母中，不能并入 match。 |
 
 **可定位引用不等于语义支持，更不等于广告主张真实。** Runner 不自动给出整体通过结论：`overall_pass` 为 null。也不自动为 social/cross 建立通过状态。
+
+0.2.1 增加 Lingua 2.2.0 本地语言检查：少于 20 个 Unicode 字母，或前两候选分数差低于 0.20 时不确定。这两个阈值是工程策略，未作概率校准。明确的提问语言写入每次生成的 system 提示；逐条与合并 claims 均检查，出现明确不一致返回 `service_unavailable / answer_language_mismatch`，不作资料不足，不自动重试。原始结构化模型输出与已结算费用保留，公开回答只保留证据和状态。不确定输出仍可能展示并记录 inconclusive；混合语言及不在库内的语言不能保证识别。
+
+从 0.2.1 起，运行级 `implementation.base_prompt_sha256` 表示公共提示模板；每次调用的账本 `observatory_request.prompt_sha256` 则对应包含目标语言的实际 system 提示，另记 base_prompt_sha256、target_language、language_policy。两者不混称相同提示。原有结果文件不回填。
 
 `support_passage_coverage` 是严格的原句召回诊断：拆在两个片段中的原句、改写或部分匹配均不计覆盖；逐题的 `support_passage_matches` 保存覆盖它的 evidence ID。覆盖率高只说明这些已选原句可供回答使用，不证明模型实际使用了它们或正确保留了限定条件；覆盖率低也不能排除其他片段提供了有效的替代证据。最终仍需对照全文与 rubric 做人工语义评审。
 

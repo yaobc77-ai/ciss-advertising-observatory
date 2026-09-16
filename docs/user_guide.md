@@ -35,6 +35,8 @@ Results show the last submitted question and filter scope. Changing the controls
 
 Evidence cards include a short passage, title, collection, sponsor/outlet, evidence ID, record ID, text version and available source links. **Read retrieved passage** expands the source passage. Compare the answer with its supporting passages; an advertising claim records what an advertiser said.
 
+Generated explanations follow the question's language; source quotations retain their original language. If a generated explanation clearly uses a different language, the app withholds it and keeps the evidence available. A short acronym or mixed-language question may be too ambiguous to check reliably. Use a full question in the language you want. Interface, count and service-status messages are currently in English.
+
 If no supporting records are found, widen the filters, try a different term or search both collections. A model outage or usage limit leaves browsing and keyword search available when the data service is running. Data-service outages show a temporary-unavailability message and preserve the selected controls.
 
 ## Current scope

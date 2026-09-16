@@ -179,6 +179,10 @@ def summarize_results(rows, paid):
         citations = [row["citation_locator_valid"] for row in ready]
         locators = [row["evidence_locator_valid"] for row in ready]
         passages = [row["support_passage_coverage"] for row in retrieval]
+        language = Counter(
+            row.get("language_check", {}).get("status", "not_checked")
+            for row in retrieval
+        ) if paid else {}
         summaries[dataset] = {
             "total_cases": len(group), "ready_cases": len(ready),
             "pending_cases": sum(row["case_status"] == "pending_social" for row in group),
@@ -191,6 +195,8 @@ def summarize_results(rows, paid):
             "abstention_status": "measured" if paid else "not_run_lexical",
             "citation_status": "measured" if paid else "not_run_lexical",
             "semantic_support": {"status": "pending_human_review", "rate": None},
+            "language_check_statuses": dict(language),
+            "language_check_scope": "local heuristic on generated claims; not semantic acceptance",
             "latency_ms_total": round(sum(row["latency_ms"] for row in ready), 3),
             "latency_ms_mean": round(sum(row["latency_ms"] for row in ready) / len(ready), 3) if ready else None,
             "settled_cost_usd": sum(row["cost"]["settled_usd"] for row in ready),
@@ -208,7 +214,7 @@ def run_evaluation(cases, service, *, paid=False, expected_data_version=None):
     # Capture the implementation before requests run; do not label a historical
     # result with whatever source happens to exist when the report is read later.
     provenance = {
-        "prompt_sha256": digest(SYSTEM) if paid else None,
+        "base_prompt_sha256": digest(SYSTEM) if paid else None,
         "module_sha256": {
             path.name: digest(path.read_text(encoding="utf-8"))
             for path in sorted(Path(__file__).parent.glob("*.py"))
@@ -256,6 +262,7 @@ def run_evaluation(cases, service, *, paid=False, expected_data_version=None):
                     evidence = result.evidence
                     row.update(answer_status=result.status, answer=result.answer,
                                failure_reason=result.failure_reason,
+                               language_check=result.language_check,
                                citations=[c.model_dump() for c in result.citations],
                                reported_answer_cost_usd=result.cost_usd,
                                abstained=result.status == "insufficient_evidence", execution_status=result.status)

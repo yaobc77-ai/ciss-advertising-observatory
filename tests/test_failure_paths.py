@@ -361,6 +361,64 @@ def test_completed_generation_records_prompt_schema_model_and_original_citation(
     assert row["state"] == "settled"
     assert row["actual_usd"] == price(service.settings.generation_model, 100, 20)
     audit = row["usage"]["observatory_request"]
-    assert audit["prompt_sha256"] == rag_module.digest(rag_module.SYSTEM)
+    sent_system = client.responses.parse.call_args.kwargs["input"][0]["content"]
+    assert audit["prompt_sha256"] == rag_module.digest(sent_system)
+    assert audit["base_prompt_sha256"] == rag_module.digest(rag_module.SYSTEM)
+    assert audit["target_language"]["code"] == "en"
+    assert "Required answer language: English (en)" in sent_system
     assert len(audit["schema_sha256"]) == 64
     assert audit["provider_model"] == "fixture-provider-model"
+
+
+def test_wrong_language_is_withheld_after_settlement_without_retry(failure_env):
+    db, build = failure_env
+    client = fake_client()
+    wrong_text = (
+        "La publicidad propone utilizar residuos orgánicos para producir combustible "
+        "en una instalación que todavía está en fase de planificación."
+    )
+
+    def completed_response(**request):
+        payload = json.loads(request["input"][1]["content"])
+        passage = next(iter(payload["evidence"][0]["quote_catalog"]))
+        return SimpleNamespace(
+            status="completed",
+            output_parsed=request["text_format"].model_validate(
+                {
+                    "status": "answered",
+                    "claims": [{"passage_id": passage, "text": wrong_text}],
+                }
+            ),
+            model="fixture-provider-model",
+            usage=SimpleNamespace(
+                input_tokens=100,
+                output_tokens=20,
+                input_tokens_details=SimpleNamespace(
+                    cached_tokens=0, cache_write_tokens=0
+                ),
+                model_dump=lambda: {"input_tokens": 100, "output_tokens": 20},
+            ),
+        )
+
+    client.responses.parse.side_effect = completed_response
+    service = build(client)
+    result = service.answer(QUESTION, FILTERS, "wrong-language")
+    assert result.status == "service_unavailable"
+    assert result.failure_reason == "answer_language_mismatch"
+    assert result.language_check["status"] == "mismatch"
+    assert result.language_check["target"]["code"] == "en"
+    assert not result.citations and wrong_text not in result.answer
+    assert {e.record_id for e in result.evidence} == {"failure-allowed"}
+    assert all(db.validate_evidence(e) for e in result.evidence)
+    assert client.responses.parse.call_count == client.embeddings.create.call_count == 1
+    rows = ledger(db)
+    assert all(row["state"] == "settled" for row in rows)
+    expected = price(service.settings.generation_model, 100, 20) + price(
+        service.settings.embedding_model, 11
+    )
+    assert result.cost_usd == pytest.approx(float(expected))
+    with db.connect() as conn:
+        raw = conn.execute("SELECT parsed FROM generation_outputs").fetchall()
+        assert len(raw) == 1 and raw[0]["parsed"]["claims"][0]["text"] == wrong_text
+        saved = conn.execute("SELECT result FROM answer_runs").fetchall()
+        assert len(saved) == 1 and saved[0]["result"] == result.model_dump(mode="json")
