@@ -1,0 +1,101 @@
+"""Create a local review archive from an explicit allowlist; never bundle credentials."""
+
+import argparse
+import hashlib
+import os
+import re
+from pathlib import Path
+from zipfile import ZIP_DEFLATED, ZipFile
+
+ROOT = Path(__file__).resolve().parents[1]
+FOLDERS = (
+    "src",
+    "tests",
+    "scripts",
+    "config",
+    "docs",
+    "eval",
+    "reports",
+    "deliverables",
+)
+EXTENSIONS = {
+    ".py",
+    ".ps1",
+    ".sql",
+    ".css",
+    ".js",
+    ".md",
+    ".json",
+    ".jsonl",
+    ".csv",
+    ".txt",
+    ".yml",
+    ".pptx",
+}
+RUNS = (
+    "native_import_final.json",
+    "native_import_repeat.json",
+    "development_lexical_20260916.json",
+    "development_paid_20260916.json",
+    "development_paid_quotes_20260916.json",
+    "development_paid_context_20260916.json",
+    "live_biogas.json",
+    "live_ccs_scoped.json",
+)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--output", type=Path, required=True)
+    args = parser.parse_args()
+    files = [
+        ROOT / n for n in ("pyproject.toml", "uv.lock", ".env.example", ".gitignore")
+    ]
+    files.extend(ROOT.glob("*.md"))
+    for folder in FOLDERS:
+        files.extend(
+            p
+            for p in (ROOT / folder).rglob("*")
+            if p.is_file() and p.suffix in EXTENSIONS and "__pycache__" not in p.parts
+        )
+    files.extend(ROOT / "outputs" / name for name in RUNS)
+    entries = {}
+    secret = os.environ.get("OPENAI_API_KEY", "")
+    for file in sorted(set(files)):
+        relative = file.relative_to(ROOT).as_posix()
+        data = file.read_bytes()
+        if (secret and secret.encode() in data) or re.search(
+            rb"sk-(?:proj-)?[a-zA-Z0-9_-]{30,}", data
+        ):
+            raise RuntimeError(
+                f"Credential-like content found in {relative}; archive not created"
+            )
+        entries[relative] = data
+    entries["CONTENTS.sha256"] = (
+        "\n".join(
+            f"{hashlib.sha256(data).hexdigest()}  {name}"
+            for name, data in entries.items()
+        )
+        + "\n"
+    ).encode()
+    target = args.output.resolve()
+    target.parent.mkdir(parents=True, exist_ok=True)
+    # Exclusive creation prevents an accidental overwrite of a previous handoff.
+    with ZipFile(target, "x", ZIP_DEFLATED) as archive:
+        for name, data in entries.items():
+            archive.writestr(name, data)
+    with ZipFile(target) as archive:
+        assert archive.testzip() is None
+        assert set(archive.namelist()) == set(entries)
+        assert all(archive.read(name) == data for name, data in entries.items())
+    sha = hashlib.sha256(target.read_bytes()).hexdigest()
+    target.with_suffix(".zip.sha256").write_text(
+        f"{sha}  {target.name}\n", encoding="utf-8"
+    )
+    print(
+        f"Created {target.name}: {len(entries)} entries, {target.stat().st_size} bytes, SHA-256 {sha}"
+    )
+
+
+if __name__ == "__main__":
+    main()
