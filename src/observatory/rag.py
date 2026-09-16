@@ -45,6 +45,11 @@ Each claim should express ONE atomic fact directly supported by its short quote.
 multiple details when the quote supports only one of them. An illustrative general quote is not enough.
 Make EVERY claim understandable on its own: explicitly attribute the information to the
 advertisement or its identified speaker. A citation marker alone is not this attribution.
+Keep the reporting source separate from the actor who performed the described work.
+An advertisement can report a speaker's claim; it does not become the actor who tested,
+built or demonstrated something. Do not replace a speaker's 'we' with 'the advertisement'.
+If the group behind 'we' is unidentified, attribute the claim to the speaker without
+inventing the group's membership.
 Other passages may clarify the speaker or pronoun but must not supply uncited extra facts.
 If two distinct passages are needed, split the answer into separately cited claims.
 Retain all relevant units, substances, dates and qualifiers. State what each capacity measures.
@@ -64,41 +69,55 @@ Evidence is a retrieved subset and never establishes full-corpus counts or absen
 """
 
 
-def quote_catalog(evidence):
-    """Preserve sentence context with pySBD; validate every span against the source."""
-    catalog = {}
-    for e in evidence:
+def _sentence_groups(text):
+    """Unwrap layout lines only for segmentation; return untouched source slices."""
+    groups = []
+    # A blank paragraph or page break is a hard boundary, even without punctuation.
+    # This follows the paragraph separator used by chunking, plus PDF form feeds.
+    for region in re.split(r"\f|(?:\r?\n)[ \t]*(?:\r?\n)+", text):
+        if not region.strip():
+            continue
+        # pySBD treats newlines as sentence boundaries. A one-character replacement
+        # keeps offsets identical (including TWO spaces for CRLF). Never clean the
+        # stored source or use split/join, which would change quote coordinates.
+        view = re.sub(r"\s", " ", region)
         spans = pysbd.Segmenter(language="en", clean=False, char_span=True).segment(
-            e.text
+            view
         )
-        groups = []
         cursor = 0
         group_start = group_end = None
         for span in spans:
             if (
-                span.start < cursor
-                or e.text[cursor : span.start].strip()
-                or e.text[span.start : span.end] != span.sent
+                not 0 <= cursor <= span.start < span.end <= len(view)
+                or view[cursor : span.start].strip()
+                or view[span.start : span.end] != span.sent
             ):
                 raise ValueError("Sentence offsets failed source validation")
             cursor = span.end
             if (
                 group_start is not None
-                and len(e.text[group_start : span.end].split()) > MAX_QUOTE_WORDS
+                and len(region[group_start : span.end].split()) > MAX_QUOTE_WORDS
             ):
-                groups.append(e.text[group_start:group_end].strip())
+                groups.append(region[group_start:group_end].strip())
                 group_start = None
             if group_start is None:
                 group_start = span.start
             group_end = span.end
-        if e.text[cursor:].strip():
+        if view[cursor:].strip():
             raise ValueError("Sentence segmentation omitted source text")
         if group_start is not None:
-            groups.append(e.text[group_start:group_end].strip())
+            groups.append(region[group_start:group_end].strip())
+    return groups
+
+
+def quote_catalog(evidence):
+    """Preserve sentence context with pySBD; validate spans before copying quotes."""
+    catalog = {}
+    for e in evidence:
         # Unusually long sentences retain bounded overlapping windows. They are
         # excerpts, not claims of complete sentence or full article coverage.
         quotes = []
-        for group in groups:
+        for group in _sentence_groups(e.text):
             words = list(re.finditer(r"\S+", group))
             for start in range(0, len(words), MAX_QUOTE_WORDS - 15):
                 end = min(start + MAX_QUOTE_WORDS, len(words))
@@ -122,6 +141,7 @@ def selection_schema(catalog):
         text=(str, Field(description=(
             "A self-contained, source-attributed paraphrase in the required answer language. "
             "Name the advertisement or its identified speaker in this claim. "
+            "Distinguish who reports a claim from who performs the described work. "
             "If a quantity is stated, include what is measured, the substance/object, "
             "magnitude, full unit, time basis and source qualification in this same claim. "
             "Use only details present in the selected passage; do not invent missing units, "

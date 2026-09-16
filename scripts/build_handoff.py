@@ -67,6 +67,11 @@ RUNS = (
     "native_import_pdf265_repeat_20260916.json",
     "pdf265_publication_validation_20260916.json",
     "pdf265_recovery_paid_smoke_20260916.json",
+    "quote_context_corpus_20260916.json",
+    "pdf265_quote_context_paid_20260916.json",
+    "development_quote_context_20260916.json",
+    "clean_import_source_v0_2_4_20260916.json",
+    "clean_import_wheel_v0_2_4_20260916.json",
 )
 
 
