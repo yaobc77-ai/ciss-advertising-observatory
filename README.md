@@ -2,7 +2,7 @@
 
 A Python Dash application for browsing fossil fuel native advertisements and asking questions with locatable source evidence. PostgreSQL and pgvector run locally. OpenAI provides embeddings and grounded answer generation.
 
-**Research preview: the real native corpus is connected and the application runs locally.** Version 0.2.1 contains 275 records, with 263 countable records, 226 eligible retrieval bodies and 554 source-located chunks. Reviewed intervals exclude inline navigation while retaining later article text. The dashboard, filtered CSV export, free keyword search and paid evidence answers are implemented. See the [handoff](docs/handoff.md) and [acceptance status](docs/acceptance_status.md) for evidence and remaining work.
+**Research preview: the real native corpus is connected and the application runs locally.** Version 0.2.2 contains 275 records, with 263 countable records, 226 eligible retrieval bodies and 554 source-located chunks. Reviewed intervals exclude inline navigation while retaining later article text. The dashboard, filtered CSV export, free keyword search and paid evidence answers are implemented. See the [handoff](docs/handoff.md) and [acceptance status](docs/acceptance_status.md) for evidence and remaining work.
 
 Social data, the designated GitHub remote, a fixed public domain and Cloudflare configuration remain reserved integration points, as requested by the user. The social view explicitly shows **not connected**. Human semantic validation and full project acceptance remain pending.
 
@@ -70,7 +70,7 @@ The setup command prepares the dedicated `obs_test` database and its configurati
 
 The [data revision report](reports/data_revision_v0_2.md) documents repeat imports, original-text preservation, interval checks and historical citation validity. The 0.2.1 engineering suite passed **164 tests**. A local Lingua check now withholds clearly wrong-language generated claims while retaining evidence, raw structured output and settled costs.
 
-The new paid development diagnostic returned 8 answers, 2 exact counts and 3 abstentions, with 16/16 citation locators valid. Local language checks recorded **7 matches and 1 inconclusive result**; these are heuristic checks, not human semantic acceptance. Earlier Spanish/French failures remain preserved as regressions. See the [0.2.1 report](reports/language_guard_v0_2_1.md), [AI review](reports/assisted_semantic_review_v0_2_1.md) and [evaluation protocol](docs/evaluation_protocol.md). Human semantic validation, frozen acceptance and real social/cross-dataset validation remain pending.
+Version 0.2.2 adds explicit per-claim attribution and quantity requirements to the existing output schema. Its 52 relevant regression tests passed. A single new paid development run returned 8 answers, 2 exact counts and 3 abstentions, with 16/16 citation locators valid and 8 local language matches. These checks do not establish semantic acceptance: answer focus and completeness still need review. See the [0.2.2 report](reports/claim_contract_v0_2_2.md), [AI review](reports/assisted_semantic_review_v0_2_2.md) and [evaluation protocol](docs/evaluation_protocol.md). Earlier failures remain preserved; human validation, frozen acceptance and real social/cross-dataset validation remain pending.
 
 ## Data and documentation
 
@@ -80,7 +80,7 @@ The new paid development diagnostic returned 8 answers, 2 exact counts and 3 abs
 - [User guide](docs/user_guide.md)
 - [Project requirements and remaining acceptance](docs/acceptance_status.md)
 - [Current handoff and exact maintenance commands](docs/handoff.md)
-- [Research preview presentation](deliverables/research_preview.pptx) and [Chinese demo script](deliverables/demo_script.zh-CN.md)
+- [Research preview presentation](deliverables/research_preview_v0_2_2.pptx) and [Chinese demo script](deliverables/demo_script_v0_2_2.zh-CN.md)
 - [Complete resource appendix](FA26_RESOURCE_APPENDIX.zh-CN.md)
 
 Source data, private configurations, database files and backups are excluded from Git. The designated remote has not been provided or published. A clean checkout requires the separately supplied source files described in the data dictionary. Historical scraper notebooks do not run automatically. The handoff explains the reused packages and source delivery manifest.

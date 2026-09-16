@@ -61,6 +61,7 @@ RUNS = (
     "native_preflight_intervals_20260916.json",
     "source_revision_validation_20260916.json",
     "development_language_guard_20260916.json",
+    "development_claim_contract_20260916.json",
 )
 
 

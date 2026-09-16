@@ -9,7 +9,7 @@ import numpy as np
 import pysbd
 from openai import OpenAI
 from psycopg.types.json import Jsonb
-from pydantic import BaseModel, create_model
+from pydantic import BaseModel, Field, create_model
 
 from .budget import Budget, price
 from .db import digest
@@ -43,9 +43,14 @@ Use the fewest claims needed to answer all parts of the question. Do not add tan
 background or interesting details that the user did not request. Do not try to fill all 6 slots.
 Each claim should express ONE atomic fact directly supported by its short quote. Avoid combining
 multiple details when the quote supports only one of them. An illustrative general quote is not enough.
+Make EVERY claim understandable on its own: explicitly attribute the information to the
+advertisement or its identified speaker. A citation marker alone is not this attribution.
 Other passages may clarify the speaker or pronoun but must not supply uncited extra facts.
 If two distinct passages are needed, split the answer into separately cited claims.
 Retain all relevant units, substances, dates and qualifiers. State what each capacity measures.
+In the SAME claim as a quantity, name the measured substance or object and what is being
+measured (such as production, capture or reduction). Never leave this to a neighboring claim
+or to the displayed quote. Preserve the source's time basis and planned/achieved status.
 When the source gives both a full unit and an abbreviation, write out the full unit in your answer.
 Preserve the numeric magnitude and time basis; do not combine a written multiplier with an
 abbreviation that already encodes that multiplier. If the unit is unclear, say so instead of guessing.
@@ -111,7 +116,19 @@ def quote_catalog(evidence):
 def selection_schema(catalog):
     # Structured Outputs can restrict identifiers to real passages at generation time.
     choices = Literal.__getitem__(tuple(catalog))
-    claim = create_model("SelectedClaim", passage_id=(choices, ...), text=(str, ...))
+    claim = create_model(
+        "SelectedClaim",
+        passage_id=(choices, Field(description="Choose the passage that directly supports this specific claim.")),
+        text=(str, Field(description=(
+            "A self-contained, source-attributed paraphrase in the required answer language. "
+            "Name the advertisement or its identified speaker in this claim. "
+            "If a quantity is stated, include what is measured, the substance/object, "
+            "magnitude, full unit, time basis and source qualification in this same claim. "
+            "Use only details present in the selected passage; do not invent missing units, "
+            "baselines or a current operating status. Keep attribution and qualifications "
+            "even when repeating them feels less concise."
+        ))),
+    )
     return create_model(
         "SelectedAnswer",
         status=(Literal["answered", "insufficient_evidence"], ...),

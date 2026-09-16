@@ -1,6 +1,6 @@
 # CISS Observatory 当前交接说明
 
-更新日期：2026-09-16。当前版本为 **0.2.1 / Research preview / Native corpus connected**。最新状态以 [语言修复报告](../reports/language_guard_v0_2_1.md) 和 [数据修订报告](../reports/data_revision_v0_2.md) 为准。
+更新日期：2026-09-16。当前版本为 **0.2.2 / Research preview / Native corpus connected**。最新状态以 [回答表达报告](../reports/claim_contract_v0_2_2.md)、[语言修复报告](../reports/language_guard_v0_2_1.md) 和 [数据修订报告](../reports/data_revision_v0_2.md) 为准。
 
 ## 1. 接手入口
 
@@ -10,10 +10,11 @@
 | [数据字典](data_dictionary.md) / [架构](architecture.md) | 来源、字段、版本、资格规则和处理流程 |
 | [运行指南](operations.md) / [用户指南](user_guide.md) | 本机维护、预算、筛选、导出和证据检查 |
 | [评价协议](evaluation_protocol.md) | 题库、分母、草案边界及人工复核工作 |
-| [当前 AI 辅助语义审阅](../reports/assisted_semantic_review_v0_2_1.md) | 最新运行的语义观察，不能替代人工结论 |
-| [研究预览 PPTX](../deliverables/research_preview.pptx) / [中文讲稿](../deliverables/demo_script.zh-CN.md) | 当前原生应用的展示步骤与保存样例 |
+| [当前 AI 辅助语义审阅](../reports/assisted_semantic_review_v0_2_2.md) | 最新运行的语义观察，不能替代人工结论 |
+| [研究预览 PPTX](../deliverables/research_preview_v0_2_2.pptx) / [中文讲稿](../deliverables/demo_script_v0_2_2.zh-CN.md) | 当前原生应用的展示步骤、数据规模和未完成项 |
+| [94 项截断预检](../reports/truncation_recovery_preflight.md) | 结构化来源比对及 PDF 续文候选；不是已发布的恢复正文 |
 
-统一评估汇总入口为 [reports/evaluation.md](../reports/evaluation.md)，以其中明确记载的 run_id、数据版本、分母与人工状态为准。研究预览中的三个早期 smoke 案例仍可展示，但不是最新开发集指标。
+统一评估汇总入口为 [reports/evaluation.md](../reports/evaluation.md)，以其中明确记载的 run_id、数据版本、分母与人工状态为准。旧版研究预览中的三个早期 smoke 案例仍可展示，但不是最新开发集指标。
 
 ## 2. 当前可以使用的部分
 
@@ -140,11 +141,11 @@ pySBD 已接入 `src/observatory/rag.py`。最新句子组合最多 60 词，长
 
 当前数据版本为 `d85a98002e4493f0376c260ad82253ee`，275 条收录、263 条可统计、226 条可检索，554 个块。最终重复导入 275 unchanged / 0 new_versions / 0 deactivated；275 条正文、554 个区间块及 79 个历史定位通过检查。实际记录见 [数据修订报告](../reports/data_revision_v0_2.md)。
 
-最新付费开发 run `612863daa16a48dcb3a2b1179eb3479d` 绑定当前 `d85…` 数据版本，8 个回答、2 个计数、3 个拒答，16 条引用可定位。语言检查 7 match、1 inconclusive；本轮 $0.01567250，未决预留 $0。旧 `532453… / c5ad…` 的三条错语结果仍保留。人工语义支持率未测量。
+最新付费开发 run `d26eb540a6114cfe9672a755c43f39a7` 绑定当前 `d85…` 数据版本，8 个回答、2 个计数、3 个拒答，16 条引用可定位。语言检查 8 match；本轮 $0.01632325，未决预留 $0。原先的语言与数量表达失败结果仍保留。人工语义支持率未测量。
 
-[AI 审阅](../reports/assisted_semantic_review_v0_2_1.md)与 [16 行复核 CSV](../reports/citation_review_v0_2_1.csv)保存本次归因、单位对象、必要指代上下文及完整性意见；人工列为空。7 个社交/跨库题保持 pending。语言检查已实现；它不验证引用语义或广告事实。
+[AI 审阅](../reports/assisted_semantic_review_v0_2_2.md)与 [16 行复核 CSV](../reports/citation_review_v0_2_2.csv)保存本次归因、单位对象、必要指代上下文及完整性意见；人工列为空。dev-01/07 在本轮补上了原缺口，dev-05 的额外背景及其他完整性项仍待审。7 个社交/跨库题保持 pending。语言检查与 schema 描述不能验证广告事实或替代语义审阅。
 
-0.2.1 工程全套 164 项通过，独立 wheel 安装冒烟通过。旧报告的 268 条、93/138 项测试及较早生成成绩各自绑定历史快照，不替代当前结论。
+0.2.2 针对受影响服务、故障和语言路径的 52 项回归通过，独立 wheel 安装冒烟通过；0.2.1 完整 164 项测试保留为前版证据。本次没有把它改称重新跑过的全套测试。旧报告的 268 条、93/138 项测试及较早生成成绩各自绑定历史快照，不替代当前结论。
 
 ## 7. 外部输入与剩余验收
 
@@ -160,13 +161,13 @@ CLAIMS 后端、动物农业扩展及模型训练不是本次预览的已实施�
 
 ## 8. 可携带源码包与 manifest
 
-本次交接包为 `deliverables/observatory-0.2.1-20260916.zip`，包内 `CONTENTS.sha256` 记录每个条目的哈希，包外同名 `.zip.sha256` 用于检查整个压缩包。生成后逐项重新读取压缩条目并核对字节。维护者可使用下面的命令生成新版本；脚本拒绝覆盖已有包，重建时另取新文件名：
+本次交接包为 `deliverables/observatory-0.2.2-20260916.zip`，包内 `CONTENTS.sha256` 记录每个条目的哈希，包外同名 `.zip.sha256` 用于检查整个压缩包。生成后逐项重新读取压缩条目并核对字节。维护者可使用下面的命令生成新版本；脚本拒绝覆盖已有包，重建时另取新文件名：
 
 ```powershell
-.\.venv\Scripts\python.exe scripts/build_handoff.py --output deliverables/observatory-0.2.1-20260916.zip
+.\.venv\Scripts\python.exe scripts/build_handoff.py --output deliverables/observatory-0.2.2-20260916.zip
 ```
 
-另已构建 `dist/ciss_observatory-0.2.1-py3-none-any.whl`，在独立检查环境安装后，语言库可用，健康、页面布局和CSS均返回HTTP 200，SQL与静态资源包含在wheel中。该验证不是新机器完整导入和公网部署验收。
+另已构建 `dist/ciss_observatory-0.2.2-py3-none-any.whl`，在独立检查环境安装后，语言库可用，健康、页面布局和CSS均返回HTTP 200，SQL与静态资源包含在wheel中。该验证不是新机器完整导入和公网部署验收。
 
 采用显式允许清单：源码、测试、脚本、锁文件、配置样例、文档、20+20 问题草案、经审查的评估/复核文件及研究预览。可以单独纳入选定开发运行 JSON 作为证据，但它包含用户提供广告的原文片段，属于随包的研究材料，不能说是无语料的纯源码包。包内是否包含某个运行或历史记录，以 `CONTENTS.sha256` 为准。
 
