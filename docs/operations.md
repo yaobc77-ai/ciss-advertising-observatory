@@ -1,4 +1,4 @@
-# 本机运行、预算与交接 — 0.2.3
+# 本机运行、预算与交接
 
 ## 日常流程
 
@@ -44,6 +44,17 @@ uv run --extra pdf python scripts/extract_pdf_text.py `
 ## 数据库备份和恢复
 
 使用 `scripts/Backup-Postgres.ps1`。恢复使用 `scripts/Restore-Postgres.ps1` 并明确提供一个新的测试数据库名称；不要覆盖现有数据库。详细参数和已执行证据见 `docs/local_postgres.md`。验证恢复后的行数、数据版本和历史引文后再考虑切换运行配置。
+
+当前 `5114…` 快照已完成[独立新库恢复](../reports/backup_restore_v0_2_4.md)：275/263/226/558、全部9张业务表内容、序列及结构均相同；110个存储回答中的177条引用定位通过，其中94条指向旧正文。验证未切换应用连接，也没有付费调用。此证据更新了早期268条快照的恢复范围，不代表异机灾备完成。
+
+若 Windows PowerShell 5 的默认执行策略阻止 `.ps1`，可直接使用包装脚本相同的 Python 入口，无需修改系统策略：
+
+```powershell
+.\.venv\Scripts\python.exe -X utf8 scripts/local_postgres.py backup
+.\.venv\Scripts\python.exe -X utf8 scripts/local_postgres.py restore --backup-file '.runtime/backups/实际备份文件.dump' --database observatory_restore_review
+```
+
+恢复命令中的文件路径需替换为实际备份，数据库名必须尚不存在。
 
 ## 待接公网
 

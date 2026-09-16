@@ -310,6 +310,100 @@ def test_filter_chart_and_export_use_same_records(application):
     assert SECRET not in exported["native-download"]["data"]["content"]
 
 
+@pytest.mark.parametrize("dataset", ["native", "social"])
+@pytest.mark.parametrize("metric", ["count", "percent"])
+@pytest.mark.parametrize(
+    "dates",
+    [("2024-01-01", None, "2024-02-01"), (None, None, None)],
+    ids=["mixed-dates", "unknown-dates"],
+)
+def test_collection_uses_one_snapshot_for_rows_and_statistics(
+    application, monkeypatch, dataset, metric, dates
+):
+    app, client, service = application
+    source_rows = [dict(service.rows[0]), dict(service.rows[1]), dict(service.rows[0])]
+    for index, row in enumerate(source_rows):
+        row.update(
+            record_id=f"{dataset}-{index}",
+            dataset=dataset,
+            date=dates[index],
+            platform="Platform B" if index == 1 else "Platform A",
+        )
+
+    def browse_once(filters):
+        service.browse_calls.append(filters)
+        assert len(service.browse_calls) == 1, "A second read could see a newer import"
+        return source_rows
+
+    def reject_second_read(_filters):
+        raise AssertionError("Statistics must use the already-read records")
+
+    monkeypatch.setattr(service, "browse", browse_once)
+    monkeypatch.setattr(service, "statistics", reject_second_read)
+    monkeypatch.setattr(
+        service,
+        "health",
+        lambda: {"record_counts": {dataset: len(source_rows)}},
+    )
+    result = callback(
+        app,
+        client,
+        f"{dataset}-grid.rowData",
+        defaults(dataset) | {f"{dataset}-metric.value": metric},
+        f"{dataset}-metric.value",
+    )
+
+    rows = result[f"{dataset}-grid"]["rowData"]
+    assert [row["record_id"] for row in rows] == [
+        row["record_id"] for row in source_rows
+    ]
+    assert len(service.browse_calls) == 1
+    assert service.browse_calls[0].dataset == dataset
+    assert [row["date"] for row in source_rows] == list(dates)
+    assert [row["date"] for row in rows] == [date or "(Unknown)" for date in dates]
+    cards = result[f"{dataset}-summary"]["children"]
+    summary = {
+        card["props"]["children"][0]["props"]["children"]: card["props"]["children"][1][
+            "props"
+        ]["children"]
+        for card in cards
+    }
+    assert summary == {
+        "Selected records": "3",
+        "Searchable records": "2",
+        "Unknown dates": str(dates.count(None)),
+    }
+    for chart, names in (
+        (
+            "primary",
+            ("Outlet A", "Outlet B")
+            if dataset == "native"
+            else ("Platform A", "Platform B"),
+        ),
+        ("sponsors", ("Sponsor A", "Sponsor B")),
+    ):
+        bars = result[f"{dataset}-{chart}-chart"]["figure"]["data"][0]
+        displayed = dict(zip(bars["y"], bars["x"], strict=True))
+        expected = [2, 1] if metric == "count" else [200 / 3, 100 / 3]
+        assert displayed == pytest.approx(dict(zip(names, expected, strict=True)))
+        assert sum(item[0] for item in bars["customdata"]) == len(rows)
+        assert sum(item[1] for item in bars["customdata"]) == pytest.approx(100)
+    timeline = result[f"{dataset}-timeline-chart"]["figure"]
+    if all(date is None for date in dates):
+        assert timeline["data"] == []
+        assert timeline["layout"]["annotations"][0]["text"] == (
+            "No dated records in this selection"
+        )
+    else:
+        assert timeline["data"][0]["x"] == ["2024-01", "2024-02"]
+        assert timeline["data"][0]["y"] == [1, 1]
+    assert result[f"{dataset}-record-count"]["children"].startswith(
+        "3 eligible records"
+    )
+    assert result[f"{dataset}-status"]["children"] is None
+    assert SECRET not in json.dumps(result)
+
+
 def test_unknown_values_and_csv_formula_handling(application):
     app, client, _service = application
     result = callback(

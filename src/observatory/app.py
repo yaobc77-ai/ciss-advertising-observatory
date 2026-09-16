@@ -14,6 +14,7 @@ from dash import Dash, Input, Output, State, ctx, dcc, html
 from flask import session
 
 from observatory.models import Filters
+from observatory.service import summarize
 
 UNKNOWN = "(Unknown)"
 NATIVE_COLUMNS = ("url", "publisher", "title", "date", "sponsor", "keyword")
@@ -149,6 +150,9 @@ def _bars(items, metric="count"):
 
 
 def _timeline(items):
+    items = [
+        item for item in (items or []) if item["month"] not in {"Unknown", UNKNOWN}
+    ]
     if not items:
         return _figure("No dated records in this selection")
     figure = _figure()
@@ -832,8 +836,9 @@ def create_app(service, settings) -> Dash:
         def update_collection(*values):
             try:
                 filters = _filters(dataset, *values[:8])
-                rows = _public_rows(service.browse(filters), enabled)
-                stats = service.statistics(filters)
+                source_rows = service.browse(filters)
+                stats = summarize(source_rows)
+                rows = _public_rows(source_rows, enabled)
                 health = service.health()
                 empty_social = (
                     dataset == "social"

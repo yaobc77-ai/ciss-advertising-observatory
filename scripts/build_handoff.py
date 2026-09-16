@@ -72,6 +72,7 @@ RUNS = (
     "development_quote_context_20260916.json",
     "clean_import_source_v0_2_4_20260916.json",
     "clean_import_wheel_v0_2_4_20260916.json",
+    "backup_restore_v0_2_4_20260916.json",
 )
 
 

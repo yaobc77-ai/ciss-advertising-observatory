@@ -100,3 +100,9 @@
 主库备份前／后与恢复库一致：active records 268、current chunks 510、全部 record_versions 536、annotations 1072、usage_ledger 73、answer_runs 40、generation_outputs 35；data_version `652ed975bbd44ea06e20af19b6a6642d`。存储回答 run `1` 的引用在恢复后仍能按 chunk/version/字符位置定位。应用角色权限、`.env`、私有凭据文件及主库连接值均未改变；未打印凭据。
 
 详见 [本次备份恢复报告](../reports/backup_restore.md)。这是同一本机集群的新库恢复验证，单数据库归档不包含全局角色密码与应用运行环境。备份与恢复库均保留。
+
+## 当前快照恢复验证（0.2.4）
+
+以上268条记录属于早期快照。当前 `5114ebc1cf9afe59cdaa715e3ea45166` 已于2026-09-16再次备份并恢复到新库 `observatory_restore_v024_20260916`。主库前后与恢复库的275收录、263可计数、226可检索、558当前块，以及9张业务表逐行指纹、列/索引/约束/序列均一致；全部177条存储引用可定位，94条仍指向旧正文版本。主库连接与凭据文件未变，应用保持运行。
+
+本次直接执行 `python -X utf8 scripts/local_postgres.py backup/restore`；Windows PowerShell 5的 `Restricted` 策略阻止了最初的 `.ps1` 调用，未改变策略。当前备份路径、哈希、表行数、方法和命令见[当前快照恢复报告](../reports/backup_restore_v0_2_4.md)。仅证明同机独立库恢复，不包含异机环境和公众网络验收。

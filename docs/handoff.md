@@ -1,6 +1,6 @@
 # CISS Observatory 当前交接说明
 
-更新日期：2026-09-16。当前版本为 **0.2.4 / Research preview / Native corpus connected**。当前生成、测试和隔离导入见 [0.2.4 报告](../reports/quote_context_v0_2_4.md)。最新数据状态以 [PDF-265 有限正文恢复](../reports/pdf265_body_recovery.md)和 [发布验证](../outputs/pdf265_publication_validation_20260916.json)为准。[回答表达报告](../reports/claim_contract_v0_2_2.md)、[语言修复报告](../reports/language_guard_v0_2_1.md)与 [先前数据修订](../reports/data_revision_v0_2.md)保留各自历史版本。
+更新日期：2026-09-16。当前版本为 **0.2.5 / Research preview / Native corpus connected**。本版的[Dashboard一致性修复](../reports/dashboard_consistency_v0_2_5.md)与[当前快照恢复验证](../reports/backup_restore_v0_2_4.md)补齐本机证据。最近的付费生成和隔离导入仍来自 [0.2.4 报告](../reports/quote_context_v0_2_4.md)，没有作为0.2.5新模型成绩回填。最新数据状态以 [PDF-265 有限正文恢复](../reports/pdf265_body_recovery.md)和 [发布验证](../outputs/pdf265_publication_validation_20260916.json)为准。[回答表达报告](../reports/claim_contract_v0_2_2.md)、[语言修复报告](../reports/language_guard_v0_2_1.md)与 [先前数据修订](../reports/data_revision_v0_2.md)保留各自历史版本。
 
 ## 1. 接手入口
 
@@ -18,7 +18,7 @@
 
 ## 2. 当前可以使用的部分
 
-真实原生语料已接入。导入快照为 275 条收录、263 条可计数、226 条合格检索正文。英文 Dash 页面提供六字段明细、公司/媒体数量和占比、时间分布、赞助关系、筛选导出、历史自动标签与来源链接配置。此前浏览器曾核对 `exxonmobil` 的 15 条筛选记录与 CSV 的 15 个不同 record_id 一致，本轮没有重新操作浏览器。
+真实原生语料已接入。导入快照为 275 条收录、263 条可计数、226 条合格检索正文。英文 Dash 页面提供六字段明细、公司/媒体数量和占比、时间分布、赞助关系、筛选导出、历史自动标签与来源链接配置。已有浏览器实测全部263条、`exxonmobil`的15条、再叠加`The Washington Post`为5条；历史导出核对过15个不同record_id。0.2.5同次页面刷新直接以明细查询结果汇总图表；未知日期在汇总中显示，不作为月份绘制。
 
 当前 558 个文本块包含 PDF-265 的有限续文。该记录的旧 CLAIMS 标签保存在旧版本及内部 `previous_body_annotations`，不挂到新正文做标签过滤。原有 94 项截断限制没有整体解除，该篇仍缺部分遮挡文字和图像内容。
 
@@ -143,6 +143,8 @@ pySBD 已接入 `src/observatory/rag.py`。最新句子组合最多 60 词，长
 
 ## 6. 当前数据与生成诊断
 
+0.2.5完整工程回归253项通过（22.07秒），包含8个新增界面一致性案例；应用已重启，独立安装的0.2.5 wheel三个路由均200。浏览器未知日期筛选实测263/226/22→241/204/0。详见[当前Dashboard报告](../reports/dashboard_consistency_v0_2_5.md)。未重跑付费生成，下面结果保留0.2.4及更早版本。
+
 0.2.4 全套 **245 项 / 19.03 秒**通过。原开发集重新执行 13 个原生题：8 个回答、2 个计数、3 个拒答，7 个社交/跨库题 pending；19/19 引用可定位，语义未验收。另两题 PDF smoke 的完整引文得到改善，但第二答仍错误地把行动主体写成广告。两次合计 $0.01798645，见 [报告](../reports/quote_context_v0_2_4.md)、[AI 审阅](../reports/assisted_semantic_review_v0_2_4.md)和 [21 条人工表](../reports/citation_review_v0_2_4.csv)。下文保留 0.2.3/0.2.2 历史记录。
 
 
@@ -172,10 +174,10 @@ CLAIMS 后端、动物农业扩展及模型训练不是本次预览的已实施�
 
 ## 8. 可携带源码包与 manifest
 
-0.2.4 源码交接使用文件名 `deliverables/observatory-0.2.4-20260916.zip`。交付时核对包内 `CONTENTS.sha256` 中每个条目的哈希，以及包外同名 `.zip.sha256` 的整包哈希；本说明不替代实际清单核验。维护者可使用下面的命令生成新版本；脚本拒绝覆盖已有包，重建时另取新文件名：
+0.2.5 源码交接使用文件名 `deliverables/observatory-0.2.5-20260916.zip`。0.2.4包保留原样。交付时核对包内 `CONTENTS.sha256` 中每个条目的哈希，以及包外同名 `.zip.sha256` 的整包哈希；本说明不替代实际清单核验。维护者可使用下面的命令生成新版本；脚本拒绝覆盖已有包，重建时另取新文件名：
 
 ```powershell
-.\.venv\Scripts\python.exe scripts/build_handoff.py --output deliverables/observatory-0.2.4-20260916.zip
+.\.venv\Scripts\python.exe scripts/build_handoff.py --output deliverables/observatory-0.2.5-20260916.zip
 ```
 
 `dist/ciss_observatory-0.2.4-py3-none-any.whl` 已构建并完成独立安装检查，包版本、语言库、健康路由、布局和 CSS 均已验证，SQL 与静态资源包含在包内。该验证不是新机器完整导入或公网部署验收。0.2.2 wheel 的原验证记录保留为历史证据。
