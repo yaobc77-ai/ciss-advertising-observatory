@@ -27,6 +27,36 @@ def _paragraphs(body: str) -> list[tuple[int, int, str]]:
     return spans
 
 
+def retrieval_spans(
+    body: str,
+    *,
+    retrieval_ranges: list[tuple[int, int]] | None = None,
+    retrieval_end: int | None = None,
+) -> list[tuple[int, int]]:
+    """Resolve original half-open spans. Explicit ranges override the legacy prefix."""
+    if not isinstance(body, str):
+        raise TypeError("body must be a string")
+    if retrieval_ranges is not None:
+        if not retrieval_ranges:
+            raise ValueError("retrieval_ranges must contain at least one nonempty range")
+        previous_end = 0
+        spans = []
+        for start, end in retrieval_ranges:
+            if type(start) is not int or type(end) is not int:
+                raise ValueError("retrieval_ranges require integer character offsets")
+            if not 0 <= start < end <= len(body):
+                raise ValueError("retrieval_ranges must be nonempty and inside the original body")
+            if start < previous_end:
+                raise ValueError("retrieval_ranges must be ordered and non-overlapping")
+            spans.append((start, end))
+            previous_end = end
+        return spans
+    end = len(body) if retrieval_end is None else retrieval_end
+    if type(end) is not int or not 0 <= end <= len(body):
+        raise ValueError("Retrieval boundary exceeds original body or is invalid")
+    return [(0, end)] if end else []
+
+
 def _token_prefix_end(body: str, start: int, max_tokens: int) -> int:
     """Find a token prefix ending on a Unicode character boundary, never decode a split byte."""
     encoded = _encoding().encode(body[start:], disallowed_special=())
@@ -107,4 +137,35 @@ def chunk_body(
         if end == len(body):
             break
         start = _overlap_start(body, start, end, overlap_tokens)
+    return chunks
+
+
+def chunk_retrieval_body(
+    body: str,
+    max_tokens: int = 600,
+    overlap_tokens: int = 100,
+    *,
+    retrieval_ranges: list[tuple[int, int]] | None = None,
+    retrieval_end: int | None = None,
+) -> list[dict]:
+    """Chunk each retained interval separately, retaining full-body paragraph IDs."""
+    if max_tokens < 1 or overlap_tokens < 0 or overlap_tokens >= max_tokens:
+        raise ValueError("require max_tokens > overlap_tokens >= 0")
+    ranges = retrieval_spans(
+        body, retrieval_ranges=retrieval_ranges, retrieval_end=retrieval_end
+    )
+    paragraphs = _paragraphs(body)
+    chunks = []
+    for region_start, region_end in ranges:
+        for chunk in chunk_body(
+            body[region_start:region_end], max_tokens, overlap_tokens
+        ):
+            chunk["start"] += region_start
+            chunk["end"] += region_start
+            chunk["paragraph_ids"] = [
+                pid for start, end, pid in paragraphs
+                if start < chunk["end"] and end > chunk["start"]
+            ]
+            assert body[chunk["start"]:chunk["end"]] == chunk["text"]
+            chunks.append(chunk)
     return chunks

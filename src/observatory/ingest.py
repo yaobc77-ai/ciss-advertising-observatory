@@ -15,6 +15,8 @@ import pandas as pd
 import pandera.pandas as pa
 from pandera.errors import SchemaErrors
 
+from observatory.admissions import ADMISSIONS_PATH, read_admissions
+from observatory.body_reviews import apply_body_reviews
 from observatory.models import ImportBatch, Issue, RecordInput
 from observatory.quality import (
     asset_url_reason,
@@ -548,9 +550,21 @@ def _add_candidates(root: Path, baseline_urls: set[str], batch: ImportBatch) -> 
     headers, rows = _csv_rows(path, source, batch)
     rows = _validate_rows(headers, rows, (*DISPLAY_FIELDS, "article"), source, batch)
     seen = set(baseline_urls)
+    counts = Counter(row["url"].strip() for _, row in rows)
     for number, row in rows:
         url = row["url"].strip()
         if url in seen:
+            continue
+        if counts[url] > 1:
+            batch.rejected.append(
+                Issue(
+                    code="duplicate_candidate_url",
+                    severity="error",
+                    source=source,
+                    row=number,
+                    detail="Additional URL has ambiguous source rows; no row selected.",
+                )
+            )
             continue
         seen.add(url)
         issues, body_available = _body_issues(row["article"], source, number)
@@ -613,7 +627,157 @@ def _add_candidates(root: Path, baseline_urls: set[str], batch: ImportBatch) -> 
         )
 
 
-def load_native(root: Path) -> ImportBatch:
+def _apply_admissions(
+    root: Path, batch: ImportBatch, supplement: dict, *, required=False
+) -> None:
+    manifest = read_admissions(root, batch, required=required)
+    if manifest is None:
+        return
+    decisions = {item.url: item for item in manifest.decisions}
+    review_source = ADMISSIONS_PATH.as_posix()
+    for candidate in batch.candidates:
+        decision = decisions.get(candidate["url"])
+        if decision is None:
+            continue
+        review = {
+            "manifest_id": manifest.review_id,
+            "reviewer_type": manifest.reviewer_type,
+            "scope_note": manifest.scope_note,
+            **decision.model_dump(),
+        }
+        candidate["review"] = review
+        candidate["admission_status"] = {
+            "include": "admitted",
+            "exclude": "excluded",
+            "pending": "pending",
+        }[decision.decision]
+        if decision.decision != "include":
+            continue
+        row = candidate["raw"]
+        source = candidate["provenance"][0]["source"]
+        number = decision.source_row
+        metadata = supplement.get(candidate["url"])
+        metadata_row = metadata[1] if metadata else {}
+        metadata_source = NATIVE_METADATA.as_posix()
+        provenance = list(candidate["provenance"])
+        if metadata:
+            provenance.append(
+                _provenance(
+                    metadata_source,
+                    batch.source_hashes[metadata_source],
+                    metadata[0],
+                    "disclosure_and_notes",
+                    metadata[2],
+                )
+            )
+        issues = [Issue.model_validate(value) for value in candidate["issues"]]
+        published, date_issues, precision = _date_value(
+            row["date"],
+            source=source,
+            row=number,
+            notes=_string(metadata_row.get("notes")),
+        )
+        issues.extend(
+            issue for issue in date_issues if issue.code not in {i.code for i in issues}
+        )
+        disclosure = _string(metadata_row.get("disclosure language"))
+        if not disclosure:
+            issues.append(
+                Issue(
+                    code="disclosure_unknown",
+                    source=source,
+                    row=number,
+                    detail="No URL-matched raw disclosure text; evidence references remain in the admission review.",
+                )
+            )
+        if decision.date_policy == "unknown":
+            published, precision = None, "conflict"
+            issues.append(
+                Issue(
+                    code="date_source_conflict",
+                    source=review_source,
+                    row=number,
+                    detail=decision.reason,
+                )
+            )
+        fields = {
+            field: _string(row.get(field))
+            for field in ("publisher", "title", "sponsor", "keyword")
+        }
+        # The baseline uses lowercase sponsor keys. Match that convention so case
+        # alone cannot split sponsor groups. Collection keywords retain source case.
+        fields["sponsor"] = fields["sponsor"].casefold()
+        if fields["publisher"] == "WSJ":
+            fields["publisher"] = "The Wall Street Journal"
+        if decision.sponsor_policy == "unknown":
+            fields["sponsor"] = ""
+            issues.append(
+                Issue(
+                    code="sponsor_unverified",
+                    source=review_source,
+                    row=number,
+                    detail=decision.reason,
+                )
+            )
+        if decision.body_mode == "metadata_only":
+            issues.append(
+                Issue(
+                    code="review_metadata_only",
+                    source=review_source,
+                    row=number,
+                    detail=decision.reason,
+                )
+            )
+        issues.append(
+            Issue(
+                code="admission_review",
+                severity="info",
+                source=review_source,
+                row=number,
+                detail=f"{manifest.reviewer_type} review {decision.review_id}: {decision.reason}",
+            )
+        )
+        # Keep source body intact even when its use for retrieval is disabled.
+        batch.records.append(
+            RecordInput(
+                record_id=candidate["record_id"],
+                dataset="native",
+                url=candidate["url"],
+                **fields,
+                published_at=published,
+                body=row["article"],
+                disclosure=disclosure,
+                countable=True,
+                retrievable=decision.body_mode == "text"
+                and candidate["body_available"],
+                retrieval_end=candidate["retrieval_end"],
+                raw={
+                    "supplement": row,
+                    "metadata": metadata_row,
+                    "admission_review": review,
+                    "date_precision": precision,
+                    "date_source": source,
+                    "body_sha256": body_hash(row["article"]),
+                },
+                provenance=[
+                    *provenance,
+                    {
+                        "source": review_source,
+                        "sha256": batch.source_hashes[review_source],
+                        "source_asset_id": f"sha256:{batch.source_hashes[review_source]}",
+                        "role": "admission_review",
+                        "review_id": decision.review_id,
+                        "reviewer_type": manifest.reviewer_type,
+                    },
+                ],
+                issues=issues,
+            )
+        )
+
+
+def load_native(
+    root: Path, *, require_admissions=False, require_body_reviews=False
+) -> ImportBatch:
     root = Path(root).resolve()
     batch = ImportBatch()
     source = NATIVE_CSV.as_posix()
@@ -745,12 +909,14 @@ def load_native(root: Path) -> ImportBatch:
                 issues=issues,
             )
         )
-    mark_duplicate_bodies(batch.records)
-    _attach_legacy(root, batch.records, batch)
-    _attach_archive_candidates(root, batch.records, batch)
     # Compare against all baseline URLs, including rejected duplicates: a failed
     # baseline row must not quietly re-enter via the supplemental source.
     _add_candidates(root, {row["url"].strip() for _, row in rows}, batch)
+    _apply_admissions(root, batch, supplement, required=require_admissions)
+    mark_duplicate_bodies(batch.records)
+    _attach_legacy(root, batch.records, batch)
+    _attach_archive_candidates(root, batch.records, batch)
+    apply_body_reviews(root, batch, required=require_body_reviews)
     return batch
 
 

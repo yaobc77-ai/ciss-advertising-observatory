@@ -1,6 +1,6 @@
 # CISS Observatory 当前交接说明
 
-更新日期：2026-09-16。当前状态为 **Research preview / Native corpus connected**。
+更新日期：2026-09-16。当前版本为 **0.2.0 / Research preview / Native corpus connected**。最新状态以 [数据修订报告](../reports/data_revision_v0_2.md) 为准。
 
 ## 1. 接手入口
 
@@ -10,14 +10,14 @@
 | [数据字典](data_dictionary.md) / [架构](architecture.md) | 来源、字段、版本、资格规则和处理流程 |
 | [运行指南](operations.md) / [用户指南](user_guide.md) | 本机维护、预算、筛选、导出和证据检查 |
 | [评价协议](evaluation_protocol.md) | 题库、分母、草案边界及人工复核工作 |
-| [当前 AI 辅助语义审阅](../reports/assisted_semantic_review_citation_first.md) | 最新运行的语义观察，不能替代人工结论 |
+| [当前 AI 辅助语义审阅](../reports/assisted_semantic_review_v0_2.md) | 最新运行的语义观察，不能替代人工结论 |
 | [研究预览 PPTX](../deliverables/research_preview.pptx) / [中文讲稿](../deliverables/demo_script.zh-CN.md) | 当前原生应用的展示步骤与保存样例 |
 
 统一评估汇总入口为 [reports/evaluation.md](../reports/evaluation.md)，以其中明确记载的 run_id、数据版本、分母与人工状态为准。研究预览中的三个早期 smoke 案例仍可展示，但不是最新开发集指标。
 
 ## 2. 当前可以使用的部分
 
-真实原生语料已接入。导入快照为 268 条收录、256 条可计数、221 条合格检索正文或前缀。英文 Dash 页面提供六字段明细、公司/媒体数量和占比、时间分布、赞助关系、筛选导出、历史自动标签与来源开关。浏览器曾核对 `exxonmobil` 的 15 条筛选记录与 CSV 的 15 个不同 record_id 一致。
+真实原生语料已接入。导入快照为 275 条收录、263 条可计数、226 条合格检索正文。英文 Dash 页面提供六字段明细、公司/媒体数量和占比、时间分布、赞助关系、筛选导出、历史自动标签与来源开关。浏览器曾核对 `exxonmobil` 的 15 条筛选记录与 CSV 的 15 个不同 record_id 一致。
 
 免费 **Search keywords** 使用词项检索。**Generate paid answer** 使用服务器 OpenAI 接口、结构化筛选后的证据、引文检查与预算控制。数据库保存原文版本和偏移，历史引文对应其生成时的版本。历史 CLAIMS 保存标签已导入，本期没有重建其分类后端或训练分类模型。
 
@@ -135,15 +135,15 @@
 
 pySBD 已接入 `src/observatory/rag.py`。最新句子组合最多 60 词，长句使用 60 词窗口和 15 词重叠。这些处理改善可定位引用的生成输入，是否充分支持回答仍需语义复核。依赖声明与解析版本分别见 [pyproject.toml](../pyproject.toml) 和 `uv.lock`。
 
-## 6. 最新评估及历史诊断
+## 6. 当前数据与生成诊断
 
-当前主记录为 [development_paid_citation_first_20260916.json](../outputs/development_paid_citation_first_20260916.json)，run_id `0369cb87f07648359dccd28687598a6b`，数据版本 `652ed975bbd44ea06e20af19b6a6642d`。13 个原生题包括 8 answered、2 count_only、3 insufficient_evidence。结果为记录 hit@5 8/8、必需支持片段 13/13、计数 2/2、evidence 定位 79/79、citation 定位 17/17、拒答 3/3。工程检查另有 93 tests passed 与 Ruff 通过。
+当前数据版本为 `d85a98002e4493f0376c260ad82253ee`，275 条收录、263 条可统计、226 条可检索，554 个块。最终重复导入 275 unchanged / 0 new_versions / 0 deactivated；275 条正文、554 个区间块及 79 个历史定位通过检查。实际记录见 [数据修订报告](../reports/data_revision_v0_2.md)。
 
-这些是开发诊断。`gold_status=draft_not_frozen`、`semantic_support=pending_human_review`、`overall_pass=null`。社交和跨库的 7 个 pending 题未运行，不纳入通过率。每项定位指标都不能独自证明回答符合题目或广告主张真实。
+最近的付费开发 run `532453a7c43740ecbe5f4954d3522f41` 绑定此前 `c5ad…` 数据版本，13 个原生题的 14 条引用均可定位，但 3 道英文题输出了西班牙语或法语。后续元数据修订没有覆盖该运行或把它变成当前版本成绩。人工语义支持率仍未测量。
 
-[当前 AI 辅助审阅](../reports/assisted_semantic_review_citation_first.md) 与 [17 条复核 CSV](../reports/citation_review_citation_first.csv) 对应最新运行。前轮两处额外细节和一处单位缩写已修订；当前审阅分开检查短引文、必要指代上下文和任务完整性。所有 `human_verdict` 留空，需人独立判断，不把 AI 判断换算为人工语义通过率。旧运行与修正过程在统一报告中保留为诊断历史。
+[AI 审阅](../reports/assisted_semantic_review_v0_2.md)与 [14 行复核 CSV](../reports/citation_review_v0_2.csv)分别保存语言失败、归因、必要指代上下文及完整性意见；人工列为空。7 个社交/跨库题保持 pending。当前缺少语言检测与失败处理，应修复后再运行评价，而不是只重试到得到好看的结果。
 
-每轮交接保留题库哈希、run_id、数据版本、实际答案/证据、分母、成本/未决金额及失败原因。[统一报告](../reports/evaluation.md) 说明适用版本。不要覆盖旧输出或把 AI 建议改写为人工验收结论。
+工程全套 138 项通过，末次元数据修订有针对性的导入回归。旧报告的 268 条、93 项测试及较早生成成绩各自绑定历史快照，不替代当前结论。
 
 ## 7. 外部输入与剩余验收
 
@@ -159,13 +159,13 @@ CLAIMS 后端、动物农业扩展及模型训练不是本次预览的已实施�
 
 ## 8. 可携带源码包与 manifest
 
-本次交接包为 `deliverables/observatory-research-preview-20260916-v2.zip`，包内 `CONTENTS.sha256` 记录每个条目的哈希，包外同名 `.zip.sha256` 用于检查整个压缩包。生成后逐项重新读取压缩条目并核对字节，未发现损坏。维护者可使用下面的命令生成新版本；脚本拒绝覆盖已有包，重建时另取新文件名：
+本次交接包为 `deliverables/observatory-0.2.0-20260916.zip`，包内 `CONTENTS.sha256` 记录每个条目的哈希，包外同名 `.zip.sha256` 用于检查整个压缩包。生成后逐项重新读取压缩条目并核对字节，未发现损坏。维护者可使用下面的命令生成新版本；脚本拒绝覆盖已有包，重建时另取新文件名：
 
 ```powershell
-.\.venv\Scripts\python.exe scripts/build_handoff.py --output deliverables/observatory-research-preview-20260916-v2.zip
+.\.venv\Scripts\python.exe scripts/build_handoff.py --output deliverables/observatory-0.2.0-20260916.zip
 ```
 
-另已构建 `dist/ciss_observatory-0.1.1-py3-none-any.whl`，在独立检查环境安装后，健康、页面布局和CSS均返回HTTP 200，SQL与静态资源包含在wheel中。该验证不是新机器完整导入和公网部署验收。
+另已构建 `dist/ciss_observatory-0.2.0-py3-none-any.whl`，在独立检查环境安装后，健康、页面布局和CSS均返回HTTP 200，SQL与静态资源包含在wheel中。该验证不是新机器完整导入和公网部署验收。
 
 采用显式允许清单：源码、测试、脚本、锁文件、配置样例、文档、20+20 问题草案、经审查的评估/复核文件及研究预览。可以单独纳入选定开发运行 JSON 作为证据，但它包含用户提供广告的原文片段，属于随包的研究材料，不能说是无语料的纯源码包。包内是否包含某个运行或历史记录，以 `CONTENTS.sha256` 为准。
 

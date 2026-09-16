@@ -2,7 +2,7 @@
 
 A Python Dash application for browsing fossil fuel native advertisements and asking questions with locatable source evidence. PostgreSQL and pgvector run locally. OpenAI provides embeddings and grounded answer generation.
 
-**Research preview: the real native corpus is connected and the application runs locally.** The import snapshot contains 268 records, with 256 countable records and 221 eligible retrieval bodies or prefixes. The dashboard, filtered CSV export, free keyword search and paid evidence answers are implemented. See the [handoff](docs/handoff.md) and [acceptance status](docs/acceptance_status.md) for evidence and remaining work.
+**Research preview: the real native corpus is connected and the application runs locally.** Version 0.2.0 contains 275 records, with 263 countable records, 226 eligible retrieval bodies and 554 source-located chunks. Reviewed intervals exclude inline navigation while retaining later article text. The dashboard, filtered CSV export, free keyword search and paid evidence answers are implemented. See the [handoff](docs/handoff.md) and [acceptance status](docs/acceptance_status.md) for evidence and remaining work.
 
 Social data, the designated GitHub remote, a fixed public domain and Cloudflare configuration remain reserved integration points, as requested by the user. The social view explicitly shows **not connected**. Human semantic validation and full project acceptance remain pending.
 
@@ -68,9 +68,9 @@ The setup command prepares the dedicated `obs_test` database and its configurati
 
 ## Evaluation boundary
 
-The latest saved development run `0369cb87f07648359dccd28687598a6b` exercised 13 native cases. It covered 13/13 required support passages, validated 17/17 citation locations, and passed the respective record, count and refusal checks. Its gold remains `draft_not_frozen`, `semantic_support` remains `pending_human_review`, and `overall_pass` is null. The latest engineering check completed 93 tests and Ruff without failures.
+The current [data revision report](reports/data_revision_v0_2.md) documents repeat imports, original-text preservation, interval checks and historical citation validity. The engineering suite passed 138 tests; the final metadata adjustment also passed its targeted import regression.
 
-The [current evaluation report](reports/evaluation.md) identifies the applicable run, data version and earlier diagnostic history. The [current AI-assisted review](reports/assisted_semantic_review_citation_first.md) separates quotation support, reference context and remaining human review; it is not a semantic acceptance score. See the [evaluation protocol](docs/evaluation_protocol.md) before interpreting any metric.
+The latest paid development diagnostic passed its citation-location checks but returned three English questions in Spanish or French. Language handling, independent human semantic validation and frozen acceptance remain unfinished. That run is bound to an earlier data version; its scores are not relabeled as current-version generation results. See the [AI review](reports/assisted_semantic_review_v0_2.md) and [evaluation protocol](docs/evaluation_protocol.md).
 
 ## Data and documentation
 

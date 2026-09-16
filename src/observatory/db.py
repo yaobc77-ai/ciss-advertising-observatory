@@ -35,7 +35,7 @@ class Database:
             )
 
     def import_batch(self, batch: ImportBatch, snapshot_dataset=None):
-        from .chunking import chunk_body
+        from .chunking import chunk_retrieval_body, retrieval_spans
 
         report = {
             "input_records": len(batch.records),
@@ -60,6 +60,10 @@ class Database:
             # Imports and reads share one atomic publication boundary.
             conn.execute("SELECT pg_advisory_xact_lock(54901)")
             for record in batch.records:
+                # Records are mutable after validation; reject invalid edited ranges
+                # even when this particular record is not currently retrievable.
+                if record.retrieval_ranges is not None:
+                    retrieval_spans(record.body, retrieval_ranges=record.retrieval_ranges)
                 payload = record.model_dump(mode="json")
                 serialized = json.dumps(
                     payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")
@@ -100,11 +104,11 @@ class Database:
                         (version, i, Jsonb(ann)),
                     )
                 if record.retrievable:
-                    if record.retrieval_end is not None and record.retrieval_end > len(
-                        record.body
+                    for chunk in chunk_retrieval_body(
+                        record.body,
+                        retrieval_end=record.retrieval_end,
+                        retrieval_ranges=record.retrieval_ranges,
                     ):
-                        raise ValueError("Retrieval boundary exceeds original body")
-                    for chunk in chunk_body(record.body[: record.retrieval_end]):
                         assert (
                             record.body[chunk["start"] : chunk["end"]] == chunk["text"]
                         )

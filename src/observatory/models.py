@@ -3,7 +3,7 @@
 from datetime import date
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StrictInt, model_validator
 
 
 class Issue(BaseModel):
@@ -31,10 +31,19 @@ class RecordInput(BaseModel):
     countable: bool = True
     retrievable: bool = False
     retrieval_end: int | None = Field(default=None, ge=0)
+    retrieval_ranges: list[tuple[StrictInt, StrictInt]] | None = None
     raw: dict[str, Any] = Field(default_factory=dict)
     provenance: list[dict[str, Any]] = Field(default_factory=list)
     issues: list[Issue] = Field(default_factory=list)
     annotations: list[dict[str, Any]] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_retrieval_ranges(self):
+        if self.retrieval_ranges is not None:
+            from .chunking import retrieval_spans
+
+            retrieval_spans(self.body, retrieval_ranges=self.retrieval_ranges)
+        return self
 
 
 class ImportBatch(BaseModel):

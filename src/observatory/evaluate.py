@@ -13,6 +13,7 @@ from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from .chunking import retrieval_spans
 from .config import Settings
 from .db import digest
 from .models import Filters
@@ -115,12 +116,23 @@ def validate_gold(cases, snapshot, filtered_rows):
             record = snapshot.get(gold.record_id)
             if not record or gold.record_id not in selected or record["dataset"] != "native":
                 raise EvaluationInvalid(f"{case.id}: support quote belongs to a missing or out-of-scope record")
-            start = record["body"].find(gold.quote)
-            if start < 0:
+            if gold.quote not in record["body"]:
                 raise EvaluationInvalid(f"{case.id}: exact support quote is absent from the current original body")
-            retrieval_end = record["payload"].get("retrieval_end")
-            if retrieval_end is not None and start + len(gold.quote) > retrieval_end:
-                raise EvaluationInvalid(f"{case.id}: support quote is outside the accepted retrieval boundary; review this case")
+            try:
+                ranges = retrieval_spans(
+                    record["body"],
+                    retrieval_end=record["payload"].get("retrieval_end"),
+                    retrieval_ranges=record["payload"].get("retrieval_ranges"),
+                )
+            except (ValueError, TypeError) as exc:
+                raise EvaluationInvalid(f"{case.id}: current source has invalid retrieval ranges") from exc
+            start = next(
+                (found for lower, upper in ranges
+                 if (found := record["body"].find(gold.quote, lower, upper)) >= 0),
+                -1,
+            )
+            if start < 0:
+                raise EvaluationInvalid(f"{case.id}: support quote is outside the accepted retrieval boundary; it must fit within one retained interval")
             spans.append({"record_id": gold.record_id, "version_id": record["version_id"],
                           "start": start, "end": start + len(gold.quote), "quote": gold.quote})
         if case.case_type == "retrieval" and any(

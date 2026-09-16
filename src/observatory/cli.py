@@ -56,7 +56,13 @@ def main():
         from .ingest import load_native
 
         emit(
-            db.import_batch(load_native(args.root), snapshot_dataset="native"), args.out
+            db.import_batch(
+                load_native(
+                    args.root, require_admissions=True, require_body_reviews=True
+                ),
+                snapshot_dataset="native",
+            ),
+            args.out,
         )
     elif args.command == "import-social":
         from .ingest import load_social

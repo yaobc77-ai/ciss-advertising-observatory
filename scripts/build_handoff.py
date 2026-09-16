@@ -44,6 +44,22 @@ RUNS = (
     "live_biogas.json",
     "live_ccs_scoped.json",
     "live_no_evidence.json",
+    "native_import_reviewed_20260916.json",
+    "native_import_reviewed_repeat_20260916.json",
+    "native_import_v0_2_20260916.json",
+    "native_import_v0_2_repeat_final_20260916.json",
+    "source_revision_validation_final_20260916.json",
+    "development_reviewed_paid_20260916.json",
+    "development_reviewed_paid_final_20260916.json",
+    "development_v0_2_lexical_20260916.json",
+    "native_import_v0_2_published_20260916.json",
+    "native_import_v0_2_published_repeat_20260916.json",
+    "source_revision_v0_2_20260916.json",
+    "development_v0_2_current_lexical_20260916.json",
+    "native_import_v0_2_final_20260916.json",
+    "native_import_v0_2_repeat_20260916.json",
+    "native_preflight_intervals_20260916.json",
+    "source_revision_validation_20260916.json",
 )
 
 

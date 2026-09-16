@@ -1,15 +1,15 @@
-# Data import contract
+# Data import contract — 0.2.0
 
 This document describes the implemented import layer. It does not certify the source articles or historical model labels.
 
 ## Inputs and priority
 
-- `sources/FA25_SP26/final_dataset_cleaned.csv` is the native baseline. Its six public fields are `url`, `publisher`, `title`, `date`, `sponsor`, `keyword`. Its `article` is retained byte-for-byte after UTF-8 decoding; no whitespace or Unicode normalization is applied to body text.
+- `sources/FA25_SP26/final_dataset_cleaned.csv` is the native baseline. Its six public fields are `url`, `publisher`, `title`, `date`, `sponsor`, `keyword`. Its decoded `article` cell is retained exactly; no whitespace or Unicode normalization is applied to body text.
 - `sources/Native Advertising Data/native_ad_dataset.xlsx` supplies disclosure text and quality notes, joined only on one unique, exact URL after outer whitespace trimming. XLSX formatted empty rows are not data records. Cleaned binary disclosure is retained in raw data but never treated as presence/absence ground truth.
-- `sources/pdf_archive_20260915/nested_unique/native-ads-download/combined_ads_12-4-25.csv` supplies **candidates only** for URLs absent from the baseline. If unavailable, the explicitly named copy in `sources/Native Advertising Data/` is the fallback; provenance identifies the file actually read. No same-name equivalence is assumed. Candidates require review; they are not returned in `ImportBatch.records`.
+- `sources/pdf_archive_20260915/nested_unique/native-ads-download/combined_ads_12-4-25.csv` supplies candidates for URLs absent from the baseline. Only an explicit, validated `include` decision in [native_admissions.json](../config/native_admissions.json) adds a candidate to `ImportBatch.records`; the candidate audit entry is also retained. Current decisions admit 7, exclude 4, and leave 1 pending. If the primary CSV is unavailable, the loader can discover the explicitly named copy in `sources/Native Advertising Data/`, but the current manifest pins the primary path and hash: a fallback cannot silently satisfy it. No same-name equivalence is assumed.
 - `sources/FA25_SP26/CLAIMS 1.0 Runs/CSVS/predictions_calibrated.csv` is optional static annotation input. Both original and calibrated labels require a unique matching URL **and exact full body**. Numeric `doc_id` is retained solely as legacy metadata. There is no model execution.
 - The older `final_dataset_CLEANED.xlsx` and combined XLSX are not body authorities: earlier review found numeric/body and encoding conflicts.
-- `analysis/pdf_archive/source_index.json` is an optional **candidate association index**. Its `source_urls` are matched exactly to baseline URLs; original title matching remains unverified. Entries are retained only in internal provenance with `match_state=candidate_unverified`. The index's PDF path and recorded hash are preserved; this import hashes the index, not every PDF again. It never replaces CSV text or fills a public `archive_url` from a local path.
+- `analysis/pdf_archive/source_index.json` is an optional **candidate association index**. Its `source_urls` are matched exactly to imported record URLs, including admitted additions; original title matching remains unverified. Entries are retained only in internal provenance with `match_state=candidate_unverified`. The index's PDF path and recorded hash are preserved; this import hashes the index, not every PDF again. It never replaces CSV text or fills a public `archive_url` from a local path.
 
 ## Record fields
 
@@ -18,21 +18,35 @@ This document describes the implemented import layer. It does not certify the so
 | `record_id` | Deterministic UUIDv5 of dataset plus exact trimmed URL; stable across reruns and body changes. A changed URL needs an explicit future identity decision, not fuzzy auto-merge. |
 | `dataset` | `native` or `social`; never inferred from text topic. |
 | `url` | HTTP(S) URL from the input; preserved path, query, and case. Syntax validation does not establish live accessibility. |
-| `publisher`, `title`, `sponsor`, `keyword` | Baseline text, with missing placeholders exposed as empty values. `keyword` is not automatically a sponsor identity. No mother/subsidiary or corporate-alias merge. |
-| `published_at` | Parsed calendar date, or null for missing, unparseable, partial, or explicitly conflicting dates. Native dates use `%d/%m/%Y`. Date-time inputs keep their source-local calendar date, not an invented UTC conversion. |
+| `publisher`, `title`, `sponsor`, `keyword` | Source text, with missing placeholders exposed as empty values. Newly admitted native records apply `casefold()` only to normalized sponsor values and map the exact publisher abbreviation `WSJ` to `The Wall Street Journal`. Original spelling stays in `raw.supplement`; title and keyword case are preserved. Keywords remain literal collection terms, not inferred sponsor identities or globally merged aliases. These rules do not merge parent/subsidiary names or corporate aliases. |
+| `published_at` | Parsed calendar date, or null for missing, unparseable, partial, or explicitly conflicting dates. Baseline dates use `%d/%m/%Y`; admitted combined-source dates use ISO parsing. Date-time inputs keep their source-local calendar date, not an invented UTC conversion. An explicit `date_policy=unknown` retains raw values but sets the normalized date to null. |
 | `platform`, `account` | Social-export fields from explicit mapping; unavailable in native input. |
 | `body` | Exact decoded article/post text, including faulty source text so offsets remain reproducible. |
 | `disclosure` | URL-matched raw disclosure text; blank/`None` does not prove no disclosure on a webpage. Internal field, not a native Dashboard column. |
 | `archive_url` | Explicit source field only; never fabricated by title/PDF matching. |
 | `countable` | Included in the record-level Dashboard denominator. Explicit image extensions or final URL segments ending in image dimensions are retained but excluded. Topic guesses do not exclude baseline records. |
-| `retrievable` | Body passes implemented technical gates and is not an explicit image resource. This is an operational eligibility flag, not proof of semantic completeness. |
-| `retrieval_end` | Optional exclusive character boundary of the allowed retrieval prefix. A consumer must chunk `body[:retrieval_end]` when present; offsets still refer to the preserved complete `body`. |
-| `raw` | Original CSV values, matched metadata, body hash, date precision/source, and duplicate group when present. |
+| `retrievable` | Record is countable, its selected text passes implemented body gates, and any explicit admission permits text retrieval. `metadata_only` remains ineligible even after a body-range repair. This is an operational flag, not proof of semantic completeness. |
+| `retrieval_ranges` | Optional explicit list of nonempty, ordered, non-overlapping `[start, end)` intervals in the original body. Integer offsets must be in bounds. These intervals take priority over `retrieval_end`; an empty list is invalid. |
+| `retrieval_end` | Legacy optional exclusive boundary of the allowed prefix, used only when `retrieval_ranges` is absent. Without either field, the full body is the selected range. Applied range reviews set this field to null and retain the previous boundary in the review audit. |
+| `raw` | Original CSV values, matched metadata, body hash, date precision/source, duplicate group, and admission/body-review decisions when present. Source spelling and conflicting values are retained. |
 | `provenance` | Source path, SHA-256 / source asset ID, logical row including header, optional worksheet and role. CSV logical row is not its physical text line. Source hashes do not prove article identity. |
 | `issues` | Concrete `code`, `severity`, `detail`, source and row. Field failures restrict only dependent functions. |
 | `annotations` | `claims-original` / `claims-calibrated`, positive `labels`, all boolean `values`, exact-body basis/hash and original source row/hash. Historical automatic labels remain unverified. |
 
 The service/database owns persisted record versions and derived-index replacement. The importer supplies deterministic content and provenance. On a body change, consumers must rebuild chunks and not retain annotations attached to an older body hash.
+
+## Versioned admission and body-review manifests
+
+Both configuration files record **AI engineering decisions**, not human approval or semantic acceptance. Each pins a relative source path and the SHA-256 of that file's actual bytes. Each decision also binds an exact URL, logical CSV row including the header, and `body_sha256` of the original `article` string encoded as UTF-8. Body reviews additionally bind the stable record ID. The loaders validate all decisions before applying that manifest; stale/missing sources, changed rows/bodies/identities, duplicates, or invalid ranges stop the load. Both manifest file hashes become import provenance.
+
+| Manifest | Pinned source | Current decisions |
+|---|---|---|
+| [native_admissions.json](../config/native_admissions.json), `native-additions-20260916-v1` | Combined CSV, SHA-256 `a677a6de6a8c10a4f872456263af72f0f99be4c3c561bf8b7449bce9b892dd57` | 7 include: 5 `text`, 2 `metadata_only`; 4 exclude; 1 pending. |
+| [native_body_ranges.json](../config/native_body_ranges.json), `native-body-ranges-20260916-v1` | Baseline CSV, SHA-256 `689f330321e42ea608070b2590fa24ee6c2bfb06dbc671941b1f0a927f4ceffa` | 20 reviewed navigation boundaries, with explicit retained intervals. |
+
+`import-native` requires **both** configuration files before publishing a full native snapshot. Missing files cannot silently fall back to the old 268-record snapshot and deactivate the 7 admitted records. The library's optional flags remain available for baseline-only read/fixture workflows; use the CLI's required-manifest path for snapshot publication.
+
+Admission scope continues to include the existing CERAWeek industry paid-content category. `add-04` is included on that basis with sponsor unknown; neither the article title incorrectly stored in the sponsor field nor IHS Markit authorship establishes a payer. `add-07` and `add-11` retain conflicting date values internally and expose an unknown date. Other policies use the source; that does not certify every source field. Missing raw disclosure stays unknown even when local review references support paid-content identity. The 2 metadata-only additions are countable but never sent to retrieval; excluded/pending candidates are not admitted records. Reasons and evidence limits remain in the [12-URL review](../reports/additional_url_review.md).
 
 ## Checks and human review
 
@@ -40,9 +54,11 @@ Pandera validates actual input frames, required columns, text types, URL syntax,
 
 Native bodies containing only blanks, missing placeholders, `video`, or numbers are not indexed. Known mojibake characters, fewer than 40 words, short question-only bodies, and short/footer-dominated extracts need review before indexing. The 40-word gate is an explicit conservative heuristic, **not a learned quality score**. Full articles containing an ordinary disclosure/footer remain eligible. Complete social posts can naturally be short or questions, so these two article heuristics are informational for social imports; other body checks still apply.
 
-The explicit markers `For more on the subject:` and `Read More Stories` set `retrieval_end` to the first marker. Only the preceding prefix is checked and indexed. Some markers occur **inside an article**, so the omitted suffix may contain valid later body text as well as navigation; it is retained unchanged for review. `body_related_navigation` records the excluded character interval. A marker at the start supplies no valid prefix and fails body eligibility. This deliberately avoids inventing where an interleaved link ends.
+Without a validated range review, the explicit markers `For more on the subject:` and `Read More Stories` set `retrieval_end` to the first marker; only that prefix is checked and indexed. The 20 known boundaries have now received AI source-text review and engineering adoption through the body manifest: the importer excludes the specifically reviewed navigation intervals and retains later article text. It does not rewrite the source or infer missing material. Selected text is joined only for body-quality checks; indexing and quotations keep intervals separate. The original suspected-truncation issue is preserved, and an explicit metadata-only admission cannot be overridden by this repair. See the [boundary review](../reports/prefix_boundary_review.md).
 
 Bodies of 2800–3000 characters ending in `...` receive informational `body_truncated_suspected`: observed available passages remain eligible, but they cannot support full-article negative or completeness claims. The ellipsis pattern is a suspicion, not proof of the cause of truncation.
+
+The current 94 suspected-truncation flags remain unresolved. Navigation repair has not recovered missing endings, missing lists, figures, or a complete original webpage.
 
 Exact duplicate substantive bodies are flagged without merging distinct URLs or changing their record counts. Placeholder `video` values do not create misleading duplicate-document groups. This implementation does not detect all near-duplicates, mixed articles, truncation, or navigation-heavy pages; targeted human review and downstream evaluation remain necessary.
 
@@ -62,13 +78,25 @@ No real social export is bundled or automatically loaded. Importing an example m
 
 ## Chunk contract
 
-`chunk_body(body, max_tokens=600, overlap_tokens=100)` uses `cl100k_base` token counts. Each output has `text`, `start`, `end`, `paragraph_ids`, and `token_count`. Offsets are half-open Python Unicode character indices: `body[start:end] == text` must always hold. Paragraph IDs are local to one body/version (`p1`, `p2`, …). Blank-line boundaries are preferred; long paragraphs split at safe Unicode character boundaries. Stored text is never normalized.
+`chunk_retrieval_body(body, max_tokens=600, overlap_tokens=100, ...)` first resolves explicit `retrieval_ranges`, falling back to the legacy prefix or full body. It calls `chunk_body` independently on each retained interval using `cl100k_base` token counts. Each output has `text`, `start`, `end`, `paragraph_ids`, and `token_count`. Offsets are translated back to half-open Python Unicode character indices in the original body: `body[start:end] == text` must always hold. Paragraph IDs come from the original complete body/version (`p1`, `p2`, …), not a renumbered concatenation. No chunk or quotation can bridge an excluded gap. Blank-line boundaries are preferred; long paragraphs split at safe Unicode character boundaries. Stored text is never normalized.
 
 Overlap is bounded by the requested token count and shortened for small paragraphs to guarantee forward progress. Different calls cannot share article state. Literal tokenizer special-token spellings are treated as text. Invalid token/overlap settings fail explicitly.
 
-## Verified local import snapshot — 2026-09-16
+## Current local snapshot — 0.2.0, 2026-09-16
 
-This snapshot is an operational import result, not a measurement of source accuracy or model performance. It was produced by `load_native` and `chunk_body` over the existing local files, with no collection or model execution.
+The published data version is `d85a98002e4493f0376c260ad82253ee`: **275 stored records, 263 countable, 226 retrievable, and 554 current chunks**, across 8 publisher groups. This combines the 268-record baseline with 7 explicitly admitted additions. All 20 reviewed navigation boundaries are applied; 94 suspected-truncation flags remain. These are operational counts, not semantic or human acceptance results.
+
+The initial range-field migration produced 275 new record versions, including versions for unchanged source bodies because the serialized record contract gained a field. Repeating it produced 275 unchanged records. An intermediate sponsor/keyword casefold change produced 7 new versions and left 268 unchanged; its repeat again produced 275 unchanged. The [publisher alignment](../outputs/native_import_v0_2_20260916.json) then mapped the exact `WSJ` abbreviation and produced 2 new versions with 273 unchanged. The [published correction](../outputs/native_import_v0_2_published_20260916.json) restored the original keyword spelling, producing 7 new versions and 268 unchanged; the [published repeat](../outputs/native_import_v0_2_published_repeat_20260916.json) reports 275 unchanged. Only sponsor casefold and the explicit publisher mapping remain in the final implementation. Old versions remain stored, and these imports deactivated no records. Earlier evidence: [initial import](../outputs/native_import_reviewed_20260916.json), [initial repeat](../outputs/native_import_reviewed_repeat_20260916.json), [intermediate casefold change](../outputs/native_import_v0_2_final_20260916.json), and [its repeat](../outputs/native_import_v0_2_repeat_20260916.json).
+
+The [publisher-aligned read-only validation](../outputs/source_revision_validation_final_20260916.json) binds the intermediate version `612e20bbef3d0910ba94c0e4be84d10e` and confirms 275 original bodies preserved, 554 chunks, 79 historical evidence locators, and 15 development / 17 acceptance-draft source quotations. It also records 22 unknown dates and 8 publisher groups. Sponsor grouping includes one `southern company` group with 5 records. Its keyword groups predate the final source-spelling correction and must not be reported as current. This is mechanical/source preservation evidence, not a semantic score.
+
+The [paid development run `532453a7c43740ecbe5f4954d3522f41`](../outputs/development_reviewed_paid_final_20260916.json) binds the earlier data version `c5ad20ac2938e619e11fe1f8bfc26b97`, not the current published version. It remains diagnostic evidence: three English questions received Spanish/French answers. Neither its mechanical metrics nor AI review establish human semantic acceptance.
+
+The earlier [range preflight](../outputs/native_preflight_intervals_20260916.json) verifies the same record/chunk counts but predates the casefold correction; its displayed sponsor spelling is historical.
+
+## Historical local import snapshot — before 0.2.0, 2026-09-16
+
+The following snapshot and its test count describe the earlier baseline/prefix implementation. They are preserved as historical evidence, not current totals. It was produced by `load_native` and prefix chunking over the local files, with no collection or model execution.
 
 | Quantity | Result |
 |---|---:|
@@ -89,7 +117,7 @@ This snapshot is an operational import result, not a measurement of source accur
 
 The 47 unavailable retrieval bodies comprise 26 literal `video` values and 21 short extracts (question/footer flags overlap the latter). All 12 resource exclusions are among those video placeholders. Four records belong to exact duplicate substantive-body groups; they remain distinct URLs. Raw disclosure text exists despite cleaned binary `0` on 181 records; one raw disclosure is a missing-value placeholder. The five actual import inputs' hashes were unchanged after verification.
 
-For example, baseline logical row 80, `Using mollusks to monitor industrial sites`, contains its only `biogas` occurrence in the related-story link starting at character 2050. Its indexable prefix is `[0, 2050)`, with original 2998-character text retained. Row 131, `Total: Using biomimicry for cleaner water`, discusses biogas in its own body and keeps its full 7696-character text eligible. Twenty prefix boundaries cover 19 records containing the `For more on the subject:` template and one containing `Read More Stories`; the remaining suffix is not assumed to be wholly navigation.
+For example, baseline logical row 80, `Using mollusks to monitor industrial sites`, contains its only `biogas` occurrence in the related-story link starting at character 2050. The historical indexable prefix was `[0, 2050)`, with the original 2998-character text retained. In 0.2.0 its explicit ranges are `[0, 2050)` and `[2113, 2998)`: the link is excluded while the later mollusk-method discussion is restored. Row 131, `Total: Using biomimicry for cleaner water`, discusses biogas in its own body and keeps its full 7696-character text eligible. The earlier 20 prefix boundaries covered 19 records containing `For more on the subject:` and one containing `Read More Stories`; later review did not treat each entire suffix as navigation.
 
 The following 12 baseline records remain stored but are excluded from the record-count denominator because their final URL segments end in explicit image dimensions. Logical row numbers include the header in `sources/FA25_SP26/final_dataset_cleaned.csv`; no subject-matter inference was used.
 
@@ -108,4 +136,4 @@ The following 12 baseline records remain stored but are excluded from the record
 | 163 | `ede1d6a4-7586-5a65-b144-4d25ed5cb97b` | `blockchain-960x540` |
 | 164 | `01c4a736-c556-58d0-ad4f-56277e48b560` | `diwan-1200x630` |
 
-Verification: 23 import/quality/chunk tests passed; Ruff passed for the owned modules/tests. Static labels continue to describe their original full-body input, not the possibly shorter retrieval prefix. Automatic flags do not replace full article-boundary or source-identity review.
+Historical verification: 23 import/quality/chunk tests passed; Ruff passed for those owned modules/tests. Static labels continue to describe their original full-body input, not the current retained retrieval intervals. Automatic flags and AI engineering reviews do not replace human semantic or source-identity acceptance.
