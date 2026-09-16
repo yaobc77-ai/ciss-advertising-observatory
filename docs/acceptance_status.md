@@ -1,25 +1,30 @@
-# 实施与验收状态 — 0.2.2
+# 实施与验收状态 — 0.2.3
 
-更新日期：2026-09-16。当前原生数据版本 `d85a98002e4493f0376c260ad82253ee`，应用在本机运行；完整 M1–M8 目标仍未完成。用户暂缓提供的外部资料继续预留。
+更新日期：2026-09-16。当前原生数据版本 `5114ebc1cf9afe59cdaa715e3ea45166`，应用在本机运行；完整 M1–M8 目标仍未完成。用户暂缓提供的外部资料继续预留。
 
 | 模块 | 当前证据 | 尚未完成 |
 |---|---|---|
-| M1 数据 | 275 条版本记录；12 项候选的 7/4/1 决定已应用；重复导入 275 unchanged / 0 new_versions / 0 deactivated，原值保留 | 社交真实映射、待核候选补证及持续维护 |
-| M2 正文 | 263 可统计、226 可检索；20 项边界与 26 个导航块已审阅并应用；554 个块逐一验证，旧 79 个定位有效 | 原有 94 项截断疑点仍未补齐；PDF 对应与原网页完整性不自动认证 |
-| M3 Dashboard | 六字段、筛选、统计、导出、历史标签；浏览器显示新统计，Southern Company 单组 5 条、媒体 8 个 | 真实用户反馈和持续回归 |
+| M1 数据 | 275 条收录；12 项候选的 7/4/1 决定已应用；本轮仅 1 个新正文版本、274 不变，重复导入 275 unchanged；原值和旧版本保留 | 社交真实映射、待核候选补证及持续维护 |
+| M2 正文 | 263 可统计、226 可检索；既有导航审核保留，PDF-265 的 6 个有限区间已应用；558 个当前块与 86 个历史证据定位有效 | 原有 94 项截断限制中仅 1 篇补入有限续文，仍未完整恢复；图像与遮挡文字仍缺失 |
+| M3 Dashboard | 六字段、筛选、统计、导出、历史标签；此前浏览器检查过 Southern Company 单组 5 条和媒体 8 个，本轮仅验证重启、健康／布局／CSS 路由 | 真实用户反馈和持续回归 |
 | M4 社交 | 独立适配器、字段映射样例、独立视图及 not connected 状态 | 真实社交导出、统计对账与问答验收 |
 | M5 RAG | 关键词/向量检索、付费回答、原文区间引用、预算；Lingua；逐条来源与数量表达要求 | 语义充分性、回答聚焦、语言不确定性与跨库验证 |
-| M6 评价 | 20 开发题＋20 验收草案；当前版本 15/17 段 gold 前置校验有效；0.2.1 全套 164、0.2.2 针对性 52 通过 | 草案审题、冻结与独立人工语义验收；7 个社交/跨库题尚未运行 |
+| M6 评价 | 20 开发题＋20 验收草案；当前版本 15 段开发 gold 前置校验有效；0.2.3 全套 209 项通过；另有独立两题 PDF-265 smoke | 草案审题、冻结与独立人工语义验收；7 个社交/跨库题尚未运行，两题 smoke 不替代原题库 |
 | M7 部署 | 本机 PostgreSQL+pgvector、生产服务、预算、限额、备份恢复脚本；本机健康通过 | 固定域名/Tunnel 及另一网络的公众验收 |
-| M8 交接 | 0.2.2 源码、依赖锁、配置、wheel、文档及更新的研究预览 | 指定 GitHub、完整双数据集最终展示、客户与交接验收 |
+| M8 交接 | 0.2.3 源码、依赖锁、恢复脚本、配置和文档；wheel 独立安装与三个路由验证通过；0.2.2 预览作为历史快照保留 | 源码包交付以最终 manifest 核对；指定 GitHub、完整双数据集最终展示、客户与交接验收 |
 
 ## 查看证据
 
-- [当前数据修订与测试](../reports/data_revision_v0_2.md)、[重复导入](../outputs/native_import_v0_2_published_repeat_20260916.json)、[当前源数据验证](../outputs/source_revision_v0_2_20260916.json)。
+- [当前 PDF-265 局部恢复](../reports/pdf265_body_recovery.md)、[本轮发布与定位检查](../outputs/pdf265_publication_validation_20260916.json)。原 PDF 和抽取文本需另行提供，哈希与提取命令见恢复报告。
+- [历史数据修订与测试](../reports/data_revision_v0_2.md)、[历史重复导入](../outputs/native_import_v0_2_published_repeat_20260916.json)、[历史源数据验证](../outputs/source_revision_v0_2_20260916.json)。
 - [12 URL 审阅](../reports/additional_url_review.md)、[20 正文边界审阅](../reports/prefix_boundary_review.md)。报告记录审阅当时的建议；本期应用结果见上述修订报告。
 - [AI 语义复核](../reports/assisted_semantic_review_v0_2.md)、[14 行人工复核表](../reports/citation_review_v0_2.csv)：人工列空白。
 - [0.2.1 语言修复及开发诊断](../reports/language_guard_v0_2_1.md)、[本次 AI 复核](../reports/assisted_semantic_review_v0_2_1.md)、[16 行人工复核表](../reports/citation_review_v0_2_1.csv)：人工列仍空白。
 - [运行与交接](handoff.md)、[数据字典](data_dictionary.md)、[评价协议](evaluation_protocol.md)。
 - [0.2.2 改动与结果](../reports/claim_contract_v0_2_2.md)、[本次 AI 复核](../reports/assisted_semantic_review_v0_2_2.md)、[16 行人工表](../reports/citation_review_v0_2_2.csv)、[94 项截断预检](../reports/truncation_recovery_preflight.md)。
 
-最新付费诊断 `d26eb5…` 绑定当前 `d85…`：记录命中 8/8、支持片段 13/13、引用定位 16/16、拒答 3/3；语言 8 match，`overall_pass=null`。本轮 dev-01/07 补上了归因和蓝氢对象，但回答聚焦与完整性仍有审阅项。较早错语及表达失败均保留，不能称已完成语义验收。社交数据为空不计为通过。
+0.2.3 [两题定向 smoke](../outputs/pdf265_recovery_paid_smoke_20260916.json) 的 run_id 为 `6c250056841b47feab178ffcc95bf2bd`，绑定当前 `5114…`。两题 answered，支持段 2/2、证据定位 6/6、引用定位 2/2、语言 match 2，`overall_pass=null`。第二答仍把展示技术的主体写成 `the advertisement has shown`，不能标为语义通过。该运行使用独立文件 `eval/pdf265_recovery_smoke.jsonl`；即使模板 `suite=development`，也不属于原 20 题开发集，不替代 20 题验收草案或人审。
+
+历史 0.2.2 付费诊断 `d26eb540a6114cfe9672a755c43f39a7` 绑定旧数据 `d85…`：记录命中 8/8、支持片段 13/13、引用定位 16/16、拒答 3/3；语言 8 match，`overall_pass=null`。该轮 dev-01/07 补上了归因和蓝氢对象，但回答聚焦与完整性仍有审阅项。0.2.2 的 52 项针对性测试、0.2.1 的 164 项全套测试均保留历史口径。较早错语及表达失败不删除，不能称已完成语义验收。
+
+0.2.2 PPTX／讲稿中的 554 块属于旧快照；当前为 558 块，未重做演示稿。真实社交、公开域名／Tunnel、指定 GitHub、人工与最终项目验收仍未完成；社交数据为空不计为通过。

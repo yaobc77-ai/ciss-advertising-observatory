@@ -1,0 +1,215 @@
+{
+  "review_id": "pdf265-local-identity-20260916",
+  "reviewer_type": "ai",
+  "record_id": "d340f887-efa7-5746-aaf8-14aabba6b63f",
+  "url": "https://www.cnbc.com/advertorial/2018/12/28/using-mollusks-to-monitor-industrial-sites.html",
+  "pdf_id": "PDF-265",
+  "pdf_path": "C:/Users/yaobc/Documents/ChatGPT/549 native ads/sources/pdf_archive_20260915/pdfs/summer_2025_run/CNBC/2018-12-28T10_21_52-0500_Usingmolluskstomonitorindustrialsites.pdf",
+  "pdf_sha256": "20b2ec33f808d96dc749ce0c62cd8b35dec43da48d7df0db44905544cb93479c",
+  "baseline": {
+    "path": "C:/Users/yaobc/Documents/ChatGPT/549 native ads/sources/FA25_SP26/final_dataset_cleaned.csv",
+    "source_sha256": "689f330321e42ea608070b2590fa24ee6c2bfb06dbc671941b1f0a927f4ceffa",
+    "row": 80,
+    "body_chars": 2998,
+    "body_sha256": "fdd9c9ffd4d1934e15e74c3be0a3bf687ccb7a1989b109e226dba4bc28e35ff7"
+  },
+  "nested_archive": {
+    "path": "C:/Users/yaobc/Documents/ChatGPT/549 native ads/analysis/pdf_archive/tmp/native-ads-download.zip",
+    "recorded_outer_archive": "C:\\Users\\yaobc\\Downloads\\pdfs-20260915T222001Z-1-001.zip",
+    "recorded_outer_entry": "pdfs/native-ads-download.zip",
+    "note": "The target PDF entry and two CSV entries were reread directly from the existing nested archive. The outer-to-inner archive association is from the prior local inventory; this turn did not rehash the entire outer archive."
+  },
+  "raw_capture_rows": [
+    {
+      "zip_entry": "native-ads-download/final_dataset.csv",
+      "local_path": "C:/Users/yaobc/Documents/ChatGPT/549 native ads/sources/pdf_archive_20260915/nested_unique/native-ads-download/final_dataset.csv",
+      "csv_sha256": "807fa07e2a57eefba2465f3fba0774c8e60928e7200cb469b17afa00afd8c0a2",
+      "row_including_header": 62,
+      "url": "https://www.cnbc.com/advertorial/2018/12/28/using-mollusks-to-monitor-industrial-sites.html",
+      "publisher": "CNBC",
+      "title": "Using mollusks to monitor industrial sites",
+      "date_raw": "2018-12-28T10:21:52-0500",
+      "sponsor_raw": "TOTALENERGIES",
+      "body_chars": 3000,
+      "body_sha256": "facbc31ce7d0178c7e77e3b22fc6ece9bf925813c0c095370d037666a08b2cbf",
+      "body_differences_from_baseline": [
+        {
+          "operation": "insert",
+          "baseline_range": [
+            2050,
+            2050
+          ],
+          "baseline_text": "",
+          "raw_range": [
+            2050,
+            2052
+          ],
+          "raw_text": "• "
+        }
+      ],
+      "generated_pdf_entry": "native-ads-download/pdfs/CNBC/2018-12-28T10:21:52-0500_Usingmolluskstomonitorindustrialsites.pdf",
+      "generated_filename_unique_within_csv": true,
+      "pdf_entry_sha256": "20b2ec33f808d96dc749ce0c62cd8b35dec43da48d7df0db44905544cb93479c",
+      "local_csv_byte_identical_to_zip_entry": true
+    },
+    {
+      "zip_entry": "native-ads-download/final_dataset-original.csv",
+      "local_path": "C:/Users/yaobc/Documents/ChatGPT/549 native ads/sources/pdf_archive_20260915/nested_unique/native-ads-download/final_dataset-original.csv",
+      "csv_sha256": "b2fe4fe9f7ac9690ca55637e252b06b907fdf6b4dd3887925d42cf44898e1385",
+      "row_including_header": 81,
+      "url": "https://www.cnbc.com/advertorial/2018/12/28/using-mollusks-to-monitor-industrial-sites.html",
+      "publisher": "CNBC",
+      "title": "Using mollusks to monitor industrial sites",
+      "date_raw": "2018-12-28T10:21:52-0500",
+      "sponsor_raw": "TOTALENERGIES",
+      "body_chars": 3000,
+      "body_sha256": "facbc31ce7d0178c7e77e3b22fc6ece9bf925813c0c095370d037666a08b2cbf",
+      "body_differences_from_baseline": [
+        {
+          "operation": "insert",
+          "baseline_range": [
+            2050,
+            2050
+          ],
+          "baseline_text": "",
+          "raw_range": [
+            2050,
+            2052
+          ],
+          "raw_text": "• "
+        }
+      ],
+      "generated_pdf_entry": "native-ads-download/pdfs/CNBC/2018-12-28T10:21:52-0500_Usingmolluskstomonitorindustrialsites.pdf",
+      "generated_filename_unique_within_csv": true,
+      "pdf_entry_sha256": "20b2ec33f808d96dc749ce0c62cd8b35dec43da48d7df0db44905544cb93479c",
+      "local_csv_byte_identical_to_zip_entry": true
+    }
+  ],
+  "download_code": {
+    "path": "C:/Users/yaobc/Documents/ChatGPT/549 native ads/sources/pdf_archive_20260915/nested_unique/native-ads-download/ads_download.py",
+    "sha256": "b1e903e713a81978501c9c616088d0d3ae537cea2ad582242c85fed569dc3d25",
+    "url_input_lines": [
+      123,
+      124
+    ],
+    "filename_rule_lines": [
+      127,
+      140
+    ],
+    "request_and_write_lines": [
+      144,
+      147
+    ],
+    "caveat": "The current script reads remaining_files.csv at line119, which does not contain this target. Filename agreement explains the collection convention but is not a success log proving this exact invocation fetched the URL."
+  },
+  "cross_page_content_anchors": [
+    {
+      "baseline_text": "Mollusks can be used to monitor the quality of water around industrial sites in real time",
+      "baseline_start": 0,
+      "baseline_end": 89,
+      "pdf_text": "Mollusks can be used to\nmonitor the quality of water\naround industrial sites in real\ntime",
+      "pdf_text_start": 0,
+      "pdf_text_end": 89,
+      "pdf_page": 1,
+      "baseline_corpus_records_containing_exact_phrase": 1,
+      "comparison": "Only PDF whitespace/layout line breaks allowed between words; no semantic rewriting.",
+      "root_recovered_text_start": 0,
+      "root_recovered_text_end": 89
+    },
+    {
+      "baseline_text": "the CNRS marine biology laboratory at the Arcachon marine station in France and the University of Bordeaux",
+      "baseline_start": 1774,
+      "baseline_end": 1880,
+      "pdf_text": "the\nCNRS marine biology laboratory\nat the Arcachon marine station in\nFrance and the University of\nBordeaux",
+      "pdf_text_start": 1897,
+      "pdf_text_end": 2003,
+      "pdf_page": 2,
+      "baseline_corpus_records_containing_exact_phrase": 1,
+      "comparison": "Only PDF whitespace/layout line breaks allowed between words; no semantic rewriting.",
+      "root_recovered_text_start": 1897,
+      "root_recovered_text_end": 2003
+    },
+    {
+      "baseline_text": "We miniaturized the electromagnets and made them lighter so that we could avoid bothering them.",
+      "baseline_start": 2791,
+      "baseline_end": 2886,
+      "pdf_text": "We\nminiaturized the electromagnets\nand made them lighter so that we\ncould avoid bothering them.",
+      "pdf_text_start": 3057,
+      "pdf_text_end": 3152,
+      "pdf_page": 3,
+      "baseline_corpus_records_containing_exact_phrase": 1,
+      "comparison": "Only PDF whitespace/layout line breaks allowed between words; no semantic rewriting.",
+      "root_recovered_text_start": 3057,
+      "root_recovered_text_end": 3152
+    },
+    {
+      "baseline_text": "Just sixteen mollusks in a net less than a meter long can generate and send more than 2.5 million data",
+      "baseline_start": 2888,
+      "baseline_end": 2990,
+      "pdf_text": "Just\nsixteen mollusks in a net less than\na meter long can generate and\nsend more than 2.5 million data",
+      "pdf_text_start": 3154,
+      "pdf_text_end": 3256,
+      "pdf_page": 3,
+      "baseline_corpus_records_containing_exact_phrase": 1,
+      "comparison": "Only PDF whitespace/layout line breaks allowed between words; no semantic rewriting.",
+      "root_recovered_text_start": 3154,
+      "root_recovered_text_end": 3256
+    }
+  ],
+  "online_attempts": [
+    {
+      "method": "web.open official CNBC URL",
+      "result": "Failed to fetch restricted URL; search also reported robots restriction. No page body retrieved."
+    },
+    {
+      "method": "2 targeted web searches for exact CNBC URL / public Wayback link",
+      "result": "No relevant target page/archive result returned in this bounded search; not evidence that none exists."
+    },
+    {
+      "method": "web.open archive.org/wayback/available for the encoded exact URL",
+      "result": "Tool safe-open rejected the URL. No archive availability response obtained; snapshot existence remains unknown."
+    }
+  ],
+  "annotation_check": "Prior check reused; not rescanned. No full self URI was found in prior PDF annotation/Info/XMP inspection.",
+  "identity_recommendation": {
+    "level": "locally_corroborated_capture_metadata_and_content",
+    "sufficient_for": "Associate reviewed text continuations from this PDF with this record for a scoped, provenance-preserving recovery.",
+    "not_confirmed": [
+      "Live/canonical URL response and original webpage rendering",
+      "Success log for the exact collection invocation",
+      "Complete article body or all figures/links/boundary sentences",
+      "Truth of advertiser claims"
+    ]
+  },
+  "visual_constraints_from_root_review": {
+    "reviewer": "root agent; not independently repeated here",
+    "reported_findings": [
+      "Fixed navigation obscures page2–5 boundary sentences.",
+      "Some hyperlink text is white/invisible in the printed view, including page2 text and page4 Total ABK.",
+      "Page5 includes an infographic with numbers not present in the existing text extraction."
+    ],
+    "scope_consequence": "Allow only reviewed visible text continuations; retain partial/visual_omissions status. No invented replacement for hidden text or infographic values."
+  },
+  "notebook_log_search": {
+    "files": [
+      "combine_files.ipynb",
+      "process_error_file.ipynb"
+    ],
+    "target_url_or_filename_hits": 0
+  },
+  "source_files_unchanged": true,
+  "decision_applied": false,
+  "anchor_text_source": {
+    "path": "C:/Users/yaobc/Documents/ChatGPT/549 native ads/analysis/pdf_archive/text/PDF-265.txt",
+    "sha256": "a41bce49588b079108b1dbd9d32f5df38bb8e2233fab0ffde8b4febadf30a696",
+    "chars": 7098,
+    "offset_basis": "Python Unicode characters after UTF-8 read_text universal-newline decoding"
+  },
+  "root_recovered_extraction": {
+    "path": "C:/Users/yaobc/Documents/ChatGPT/549 native ads/sources/recovered_native/PDF-265.pypdf-6.10.0.txt",
+    "sha256": "28110347b8b96cd32ac4b7bcac41d1f3b80c67798e220f9043382eb40a622b67",
+    "chars": 7098,
+    "text_equal_to_identity_anchor_source": true,
+    "note": "Read-only reference to root-created extraction, not an assertion that all visible content or infographic text was recovered."
+  }
+}

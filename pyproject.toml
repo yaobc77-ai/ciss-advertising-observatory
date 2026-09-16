@@ -1,6 +1,6 @@
 [project]
 name = "ciss-observatory"
-version = "0.2.2"
+version = "0.2.3"
 description = "Evidence-linked fossil fuel advertising observatory"
 requires-python = ">=3.12,<3.14"
 dependencies = [
@@ -23,6 +23,7 @@ dependencies = [
 
 [project.optional-dependencies]
 test = ["pytest>=8,<10", "ruff>=0.12"]
+pdf = ["pypdf==6.10.0"]
 
 [project.scripts]
 observatory = "observatory.cli:main"

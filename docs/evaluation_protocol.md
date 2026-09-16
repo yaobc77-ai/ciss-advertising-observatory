@@ -85,6 +85,12 @@
 
 `support_passage_coverage` 是严格的原句召回诊断：拆在两个片段中的原句、改写或部分匹配均不计覆盖；逐题的 `support_passage_matches` 保存覆盖它的 evidence ID。覆盖率高只说明这些已选原句可供回答使用，不证明模型实际使用了它们或正确保留了限定条件；覆盖率低也不能排除其他片段提供了有效的替代证据。最终仍需对照全文与 rubric 做人工语义评审。
 
+## 定向恢复检查与正式题库
+
+0.2.3 的 `eval/pdf265_recovery_smoke.jsonl` 是两道限定到一篇文章的维护冒烟题，复用同一 runner。它的 `suite=development` 仅表示开发诊断模式，不属于原 `eval/development.jsonl` 的 20 题，也不替代 20 题验收草案。其支持原句在调用前固定，结果单独保存为 [PDF-265 smoke](../outputs/pdf265_recovery_paid_smoke_20260916.json)，绑定 `5114ebc1cf9afe59cdaa715e3ea45166`。定位有效仍不能掩盖回答中的主体措辞问题，见 [恢复报告](../reports/pdf265_body_recovery.md)。本轮没有重新调用原开发题或验收草案的生成接口。
+
+`tests/test_body_recoveries.py` 另外检查源 PDF／抽取文件漂移、页终止符与映射错位、旧标签依据、部分正文质量门槛，以及一个失效决定不能导致同批其他恢复半生效。测试用合成材料，真实数据的定位和旧引用保留另见发布记录。
+
 ## 测试与接下来的复核
 
 `tests/test_evaluate.py` 用隔离的内存单元测试验证费用开关、引用归属、全部必需 ID 的命中规则、数据中途变更、pending 处理、计数集合过期，以及“原句可定位但回答语义错误”不能自动通过。这些人工小夹具**不是验收语料**。

@@ -62,6 +62,11 @@ RUNS = (
     "source_revision_validation_20260916.json",
     "development_language_guard_20260916.json",
     "development_claim_contract_20260916.json",
+    "pdf265_preflight_20260916.json",
+    "native_import_pdf265_20260916.json",
+    "native_import_pdf265_repeat_20260916.json",
+    "pdf265_publication_validation_20260916.json",
+    "pdf265_recovery_paid_smoke_20260916.json",
 )
 
 

@@ -1,12 +1,35 @@
-# 本机运行、预算与交接
+# 本机运行、预算与交接 — 0.2.3
 
 ## 日常流程
 
-从工作目录运行 `scripts/Start-Observatory.ps1`，会先启动项目数据库，再隐藏启动应用。`scripts/Test-Observatory.ps1` 检查应用和数据库，`scripts/Stop-Observatory.ps1` 只停止匹配的项目应用进程；数据库有独立停止脚本。也可在前台运行 `uv run observatory serve`。正文有更新时先保存源版本，执行导入、审查 `outputs/native_import.json`，再运行 `uv run observatory index`。先用免费 Search 核对新资料，随后做小规模付费回归。
+从工作目录运行 `scripts/Start-Observatory.ps1`，会先启动项目数据库，再隐藏启动应用。`scripts/Test-Observatory.ps1` 检查应用和数据库，`scripts/Stop-Observatory.ps1` 只停止匹配的项目应用进程；数据库有独立停止脚本。也可在前台运行 `uv run observatory serve`。正文有更新时先保存源版本，运行 `uv run observatory import-native`、审查 `outputs/native_import.json`，再运行 `uv run observatory index`；后者可能产生 embedding 费用。先用免费 Search 核对新资料，付费回归另存其实际运行与数据版本。
 
 原生 `import-native` 将输入视为该数据集的完整快照：本次未出现或被隔离的旧记录会停用，列入报告 `deactivated`，其历史正文与引文仍保留。空快照拒绝导入。社交导入默认增量，避免分批平台导出互相覆盖；将来需要完整替换时必须明确指定快照语义。
 
 不要把 `.runtime`、`.env`、源数据或备份提交公开仓库。页面服务绑定 `127.0.0.1:8050`，PostgreSQL 绑定 `127.0.0.1:55432`。源链接仅接收 HTTP(S)，不把内部本地路径作为公众链接。
+
+## 原生数据交接与复现
+
+正式导入必须带齐 [native_admissions.json](../config/native_admissions.json)、[native_body_ranges.json](../config/native_body_ranges.json)、[native_body_recoveries.json](../config/native_body_recoveries.json) 三份 manifest 及其固定哈希的私有源文件。第三份还要求源 PDF 和 [PDF-265 抽取文本](../sources/recovered_native/PDF-265.pypdf-6.10.0.txt)；缺文件或哈希、行号、身份、页界、区间不符会停止发布。不要以删除 manifest 或改用可选的库导入参数来绕过检查，这会改变快照语义。
+
+抽取文本可由资料交付方提供。若需从固定 PDF 复现，使用可选依赖和[提取脚本](../scripts/extract_pdf_text.py)：
+
+```powershell
+uv run --extra pdf python scripts/extract_pdf_text.py `
+  'sources/pdf_archive_20260915/pdfs/summer_2025_run/CNBC/2018-12-28T10_21_52-0500_Usingmolluskstomonitorindustrialsites.pdf' `
+  --expected-sha256 20b2ec33f808d96dc749ce0c62cd8b35dec43da48d7df0db44905544cb93479c `
+  --out 'sources/recovered_native/PDF-265.pypdf-6.10.0.txt'
+```
+
+仅在输出文件不存在时运行；脚本拒绝覆盖。它用锁定的 `pypdf==6.10.0` 原样提取每页并追加 `U+000C`，不 OCR、不重写源 PDF。预期文本为7,098字符、SHA-256 `28110347b8b96cd32ac4b7bcac41d1f3b80c67798e220f9043382eb40a622b67`。常规应用和导入只读该文件，不需要安装 pypdf。
+
+恢复保留6个区间、4,767字符，仍为 `partial`；原来的94项 CSV 截断限制不能因此记作全文恢复。原正文和版本继续保存，该篇旧标签在新版本的 `raw.previous_body_annotations` 中供内部追溯，不参与当前标签过滤。具体遗漏及身份边界见[恢复报告](../reports/pdf265_body_recovery.md)。
+
+## 当前发布验收基线
+
+[0.2.3 发布验证](../outputs/pdf265_publication_validation_20260916.json)的数据版本是 `5114ebc1cf9afe59cdaa715e3ea45166`：275收录、263可计数、226可检索、558当前片段。本轮只有1条新记录版本、274条不变；重复导入275条不变。已验证558个当前片段定位、86个历史引文定位及15个开发 gold 原句，完整测试209项通过（19.63秒）。这些是既有发布验证结果，本维护文档更新未重跑测试。
+
+交接后核对实际源哈希、版本和定位，再使用应用。此前0.2.2的 `d85a98002e4493f0376c260ad82253ee`／554片段是历史基线；其付费开发输出、费用和成绩保持原样，不视作0.2.3新数据的评测。人工语义验收仍待完成。
 
 ## 预算
 

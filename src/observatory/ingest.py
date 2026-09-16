@@ -16,6 +16,7 @@ import pandera.pandas as pa
 from pandera.errors import SchemaErrors
 
 from observatory.admissions import ADMISSIONS_PATH, read_admissions
+from observatory.body_recoveries import apply_body_recoveries
 from observatory.body_reviews import apply_body_reviews
 from observatory.models import ImportBatch, Issue, RecordInput
 from observatory.quality import (
@@ -776,7 +777,8 @@ def _apply_admissions(
 
 
 def load_native(
-    root: Path, *, require_admissions=False, require_body_reviews=False
+    root: Path, *, require_admissions=False, require_body_reviews=False,
+    require_body_recoveries=False,
 ) -> ImportBatch:
     root = Path(root).resolve()
     batch = ImportBatch()
@@ -917,6 +919,7 @@ def load_native(
     _attach_legacy(root, batch.records, batch)
     _attach_archive_candidates(root, batch.records, batch)
     apply_body_reviews(root, batch, required=require_body_reviews)
+    apply_body_recoveries(root, batch, required=require_body_recoveries)
     return batch
 
 

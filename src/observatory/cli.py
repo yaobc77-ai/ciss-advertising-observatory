@@ -58,7 +58,8 @@ def main():
         emit(
             db.import_batch(
                 load_native(
-                    args.root, require_admissions=True, require_body_reviews=True
+                    args.root, require_admissions=True, require_body_reviews=True,
+                    require_body_recoveries=True,
                 ),
                 snapshot_dataset="native",
             ),
