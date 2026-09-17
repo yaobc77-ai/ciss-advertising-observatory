@@ -1,0 +1,15 @@
+........................................................................ [ 16%]
+........................................................................ [ 33%]
+........................................................................ [ 49%]
+........................................................................ [ 66%]
+...............................................F........................ [ 82%]
+........................................................................ [ 99%]
+....                                                                     [100%]
+================================== FAILURES ===================================
+____________ test_timeline_and_label_coverage_show_unknown_records ____________
+tests\test_research_ui.py:109: in test_timeline_and_label_coverage_show_unknown_records
+    assert "historical solution" in label_chart["y"]
+E   AssertionError: assert 'historical solution' in ['Historical solution']
+=========================== short test summary info ===========================
+FAILED tests/test_research_ui.py::test_timeline_and_label_coverage_show_unknown_records
+1 failed, 435 passed in 64.06s (0:01:04)

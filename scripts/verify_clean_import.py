@@ -1,4 +1,4 @@
-"""Reproduce the 0.2.3 native snapshot in disposable obs_test, without API calls.
+"""Reproduce the 0.2.3 source snapshot and legacy600 index in disposable obs_test.
 
 Requires an installed observatory package, an explicit unpacked --root with private
 inputs, and OBS_TEST_DATABASE_URL supplied by the caller. Never reads .env or the
@@ -23,6 +23,7 @@ import observatory
 from observatory.chunking import retrieval_spans
 from observatory.db import Database, digest
 from observatory.evaluate import load_cases, load_snapshot, validate_gold
+from observatory.indexing import LEGACY_PROFILE
 from observatory.ingest import load_native
 from observatory.models import Filters
 
@@ -38,7 +39,8 @@ MANIFEST_HASHES = {
 }
 TABLES = (
     "generation_outputs,answer_runs,usage_ledger,embeddings,imports,"
-    "annotations,chunks,record_versions,records"
+    "annotations,chunks,record_versions,records,chunk_profile_membership,"
+    "retrieval_preparations,retrieval_publications,retrieval_state,retrieval_profiles"
 )
 
 
@@ -64,6 +66,9 @@ def verify_inputs(root: Path):
     root = root.resolve(strict=True)
     reference_path = project_file(root, REFERENCE)
     reference = json.loads(reference_path.read_bytes())
+    # This pinned historical report predates index profiles: its data_version was
+    # the source-only fingerprint. Never compare that old field to a modern
+    # combined source/index data_version.
     require(reference["after"]["data_version"] == EXPECTED_VERSION, "wrong_release_reference")
     require(reference["after"]["record_counts"] == {"native": 275}, "wrong_release_reference")
     require(reference["after"]["chunks"] == 558, "wrong_release_reference")
@@ -109,6 +114,9 @@ class TestOnlyDatabase(Database):
         except BaseException:
             conn.close()
             raise
+        # The read-only identity guard starts a transaction. Finish it before
+        # repository methods establish their own consistent snapshot.
+        conn.commit()
         return conn
 
 
@@ -137,7 +145,8 @@ def verify_chunk_locators(db):
 def verify_snapshot(db, cases):
     health = db.health()
     require(health["record_counts"] == {"native": 275}, "wrong_record_counts")
-    require(health["data_version"] == EXPECTED_VERSION, "wrong_data_version")
+    require(health.get("source_data_version") == EXPECTED_VERSION, "wrong_source_data_version")
+    require(health.get("active_profile") == LEGACY_PROFILE, "wrong_index_profile")
     public = db.public_rows(Filters(dataset="native"))
     counts = {"stored": health["record_counts"]["native"], "countable": len(public),
               "retrievable": sum(bool(row["retrievable"]) for row in public), "chunks": health["chunks"]}
@@ -171,6 +180,9 @@ def run(root: Path, report: dict):
     with db.connect() as conn:
         conn.execute(f"TRUNCATE {TABLES} RESTART IDENTITY CASCADE")
     report["test_tables_cleared"] = True
+    # Reset all previous candidate/publication state. A previous sentence-active
+    # test database must not silently change this fixed historical reproduction.
+    db.initialize()
     first = db.import_batch(batch, snapshot_dataset="native")
     report["first_import"] = first
     require(first["new_versions"] == 275 and first["unchanged"] == 0 and not first["deactivated"],
@@ -200,7 +212,9 @@ def main(argv=None):
         print("clean_import_output_unavailable", file=sys.stderr)
         return 1
     report = {"snapshot_release": RELEASE, "package_version": version("ciss-observatory"),
-              "status": "failed", "expected_data_version": EXPECTED_VERSION,
+              "status": "failed", "expected_source_data_version": EXPECTED_VERSION,
+              "expected_index_profile": LEGACY_PROFILE,
+              "version_contract": "historical source hash plus explicit legacy600-v1 reproduction",
               "root": str(args.root.resolve()), "package_location": str(Path(observatory.__file__).resolve()),
               "package_module_sha256": {
                   p.name: digest(p.read_text(encoding="utf-8"))

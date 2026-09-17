@@ -2,11 +2,11 @@
 
 import json
 import re
+from dataclasses import dataclass
 from decimal import Decimal
 from typing import Literal
 
 import numpy as np
-import pysbd
 from openai import OpenAI
 from psycopg.types.json import Jsonb
 from pydantic import BaseModel, Field, create_model
@@ -15,6 +15,7 @@ from .budget import Budget, price
 from .db import digest
 from .language import POLICY_VERSION, check_claim_languages, language_hint
 from .models import Answer, Citation
+from .segmentation import sentence_spans, text_regions
 
 MAX_QUOTE_WORDS = 60
 
@@ -69,66 +70,161 @@ Evidence is a retrieved subset and never establishes full-corpus counts or absen
 """
 
 
-def _sentence_groups(text):
-    """Unwrap layout lines only for segmentation; return untouched source slices."""
-    groups = []
-    # A blank paragraph or page break is a hard boundary, even without punctuation.
-    # This follows the paragraph separator used by chunking, plus PDF form feeds.
-    for region in re.split(r"\f|(?:\r?\n)[ \t]*(?:\r?\n)+", text):
-        if not region.strip():
-            continue
-        # pySBD treats newlines as sentence boundaries. A one-character replacement
-        # keeps offsets identical (including TWO spaces for CRLF). Never clean the
-        # stored source or use split/join, which would change quote coordinates.
-        view = re.sub(r"\s", " ", region)
-        spans = pysbd.Segmenter(language="en", clean=False, char_span=True).segment(
-            view
+@dataclass(frozen=True)
+class _QuoteSource:
+    evidence: object
+    start: int
+    end: int
+
+
+@dataclass
+class _EvidenceView:
+    key: tuple
+    start: int
+    text: str
+    sources: list[_QuoteSource]
+
+
+def _evidence_views(evidence):
+    """Join only verified, contiguous slices of one article version for segmentation."""
+    groups = {}
+    for index, e in enumerate(evidence):
+        located = all(
+            hasattr(e, field)
+            for field in ("record_id", "version_id", "dataset", "start", "end")
         )
-        cursor = 0
-        group_start = group_end = None
-        for span in spans:
+        if located:
             if (
-                not 0 <= cursor <= span.start < span.end <= len(view)
-                or view[cursor : span.start].strip()
-                or view[span.start : span.end] != span.sent
+                type(e.start) is not int
+                or type(e.end) is not int
+                or not 0 <= e.start < e.end
+                or e.end - e.start != len(e.text)
             ):
-                raise ValueError("Sentence offsets failed source validation")
-            cursor = span.end
+                raise ValueError("Evidence offsets failed source validation")
+            key = ("located", e.record_id, e.version_id, e.dataset) + tuple(
+                getattr(e, field, "")
+                for field in ("title", "publisher", "sponsor", "url", "archive_url")
+            )
+            source = _QuoteSource(e, e.start, e.end)
+        else:
+            # Small callers without source coordinates remain independent. There
+            # is no defensible way to infer overlap from matching text alone.
+            key = ("unlocated", index)
+            source = _QuoteSource(e, 0, len(e.text))
+        groups.setdefault(key, []).append(source)
+
+    views = []
+    for key, sources in groups.items():
+        current = None
+        for source in sorted(
+            sources, key=lambda s: (s.start, s.end, s.evidence.evidence_id)
+        ):
+            if current is None or source.start > current.start + len(current.text):
+                current = _EvidenceView(key, source.start, source.evidence.text, [source])
+                views.append(current)
+                continue
+            offset = source.start - current.start
+            overlap = min(len(current.text) - offset, source.end - source.start)
+            if current.text[offset : offset + overlap] != source.evidence.text[:overlap]:
+                raise ValueError("Evidence overlap failed source validation")
+            current.text += source.evidence.text[overlap:]
+            current.sources.append(source)
+    return views
+
+
+def _quote_spans(text):
+    """Group complete sentences without crossing blank paragraphs or page breaks."""
+    groups = []
+    for region_start, region_end in text_regions(text):
+        region = text[region_start:region_end]
+        group_start = group_end = None
+        for start, end in sentence_spans(region):
             if (
                 group_start is not None
-                and len(region[group_start : span.end].split()) > MAX_QUOTE_WORDS
+                and len(region[group_start:end].split()) > MAX_QUOTE_WORDS
             ):
-                groups.append(region[group_start:group_end].strip())
+                groups.append((region_start + group_start, region_start + group_end))
                 group_start = None
             if group_start is None:
-                group_start = span.start
-            group_end = span.end
-        if view[cursor:].strip():
-            raise ValueError("Sentence segmentation omitted source text")
+                group_start = start
+            group_end = end
         if group_start is not None:
-            groups.append(region[group_start:group_end].strip())
-    return groups
+            groups.append((region_start + group_start, region_start + group_end))
+    for group_start, group_end in groups:
+        # Long sentences still use 60-word windows with 15-word overlap. This is
+        # deliberate excerpt overlap, distinct from duplicate retrieved chunks.
+        words = list(re.finditer(r"\S+", text[group_start:group_end]))
+        for start in range(0, len(words), MAX_QUOTE_WORDS - 15):
+            end = min(start + MAX_QUOTE_WORDS, len(words))
+            yield group_start + words[start].start(), group_start + words[end - 1].end()
+            if end == len(words):
+                break
+
+
+def _source_pieces(view, start, end):
+    """Every emitted quote must fit one original evidence, including across joins."""
+    cursor = start
+    boundaries = [start + stop for _, stop in sentence_spans(view.text[start:end])]
+    while cursor < end:
+        while cursor < end and view.text[cursor].isspace():
+            cursor += 1
+        if cursor == end:
+            break
+        covering = [
+            source for source in view.sources
+            if source.start <= view.start + cursor < source.end
+        ]
+        if not covering:
+            raise ValueError("Evidence quote crossed an uncovered source interval")
+        # Prefer the longest remaining coverage, then stable source coordinates/ID.
+        source = min(
+            covering, key=lambda s: (-s.end, s.start, s.evidence.evidence_id)
+        )
+        stop = min(end, source.end - view.start)
+        if stop < end:
+            sentence_ends = [b for b in boundaries if cursor < b <= stop]
+            if sentence_ends:
+                stop = sentence_ends[-1]
+            else:
+                # A legacy chunk may itself cut a sentence (even a word). Do not
+                # synthesize a spanning citation or claim it is a full sentence.
+                word_ends = [
+                    match.end() for match in re.finditer(r"\S+", view.text)
+                    if cursor < match.end() <= stop
+                ]
+                if word_ends:
+                    stop = word_ends[-1]
+        quote_end = stop
+        while quote_end > cursor and view.text[quote_end - 1].isspace():
+            quote_end -= 1
+        if cursor < quote_end:
+            yield source, cursor, quote_end
+        cursor = stop
 
 
 def quote_catalog(evidence):
-    """Preserve sentence context with pySBD; validate spans before copying quotes."""
+    """Deduplicate located intervals while retaining original evidence IDs and text."""
     catalog = {}
-    for e in evidence:
-        # Unusually long sentences retain bounded overlapping windows. They are
-        # excerpts, not claims of complete sentence or full article coverage.
-        quotes = []
-        for group in _sentence_groups(e.text):
-            words = list(re.finditer(r"\S+", group))
-            for start in range(0, len(words), MAX_QUOTE_WORDS - 15):
-                end = min(start + MAX_QUOTE_WORDS, len(words))
-                quotes.append(group[words[start].start() : words[end - 1].end()])
-                if end == len(words):
-                    break
-        for quote in quotes:
-            catalog[f"Q{len(catalog) + 1}"] = {
-                "evidence_id": e.evidence_id,
-                "quote": quote,
-            }
+    seen = set()
+    for view in _evidence_views(evidence):
+        for start, end in _quote_spans(view.text):
+            for source, quote_start, quote_end in _source_pieces(view, start, end):
+                absolute_start, absolute_end = view.start + quote_start, view.start + quote_end
+                # Metadata affects merge compatibility, but source identity and
+                # original coordinates determine whether a passage is duplicated.
+                identity = view.key[:4] if view.key[0] == "located" else view.key
+                key = (identity, absolute_start, absolute_end)
+                if key in seen:
+                    continue
+                quote = view.text[quote_start:quote_end]
+                source_start = absolute_start - source.start
+                if quote != source.evidence.text[source_start : source_start + len(quote)]:
+                    raise ValueError("Evidence quote failed source validation")
+                seen.add(key)
+                catalog[f"Q{len(catalog) + 1}"] = {
+                    "evidence_id": source.evidence.evidence_id,
+                    "quote": quote,
+                }
     return catalog
 
 
@@ -232,18 +328,23 @@ class Rag:
                 raise
         return [result[digest(t)] for t in texts]
 
-    def index(self, batch_size=32):
-        with self.db.connect() as conn:
-            rows = conn.execute(
-                "SELECT DISTINCT c.text_hash,c.text FROM chunks c JOIN records r ON r.current_version=c.version_id LEFT JOIN embeddings e ON e.text_hash=c.text_hash AND e.model=%s WHERE r.active AND e.text_hash IS NULL ORDER BY c.text_hash",
-                (self.settings.embedding_model,),
-            ).fetchall()
+    def index(self, batch_size=32, *, profile_id=None, visitor="maintenance"):
+        """Fill the selected profile's cache; historical chunks stay untouched."""
+        if batch_size < 1:
+            raise ValueError("batch_size must be positive")
+        rows = self.db.pending_embeddings(
+            self.settings.embedding_model, profile_id=profile_id
+        )
         processed = 0
         for start in range(0, len(rows), batch_size):
             group = rows[start : start + batch_size]
-            self.embed([r["text"] for r in group])
+            self.embed([r["text"] for r in group], visitor=visitor)
             processed += len(group)
-        return {"embedded_chunks": processed, "model": self.settings.embedding_model}
+        return {
+            "embedded_chunks": processed,
+            "model": self.settings.embedding_model,
+            "profile": profile_id or "active",
+        }
 
     def generate(self, question, evidence, visitor, reservation=None):
         if not evidence:
@@ -291,6 +392,7 @@ class Rag:
                         },
                     }
                     for e in evidence
+                    if any(p["evidence_id"] == e.evidence_id for p in catalog.values())
                 ],
             },
             ensure_ascii=False,

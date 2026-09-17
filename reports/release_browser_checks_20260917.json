@@ -1,0 +1,67 @@
+{
+  "checked_at": "2026-09-17",
+  "method": "Actual in-app browser interactions against localhost:8050; no paid UI clicks",
+  "routes": {
+    "query": "/query",
+    "data": "/data",
+    "wireframe": "/wireframe"
+  },
+  "checks": [
+    {
+      "name": "keyword search",
+      "input": "carbon capture",
+      "result": "5 evidence passages visible; no model call"
+    },
+    {
+      "name": "data default",
+      "result": {
+        "selected": 263,
+        "searchable": 226,
+        "unknown_dates": 22
+      }
+    },
+    {
+      "name": "shared sponsor filter",
+      "input": "exxonmobil",
+      "result": {
+        "selected": 15,
+        "searchable": 13,
+        "unknown_dates": 0
+      }
+    },
+    {
+      "name": "return to query",
+      "result": "Question and prior results persisted; results marked as from earlier selection"
+    },
+    {
+      "name": "wireframe direct refresh",
+      "result": "Three page cards and source-to-interface flow visible"
+    },
+    {
+      "name": "session refresh",
+      "result": "Question and sponsor filter persisted; answers reset on reload"
+    },
+    {
+      "name": "mobile viewport",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "result": "Wireframe, Query and Data checked. Query dropdown focus input overflow found and fixed in CSS. Final document clientWidth=375, scrollWidth=375 for all three pages."
+    },
+    {
+      "name": "restore default view",
+      "result": "Viewport override reset; sponsor selection reset to All"
+    },
+    {
+      "name": "console",
+      "result": "No captured error/warn entries in final inspection (limit 10)"
+    }
+  ],
+  "not_performed": [
+    "Paid button click in browser",
+    "Fresh CSV download",
+    "Public deployment validation"
+  ],
+  "limitations": "Visual/functional spot-check, not a full accessibility or browser compatibility audit."
+}

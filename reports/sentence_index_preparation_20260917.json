@@ -1,0 +1,25 @@
+{
+  "profile_id": "sentence600-v1",
+  "active": false,
+  "source_data_version": "5114ebc1cf9afe59cdaa715e3ea45166",
+  "definition": {
+    "encoding": "cl100k_base",
+    "strategy": "sentence",
+    "max_tokens": 600,
+    "segmentation": "pysbd-en-layout-v1",
+    "pysbd_version": "0.3.4",
+    "overlap_tokens": 100,
+    "embedding_input": "original-chunk-text-v1",
+    "embedding_model": "text-embedding-3-small",
+    "tiktoken_version": "0.14.0",
+    "chunking_algorithm": "chunking-strategies-v1"
+  },
+  "preparation": {
+    "source_data_version": "5114ebc1cf9afe59cdaa715e3ea45166",
+    "manifest_hash": "cd1076ad59935d82cc9401e81b6b80c42b249f5fcd8d6b6e250d07e71aff3e84",
+    "chunk_count": 556
+  },
+  "chunks": 556,
+  "missing_embeddings": 437,
+  "prepared_snapshot_matches": true
+}

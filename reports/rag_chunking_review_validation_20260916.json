@@ -1,0 +1,100 @@
+{
+  "checked_at": "2026-09-17T00:39:14.563593+00:00",
+  "scope": "Saved result integrity, current code/gold hashes and report local links; no model, database or test rerun by this verifier",
+  "data_version": "5114ebc1cf9afe59cdaa715e3ea45166",
+  "result_code_and_gold_hashes_match": true,
+  "saved_test_result": {
+    "passed": 318,
+    "offline": 296,
+    "dedicated_database": 22
+  },
+  "saved_ruff_passed": true,
+  "verified_retrieval_reports": [
+    "reports/retrieval_chunks_lexical_1_20260916.json",
+    "reports/retrieval_chunks_lexical_3_20260916.json"
+  ],
+  "quote_comparison_source_and_code_hashes_match": true,
+  "local_link_count": 20,
+  "local_links": [
+    {
+      "source": "rag_chunking_review_20260916.zh-CN.md",
+      "target": "rag_chunking_corpus_audit_20260916.md"
+    },
+    {
+      "source": "rag_chunking_review_20260916.zh-CN.md",
+      "target": "rag_chunking_corpus_audit_20260916.json"
+    },
+    {
+      "source": "rag_chunking_review_20260916.zh-CN.md",
+      "target": "rag_chunking_migration_review_20260916.md"
+    },
+    {
+      "source": "rag_chunking_review_20260916.zh-CN.md",
+      "target": "rag_chunking_pytest_20260916.txt"
+    },
+    {
+      "source": "rag_chunking_review_20260916.zh-CN.md",
+      "target": "rag_chunking_ruff_20260916.txt"
+    },
+    {
+      "source": "rag_chunking_review_20260916.zh-CN.md",
+      "target": "sentence_candidate_corpus_check_20260916.json"
+    },
+    {
+      "source": "rag_chunking_review_20260916.zh-CN.md",
+      "target": "rag_chunking_review_validation_20260916.json"
+    },
+    {
+      "source": "rag_chunking_review_20260916.zh-CN.md",
+      "target": "retrieval_chunks_lexical_1_20260916.json"
+    },
+    {
+      "source": "rag_chunking_review_20260916.zh-CN.md",
+      "target": "retrieval_chunks_lexical_3_20260916.json"
+    },
+    {
+      "source": "rag_chunking_review_20260916.zh-CN.md",
+      "target": "quote_catalog_comparison_20260916.json"
+    },
+    {
+      "source": "rag_chunking_review_20260916.zh-CN.md",
+      "target": "../src/observatory/chunking.py"
+    },
+    {
+      "source": "rag_chunking_review_20260916.zh-CN.md",
+      "target": "../src/observatory/segmentation.py"
+    },
+    {
+      "source": "rag_chunking_review_20260916.zh-CN.md",
+      "target": "../src/observatory/rag.py"
+    },
+    {
+      "source": "rag_chunking_review_20260916.zh-CN.md",
+      "target": "../scripts/compare_retrieval_chunks.py"
+    },
+    {
+      "source": "rag_chunking_review_20260916.zh-CN.md",
+      "target": "../tests/test_sentence_chunking.py"
+    },
+    {
+      "source": "rag_chunking_review_20260916.zh-CN.md",
+      "target": "../tests/test_evidence_overlap.py"
+    },
+    {
+      "source": "rag_chunking_review_20260916.zh-CN.md",
+      "target": "../tests/test_retrieval_comparison.py"
+    },
+    {
+      "source": "rag_chunking_corpus_audit_20260916.md",
+      "target": "rag_chunking_corpus_audit_20260916.json"
+    },
+    {
+      "source": "rag_chunking_corpus_audit_20260916.md",
+      "target": "../src/observatory/chunking.py"
+    },
+    {
+      "source": "rag_chunking_corpus_audit_20260916.md",
+      "target": "../src/observatory/rag.py"
+    }
+  ]
+}

@@ -123,6 +123,21 @@ class Service:
             self.db.search(question, filters, limit=min(limit, 10))
         )
 
+    def search_report(self, question, filters, limit=5):
+        """Free search with keyword coverage of the same filtered index snapshot."""
+        if not 1 <= len(question.strip()) <= 2000:
+            return {
+                "evidence": [],
+                "diagnostics": {
+                    "status": "unavailable", "operator": "OR", "terms": [],
+                    "reason": "Enter a question of 1–2,000 characters.",
+                },
+            }
+        filters = self._title_scope(question, filters)
+        report = self.db.search_report(question, filters, limit=min(limit, 10))
+        report["evidence"] = self._public_evidence(report["evidence"])
+        return report
+
     def _title_scope(self, question, filters):
         """A full explicitly named title narrows retrieval within existing filters."""
 
@@ -216,6 +231,15 @@ class Service:
             result = self.rag.generate(
                 question, evidence, visitor, reservation=reservation
             )
+            final_version = self.db.health()["data_version"]
+            if final_version != version:
+                # A dispatched call remains charged and audited, but an answer
+                # from an index superseded during generation is not published.
+                evidence = []
+                version = final_version
+                raise ValueError(
+                    "Data changed during generation; retry on a consistent version"
+                )
         except LimitReached as exc:
             result = Answer(status="limited", answer=str(exc), evidence=evidence)
         except Exception as exc:
@@ -225,6 +249,7 @@ class Service:
                 "Citation exceeds short-quote limit": "quote_too_long",
                 "Missing or excessive claims": "invalid_claim_count",
                 "Evidence failed original-version validation": "evidence_version_mismatch",
+                "Data changed during generation; retry on a consistent version": "data_changed_during_generation",
             }
             reason = known.get(str(exc), type(exc).__name__)
             result = Answer(

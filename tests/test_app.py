@@ -190,12 +190,13 @@ def defaults(dataset):
             f"{dataset}-dates.end_date": None,
             f"{dataset}-unknown-dates.value": ["include"],
             f"{dataset}-metric.value": "count",
+            "page-location.pathname": "/data",
         }
     )
     return values
 
 
-def callback(app, client, output_id, values, changed):
+def callback(app, client, output_id, values, changed, expected_status=200):
     key, spec = next(
         (key, spec) for key, spec in app.callback_map.items() if output_id in key
     )
@@ -227,8 +228,8 @@ def callback(app, client, output_id, values, changed):
         ],
     }
     response = client.post("/_dash-update-component", json=body)
-    assert response.status_code == 200, response.get_data(as_text=True)
-    return response.json["response"]
+    assert response.status_code == expected_status, response.get_data(as_text=True)
+    return response.json["response"] if expected_status == 200 else {}
 
 
 def research_values(dataset="native", scope="current"):
@@ -241,11 +242,12 @@ def research_values(dataset="native", scope="current"):
             "active-dataset.value": dataset,
             "search-free.n_clicks": 1,
             "answer-paid.n_clicks": 0,
+            "page-location.pathname": "/query",
         }
     )
 
 
-def test_layout_has_both_independent_panels_and_six_native_columns(application):
+def test_layout_has_both_panels_original_fields_and_record_archive_access(application):
     app, client, _service = application
     assert client.get("/").status_code == 200
     response = client.get("/_dash-layout")
@@ -259,12 +261,14 @@ def test_layout_has_both_independent_panels_and_six_native_columns(application):
         components
     )
     assert [col["field"] for col in components["native-grid"]["columnDefs"]] == [
+        "record_id",
         "url",
         "publisher",
         "title",
         "date",
         "sponsor",
         "keyword",
+        "archive_status",
     ]
     assert components["research-question"]["maxLength"] == 2000
     assert SECRET not in response.get_data(as_text=True)
@@ -279,7 +283,10 @@ def test_layout_has_both_independent_panels_and_six_native_columns(application):
     )
     assert changed["native-panel"]["style"] == {"display": "none"}
     assert changed["social-panel"]["style"] == {}
-    assert len(changed) == 2  # Switching tabs must never reset any filter controls.
+    assert changed["native-filter-panel"]["style"] == {"display": "none"}
+    assert changed["social-filter-panel"]["style"] == {"display": "none"}
+    assert changed["shared-filters"]["style"] == {"display": "none"}
+    assert len(changed) == 6  # Switching tabs must never reset any filter values.
 
 
 def test_filter_chart_and_export_use_same_records(application):
@@ -390,13 +397,12 @@ def test_collection_uses_one_snapshot_for_rows_and_statistics(
         assert sum(item[1] for item in bars["customdata"]) == pytest.approx(100)
     timeline = result[f"{dataset}-timeline-chart"]["figure"]
     if all(date is None for date in dates):
-        assert timeline["data"] == []
-        assert timeline["layout"]["annotations"][0]["text"] == (
-            "No dated records in this selection"
-        )
+        assert timeline["data"][0]["x"] == ["Unknown"]
+        assert timeline["data"][0]["y"] == [3]
     else:
-        assert timeline["data"][0]["x"] == ["2024-01", "2024-02"]
-        assert timeline["data"][0]["y"] == [1, 1]
+        assert timeline["data"][0]["x"] == ["2024", "Unknown"]
+        assert timeline["data"][0]["y"] == [2, 1]
+    assert timeline["data"][0]["type"] == "bar"
     assert result[f"{dataset}-record-count"]["children"].startswith(
         "3 eligible records"
     )
@@ -534,7 +540,7 @@ def test_paid_service_status_hides_internal_messages(application, status):
         app,
         client,
         "research-results.children",
-        research_values(),
+        research_values() | {"answer-paid.n_clicks": 1},
         "answer-paid.n_clicks",
     )
     assert SECRET not in json.dumps(result)
@@ -548,7 +554,7 @@ def test_paid_failure_falls_back_to_keyword_evidence(application):
         app,
         client,
         "research-results.children",
-        research_values(),
+        research_values() | {"answer-paid.n_clicks": 1},
         "answer-paid.n_clicks",
     )
     assert len(service.search_calls) == 1
@@ -589,3 +595,244 @@ def test_collection_exception_is_sanitized(application):
     )
     assert SECRET not in json.dumps(result)
     assert "temporarily unavailable" in json.dumps(result)
+
+
+def test_three_route_views_have_unique_ids_and_persisted_shared_controls(application):
+    app, client, service = application
+    nodes = list(component_tree(client.get("/_dash-layout").json))
+    ids = [node["props"]["id"] for node in nodes if "id" in node["props"]]
+    assert len(ids) == len(set(ids))
+    components = {
+        node["props"]["id"]: node["props"] for node in nodes if "id" in node["props"]
+    }
+    for route in ("query", "data", "wireframe"):
+        assert f"{route}-page" in components
+        assert components[f"nav-{route}"]["href"] == f"/{route}"
+        assert client.get(f"/{route}").status_code == 200
+    for identity in (
+        "native-sponsors",
+        "social-sponsors",
+        "active-dataset",
+        "research-question",
+        "search-scope",
+        "native-dates",
+    ):
+        assert components[identity]["persistence"] is True
+        assert components[identity]["persistence_type"] == "session"
+    assert service.answer_calls == service.search_calls == []
+    wireframe = json.dumps(components["wireframe-page"])
+    assert "wire-screen" in wireframe and "wire-flow" in wireframe
+    assert "awaiting dataset" in wireframe
+    assert "PostgreSQL" in wireframe
+    assert SECRET not in wireframe
+
+
+@pytest.mark.parametrize(
+    "pathname, page",
+    [
+        ("/", "query"),
+        ("/query", "query"),
+        ("/query/", "query"),
+        ("/data", "data"),
+        ("/wireframe", "wireframe"),
+        ("/missing", "not-found"),
+    ],
+)
+def test_routes_switch_visible_page_without_touching_controls_or_results(
+    application, pathname, page
+):
+    app, client, service = application
+    result = callback(
+        app,
+        client,
+        "query-page.hidden",
+        {"page-location.pathname": pathname},
+        "page-location.pathname",
+    )
+    for target in ("query", "data", "wireframe", "not-found"):
+        assert result[f"{target}-page"]["hidden"] == (target != page)
+    assert result["collection-workspace"]["hidden"] == (page not in ("query", "data"))
+    assert all(
+        "children" not in data for key, data in result.items() if key.endswith("-page")
+    )
+    assert not {
+        "research-results",
+        "research-submission",
+        "research-question",
+        "active-dataset",
+        "native-sponsors",
+    } & set(result)
+    assert service.search_calls == service.answer_calls == []
+
+
+@pytest.mark.parametrize("pathname", ["/data", "/wireframe", "/missing", None])
+@pytest.mark.parametrize("button", ["search-free", "answer-paid"])
+def test_hidden_query_actions_cannot_call_service(application, pathname, button):
+    app, client, service = application
+    values = research_values() | {
+        "page-location.pathname": pathname,
+        f"{button}.n_clicks": 1,
+    }
+    callback(
+        app,
+        client,
+        "research-results.children",
+        values,
+        f"{button}.n_clicks",
+        expected_status=204,
+    )
+    assert service.search_calls == service.answer_calls == []
+
+
+@pytest.mark.parametrize(
+    "trigger, clicks",
+    [
+        ("page-location.pathname", 1),
+        ("answer-paid.n_clicks", 0),
+        ("answer-paid.n_clicks", None),
+        ("answer-paid.n_clicks", -1),
+        ("answer-paid.n_clicks", "1"),
+        ("answer-paid.n_clicks", True),
+        ("active-dataset.value", 1),
+    ],
+)
+def test_query_requires_explicit_positive_click_on_a_known_action(
+    application, trigger, clicks
+):
+    app, client, service = application
+    callback(
+        app,
+        client,
+        "research-results.children",
+        research_values() | {"answer-paid.n_clicks": clicks},
+        trigger,
+        expected_status=204,
+    )
+    assert service.search_calls == service.answer_calls == []
+
+
+def test_results_become_stale_after_scope_change_and_clear_on_resubmit(application):
+    app, client, service = application
+    values = research_values() | {"native-sponsors.value": ["Sponsor A"]}
+    result = callback(
+        app, client, "research-results.children", values, "search-free.n_clicks"
+    )
+    snapshot = result["research-submission"]["data"]
+    assert snapshot["filters"]["sponsors"] == ["Sponsor A"]
+    before = callback(
+        app,
+        client,
+        "research-stale.children",
+        values | {"research-submission.data": snapshot},
+        "research-submission.data",
+    )
+    assert before["research-stale"]["children"] is None
+    changed = values | {
+        "native-sponsors.value": ["Sponsor B"],
+        "research-submission.data": snapshot,
+    }
+    stale = callback(
+        app, client, "research-stale.children", changed, "native-sponsors.value"
+    )
+    assert "earlier selection" in json.dumps(stale)
+    assert len(service.search_calls) == 1 and not service.answer_calls
+    refreshed = callback(
+        app, client, "research-results.children", changed, "search-free.n_clicks"
+    )
+    cleared = callback(
+        app,
+        client,
+        "research-stale.children",
+        changed
+        | {"research-submission.data": refreshed["research-submission"]["data"]},
+        "research-submission.data",
+    )
+    assert cleared["research-stale"]["children"] is None
+
+
+def test_unrelated_collection_filters_do_not_mark_query_stale(application):
+    app, client, _service = application
+    values = research_values()
+    submitted = callback(
+        app, client, "research-results.children", values, "search-free.n_clicks"
+    )["research-submission"]["data"]
+    result = callback(
+        app,
+        client,
+        "research-stale.children",
+        values
+        | {
+            "research-submission.data": submitted,
+            "social-sponsors.value": ["Not in active collection"],
+        },
+        "social-sponsors.value",
+    )
+    assert result["research-stale"]["children"] is None
+
+
+def test_all_scope_summary_explains_filter_bypass_and_ignores_filter_changes(
+    application,
+):
+    app, client, service = application
+    values = research_values(scope="all")
+    submitted = callback(
+        app, client, "research-results.children", values, "search-free.n_clicks"
+    )["research-submission"]["data"]
+    changed = values | {
+        "research-submission.data": submitted,
+        "native-sponsors.value": ["Sponsor B"],
+    }
+    stale = callback(
+        app, client, "research-stale.children", changed, "native-sponsors.value"
+    )
+    assert stale["research-stale"]["children"] is None
+    scope = callback(
+        app, client, "current-scope.children", changed, "native-sponsors.value"
+    )
+    assert "filters are bypassed" in json.dumps(scope)
+    assert len(service.search_calls) == 1 and not service.answer_calls
+
+
+def test_route_navigation_never_dispatches_or_clears_existing_paid_answer(application):
+    app, client, service = application
+    values = research_values() | {"answer-paid.n_clicks": 1}
+    answer = callback(
+        app, client, "research-results.children", values, "answer-paid.n_clicks"
+    )
+    for path in ("/data", "/wireframe", "/query"):
+        result = callback(
+            app,
+            client,
+            "query-page.hidden",
+            {"page-location.pathname": path},
+            "page-location.pathname",
+        )
+        assert "research-results" not in result
+        assert "research-submission" not in result
+    assert len(service.answer_calls) == 1
+    assert "proposes a carbon capture project" in json.dumps(answer)
+    research_spec = next(
+        spec
+        for key, spec in app.callback_map.items()
+        if "research-results.children" in key
+    )
+    assert {item["id"] for item in research_spec["inputs"]} == {
+        "search-free",
+        "answer-paid",
+    }
+    assert "page-location" in {item["id"] for item in research_spec["state"]}
+
+
+@pytest.mark.parametrize("pathname", ["/query", "/wireframe", None])
+def test_export_is_available_only_on_data_page(application, pathname):
+    app, client, service = application
+    callback(
+        app,
+        client,
+        "native-download.data",
+        defaults("native")
+        | {"native-export.n_clicks": 1, "page-location.pathname": pathname},
+        "native-export.n_clicks",
+        expected_status=204,
+    )
+    assert not service.browse_calls

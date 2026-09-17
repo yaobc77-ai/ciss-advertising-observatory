@@ -76,11 +76,16 @@ class Evidence(BaseModel):
     sponsor: str = ""
     url: str = ""
     archive_url: str = ""
+    published_at: date | None = None
     text: str
     start: int
     end: int
     paragraph_ids: list[str] = Field(default_factory=list)
     score: float = 0.0
+    retrieval_rank: int | None = None
+    retrieval_sources: list[str] = Field(default_factory=list)
+    matched_terms: list[str] = Field(default_factory=list)
+    literal_matched_terms: list[str] = Field(default_factory=list)
 
 
 class Citation(BaseModel):

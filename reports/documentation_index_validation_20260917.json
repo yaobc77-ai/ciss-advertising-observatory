@@ -1,0 +1,40 @@
+{
+  "checked_at": "2026-09-17",
+  "scope": "README and document index local targets; readable documentation inventory; no application/model/database tests rerun",
+  "catalog_path": "docs/document_catalog.csv",
+  "catalog_rows": 104,
+  "catalog_scope": "Root Markdown; docs/reports readable MD and TXT; analysis non-per-PDF MD/TXT/HTML; original source MD/DOCX; presentation PPTX and speaker notes in deliverables. Per-PDF documents, data tables and raw execution JSON remain in their dedicated indexes/reports.",
+  "catalog_by_area": {
+    "analysis": 25,
+    "deliverables": 4,
+    "docs": 11,
+    "root": 9,
+    "reports": 52,
+    "sources": 3
+  },
+  "files_checked": [
+    {
+      "path": "README.md",
+      "local_link_occurrences": 46,
+      "missing": []
+    },
+    {
+      "path": "docs/DOCUMENT_INDEX.zh-CN.md",
+      "local_link_occurrences": 95,
+      "missing": []
+    }
+  ],
+  "missing_targets": [],
+  "core_markdown_coverage": {
+    "total": 58,
+    "linked": 58,
+    "missing": []
+  },
+  "analysis_document_coverage": {
+    "total": 25,
+    "linked": 25,
+    "missing": []
+  },
+  "original_source_documents_linked": 3,
+  "external_urls_rechecked": false
+}

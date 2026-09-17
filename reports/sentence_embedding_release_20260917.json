@@ -1,0 +1,74 @@
+{
+  "started_at": "2026-09-17T15:47:57.203404+00:00",
+  "profile": "sentence600-v1",
+  "source_data_version": "5114ebc1cf9afe59cdaa715e3ea45166",
+  "pending_unique_texts": 437,
+  "estimated_upper_usd_at_configured_rates": "0.02089602",
+  "embedding_allocation_usd": "0.10",
+  "visitor": "sentence-release-20260917",
+  "before": {
+    "profile_id": "sentence600-v1",
+    "active": false,
+    "source_data_version": "5114ebc1cf9afe59cdaa715e3ea45166",
+    "definition": {
+      "encoding": "cl100k_base",
+      "strategy": "sentence",
+      "max_tokens": 600,
+      "segmentation": "pysbd-en-layout-v1",
+      "pysbd_version": "0.3.4",
+      "overlap_tokens": 100,
+      "embedding_input": "original-chunk-text-v1",
+      "embedding_model": "text-embedding-3-small",
+      "tiktoken_version": "0.14.0",
+      "chunking_algorithm": "chunking-strategies-v1"
+    },
+    "preparation": {
+      "source_data_version": "5114ebc1cf9afe59cdaa715e3ea45166",
+      "manifest_hash": "cd1076ad59935d82cc9401e81b6b80c42b249f5fcd8d6b6e250d07e71aff3e84",
+      "chunk_count": 556
+    },
+    "chunks": 556,
+    "missing_embeddings": 437,
+    "prepared_snapshot_matches": true
+  },
+  "status": "complete",
+  "execution": {
+    "embedded_chunks": 437,
+    "model": "text-embedding-3-small",
+    "profile": "sentence600-v1"
+  },
+  "after": {
+    "profile_id": "sentence600-v1",
+    "active": false,
+    "source_data_version": "5114ebc1cf9afe59cdaa715e3ea45166",
+    "definition": {
+      "encoding": "cl100k_base",
+      "strategy": "sentence",
+      "max_tokens": 600,
+      "segmentation": "pysbd-en-layout-v1",
+      "pysbd_version": "0.3.4",
+      "overlap_tokens": 100,
+      "embedding_input": "original-chunk-text-v1",
+      "embedding_model": "text-embedding-3-small",
+      "tiktoken_version": "0.14.0",
+      "chunking_algorithm": "chunking-strategies-v1"
+    },
+    "preparation": {
+      "source_data_version": "5114ebc1cf9afe59cdaa715e3ea45166",
+      "manifest_hash": "cd1076ad59935d82cc9401e81b6b80c42b249f5fcd8d6b6e250d07e71aff3e84",
+      "chunk_count": 556
+    },
+    "chunks": 556,
+    "missing_embeddings": 0,
+    "prepared_snapshot_matches": true
+  },
+  "ledger": [
+    {
+      "state": "settled",
+      "calls": 14,
+      "actual_usd": "0.00422726",
+      "reserved_usd": "0.02089602"
+    }
+  ],
+  "finished_at": "2026-09-17T15:48:11.230352+00:00"
+}

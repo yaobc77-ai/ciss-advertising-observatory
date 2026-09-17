@@ -1,0 +1,22 @@
+{
+  "checked_at": "2026-09-17T15:53:09.684796+00:00",
+  "phase": "after",
+  "source_data_version": "5114ebc1cf9afe59cdaa715e3ea45166",
+  "active_profile": "sentence600-v1",
+  "records": 275,
+  "active_records": 275,
+  "all_source_versions": 828,
+  "record_version_manifest_sha256": "31e926a9f5018c14666718fb1ca851520b15acaceffbd3a4239345e3afca0a5d",
+  "source_body_hash_manifest_sha256": "73d4fe1d9ec14ffecb5c33ccc8cef4d4f83b6e3741f9f499bbe51ae4bfc3ff41",
+  "stored_chunks_including_historical": 2071,
+  "stored_answers": 113,
+  "stored_citations_checked": 185,
+  "invalid_stored_citations": [],
+  "usage_ledger": {
+    "calls": 166,
+    "exposure_usd": "0.16235308",
+    "unresolved": 0
+  },
+  "record_versions_unchanged": true,
+  "source_bodies_unchanged": true
+}

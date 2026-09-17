@@ -63,6 +63,7 @@ def test_each_connection_is_checked(monkeypatch):
     assert db.connect() is connections[1]
     for conn in connections:
         conn.execute.assert_called_once_with("SELECT current_database() AS name")
+        conn.commit.assert_called_once_with()
 
 
 def input_fixture(tmp_path, monkeypatch):
@@ -170,6 +171,49 @@ def test_repeat_reloads_all_required_manifests_without_api(tmp_path, monkeypatch
         assert call.args == (tmp_path,)
         assert call.kwargs == {"require_admissions": True, "require_body_reviews": True, "require_body_recoveries": True}
     assert db.import_batch.call_count == 2
+    assert db.initialize.call_count == 2
+    cleared = db.connect.return_value.__enter__.return_value.execute.call_args.args[0]
+    for table in ("retrieval_state", "retrieval_profiles", "retrieval_preparations",
+                  "retrieval_publications", "chunk_profile_membership"):
+        assert table in cleared
+
+
+@pytest.mark.parametrize("source_version,profile,code", [
+    ("changed", verifier.LEGACY_PROFILE, "wrong_source_data_version"),
+    (None, verifier.LEGACY_PROFILE, "wrong_source_data_version"),
+    (verifier.EXPECTED_VERSION, "sentence600-v1", "wrong_index_profile"),
+])
+def test_snapshot_requires_historical_source_and_legacy_profile(source_version, profile, code):
+    db = Mock()
+    db.health.return_value = {
+        "record_counts": {"native": 275}, "source_data_version": source_version,
+        "active_profile": profile, "data_version": verifier.EXPECTED_VERSION,
+    }
+    with pytest.raises(verifier.VerificationError, match=code):
+        verifier.verify_snapshot(db, [])
+    db.public_rows.assert_not_called()
+
+
+def test_snapshot_uses_source_hash_instead_of_new_combined_version(monkeypatch):
+    db = Mock()
+    db.health.return_value = {
+        "record_counts": {"native": 275}, "source_data_version": verifier.EXPECTED_VERSION,
+        "active_profile": verifier.LEGACY_PROFILE, "data_version": "new-combined-version",
+        "index_version": "legacy-index-version", "chunks": 558,
+    }
+    db.public_rows.return_value = [{"retrievable": i < 226} for i in range(263)]
+    monkeypatch.setattr(verifier, "verify_chunk_locators", Mock(return_value=558))
+    monkeypatch.setattr(verifier, "load_snapshot", Mock(return_value={}))
+    monkeypatch.setattr(verifier, "validate_gold", Mock(return_value={"case": list(range(15))}))
+    conn = Mock()
+    conn.execute.return_value.fetchone.return_value = {
+        "usage_entries": 0, "embeddings": 0, "answers": 0, "generations": 0,
+    }
+    db.connect.return_value.__enter__ = Mock(return_value=conn)
+    db.connect.return_value.__exit__ = Mock(return_value=False)
+    result = verifier.verify_snapshot(db, [])
+    assert result["health"]["data_version"] == "new-combined-version"
+    assert result["health"]["source_data_version"] == verifier.EXPECTED_VERSION
 
 
 def test_locator_rejects_text_spanning_excluded_gap(monkeypatch):

@@ -1,0 +1,1833 @@
+{
+  "reviewed_at": "2026-09-16T22:14:40.046061+00:00",
+  "archive_path": "C:\\Users\\yaobc\\Downloads\\Native Advertising Data-20260915T221323Z-1-001.zip",
+  "archive_bytes": 977308,
+  "archive_sha256": "73535a6651862886a7caca297f05c8f081e3d8b768e08249052f0475651e2c2b",
+  "method": "Read ZIP members in memory; SHA-256 compare actual bytes; CSV standard parser; openpyxl read-only OOXML inspection; no attachment code, network, database, model or workbook writes.",
+  "baseline_csv": {
+    "path": "D:\\Projects\\549 native ads\\sources\\FA25_SP26\\final_dataset_cleaned.csv",
+    "sha256": "689f330321e42ea608070b2590fa24ee6c2bfb06dbc671941b1f0a927f4ceffa",
+    "records": 268
+  },
+  "members": [
+    {
+      "archive_member": "Native Advertising Data/handcoded_labels.csv",
+      "bytes": 95674,
+      "sha256": "f7fc1a73504e4b19803888e8d578b412fc806b49a258d30bb424b78091b5d64f",
+      "local_path": "D:\\Projects\\549 native ads\\sources\\Native Advertising Data\\handcoded_labels.csv",
+      "local_sha256": "f7fc1a73504e4b19803888e8d578b412fc806b49a258d30bb424b78091b5d64f",
+      "identical_to_local": true,
+      "row_count": 517,
+      "fields": [
+        "doc_id",
+        "sent_idx",
+        "sentence",
+        "green_labels.green_binary",
+        "green_labels.decreasing_emissions",
+        "green_labels.viable_solutions",
+        "green_labels.false_solutions",
+        "green_labels.recycling_waste_management",
+        "green_labels.nature_animal_references",
+        "green_labels.policies_programs",
+        "green_labels.generic_environmental_references",
+        "ff_labels.fossil_fuel_binary",
+        "ff_labels.primary_product",
+        "ff_labels.petrochemical_product",
+        "ff_labels.infrastructure_and_production"
+      ],
+      "missing_blank_by_field": {
+        "doc_id": 0,
+        "sent_idx": 0,
+        "sentence": 0,
+        "green_labels.green_binary": 0,
+        "green_labels.decreasing_emissions": 0,
+        "green_labels.viable_solutions": 0,
+        "green_labels.false_solutions": 0,
+        "green_labels.recycling_waste_management": 0,
+        "green_labels.nature_animal_references": 0,
+        "green_labels.policies_programs": 0,
+        "green_labels.generic_environmental_references": 0,
+        "ff_labels.fossil_fuel_binary": 0,
+        "ff_labels.primary_product": 0,
+        "ff_labels.petrochemical_product": 0,
+        "ff_labels.infrastructure_and_production": 0
+      },
+      "unique_legacy_doc_ids": 16,
+      "unique_doc_sentence_keys": 517,
+      "use_status": "Historical sentence-label reference reviewed in analysis/prior_methods_review.md; not imported by current production importer and not RAG question/answer gold.",
+      "rag_gold_missing_fields": [
+        "question",
+        "reference_answer",
+        "rubric",
+        "source_url",
+        "stable_record_id",
+        "version_id",
+        "character_offsets"
+      ]
+    },
+    {
+      "archive_member": "Native Advertising Data/native_ad_dataset.xlsx",
+      "bytes": 102983,
+      "sha256": "1dcabfcdb3369e52ecd4a9d2b428e589b51e888bb7afb348f0f287cf7e84510e",
+      "local_path": "D:\\Projects\\549 native ads\\sources\\Native Advertising Data\\native_ad_dataset.xlsx",
+      "local_sha256": "1dcabfcdb3369e52ecd4a9d2b428e589b51e888bb7afb348f0f287cf7e84510e",
+      "identical_to_local": true,
+      "sheets": [
+        {
+          "sheet": "Sheet1",
+          "state": "visible",
+          "header_row": 1,
+          "fields": [
+            "id",
+            "url",
+            "publisher",
+            "title",
+            "date",
+            "sponsor",
+            "keyword",
+            "image url",
+            "video url",
+            "embedded url",
+            "disclosure language",
+            "disclosure description",
+            "disclosure code",
+            "notes"
+          ],
+          "nonempty_data_rows": 268,
+          "unique_urls": 268,
+          "data_row_numbers": [
+            2,
+            269
+          ]
+        }
+      ],
+      "use_status": "Used by importer for exact-URL disclosure and note supplement; all original metadata retained under raw.metadata. Media URLs are retained but not public archive links or multimodal retrieval.",
+      "field_population": {
+        "image url": {
+          "nonplaceholder": 179,
+          "http_prefix": 178
+        },
+        "video url": {
+          "nonplaceholder": 114,
+          "http_prefix": 114
+        },
+        "embedded url": {
+          "nonplaceholder": 130,
+          "http_prefix": 130
+        },
+        "disclosure language": {
+          "nonplaceholder": 267,
+          "http_prefix": 0
+        },
+        "disclosure description": {
+          "nonplaceholder": 267,
+          "http_prefix": 0
+        },
+        "disclosure code": {
+          "nonplaceholder": 267,
+          "http_prefix": 0
+        },
+        "notes": {
+          "nonplaceholder": 181,
+          "http_prefix": 0
+        }
+      },
+      "quality_cells": {
+        "K42": {
+          "value": "None",
+          "type": "s"
+        },
+        "L42": {
+          "value": "N/A",
+          "type": "s"
+        },
+        "M42": {
+          "value": "N/A",
+          "type": "s"
+        },
+        "C190": {
+          "value": "https://www.forbes.com/sites/petronas/2022B189+B188+B187+B186+B185",
+          "type": "s"
+        },
+        "F218": {
+          "value": "BP",
+          "type": "s"
+        },
+        "G218": {
+          "value": "American Petroleum Institute",
+          "type": "s"
+        }
+      },
+      "embedded_or_macro_parts": []
+    },
+    {
+      "archive_member": "Native Advertising Data/final_dataset_CLEANED.xlsx",
+      "bytes": 422850,
+      "sha256": "5cd04454ca2f64aaa0e24f309014a7dd2f22653cc7e238b1e5bb261b7719de64",
+      "local_path": "D:\\Projects\\549 native ads\\sources\\Native Advertising Data\\final_dataset_CLEANED.xlsx",
+      "local_sha256": "5cd04454ca2f64aaa0e24f309014a7dd2f22653cc7e238b1e5bb261b7719de64",
+      "identical_to_local": true,
+      "sheets": [
+        {
+          "sheet": "final_dataset_CLEANED",
+          "state": "visible",
+          "header_row": 1,
+          "fields": [
+            "publisher",
+            "keyword",
+            "url",
+            "title",
+            "Disclosure language",
+            "sponsor",
+            "date",
+            "article",
+            "is_video"
+          ],
+          "nonempty_data_rows": 268,
+          "unique_urls": 268,
+          "data_row_numbers": [
+            2,
+            269
+          ]
+        }
+      ],
+      "use_status": "Known historical alternative; current importer deliberately uses baseline CSV body. Not a source of missing complete text.",
+      "baseline_body_comparison": {
+        "same_url_count": 268,
+        "exact_equal_bodies": 267,
+        "mismatches": [
+          {
+            "xlsx_row": 220,
+            "baseline_row": 220,
+            "url": "https://www.nytimes.com/paidpost/bp/energy-trilemma/how-can-we-create-a-sustainable-secure-and-affordable-energy-future.html",
+            "xlsx_body_type": "float",
+            "xlsx_body_value": 2.0,
+            "baseline_body_characters": 28167
+          }
+        ]
+      },
+      "embedded_or_macro_parts": []
+    },
+    {
+      "archive_member": "Native Advertising Data/combined_ads_12-4-25.csv",
+      "bytes": 1245171,
+      "sha256": "a677a6de6a8c10a4f872456263af72f0f99be4c3c561bf8b7449bce9b892dd57",
+      "local_path": "D:\\Projects\\549 native ads\\sources\\Native Advertising Data\\combined_ads_12-4-25.csv",
+      "local_sha256": "a677a6de6a8c10a4f872456263af72f0f99be4c3c561bf8b7449bce9b892dd57",
+      "identical_to_local": true,
+      "row_count": 280,
+      "fields": [
+        "publisher",
+        "keyword",
+        "url",
+        "title",
+        "sponsor",
+        "date",
+        "article"
+      ],
+      "missing_blank_by_field": {
+        "publisher": 0,
+        "keyword": 0,
+        "url": 0,
+        "title": 1,
+        "sponsor": 2,
+        "date": 56,
+        "article": 4
+      },
+      "unique_urls": 280,
+      "video_bodies": 26,
+      "importer_primary_path": "D:\\Projects\\549 native ads\\sources\\pdf_archive_20260915\\nested_unique\\native-ads-download\\combined_ads_12-4-25.csv",
+      "importer_primary_sha256": "a677a6de6a8c10a4f872456263af72f0f99be4c3c561bf8b7449bce9b892dd57",
+      "identical_to_importer_primary": true,
+      "use_status": "Importer uses the byte-identical primary archive copy for 12 new-URL candidates; current admissions include 7, exclude 4, leave 1 pending. Existing baseline bodies are not replaced by this CSV.",
+      "baseline_comparison": {
+        "summary": {
+          "shared_urls": 268,
+          "exact_body_different": 187,
+          "diagnostic_alphanumeric_different": 34,
+          "diagnostic_alphanumeric_equal": 153,
+          "exact_body_equal": 81
+        },
+        "extra_urls": [
+          {
+            "source_row": 21,
+            "url": "https://www.cnbc.com/advertorial/2015/05/05/how-much-co2-is-emitted-when-you-travel.html"
+          },
+          {
+            "source_row": 145,
+            "url": "https://partners.wsj.com/ceraweek/connection/darren-woods-chairman-ceo-exxonmobil-speaks-daniel-yergin-vice-chairman-ihs-markit/ceraweek_darrenwoods_video_fb/"
+          },
+          {
+            "source_row": 272,
+            "url": "https://partners.wsj.com/api/a-road-map-for-bipartisan-energy-progress/"
+          },
+          {
+            "source_row": 273,
+            "url": "https://partners.wsj.com/ceraweek/connection/sustainable-u-s-oil-gas-revolution/"
+          },
+          {
+            "source_row": 274,
+            "url": "https://partners.wsj.com/ceraweek/connection/will-u-s-become-swing-producer-global-gas-market/ceraweek_article1_hero/"
+          },
+          {
+            "source_row": 275,
+            "url": "https://www.washingtonpost.com/creativegroup/southern-company/powering-progress-how-southern-company-is-ensuring-americas-energy-future/"
+          },
+          {
+            "source_row": 276,
+            "url": "https://www.washingtonpost.com/creativegroup/southern-company/responsibly-green/"
+          },
+          {
+            "source_row": 277,
+            "url": "https://www.cnbc.com/advertorial/2023/03/09/who-will-power-the-power-of-tomorrow-.html"
+          },
+          {
+            "source_row": 278,
+            "url": "https://www.theatlantic.com/sponsored/bayer-2024/demystifying-menopause/3935/?sr_source=facebook&sr_lift=true"
+          },
+          {
+            "source_row": 279,
+            "url": "https://www.businessinsider.com/sc/mobile-technology-helps-businesses-connect-with-consumers"
+          },
+          {
+            "source_row": 280,
+            "url": "https://www.nytimes.com/paidpost/chevron/meet-the-problem-solvers.html"
+          },
+          {
+            "source_row": 281,
+            "url": "https://ad-assets.nytimes.com/paidpost/shell/sky/assets/Shell-LP-Sky-Legal-Disclaimer.pdf"
+          }
+        ],
+        "differences": [
+          {
+            "baseline_row": 2,
+            "combined_row": 2,
+            "url": "https://www.theatlantic.com/sponsored/api-2019/rising-top/3034/",
+            "baseline_characters": 2429,
+            "combined_characters": 2508,
+            "diagnostic_alphanumeric_equal": false
+          },
+          {
+            "baseline_row": 3,
+            "combined_row": 3,
+            "url": "https://www.theatlantic.com/sponsored/bp-2017/tracking-change/1338/",
+            "baseline_characters": 23852,
+            "combined_characters": 24302,
+            "diagnostic_alphanumeric_equal": false
+          },
+          {
+            "baseline_row": 4,
+            "combined_row": 4,
+            "url": "https://www.theatlantic.com/sponsored/chevron-stem-education/the-science-of-rural-education/207/",
+            "baseline_characters": 5590,
+            "combined_characters": 5737,
+            "diagnostic_alphanumeric_equal": false
+          },
+          {
+            "baseline_row": 5,
+            "combined_row": 5,
+            "url": "https://www.theatlantic.com/sponsored/chevron-ambu/tuffy-and-the-comeback-of-the-coal-capital-of-the-world/186/",
+            "baseline_characters": 8188,
+            "combined_characters": 8300,
+            "diagnostic_alphanumeric_equal": false
+          },
+          {
+            "baseline_row": 6,
+            "combined_row": 6,
+            "url": "https://www.theatlantic.com/sponsored/chevron-ambu/the-new-land-of-opportunity/214/",
+            "baseline_characters": 5566,
+            "combined_characters": 5671,
+            "diagnostic_alphanumeric_equal": false
+          },
+          {
+            "baseline_row": 7,
+            "combined_row": 7,
+            "url": "https://www.theatlantic.com/sponsored/shell-2022/creating-a-net-zero-world/3758/",
+            "baseline_characters": 23761,
+            "combined_characters": 24197,
+            "diagnostic_alphanumeric_equal": false
+          },
+          {
+            "baseline_row": 8,
+            "combined_row": 8,
+            "url": "https://www.theatlantic.com/sponsored/2015-shell/the-great-transition/595/",
+            "baseline_characters": 7546,
+            "combined_characters": 7700,
+            "diagnostic_alphanumeric_equal": false
+          },
+          {
+            "baseline_row": 9,
+            "combined_row": 9,
+            "url": "https://www.theatlantic.com/sponsored/shell-2015/soundbites/443/",
+            "baseline_characters": 5091,
+            "combined_characters": 5336,
+            "diagnostic_alphanumeric_equal": false
+          },
+          {
+            "baseline_row": 10,
+            "combined_row": 10,
+            "url": "https://www.theatlantic.com/sponsored/shell-new-energy-cycle/future-cities/190/",
+            "baseline_characters": 1882,
+            "combined_characters": 1969,
+            "diagnostic_alphanumeric_equal": false
+          },
+          {
+            "baseline_row": 11,
+            "combined_row": 11,
+            "url": "https://www.theatlantic.com/sponsored/southern-company-2023/bridge-the-gap-to-net-zero/3816/",
+            "baseline_characters": 13100,
+            "combined_characters": 13250,
+            "diagnostic_alphanumeric_equal": false
+          },
+          {
+            "baseline_row": 12,
+            "combined_row": 12,
+            "url": "https://www.theatlantic.com/sponsored/southern-company-2024/net-zero/3931/",
+            "baseline_characters": 4116,
+            "combined_characters": 4257,
+            "diagnostic_alphanumeric_equal": false
+          },
+          {
+            "baseline_row": 13,
+            "combined_row": 13,
+            "url": "https://www.businessinsider.com/sc/7-things-to-know-about-carbon-capture-and-storage-technology-2021-12",
+            "baseline_characters": 2990,
+            "combined_characters": 2993,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 14,
+            "combined_row": 14,
+            "url": "https://www.businessinsider.com/sc/engineer-talks-carbon-storage-safety-2022-2",
+            "baseline_characters": 1435,
+            "combined_characters": 1436,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 15,
+            "combined_row": 15,
+            "url": "https://www.businessinsider.com/sc/exxonmobil-rewards-program-2018-11",
+            "baseline_characters": 2592,
+            "combined_characters": 2610,
+            "diagnostic_alphanumeric_equal": false
+          },
+          {
+            "baseline_row": 16,
+            "combined_row": 16,
+            "url": "https://www.businessinsider.com/sc/how-lower-emission-fuels-can-power-the-future-of-transportation-2022-4",
+            "baseline_characters": 1718,
+            "combined_characters": 1720,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 17,
+            "combined_row": 17,
+            "url": "https://www.businessinsider.com/sc/the-future-of-lower-emission-transportation-fuels",
+            "baseline_characters": 2991,
+            "combined_characters": 2993,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 18,
+            "combined_row": 18,
+            "url": "https://www.cnbc.com/advertorial/charting-pathways-for-a-sustainable-asia/",
+            "baseline_characters": 6391,
+            "combined_characters": 6391,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 19,
+            "combined_row": 19,
+            "url": "https://www.cnbc.com/advertorial/powering-up-asias-net-zero-push/",
+            "baseline_characters": 3470,
+            "combined_characters": 3470,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 21,
+            "combined_row": 22,
+            "url": "https://www.cnbc.com/advertorial/2015/06/01/total-and-natural-gas-a-deliberate-stance-in-a-changing-global-energy-landscape.html",
+            "baseline_characters": 2999,
+            "combined_characters": 3000,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 22,
+            "combined_row": 23,
+            "url": "https://www.cnbc.com/advertorial/2015/06/08/what-if-innovation-is-a-state-of-mind.html",
+            "baseline_characters": 2024,
+            "combined_characters": 2025,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 23,
+            "combined_row": 24,
+            "url": "https://www.cnbc.com/advertorial/2015/07/21/sustainable-solutions-to-bring-energy-to-the-greatest-number-of-people.html",
+            "baseline_characters": 2999,
+            "combined_characters": 3000,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 24,
+            "combined_row": 25,
+            "url": "https://www.cnbc.com/advertorial/2015/08/10/what-about-hydrogen-powered-mobility-as-an-acceptable-alternative.html",
+            "baseline_characters": 1460,
+            "combined_characters": 1461,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 25,
+            "combined_row": 26,
+            "url": "https://www.cnbc.com/advertorial/2015/11/12/ogci-being-part-of-the-solution.html",
+            "baseline_characters": 3000,
+            "combined_characters": 3000,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 26,
+            "combined_row": 27,
+            "url": "https://www.cnbc.com/advertorial/2015/11/23/totals-eco-efficiency-solutions.html",
+            "baseline_characters": 2808,
+            "combined_characters": 2997,
+            "diagnostic_alphanumeric_equal": false
+          },
+          {
+            "baseline_row": 27,
+            "combined_row": 28,
+            "url": "https://www.cnbc.com/advertorial/2015/12/04/sparknews-when-journalism-inspires-solutions.html",
+            "baseline_characters": 2985,
+            "combined_characters": 3000,
+            "diagnostic_alphanumeric_equal": false
+          },
+          {
+            "baseline_row": 28,
+            "combined_row": 29,
+            "url": "https://www.cnbc.com/advertorial/2015/12/15/planete-energiescom-learning-about-and-understanding-energy.html",
+            "baseline_characters": 2959,
+            "combined_characters": 3000,
+            "diagnostic_alphanumeric_equal": false
+          },
+          {
+            "baseline_row": 29,
+            "combined_row": 30,
+            "url": "https://www.cnbc.com/advertorial/2016/02/16/lubricant-the-unknown-factor-in-energy-efficiency.html",
+            "baseline_characters": 2996,
+            "combined_characters": 2999,
+            "diagnostic_alphanumeric_equal": false
+          },
+          {
+            "baseline_row": 31,
+            "combined_row": 32,
+            "url": "https://www.cnbc.com/advertorial/2016/03/29/pesticides-the-alternative-oil-based-solution.html",
+            "baseline_characters": 2938,
+            "combined_characters": 2999,
+            "diagnostic_alphanumeric_equal": false
+          },
+          {
+            "baseline_row": 33,
+            "combined_row": 34,
+            "url": "https://www.cnbc.com/advertorial/2016/05/23/how-compressed-air-is-inspiring-architects.html",
+            "baseline_characters": 2998,
+            "combined_characters": 3000,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 34,
+            "combined_row": 35,
+            "url": "https://www.cnbc.com/advertorial/2016/06/06/tremors-in-seismic-data.html",
+            "baseline_characters": 2999,
+            "combined_characters": 3000,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 35,
+            "combined_row": 36,
+            "url": "https://www.cnbc.com/advertorial/2016/08/04/the-bitumen-industry-tackles-environmental-challenges.html",
+            "baseline_characters": 2995,
+            "combined_characters": 2999,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 36,
+            "combined_row": 37,
+            "url": "https://www.cnbc.com/advertorial/2016/09/01/pangea-high-performance-computing-for-3d-oilfield-modeling.html",
+            "baseline_characters": 2998,
+            "combined_characters": 3000,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 37,
+            "combined_row": 38,
+            "url": "https://www.cnbc.com/advertorial/2016/09/16/awango-by-total-comes-of-age.html",
+            "baseline_characters": 2998,
+            "combined_characters": 3000,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 38,
+            "combined_row": 39,
+            "url": "https://www.cnbc.com/advertorial/2016/09/29/explaining-energy-to-future-citizens.html",
+            "baseline_characters": 2852,
+            "combined_characters": 3000,
+            "diagnostic_alphanumeric_equal": false
+          },
+          {
+            "baseline_row": 40,
+            "combined_row": 41,
+            "url": "https://www.cnbc.com/advertorial/2016/10/27/total-connects-with-microgrid-start-up-to-improve-energy-access-in-east-africa.html",
+            "baseline_characters": 2998,
+            "combined_characters": 3000,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 43,
+            "combined_row": 44,
+            "url": "https://www.cnbc.com/advertorial/2017/01/18/totals-innovation-boosting-production-pilots.html",
+            "baseline_characters": 2998,
+            "combined_characters": 3000,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 44,
+            "combined_row": 45,
+            "url": "https://www.cnbc.com/advertorial/2017/02/07/can-rd-solve-the-daunting-challenges-of-taking-carbon-out-of-the-equation.html",
+            "baseline_characters": 2993,
+            "combined_characters": 3000,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 45,
+            "combined_row": 46,
+            "url": "https://www.cnbc.com/advertorial/2017/02/17/algorithms-to-make-energy-smarter.html",
+            "baseline_characters": 2998,
+            "combined_characters": 3000,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 53,
+            "combined_row": 54,
+            "url": "https://www.cnbc.com/advertorial/2017/06/29/where-the-molecules-of-the-future-are-designed.html",
+            "baseline_characters": 2998,
+            "combined_characters": 3000,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 54,
+            "combined_row": 55,
+            "url": "https://www.cnbc.com/advertorial/2017/07/27/a-birds-eye-view-of-oil-exploration.html",
+            "baseline_characters": 2999,
+            "combined_characters": 3000,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 66,
+            "combined_row": 67,
+            "url": "https://www.cnbc.com/advertorial/2018/05/21/seismic-acquisition-takes-flight.html",
+            "baseline_characters": 2995,
+            "combined_characters": 3000,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 67,
+            "combined_row": 68,
+            "url": "https://www.cnbc.com/advertorial/2018/05/29/seven-sustainable-mobility-solutions-that-work-in-less-than-10-years.html",
+            "baseline_characters": 2998,
+            "combined_characters": 3000,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 70,
+            "combined_row": 71,
+            "url": "https://www.cnbc.com/advertorial/2018/07/18/world-gas-conference-2018-the-major-challenges-of-natural-gas.html",
+            "baseline_characters": 2996,
+            "combined_characters": 3000,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 71,
+            "combined_row": 72,
+            "url": "https://www.cnbc.com/advertorial/2018/08/03/a-competitive-lacq-embraces-the-circular-economy.html",
+            "baseline_characters": 2995,
+            "combined_characters": 3000,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 75,
+            "combined_row": 76,
+            "url": "https://www.cnbc.com/advertorial/2018/11/09/biogas-to-offset-air-travel-emissions.html",
+            "baseline_characters": 2997,
+            "combined_characters": 3000,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 77,
+            "combined_row": 78,
+            "url": "https://www.cnbc.com/advertorial/2018/11/15/a-software-to-use-less-energy.html",
+            "baseline_characters": 2996,
+            "combined_characters": 3000,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 78,
+            "combined_row": 79,
+            "url": "https://www.cnbc.com/advertorial/2018/11/26/10-million-tons-of-carbon-not-emitted.html",
+            "baseline_characters": 2998,
+            "combined_characters": 3000,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 80,
+            "combined_row": 81,
+            "url": "https://www.cnbc.com/advertorial/2018/12/28/using-mollusks-to-monitor-industrial-sites.html",
+            "baseline_characters": 2998,
+            "combined_characters": 3000,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 82,
+            "combined_row": 83,
+            "url": "https://www.cnbc.com/advertorial/2019/01/09/lampiris-tanks-up-on-electric-vehicles.html",
+            "baseline_characters": 2998,
+            "combined_characters": 3000,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 83,
+            "combined_row": 84,
+            "url": "https://www.cnbc.com/advertorial/2019/01/10/lubricating-electric-vehicles.html",
+            "baseline_characters": 2998,
+            "combined_characters": 3000,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 84,
+            "combined_row": 85,
+            "url": "https://www.cnbc.com/advertorial/2019/01/15/ces-2019-the-epicenter-of-innovative-technology.html",
+            "baseline_characters": 2996,
+            "combined_characters": 3000,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 85,
+            "combined_row": 86,
+            "url": "https://www.cnbc.com/advertorial/2019/01/31/total-at-the-2019-ces-digital-inspiration.html",
+            "baseline_characters": 2996,
+            "combined_characters": 3000,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 86,
+            "combined_row": 87,
+            "url": "https://www.cnbc.com/advertorial/2019/02/13/rd-priorities-cost-reduction-and-the-environment.html",
+            "baseline_characters": 2999,
+            "combined_characters": 3000,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 87,
+            "combined_row": 88,
+            "url": "https://www.cnbc.com/advertorial/2019/03/19/is-peak-oil-looming.html",
+            "baseline_characters": 2997,
+            "combined_characters": 3000,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 88,
+            "combined_row": 89,
+            "url": "https://www.cnbc.com/advertorial/2019/05/02/how-natural-gas-will-help-make-beautiful-china-real.html",
+            "baseline_characters": 2996,
+            "combined_characters": 3000,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 89,
+            "combined_row": 90,
+            "url": "https://www.cnbc.com/advertorial/2019/06/11/polystyrene-focus-on-recycling.html",
+            "baseline_characters": 2998,
+            "combined_characters": 3000,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 92,
+            "combined_row": 93,
+            "url": "https://www.cnbc.com/advertorial/2019/08/12/getting-ready-for-robot-operated-oil-rigs.html",
+            "baseline_characters": 2996,
+            "combined_characters": 3000,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 93,
+            "combined_row": 94,
+            "url": "https://www.cnbc.com/advertorial/2019/10/28/total-plans-to-solarize-5000-service-stations-as-part-of-its-decarbonization-drive.html",
+            "baseline_characters": 2996,
+            "combined_characters": 3000,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 94,
+            "combined_row": 95,
+            "url": "https://www.cnbc.com/advertorial/2020/01/10/lng-a-groundbreaking-choice-for-the-shipping-industry.html",
+            "baseline_characters": 2996,
+            "combined_characters": 3000,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 97,
+            "combined_row": 98,
+            "url": "https://www.cnbc.com/advertorial/2020/09/14/total-in-papua-new-guinea-dialogue-consultation-and-empowerment.html",
+            "baseline_characters": 2996,
+            "combined_characters": 3000,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 101,
+            "combined_row": 102,
+            "url": "https://www.cnbc.com/advertorial/2020/11/30/sunpower-a-leading-light-in-the-us-solar-market.html",
+            "baseline_characters": 2998,
+            "combined_characters": 3000,
+            "diagnostic_alphanumeric_equal": false
+          },
+          {
+            "baseline_row": 104,
+            "combined_row": 105,
+            "url": "https://www.cnbc.com/advertorial/2021/01/11/saft-leading-energy-storage-solutions.html",
+            "baseline_characters": 2999,
+            "combined_characters": 3000,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 105,
+            "combined_row": 106,
+            "url": "https://www.cnbc.com/advertorial/2021/01/11/total-disrupting-carbon-emissions.html",
+            "baseline_characters": 3000,
+            "combined_characters": 3000,
+            "diagnostic_alphanumeric_equal": false
+          },
+          {
+            "baseline_row": 106,
+            "combined_row": 107,
+            "url": "https://www.cnbc.com/advertorial/carbon-capture-utilization-and-storage/",
+            "baseline_characters": 5272,
+            "combined_characters": 5272,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 107,
+            "combined_row": 108,
+            "url": "https://www.cnbc.com/advertorial/ccus-the-industry-that-will-change-industry-/",
+            "baseline_characters": 7515,
+            "combined_characters": 7520,
+            "diagnostic_alphanumeric_equal": false
+          },
+          {
+            "baseline_row": 108,
+            "combined_row": 109,
+            "url": "https://www.cnbc.com/advertorial/connected-mobility-supported-by-strong-customer-relationships/",
+            "baseline_characters": 6301,
+            "combined_characters": 6301,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 109,
+            "combined_row": 110,
+            "url": "https://www.cnbc.com/advertorial/egina-sets-new-standards-for-local-content-in-nigerias-deep-offshore/",
+            "baseline_characters": 3914,
+            "combined_characters": 3916,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 110,
+            "combined_row": 111,
+            "url": "https://www.cnbc.com/advertorial/energy-efficiencys-critical-role-in-the-global-energy-system-/",
+            "baseline_characters": 5797,
+            "combined_characters": 5797,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 111,
+            "combined_row": 112,
+            "url": "https://www.cnbc.com/advertorial/lng-a-groundbreaking-choice-for-the-shipping-industry-/",
+            "baseline_characters": 8491,
+            "combined_characters": 8491,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 112,
+            "combined_row": 113,
+            "url": "https://www.cnbc.com/advertorial/microalgae-a-promising-pathway-to-sustainable-biofuels/",
+            "baseline_characters": 4796,
+            "combined_characters": 4798,
+            "diagnostic_alphanumeric_equal": false
+          },
+          {
+            "baseline_row": 113,
+            "combined_row": 114,
+            "url": "https://www.cnbc.com/advertorial/net-zero-how-we-got-here-and-why-it-matters/",
+            "baseline_characters": 4900,
+            "combined_characters": 4900,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 114,
+            "combined_row": 115,
+            "url": "https://www.cnbc.com/advertorial/no-limit-on-totals-renewables-strategy/",
+            "baseline_characters": 6610,
+            "combined_characters": 6610,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 115,
+            "combined_row": 116,
+            "url": "https://www.cnbc.com/advertorial/open-innovation-introducing-totals-computational-science-engineering-program/",
+            "baseline_characters": 6514,
+            "combined_characters": 6515,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 116,
+            "combined_row": 117,
+            "url": "https://www.cnbc.com/advertorial/solar-power-for-all-in-the-us/",
+            "baseline_characters": 5092,
+            "combined_characters": 5194,
+            "diagnostic_alphanumeric_equal": false
+          },
+          {
+            "baseline_row": 128,
+            "combined_row": 129,
+            "url": "https://www.cnbc.com/advertorial/total-access-to-energy-solutions-the-future-is-bright/",
+            "baseline_characters": 7223,
+            "combined_characters": 7223,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 129,
+            "combined_row": 130,
+            "url": "https://www.cnbc.com/advertorial/total-biodiversity-strategy-a-call-for-action/",
+            "baseline_characters": 7499,
+            "combined_characters": 7499,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 130,
+            "combined_row": 131,
+            "url": "http://www.cnbc.com/advertorial/2015/03/17/energy-equals-development.html",
+            "baseline_characters": 2998,
+            "combined_characters": 3000,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 131,
+            "combined_row": 132,
+            "url": "https://www.cnbc.com/advertorial/total-using-biomimicry-for-cleaner-water/",
+            "baseline_characters": 7696,
+            "combined_characters": 7696,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 136,
+            "combined_row": 137,
+            "url": "https://partners.wsj.com/ceraweek/connection/chinas-anti-smog-campaign-triggered-natural-gas-crisis-switch-clean-coal/",
+            "baseline_characters": 2990,
+            "combined_characters": 3000,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 144,
+            "combined_row": 146,
+            "url": "https://partners.wsj.com/ceraweek/connection/energy-transition-evolution-revolution/",
+            "baseline_characters": 2990,
+            "combined_characters": 3000,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 149,
+            "combined_row": 151,
+            "url": "https://partners.wsj.com/ceraweek/connection/from-zero-to-a-trillion-the-mobility-revolution/",
+            "baseline_characters": 2991,
+            "combined_characters": 3000,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 152,
+            "combined_row": 154,
+            "url": "https://partners.wsj.com/ceraweek/connection/hailing-future-new-equation-cars-transportation/",
+            "baseline_characters": 2995,
+            "combined_characters": 3000,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 153,
+            "combined_row": 155,
+            "url": "https://partners.wsj.com/ceraweek/connection/highlights-ceraweek-plenary-session-whats-ahead-washington/",
+            "baseline_characters": 99,
+            "combined_characters": 99,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 155,
+            "combined_row": 157,
+            "url": "https://partners.wsj.com/ceraweek/connection/highlights-special-address-hon-justin-trudeau-prime-minister-canada/",
+            "baseline_characters": 104,
+            "combined_characters": 104,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 159,
+            "combined_row": 161,
+            "url": "https://partners.wsj.com/ceraweek/connection/highlights-technology-agora-ceraweek-connected-home-future/",
+            "baseline_characters": 214,
+            "combined_characters": 214,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 166,
+            "combined_row": 168,
+            "url": "https://partners.wsj.com/ceraweek/connection/reducing-electricity-sector-co2-emissions-u-s-sets-pace/",
+            "baseline_characters": 2993,
+            "combined_characters": 3000,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 167,
+            "combined_row": 169,
+            "url": "https://partners.wsj.com/ceraweek/connection/secret-fuel-americas-financial-sector/",
+            "baseline_characters": 2994,
+            "combined_characters": 3000,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 169,
+            "combined_row": 171,
+            "url": "https://partners.wsj.com/ceraweek/connection/sweet-spot-key-shale/",
+            "baseline_characters": 2991,
+            "combined_characters": 3000,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 171,
+            "combined_row": 173,
+            "url": "https://partners.wsj.com/ceraweek/connection/the-clean-energy-innovation-ecosystem-whats-needed-for-the-u-s-to-win-the-race/",
+            "baseline_characters": 2994,
+            "combined_characters": 3000,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 172,
+            "combined_row": 174,
+            "url": "https://partners.wsj.com/ceraweek/connection/will-u-s-become-swing-producer-global-gas-market/",
+            "baseline_characters": 2995,
+            "combined_characters": 3000,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 173,
+            "combined_row": 175,
+            "url": "https://partners.wsj.com/exxonmobil/business-of-carbon-capture-and-storage/hydrogen-another-chapter-in-exxonmobils-lower-emissions-ambitions/",
+            "baseline_characters": 1955,
+            "combined_characters": 1964,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 174,
+            "combined_row": 176,
+            "url": "https://partners.wsj.com/exxonmobil/business-of-carbon-capture-and-storage/renewable-diesel-for-our-changing-world/",
+            "baseline_characters": 1421,
+            "combined_characters": 1429,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 175,
+            "combined_row": 177,
+            "url": "https://www.forbes.com/sites/statoil/2015/01/12/how-carbon-pricing-works-infographic/",
+            "baseline_characters": 323,
+            "combined_characters": 323,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 176,
+            "combined_row": 178,
+            "url": "https://www.forbes.com/sites/statoil/2015/01/28/can-we-harvest-lightning-for-the-power-grid/",
+            "baseline_characters": 6320,
+            "combined_characters": 6321,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 177,
+            "combined_row": 179,
+            "url": "https://www.forbes.com/sites/petronas/2024/12/16/building-on-an-innovation-legacy-toward-a-sustainable-future/",
+            "baseline_characters": 8244,
+            "combined_characters": 8244,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 178,
+            "combined_row": 180,
+            "url": "https://www.forbes.com/sites/statoil/2015/01/12/16-amazing-facts-about-natural-gas/",
+            "baseline_characters": 3474,
+            "combined_characters": 3474,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 179,
+            "combined_row": 181,
+            "url": "https://www.forbes.com/sites/statoil/2015/01/12/how-arctic-exploration-is-putting-local-communities-on-the-map/",
+            "baseline_characters": 3637,
+            "combined_characters": 3637,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 180,
+            "combined_row": 182,
+            "url": "https://www.forbes.com/sites/statoil/2015/02/27/is-algae-the-next-sustainable-biofuel/",
+            "baseline_characters": 4548,
+            "combined_characters": 4548,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 181,
+            "combined_row": 183,
+            "url": "https://www.forbes.com/sites/petronas/2022/12/05/moving-toward-net-zero-carbon-emissions/",
+            "baseline_characters": 6918,
+            "combined_characters": 6918,
+            "diagnostic_alphanumeric_equal": false
+          },
+          {
+            "baseline_row": 182,
+            "combined_row": 184,
+            "url": "https://www.forbes.com/sites/petronas/2022/02/01/petronas-onwards-to-a-sustainable-future/",
+            "baseline_characters": 3255,
+            "combined_characters": 3255,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 183,
+            "combined_row": 185,
+            "url": "https://www.forbes.com/sites/petronas/2023/11/10/the-race-to-net-zero-picks-up-pace/",
+            "baseline_characters": 6378,
+            "combined_characters": 6378,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 184,
+            "combined_row": 186,
+            "url": "https://www.forbes.com/sites/petronas/2023/12/07/technology-innovation-is-a-catalyst-for-resilience/",
+            "baseline_characters": 6645,
+            "combined_characters": 6645,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 185,
+            "combined_row": 187,
+            "url": "https://www.forbes.com/sites/petronas/2022/02/01/petronas-gears-up-for-the-future-of-work/",
+            "baseline_characters": 3992,
+            "combined_characters": 3992,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 186,
+            "combined_row": 188,
+            "url": "https://www.forbes.com/sites/petronas/2022/12/09/embracing-net-zero-carbon-emissions-aspirations/",
+            "baseline_characters": 5890,
+            "combined_characters": 5890,
+            "diagnostic_alphanumeric_equal": false
+          },
+          {
+            "baseline_row": 187,
+            "combined_row": 189,
+            "url": "https://www.forbes.com/sites/petronas/2022/02/01/leveraging-technology-to-drive-sustainability/",
+            "baseline_characters": 3751,
+            "combined_characters": 3751,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 188,
+            "combined_row": 190,
+            "url": "https://www.forbes.com/sites/petronas/2022/11/01/embarking-on-sustainable-initiatives/",
+            "baseline_characters": 8546,
+            "combined_characters": 8587,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 189,
+            "combined_row": 191,
+            "url": "https://www.forbes.com/sites/petronas/2021/10/25/a-love-affair-to-savor/",
+            "baseline_characters": 5829,
+            "combined_characters": 5830,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 190,
+            "combined_row": 192,
+            "url": "https://www.forbes.com/sites/petronas/2022/02/01/petronas-an-aspiration-for-a-sustainable-future/",
+            "baseline_characters": 3787,
+            "combined_characters": 3787,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 191,
+            "combined_row": 193,
+            "url": "https://www.forbes.com/sites/petronas/2022/11/14/building-business-resilience-during-adversity/",
+            "baseline_characters": 5338,
+            "combined_characters": 5338,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 192,
+            "combined_row": 194,
+            "url": "https://www.forbes.com/sites/petronas/2021/10/25/the-economic-upside-of-doing-good/",
+            "baseline_characters": 6341,
+            "combined_characters": 6343,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 193,
+            "combined_row": 195,
+            "url": "https://www.forbes.com/sites/petronas/2021/10/06/committing-to-sustainability-how-petronas-is-stepping-up-its-energy-initiatives/",
+            "baseline_characters": 5063,
+            "combined_characters": 5064,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 194,
+            "combined_row": 196,
+            "url": "https://www.forbes.com/sites/petronas/2021/10/06/5-ways-this-asian-energy-giant-is-changing-its-sustainability-game/",
+            "baseline_characters": 5079,
+            "combined_characters": 5080,
+            "diagnostic_alphanumeric_equal": false
+          },
+          {
+            "baseline_row": 195,
+            "combined_row": 197,
+            "url": "https://www.forbes.com/sites/statoil/2015/01/12/a-business-shaped-by-heritage-our-norwegian-experience/",
+            "baseline_characters": 6247,
+            "combined_characters": 6247,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 196,
+            "combined_row": 198,
+            "url": "https://www.forbes.com/sites/statoil/2015/02/13/the-age-of-oil-and-gas-and-how-we-got-here/",
+            "baseline_characters": 519,
+            "combined_characters": 519,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 197,
+            "combined_row": 199,
+            "url": "https://www.forbes.com/sites/statoil/2015/02/09/shaping-our-future-energy-reality/",
+            "baseline_characters": 5558,
+            "combined_characters": 5568,
+            "diagnostic_alphanumeric_equal": false
+          },
+          {
+            "baseline_row": 198,
+            "combined_row": 200,
+            "url": "https://www.forbes.com/sites/statoil/2015/01/29/pioneering-explorers-the-unsung-heroes-of-energy-innovation-infographic/",
+            "baseline_characters": 1044,
+            "combined_characters": 1044,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 199,
+            "combined_row": 201,
+            "url": "https://www.forbes.com/sites/statoil/2015/01/12/the-final-frontier-conquering-the-seabed/",
+            "baseline_characters": 3587,
+            "combined_characters": 3587,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 200,
+            "combined_row": 202,
+            "url": "https://www.forbes.com/sites/statoil/2015/03/05/the-technology-behind-energy-innovation/",
+            "baseline_characters": 4489,
+            "combined_characters": 4489,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 201,
+            "combined_row": 203,
+            "url": "https://www.forbes.com/sites/statoil/2015/02/26/the-natural-gas-myth/",
+            "baseline_characters": 6400,
+            "combined_characters": 6400,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 202,
+            "combined_row": 204,
+            "url": "https://www.forbes.com/sites/statoil/2013/11/21/the-grid-of-tomorrow-today/",
+            "baseline_characters": 3849,
+            "combined_characters": 3849,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 203,
+            "combined_row": 205,
+            "url": "https://www.forbes.com/sites/statoil/2015/01/21/why-the-world-isnt-ready-for-renewable-energy-and-how-we-can-be/",
+            "baseline_characters": 5440,
+            "combined_characters": 5440,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 204,
+            "combined_row": 206,
+            "url": "https://www.forbes.com/sites/statoil/2015/01/21/ensuring-access-to-energy-in-developing-countries-2/",
+            "baseline_characters": 3511,
+            "combined_characters": 3511,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 205,
+            "combined_row": 207,
+            "url": "https://www.forbes.com/sites/statoil/2015/02/20/the-history-and-future-of-natural-gas-in-the-uk-video/",
+            "baseline_characters": 510,
+            "combined_characters": 510,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 206,
+            "combined_row": 208,
+            "url": "https://www.forbes.com/sites/statoil/2015/03/07/confronting-climate-change-whats-taking-so-long/",
+            "baseline_characters": 3611,
+            "combined_characters": 3613,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 207,
+            "combined_row": 209,
+            "url": "https://www.forbes.com/sites/statoil/2015/01/12/linking-carbon-markets-to-climate-change/",
+            "baseline_characters": 4338,
+            "combined_characters": 4338,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 208,
+            "combined_row": 210,
+            "url": "https://www.forbes.com/sites/statoil/2015/02/18/flower-power-advancing-solar-panels-with-nature/",
+            "baseline_characters": 3348,
+            "combined_characters": 3348,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 209,
+            "combined_row": 211,
+            "url": "https://www.forbes.com/sites/statoil/2015/01/12/how-4d-modelling-is-transforming-energy-exploration-2/",
+            "baseline_characters": 3780,
+            "combined_characters": 3780,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 210,
+            "combined_row": 212,
+            "url": "https://www.forbes.com/sites/statoil/2015/01/12/natural-gas-vehicles-the-future-of-transport-infographic/",
+            "baseline_characters": 4934,
+            "combined_characters": 4934,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 211,
+            "combined_row": 213,
+            "url": "https://www.forbes.com/sites/statoil/2015/01/26/what-factors-will-drive-energy-demand-in-2030/",
+            "baseline_characters": 3322,
+            "combined_characters": 3322,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 212,
+            "combined_row": 214,
+            "url": "https://www.forbes.com/sites/statoil/2015/02/17/how-microgrids-could-bring-electricity-to-1-5-billion-people/",
+            "baseline_characters": 3769,
+            "combined_characters": 3769,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 213,
+            "combined_row": 215,
+            "url": "https://www.forbes.com/sites/statoil/2015/01/27/can-you-turn-your-home-into-a-hydroelectric-plant/",
+            "baseline_characters": 6115,
+            "combined_characters": 6119,
+            "diagnostic_alphanumeric_equal": false
+          },
+          {
+            "baseline_row": 214,
+            "combined_row": 216,
+            "url": "https://www.forbes.com/sites/statoil/2013/10/14/why-are-wind-turbine-blades-so-thin/",
+            "baseline_characters": 6447,
+            "combined_characters": 6448,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 215,
+            "combined_row": 217,
+            "url": "https://www.forbes.com/sites/statoil/2015/02/11/funding-the-long-arc-of-energy-transition/",
+            "baseline_characters": 7383,
+            "combined_characters": 7383,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 216,
+            "combined_row": 218,
+            "url": "https://www.forbes.com/sites/statoil/2015/01/21/educating-the-next-generation-of-energy-engineers/",
+            "baseline_characters": 7278,
+            "combined_characters": 7281,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 217,
+            "combined_row": 219,
+            "url": "https://www.forbes.com/sites/statoil/2015/02/04/to-drive-energy-innovation-we-have-to-work-together/",
+            "baseline_characters": 3778,
+            "combined_characters": 3781,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 218,
+            "combined_row": 220,
+            "url": "https://www.nytimes.com/paidpost/bp/energy-trilemma/how-do-we-create-green-buildings-today-and-for-tomorrow.html",
+            "baseline_characters": 23481,
+            "combined_characters": 23620,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 219,
+            "combined_row": 221,
+            "url": "https://www.nytimes.com/paidpost/bp/energy-trilemma.html",
+            "baseline_characters": 2953,
+            "combined_characters": 2953,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 220,
+            "combined_row": 222,
+            "url": "https://www.nytimes.com/paidpost/bp/energy-trilemma/how-can-we-create-a-sustainable-secure-and-affordable-energy-future.html",
+            "baseline_characters": 28167,
+            "combined_characters": 28227,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 221,
+            "combined_row": 223,
+            "url": "https://www.nytimes.com/paidpost/bp/energy-trilemma/how-can-private-finance-accelerate-the-net-zero-energy-transition.html",
+            "baseline_characters": 25243,
+            "combined_characters": 25303,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 222,
+            "combined_row": 224,
+            "url": "https://www.nytimes.com/paidpost/bp/energy-trilemma/how-can-aviation-fly-toward-net-zero.html",
+            "baseline_characters": 26994,
+            "combined_characters": 27072,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 223,
+            "combined_row": 225,
+            "url": "https://www.nytimes.com/paidpost/bp/energy-trilemma/what-is-driving-decarbonization-in-road-transport.html",
+            "baseline_characters": 24652,
+            "combined_characters": 24712,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 224,
+            "combined_row": 226,
+            "url": "https://www.nytimes.com/paidpost/bp/energy-trilemma/how-is-shipping-rising-to-the-challenge-of-global-decarbonization.html",
+            "baseline_characters": 24379,
+            "combined_characters": 24445,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 225,
+            "combined_row": 227,
+            "url": "https://www.nytimes.com/paidpost/chevron/a-complex-flow-of-energy.html",
+            "baseline_characters": 3294,
+            "combined_characters": 3294,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 226,
+            "combined_row": 228,
+            "url": "https://www.nytimes.com/paidpost/chevron/how-abundant-energy-is-fueling-us-growth.html",
+            "baseline_characters": 7581,
+            "combined_characters": 7586,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 227,
+            "combined_row": 229,
+            "url": "https://www.nytimes.com/paidpost/exxonmobil/the-future-of-energy-it-may-come-from-where-you-least-expect.html",
+            "baseline_characters": 13116,
+            "combined_characters": 13127,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 228,
+            "combined_row": 230,
+            "url": "https://www.nytimes.com/paidpost/exxonmobil/algae-may-be-small-but-its-impact-could-be-big.html",
+            "baseline_characters": 114,
+            "combined_characters": 114,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 229,
+            "combined_row": 231,
+            "url": "https://www.nytimes.com/paidpost/exxonmobil/from-farm-waste-to-fuel-tank.html",
+            "baseline_characters": 114,
+            "combined_characters": 114,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 230,
+            "combined_row": 232,
+            "url": "https://www.nytimes.com/paidpost/ptt-global-chemical/ptt-global-chemical/achieving-net-zero.html",
+            "baseline_characters": 4712,
+            "combined_characters": 4730,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 231,
+            "combined_row": 233,
+            "url": "https://www.nytimes.com/paidpost/shell/ul/moving-forward-a-path-to-net-zero-emissions-by-2070.html",
+            "baseline_characters": 10922,
+            "combined_characters": 10926,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 232,
+            "combined_row": 234,
+            "url": "https://www.nytimes.com/paidpost/shell/cities-energized.html",
+            "baseline_characters": 109,
+            "combined_characters": 109,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 233,
+            "combined_row": 235,
+            "url": "https://www.nytimes.com/paidpost/shell/reimagining-the-future-of-transportation.html",
+            "baseline_characters": 109,
+            "combined_characters": 109,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 234,
+            "combined_row": 236,
+            "url": "https://www.nytimes.com/paidpost/shell/net-zero-emissions-by-2070.html",
+            "baseline_characters": 6220,
+            "combined_characters": 6221,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 235,
+            "combined_row": 237,
+            "url": "https://www.nytimes.com/paidpost/bp/energy-trilemma.html?utm_campaign=bpdotcom",
+            "baseline_characters": 1081,
+            "combined_characters": 1083,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 236,
+            "combined_row": 238,
+            "url": "https://www.washingtonpost.com/sf/brand-connect/AFPM/oil-refiners-and-petrochemical-producers-are-critical-in-the-drive-to-save-energy/",
+            "baseline_characters": 954,
+            "combined_characters": 975,
+            "diagnostic_alphanumeric_equal": false
+          },
+          {
+            "baseline_row": 237,
+            "combined_row": 239,
+            "url": "https://www.washingtonpost.com/brand-studio/wp/2020/12/14/real-climate-solutions-wont-happen-without-natural-gas-and-oil/",
+            "baseline_characters": 6875,
+            "combined_characters": 6899,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 238,
+            "combined_row": 240,
+            "url": "https://www.washingtonpost.com/brand-studio/wp/2020/09/28/why-pipelines-and-production-are-pathways-to-progress/",
+            "baseline_characters": 7430,
+            "combined_characters": 8472,
+            "diagnostic_alphanumeric_equal": false
+          },
+          {
+            "baseline_row": 239,
+            "combined_row": 241,
+            "url": "https://www.washingtonpost.com/brand-studio/api-why-natural-gas-will-thrive-in-the-age-of-renewables/",
+            "baseline_characters": 5863,
+            "combined_characters": 5863,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 240,
+            "combined_row": 242,
+            "url": "https://www.washingtonpost.com/brand-studio/api-can-natural-gas-be-the-key-to-lowering-emissions/",
+            "baseline_characters": 5843,
+            "combined_characters": 5846,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 241,
+            "combined_row": 243,
+            "url": "https://www.washingtonpost.com/brand-studio/wp/2019/02/15/low-and-no-carbon-future-starts-with-natural-gas/",
+            "baseline_characters": 3397,
+            "combined_characters": 3397,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 242,
+            "combined_row": 244,
+            "url": "https://www.washingtonpost.com/sf/brand-connect/api/molding-the-future/",
+            "baseline_characters": 11149,
+            "combined_characters": 11150,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 243,
+            "combined_row": 245,
+            "url": "https://www.washingtonpost.com/brand-studio/chevron/how-energy-and-the-environment-can-collectively-thrive/",
+            "baseline_characters": 8029,
+            "combined_characters": 9355,
+            "diagnostic_alphanumeric_equal": false
+          },
+          {
+            "baseline_row": 244,
+            "combined_row": 246,
+            "url": "https://www.washingtonpost.com/creativegroup/exxonmobil/lets-deliver-american-industry-with-low-emissions/",
+            "baseline_characters": 1294,
+            "combined_characters": 1294,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 245,
+            "combined_row": 247,
+            "url": "https://www.washingtonpost.com/creativegroup/exxonmobil/renewable-diesel-for-our-changing-world/",
+            "baseline_characters": 1369,
+            "combined_characters": 1369,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 246,
+            "combined_row": 248,
+            "url": "https://www.washingtonpost.com/creativegroup/exxonmobil/hydrogen-another-chapter-in-exxonmobils-lower-emissions-ambitions/",
+            "baseline_characters": 2074,
+            "combined_characters": 2074,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 247,
+            "combined_row": 249,
+            "url": "https://www.washingtonpost.com/creativegroup/exxonmobil/supporting-policies-that-can-reduce-emissions/",
+            "baseline_characters": 3186,
+            "combined_characters": 3186,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 248,
+            "combined_row": 250,
+            "url": "https://www.washingtonpost.com/brand-studio/wp/2021/12/08/feature/capturing-carbon-around-the-world/",
+            "baseline_characters": 825,
+            "combined_characters": 825,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 249,
+            "combined_row": 251,
+            "url": "https://www.washingtonpost.com/brand-studio/shell/the-making-of-sustainable-mobility/",
+            "baseline_characters": 569,
+            "combined_characters": 569,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 250,
+            "combined_row": 252,
+            "url": "https://www.washingtonpost.com/brand-studio/shell/the-mobility-quandary/",
+            "baseline_characters": 7024,
+            "combined_characters": 7026,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 251,
+            "combined_row": 253,
+            "url": "https://www.washingtonpost.com/brandstudio/eni/saving-tomorrows-cities/",
+            "baseline_characters": 7365,
+            "combined_characters": 7366,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 252,
+            "combined_row": 254,
+            "url": "https://www.politico.com/sponsor-content/2018/07/us-fuel-makers",
+            "baseline_characters": 7515,
+            "combined_characters": 7518,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 253,
+            "combined_row": 255,
+            "url": "https://www.politico.com/sponsor-content/2019/09/us-refiners-clean-up-trade",
+            "baseline_characters": 7349,
+            "combined_characters": 8483,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 254,
+            "combined_row": 256,
+            "url": "https://www.politico.com/sponsor-content/2018/05/refiners-pioneer-new-technology",
+            "baseline_characters": 6935,
+            "combined_characters": 6937,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 255,
+            "combined_row": 257,
+            "url": "https://www.politico.com/sponsor-content/2018/03/second-wave-of-growth-brought-by-shale",
+            "baseline_characters": 6271,
+            "combined_characters": 6274,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 256,
+            "combined_row": 258,
+            "url": "https://www.politico.com/sponsor-content/2019/03/petrochemical-manufacturers",
+            "baseline_characters": 8522,
+            "combined_characters": 8868,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 257,
+            "combined_row": 259,
+            "url": "https://www.politico.com/sponsor-content/2022/08/09/natural-gas-infrastructure-and-hydrogen-will-help-create-a-clean-energy-future",
+            "baseline_characters": 6757,
+            "combined_characters": 6812,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 258,
+            "combined_row": 260,
+            "url": "https://www.politico.com/sponsor-content/2015/12/journey-to-the-subsurface-of-the-earth",
+            "baseline_characters": 13082,
+            "combined_characters": 13084,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 259,
+            "combined_row": 261,
+            "url": "https://www.politico.com/sponsor-content/2017/1/360-of-safety",
+            "baseline_characters": 11674,
+            "combined_characters": 11678,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 260,
+            "combined_row": 262,
+            "url": "https://www.politico.com/sponsor-content/2025/02/28/how-bp-is-training-the-future-industrial-workforce-and-investing-in-america",
+            "baseline_characters": 6693,
+            "combined_characters": 7065,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 261,
+            "combined_row": 263,
+            "url": "https://www.politico.com/sponsor-content/2016/12/tracking-change/",
+            "baseline_characters": 17413,
+            "combined_characters": 17482,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 262,
+            "combined_row": 264,
+            "url": "https://www.politico.com/sponsor-content/2017/12/creating-a-chain-reaction/",
+            "baseline_characters": 12246,
+            "combined_characters": 12248,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 263,
+            "combined_row": 265,
+            "url": "https://www.politico.com/sponsor-content/2022/09/07/bridging-to-a-sustainable-and-secure-energy-future",
+            "baseline_characters": 5235,
+            "combined_characters": 5440,
+            "diagnostic_alphanumeric_equal": false
+          },
+          {
+            "baseline_row": 264,
+            "combined_row": 266,
+            "url": "https://www.politico.com/sponsor-content/2024/05/06/learning-to-say-yes",
+            "baseline_characters": 6168,
+            "combined_characters": 6170,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 265,
+            "combined_row": 267,
+            "url": "https://www.politico.com/sponsor-content/2023/06/26/and-a-transformative-word",
+            "baseline_characters": 5429,
+            "combined_characters": 5431,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 266,
+            "combined_row": 268,
+            "url": "https://www.politico.com/sponsor-content/2018/07/09/exelon-supports-carbon-dividends-plan-to-address-climate-change",
+            "baseline_characters": 7987,
+            "combined_characters": 8041,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 267,
+            "combined_row": 269,
+            "url": "https://www.politico.com/sponsor-content/2021/12/17/solutions-to-securing-the-system",
+            "baseline_characters": 5533,
+            "combined_characters": 5588,
+            "diagnostic_alphanumeric_equal": true
+          },
+          {
+            "baseline_row": 268,
+            "combined_row": 270,
+            "url": "https://www.politico.com/sponsor-content/2021/10/21/natural-gas-will-accelerate-the-worlds-clean-energy-future",
+            "baseline_characters": 5347,
+            "combined_characters": 5719,
+            "diagnostic_alphanumeric_equal": false
+          },
+          {
+            "baseline_row": 269,
+            "combined_row": 271,
+            "url": "https://www.politico.com/sponsor-content/2021/06/28/green-hydrogen-incentives-can-fuel-the-future-of-american-energy-leadership",
+            "baseline_characters": 4872,
+            "combined_characters": 4990,
+            "diagnostic_alphanumeric_equal": false
+          }
+        ],
+        "normalization_boundary": "NFKC + casefold + alphanumeric-only is a diagnostic comparison, never applied to saved body/offsets and not a semantic equivalence certificate.",
+        "spot_checks": [
+          {
+            "combined_row": 240,
+            "baseline_row": 238,
+            "extra_characters": 1042,
+            "finding": "Additional block contains external reference URLs, including BLS/EIA/API; not a newly discovered article continuation."
+          },
+          {
+            "combined_row": 245,
+            "baseline_row": 243,
+            "extra_characters": 1326,
+            "finding": "Numbered reference links are fuller; cleaned baseline has fragments such as 1https://. Useful link-repair source, not automatic body authority."
+          }
+        ]
+      }
+    }
+  ],
+  "entry_count": 4,
+  "nested_zip_members": [],
+  "absent_from_this_archive": [
+    "social-media post export",
+    "social field documentation",
+    "standalone native field dictionary",
+    "collection script",
+    "notebook",
+    "deployment configuration",
+    "PDF/screenshot files",
+    "additional nested ZIP"
+  ],
+  "remaining_uses": [
+    "Original media URLs and reference URLs can support a separately reviewed source-link restoration; reachability and archived identity are unverified.",
+    "Historical sentence labels can audit matching old classifier output, not certify current RAG answers."
+  ]
+}

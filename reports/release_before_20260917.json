@@ -1,0 +1,20 @@
+{
+  "checked_at": "2026-09-17T15:41:51.048709+00:00",
+  "phase": "before",
+  "source_data_version": "5114ebc1cf9afe59cdaa715e3ea45166",
+  "active_profile": "legacy-before-profile-migration",
+  "records": 275,
+  "active_records": 275,
+  "all_source_versions": 828,
+  "record_version_manifest_sha256": "31e926a9f5018c14666718fb1ca851520b15acaceffbd3a4239345e3afca0a5d",
+  "source_body_hash_manifest_sha256": "73d4fe1d9ec14ffecb5c33ccc8cef4d4f83b6e3741f9f499bbe51ae4bfc3ff41",
+  "stored_chunks_including_historical": 1634,
+  "stored_answers": 111,
+  "stored_citations_checked": 180,
+  "invalid_stored_citations": [],
+  "usage_ledger": {
+    "calls": 150,
+    "exposure_usd": "0.15677057",
+    "unresolved": 0
+  }
+}

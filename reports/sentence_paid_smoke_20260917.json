@@ -1,0 +1,280 @@
+{
+  "started_at": "2026-09-17T15:50:30.371925+00:00",
+  "health": {
+    "status": "ok",
+    "record_counts": {
+      "native": 275
+    },
+    "source_data_version": "5114ebc1cf9afe59cdaa715e3ea45166",
+    "active_profile": "sentence600-v1",
+    "index_version": "d580c5962a6222e595db2ed8681f9787cef648dad653b055120b6bed10e3af75",
+    "data_version": "f19d4d697f4e6d2699d2c58b3ce80620b03e02c7e9447f24e012123adcb00f53",
+    "chunks": 556
+  },
+  "maximum_generation_calls": 2,
+  "generation_reservation_allocation_usd": "0.08",
+  "scope": "Two reused development cases, English and Chinese; not held-out evaluation or human acceptance",
+  "cases": [
+    {
+      "case_id": "dev-02",
+      "question": "How does the ExxonMobil Baytown hydrogen advertisement link natural gas to CCS, and is the new hydrogen facility described as already completed?",
+      "filters": {
+        "dataset": "native",
+        "publishers": [
+          "The Wall Street Journal"
+        ],
+        "sponsors": [
+          "exxonmobil"
+        ],
+        "platforms": [],
+        "keywords": [],
+        "labels": [],
+        "record_ids": [],
+        "date_from": "2022-01-01",
+        "date_to": "2022-12-31",
+        "include_unknown_dates": false
+      },
+      "answer": {
+        "status": "answered",
+        "answer": "The ExxonMobil Baytown advertisement says blue hydrogen is produced from natural gas in combination with carbon capture and storage (CCS). [1]\n\nThe advertisement describes the Baytown hydrogen facility as a recently announced plan to build a world-scale facility, not as already completed. [2]\n\nThe advertisement further says the new facility could produce up to 1 billion cubic feet per day of blue hydrogen once completed, preserving its future or planned status. [3]",
+        "citations": [
+          {
+            "evidence_id": "c073c2acb5b73e32052753e012aa8417b7b0026652834dafc4d2fcd38df051f7",
+            "quote": "Blue hydrogen is a low-carbon fuel produced from natural gas in combination with carbon capture and storage (CCS). This clean-burning fuel produces zero CO2 when combusted, meaning it can play a vital role in a lower-emission future."
+          },
+          {
+            "evidence_id": "c073c2acb5b73e32052753e012aa8417b7b0026652834dafc4d2fcd38df051f7",
+            "quote": "By ExxonMobil There's a buzz in Baytown, Texas. The city just outside of Houston is already home to one of ExxonMobil's largest integrated refining and chemical complexes. It's also the site of the company's recently announced plan to build a world-scale blue hydrogen facility."
+          },
+          {
+            "evidence_id": "c073c2acb5b73e32052753e012aa8417b7b0026652834dafc4d2fcd38df051f7",
+            "quote": "Once completed, the new facility could produce up to 1 billion cubic feet a day of blue hydrogen that can be used to help fuel the existing Baytown complex as well as other industrial facilities in the area."
+          }
+        ],
+        "evidence": [
+          {
+            "evidence_id": "c073c2acb5b73e32052753e012aa8417b7b0026652834dafc4d2fcd38df051f7",
+            "record_id": "0d2b4bc2-4397-5604-8235-fcda8c7088f7",
+            "version_id": "7edbf6617dc344578452865c341bfe53f5f18beb6b9bc30caa51aa6e96269cde",
+            "dataset": "native",
+            "title": "Hydrogen: Another Chapter in ExxonMobil's Lower-Emissions Ambitions",
+            "publisher": "The Wall Street Journal",
+            "sponsor": "exxonmobil",
+            "url": "https://partners.wsj.com/exxonmobil/business-of-carbon-capture-and-storage/hydrogen-another-chapter-in-exxonmobils-lower-emissions-ambitions/",
+            "archive_url": "",
+            "text": "By ExxonMobil There's a buzz in Baytown, Texas. The city just outside of Houston is already home to one of ExxonMobil's largest integrated refining and chemical complexes. It's also the site of the company's recently announced plan to build a world-scale blue hydrogen facility. Blue hydrogen is a low-carbon fuel produced from natural gas in combination with carbon capture and storage (CCS). This clean-burning fuel produces zero CO2 when combusted, meaning it can play a vital role in a lower-emission future. Combining hydrogen with carbon capture and storage in places like Baytown supports ExxonMobil's larger 2050 net-zero ambitions for its Scope 1 and 2 greenhouse gas emissions. Once completed, the new facility could produce up to 1 billion cubic feet a day of blue hydrogen that can be used to help fuel the existing Baytown complex as well as other industrial facilities in the area. The CCS portion of the process could capture up to 10 million metric tons of CO2 a year and will be one of the world's largest CCS projects. Fueling the Baytown facility with blue hydrogen could significantly reduce the olefin plant's CO2 emissions and cut emissions up to 30% across the integrated complex. \"This is a big step for the company because it enables us to reduce the emissions of the products made at Baytown,\" says Michael Bey, a venture executive at ExxonMobil. \"Some of those products include chemicals that are the precursor for things like medical supplies, car parts, cell phones and other plastics that are essential to our modern lives.\" To accomplish this project, a team of dedicated ExxonMobil researchers, planners and engineers is working to bring it to life and usher in the next generation of lower-emission operations at Baytown. Hear more from the team on what the project means to them, the Greater Houston area and society at large. Learn more about our efforts in Baytown and beyond when it comes to reducing carbon emissions.",
+            "start": 0,
+            "end": 1955,
+            "paragraph_ids": [
+              "p1"
+            ],
+            "score": 0.03278688524590164
+          },
+          {
+            "evidence_id": "a5bb38b414ff9f5e7ca2453dce53727b1d504f5ae23da96be033a904808793e0",
+            "record_id": "b2ee5d40-330a-5dfc-a520-b9affc31ded9",
+            "version_id": "8de4c3098b4758c62f0f47db0803ca7f247a288827ed68ba4bc87be72d869aaf",
+            "dataset": "native",
+            "title": "Renewable Diesel for Our Changing World",
+            "publisher": "The Wall Street Journal",
+            "sponsor": "exxonmobil",
+            "url": "https://partners.wsj.com/exxonmobil/business-of-carbon-capture-and-storage/renewable-diesel-for-our-changing-world/",
+            "archive_url": "",
+            "text": "By ExxonMobil Diesel plays a critical role in enabling modern life. This high-energy fuel packs the power needed for trucking, aviation and maritime transportation—which helps transport people around the world and goods from manufacturing sites to our doorsteps. Diesel drives international commerce and global development, but this traditional fuel also has a carbon footprint. And, while the global demand for energy continues to grow, so does the demand for solutions with lower greenhouse gas (GHG) emissions. That's where diesel made from renewable sources comes in. Imperial Oil's Strathcona Refinery in Alberta, Canada, is an ExxonMobil majority-owned affiliate where engineers are working to create sustainable solutions for our changing world. This cutting-edge facility will use locally sourced biofeedstock supplemented by blue hydrogen with carbon capture and storage technology to create lower-emission, renewable diesel that functions similarly to its traditional counterpart. Meet some of the people at Strathcona who are at the forefront of this technology, and hear about what creating renewable diesel means to them and the world of transportation. Learn more about ExxonMobil's work in renewable diesel and alternative fuels. NOTE: This content was created by ExxonMobil and originally appeared on Energy Factor by ExxonMobil on April 7, 2022. It is being reproduced here by ExxonMobil in its entirety.",
+            "start": 0,
+            "end": 1421,
+            "paragraph_ids": [
+              "p1"
+            ],
+            "score": 0.03225806451612903
+          }
+        ],
+        "cost_usd": 0.0006162,
+        "latency_ms": 5531,
+        "failure_reason": "",
+        "language_check": {
+          "policy": "lingua-2.2.0-min20-margin0.20-v1",
+          "target": {
+            "code": "en",
+            "name": "English",
+            "letters": 121,
+            "margin": 1.0
+          },
+          "status": "match",
+          "claims": [
+            {
+              "code": "en",
+              "name": "English",
+              "letters": 116,
+              "margin": 0.939715
+            },
+            {
+              "code": "en",
+              "name": "English",
+              "letters": 122,
+              "margin": 1.0
+            },
+            {
+              "code": "en",
+              "name": "English",
+              "letters": 140,
+              "margin": 1.0
+            }
+          ],
+          "combined": {
+            "code": "en",
+            "name": "English",
+            "letters": 378,
+            "margin": 1.0
+          }
+        }
+      },
+      "citation_locator_valid": {
+        "numerator": 3,
+        "denominator": 3,
+        "rate": 1.0
+      },
+      "gold_quote_coverage": {
+        "numerator": 2,
+        "denominator": 2,
+        "rate": 1.0
+      },
+      "semantic_review": "pending_review_not_human_accepted"
+    },
+    {
+      "case_id": "dev-08",
+      "question": "在2022年Politico的Enbridge原生广告中，低碳氢和氨生产出口中心怎样与CCS相连？哪些说法属于规划？",
+      "filters": {
+        "dataset": "native",
+        "publishers": [
+          "Politico"
+        ],
+        "sponsors": [
+          "enbridge"
+        ],
+        "platforms": [],
+        "keywords": [],
+        "labels": [],
+        "record_ids": [],
+        "date_from": "2022-01-01",
+        "date_to": "2022-12-31",
+        "include_unknown_dates": false
+      },
+      "answer": {
+        "status": "answered",
+        "answer": "Politico上的Enbridge原生广告称，公司计划在得州Corpus Christi的Ingleside Energy Center建设低碳氢和氨生产及出口中心，并在该中心配置碳捕集与封存设施，以封存生产过程中产生的二氧化碳的最多95%。 [1]\n\n该广告明确将低碳氢和氨中心、碳捕集与封存设施以及相关减排目标表述为规划阶段或已宣布的开发计划，而非已完成的项目。 [2]",
+        "citations": [
+          {
+            "evidence_id": "1b26bce10540fcb2079fa9e491cd3dbaf0307797904908c4f0cc1f1227fcb46d",
+            "quote": "Onsite, Enbridge is in the planning stages of a 60-megawatt solar farm that will deliver electricity to the local grid. Enbridge also announced plans to develop a low-carbon hydrogen and ammonia production and export hub at the site, including carbon capture and storage facilities to sequester up to 95% of the carbon dioxide generated in production."
+          },
+          {
+            "evidence_id": "1b26bce10540fcb2079fa9e491cd3dbaf0307797904908c4f0cc1f1227fcb46d",
+            "quote": "Onsite, Enbridge is in the planning stages of a 60-megawatt solar farm that will deliver electricity to the local grid. Enbridge also announced plans to develop a low-carbon hydrogen and ammonia production and export hub at the site, including carbon capture and storage facilities to sequester up to 95% of the carbon dioxide generated in production."
+          }
+        ],
+        "evidence": [
+          {
+            "evidence_id": "1b26bce10540fcb2079fa9e491cd3dbaf0307797904908c4f0cc1f1227fcb46d",
+            "record_id": "e1c336a6-d8ed-5fec-9147-5f4efc588cc1",
+            "version_id": "efad198d81b6d0420340a90641764cbbb3ecef6daa948980b7d5a93c1366537b",
+            "dataset": "native",
+            "title": "Bridging to a sustainable and secure energy future",
+            "publisher": "Politico",
+            "sponsor": "enbridge",
+            "url": "https://www.politico.com/sponsor-content/2022/09/07/bridging-to-a-sustainable-and-secure-energy-future",
+            "archive_url": "",
+            "text": "Sponsored Story What is sponsored content? On-site solar energy facilities provides the power required to run Enbridge's Texas Eastern natural gas pipeline system that moves energy to power homes, businesses and schools along the Atlantic seaboard. Bridging to a sustainable and secure energy future By ENBRIDGE INC. 09/07/2022 09:00 AM EDT Facebook X Linkedin Print Over the last year, energy availability and affordability have seemingly leapfrogged climate change concerns of the public — according to recent polls by Gallup and CBS News . But the need to transition to a cleaner energy system persists. While there are no easy solutions, we can achieve these objectives. The key? Investing in energy systems that can transition with a changing, cleaner energy mix. \"Energy security has a lot to do with leaning on conventional fuels and infrastructure and transitioning it to newer lower-carbon energy as we go. By integrating existing and new energy systems, we can build the energy networks of the future,\" says Matthew Akman, senior vice president, strategy, power & new energy technologies at Enbridge Inc. Integrated energy systems Akman cites Enbridge's Ingleside Energy Center in Corpus Christi, Texas, as an example, where the company is developing a net-negative export facility. Ingleside connects North American oil to global markets to help meet energy demand — that is increasing as the global population marches toward 10 billion . Onsite, Enbridge is in the planning stages of a 60-megawatt solar farm that will deliver electricity to the local grid. Enbridge also announced plans to develop a low-carbon hydrogen and ammonia production and export hub at the site, including carbon capture and storage facilities to sequester up to 95% of the carbon dioxide generated in production. Both hydrogen and ammonia have zero CO2 emissions at the point of use. \"It's the integration of all those systems that will advance the transition,\" says Akman. \"Our strategy is to ensure security of supply and move rapidly to the transition by investing in cleaner sources of conventional energy and low-carbon technologies.\" Enbridge has entered into an agreement to jointly develop and market utility scale, ultra-low carbon hydrogen and ammonia production and export facilities to meet growing global and domestic demand. The project will be located at the Enbridge Ingleside Energy Center near Corpus Christi, TX. Clean energy needs natural gas A cleaner future requires further investment in renewable energy technologies like wind and solar. Enbridge already has invested more than $6 billion in renewables in North America and offshore Europe. Yet the challenge remains that renewable energy is an intermittent energy source, and in too many places, there is insufficient transmission capacity to deliver the energy to where it's needed. While engineers and scientists continue to work on battery technology for storage, natural gas plays a critical role in underpinning the reliability of renewable energy — here at home and globally. ",
+            "start": 0,
+            "end": 3046,
+            "paragraph_ids": [
+              "p1"
+            ],
+            "score": 0.01639344262295082
+          },
+          {
+            "evidence_id": "adac401d5454bb4930407b133d6bea549d0db364f81562b703adaf10a55eebc5",
+            "record_id": "e1c336a6-d8ed-5fec-9147-5f4efc588cc1",
+            "version_id": "efad198d81b6d0420340a90641764cbbb3ecef6daa948980b7d5a93c1366537b",
+            "dataset": "native",
+            "title": "Bridging to a sustainable and secure energy future",
+            "publisher": "Politico",
+            "sponsor": "enbridge",
+            "url": "https://www.politico.com/sponsor-content/2022/09/07/bridging-to-a-sustainable-and-secure-energy-future",
+            "archive_url": "",
+            "text": "Enbridge already has invested more than $6 billion in renewables in North America and offshore Europe. Yet the challenge remains that renewable energy is an intermittent energy source, and in too many places, there is insufficient transmission capacity to deliver the energy to where it's needed. While engineers and scientists continue to work on battery technology for storage, natural gas plays a critical role in underpinning the reliability of renewable energy — here at home and globally. \"Under any scenario, natural gas will be an incredibly important part of ensuring energy security and advancing the transition,\" says Akman. \"Let's remember that the single biggest factor in the U.S. reducing its emissions by 20% since 2005 has been natural gas.\" Today, more than 35% of the world's electricity comes from coal. Replacing coal-fired generation with renewables and natural gas would make a significant reduction in global emissions — abating up to 1.2 giga-tonnes of CO2 emissions according to the International Energy Agency . Enbridge, which moves 20% of the natural gas consumed in the U.S., is working to reduce emissions from its natural gas operations by modernizing equipment and piloting methane abatement technologies, including equipment to avoid methane releases during pipeline maintenance. Enbridge is also lowering emissions from natural gas by blending it with hydrogen . In 2018, the company launched North America's first green hydrogen blending facility, where hydrogen — produced from renewable power — is added into the natural gas system, lowering the carbon content of the gas. Clear, transparent permitting required Whether it's windmills, export facilities or carbon capture and storage, a clear regulatory framework with transparent and predictable processes to evaluate permits and construct projects in the public interest is key to strengthening the investment climate needed to advance the transition. \"We have billions of capital to put to work in energy transition, but for opportunities like hydrogen or carbon capture, we need frameworks that everyone can buy into to get the activity going,\" says Akman. \"Industry is ready to invest, but we need a strong market signal to make that happen.\" Enbridge is targeting to invest more than $3 billion in low-carbon and renewable projects through 2025. Akman added: \"Beyond 2025, as we work towards our net-zero commitment and evolve our energy systems, the potential for that to ramp higher is huge.\" Learn more about how Enbridge is moving North America toward a lower-emissions future at . The above column is sponsor-generated content from Enbridge. Learn more about sponsor-generated content.",
+            "start": 2551,
+            "end": 5235,
+            "paragraph_ids": [
+              "p1"
+            ],
+            "score": 0.016129032258064516
+          }
+        ],
+        "cost_usd": 0.00073905,
+        "latency_ms": 3141,
+        "failure_reason": "",
+        "language_check": {
+          "policy": "lingua-2.2.0-min20-margin0.20-v1",
+          "target": {
+            "code": "zh",
+            "name": "Chinese",
+            "letters": 51,
+            "margin": 1.0
+          },
+          "status": "match",
+          "claims": [
+            {
+              "code": "zh",
+              "name": "Chinese",
+              "letters": 112,
+              "margin": 1.0
+            },
+            {
+              "code": "zh",
+              "name": "Chinese",
+              "letters": 53,
+              "margin": 1.0
+            }
+          ],
+          "combined": {
+            "code": "zh",
+            "name": "Chinese",
+            "letters": 165,
+            "margin": 1.0
+          }
+        }
+      },
+      "citation_locator_valid": {
+        "numerator": 2,
+        "denominator": 2,
+        "rate": 1.0
+      },
+      "gold_quote_coverage": {
+        "numerator": 2,
+        "denominator": 2,
+        "rate": 1.0
+      },
+      "semantic_review": "pending_review_not_human_accepted"
+    }
+  ],
+  "ledger": [
+    {
+      "state": "settled",
+      "calls": 2,
+      "actual_usd": "0.00135525"
+    }
+  ],
+  "finished_at": "2026-09-17T15:50:39.393216+00:00",
+  "health_after": {
+    "status": "ok",
+    "record_counts": {
+      "native": 275
+    },
+    "source_data_version": "5114ebc1cf9afe59cdaa715e3ea45166",
+    "active_profile": "sentence600-v1",
+    "index_version": "d580c5962a6222e595db2ed8681f9787cef648dad653b055120b6bed10e3af75",
+    "data_version": "f19d4d697f4e6d2699d2c58b3ce80620b03e02c7e9447f24e012123adcb00f53",
+    "chunks": 556
+  }
+}

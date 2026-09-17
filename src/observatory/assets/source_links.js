@@ -7,8 +7,21 @@ dagcomponentfuncs.SourceLink = function (props) {
     };
     var links = [];
     var original = valid(props.value);
-    var archived = valid(props.data && props.data.archive_url);
     if (original) links.push(React.createElement('a', {key: 'original', href: original, target: '_blank', rel: 'noopener noreferrer'}, 'Original ↗'));
-    if (archived) links.push(React.createElement('a', {key: 'archive', href: archived, target: '_blank', rel: 'noopener noreferrer'}, 'Archive ↗'));
     return React.createElement('span', {className: 'source-cell'}, links.length ? links : React.createElement('span', {className: 'source-muted'}, 'Unavailable'));
+};
+
+dagcomponentfuncs.RecordLink = function (props) {
+    var id = props.data && props.data.record_id;
+    return id ? React.createElement('a', {href: '/records/' + encodeURIComponent(id), target: '_blank', rel: 'noopener noreferrer'}, 'View record ↗') : React.createElement('span', null, 'Unavailable');
+};
+dagcomponentfuncs.ArchiveLink = function (props) {
+    if (!props.enabled) return React.createElement('span', {className:'source-muted'}, 'Links disabled');
+    var data = props.data || {};
+    if (data.snapshot_count > 0 && data.record_id) return React.createElement('a', {href:'/records/' + encodeURIComponent(data.record_id),target:'_blank',rel:'noopener noreferrer'}, 'Local PDF ↗');
+    try {
+        var url = new URL(data.archive_url);
+        if ((url.protocol === 'https:' || url.protocol === 'http:') && !url.username && !url.password) return React.createElement('a',{href:url.href,target:'_blank',rel:'noopener noreferrer'},'Online archive ↗');
+    } catch (error) { /* No valid archive destination. */ }
+    return React.createElement('span',{className:'source-muted'},props.value || 'No verified archived copy');
 };

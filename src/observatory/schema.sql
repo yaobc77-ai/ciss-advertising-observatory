@@ -23,6 +23,30 @@ CREATE TABLE IF NOT EXISTS chunks (
 );
 CREATE INDEX IF NOT EXISTS chunks_search ON chunks USING gin(search_vector);
 CREATE INDEX IF NOT EXISTS chunks_current ON chunks(record_id,version_id);
+CREATE TABLE IF NOT EXISTS retrieval_profiles (
+ profile_id text PRIMARY KEY, definition jsonb NOT NULL, definition_hash text NOT NULL,
+ created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS chunk_profile_membership (
+ profile_id text NOT NULL REFERENCES retrieval_profiles(profile_id),
+ chunk_id text NOT NULL REFERENCES chunks(chunk_id), PRIMARY KEY(profile_id,chunk_id)
+);
+CREATE TABLE IF NOT EXISTS retrieval_state (
+ singleton boolean PRIMARY KEY DEFAULT true CHECK(singleton),
+ active_profile text NOT NULL REFERENCES retrieval_profiles(profile_id),
+ activated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS retrieval_preparations (
+ profile_id text PRIMARY KEY REFERENCES retrieval_profiles(profile_id),
+ source_data_version text NOT NULL, manifest_hash text NOT NULL, chunk_count integer NOT NULL,
+ prepared_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS retrieval_publications (
+ publication_id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+ profile_id text NOT NULL REFERENCES retrieval_profiles(profile_id),
+ source_data_version text NOT NULL, index_version text NOT NULL,
+ created_at timestamptz NOT NULL DEFAULT now()
+);
 CREATE TABLE IF NOT EXISTS embeddings (
  text_hash text NOT NULL, model text NOT NULL, embedding vector(1536) NOT NULL,
  created_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY(text_hash,model)

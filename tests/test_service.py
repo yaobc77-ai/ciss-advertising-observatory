@@ -5,7 +5,7 @@ import pytest
 
 from observatory.budget import price
 from observatory.config import Settings
-from observatory.models import Evidence, Filters
+from observatory.models import Answer, Evidence, Filters
 from observatory.rag import (
     MAX_QUOTE_WORDS,
     GroundedClaim,
@@ -37,7 +37,7 @@ def evidence():
         url="https://example.org",
         text="The company proposes capturing carbon dioxide.",
         start=0,
-        end=46,
+        end=len("The company proposes capturing carbon dioxide."),
     )
 
 
@@ -168,8 +168,9 @@ def test_explicit_article_title_does_not_mix_other_articles():
 
 
 def test_quote_selection_preserves_unicode_and_limits_length_without_model_copying():
+    text = "CO₂ emissions — " + " ".join(f"word{i}" for i in range(60))
     ev = evidence().model_copy(
-        update={"text": "CO₂ emissions — " + " ".join(f"word{i}" for i in range(60))}
+        update={"text": text, "end": len(text)}
     )
     catalog = quote_catalog([ev])
     assert all(
@@ -197,7 +198,7 @@ def test_citation_keeps_capacity_units_qualifiers_and_abbreviations_together():
         "Dr. Doe says the new U.S. facility could produce up to 1 billion cubic "
         "feet a day of blue hydrogen once completed. It is a plan, not an operating result."
     )
-    catalog = quote_catalog([evidence().model_copy(update={"text": text})])
+    catalog = quote_catalog([evidence().model_copy(update={"text": text, "end": len(text)})])
     assert list(catalog.values())[0]["quote"] == text
     assert all(p["quote"] in text for p in catalog.values())
 
@@ -215,3 +216,55 @@ def test_local_quote_preparation_failure_releases_unsent_reservation(monkeypatch
     with pytest.raises(ValueError, match="Sentence offsets"):
         rag.generate("Question", [evidence()], "visitor", reservation="r1")
     assert cancelled == ["r1"]
+
+
+def test_index_change_during_generation_hides_answer_and_keeps_paid_audit():
+    state = {"version": "source-v1:index-legacy"}
+    saved = []
+    generated = []
+    cancelled = []
+
+    def embed(texts, visitor, cost_sink):
+        cost_sink.append(0.001)
+        return [[0.0]]
+
+    def generate(question, passages, visitor, reservation):
+        generated.append((question, passages, reservation))
+        state["version"] = "source-v1:index-sentence"
+        return Answer(
+            status="answered",
+            answer="An answer prepared from the previous index.",
+            evidence=passages,
+        )
+
+    service = Service(
+        Settings(),
+        db=SimpleNamespace(
+            health=lambda: {"data_version": state["version"]},
+            public_rows=lambda _: [],
+            search=lambda *args, **kwargs: [evidence()],
+            save_answer=lambda *args: saved.append(args),
+        ),
+        rag=SimpleNamespace(
+            embed=embed,
+            generate=generate,
+            budget=SimpleNamespace(
+                reserve=lambda *args: "reservation-1",
+                cancel_unsent=cancelled.append,
+                reservation_cost=lambda _: 0.01,
+            ),
+        ),
+    )
+
+    result = service.answer("What does the company propose?", Filters(), "visitor")
+
+    assert len(generated) == 1 and generated[0][2] == "reservation-1"
+    assert cancelled == []  # The generation was dispatched and remains chargeable.
+    assert result.status == "service_unavailable"
+    assert result.failure_reason == "data_changed_during_generation"
+    assert not result.evidence and not result.citations
+    assert "previous index" not in result.answer
+    assert result.cost_usd == pytest.approx(0.011)
+    assert len(saved) == 1
+    assert saved[0][2] is result
+    assert saved[0][3] == "source-v1:index-sentence"

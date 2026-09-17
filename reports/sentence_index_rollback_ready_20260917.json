@@ -1,0 +1,23 @@
+{
+  "profile_id": "legacy600-v1",
+  "active": false,
+  "source_data_version": "5114ebc1cf9afe59cdaa715e3ea45166",
+  "definition": {
+    "encoding": "cl100k_base",
+    "strategy": "legacy",
+    "max_tokens": 600,
+    "overlap_tokens": 100,
+    "embedding_input": "original-chunk-text-v1",
+    "embedding_model": "text-embedding-3-small",
+    "tiktoken_version": "0.14.0",
+    "chunking_algorithm": "chunking-strategies-v1"
+  },
+  "preparation": {
+    "source_data_version": "5114ebc1cf9afe59cdaa715e3ea45166",
+    "manifest_hash": "9e559326670120b98295706ebc35bde634daf8817e022c7edbdcb665d06b95db",
+    "chunk_count": 558
+  },
+  "chunks": 558,
+  "missing_embeddings": 0,
+  "prepared_snapshot_matches": true
+}

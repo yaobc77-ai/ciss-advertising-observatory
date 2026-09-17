@@ -75,6 +75,6 @@ def test_invalid_segmenter_spans_cannot_produce_quotes(monkeypatch, kind):
             end, sent = 0, ""
         return [SimpleNamespace(start=start, end=end, sent=sent)]
 
-    monkeypatch.setattr("observatory.rag.pysbd.Segmenter", lambda **kwargs: SimpleNamespace(segment=segment))
+    monkeypatch.setattr("observatory.segmentation.pysbd.Segmenter", lambda **kwargs: SimpleNamespace(segment=segment))
     with pytest.raises(ValueError, match="Sentence"):
         quotes("Alpha\nbeta.")

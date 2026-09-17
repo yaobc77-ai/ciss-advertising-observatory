@@ -1,6 +1,6 @@
 # CISS Observatory 当前交接说明
 
-更新日期：2026-09-16。当前版本为 **0.2.5 / Research preview / Native corpus connected**。本版的[Dashboard一致性修复](../reports/dashboard_consistency_v0_2_5.md)与[当前快照恢复验证](../reports/backup_restore_v0_2_4.md)补齐本机证据。最近的付费生成和隔离导入仍来自 [0.2.4 报告](../reports/quote_context_v0_2_4.md)，没有作为0.2.5新模型成绩回填。最新数据状态以 [PDF-265 有限正文恢复](../reports/pdf265_body_recovery.md)和 [发布验证](../outputs/pdf265_publication_validation_20260916.json)为准。[回答表达报告](../reports/claim_contract_v0_2_2.md)、[语言修复报告](../reports/language_guard_v0_2_1.md)与 [先前数据修订](../reports/data_revision_v0_2.md)保留各自历史版本。
+更新日期：2026-09-17。当前版本为 **0.3.1 / Research preview / Native corpus connected**，已在本机启用，436 项非 live 测试通过。先读[研究界面修订报告](../reports/research_ui_v0_3_1_20260917.zh-CN.md)：全量交叉表、年度与标签图、正文详情、核验 PDF 预览和检索词覆盖诊断已可使用。当前使用 556 个句界片段，旧 558 块索引保留，发布依据见上一版[句界索引记录](../reports/release_v0_3_0_20260917.zh-CN.md)。本轮正文和索引未变，没有付费调用；两次真实 API 检查及其语义限制属于 0.3.0。此前的 [0.2.5 Dashboard 检查](../reports/dashboard_consistency_v0_2_5.md)、[0.2.4 付费生成与隔离导入](../reports/quote_context_v0_2_4.md)、[快照恢复验证](../reports/backup_restore_v0_2_4.md)均保留历史版本，不能代替新增索引表的恢复验收。下面的旧源码包、演示与各次复现数字仍按对应版本阅读；本次没有重新打包最终交付 ZIP。
 
 ## 1. 接手入口
 
@@ -11,16 +11,16 @@
 | [运行指南](operations.md) / [用户指南](user_guide.md) | 本机维护、预算、筛选、导出和证据检查 |
 | [评价协议](evaluation_protocol.md) | 题库、分母、草案边界及人工复核工作 |
 | [0.2.2 AI 辅助语义审阅](../reports/assisted_semantic_review_v0_2_2.md) | 旧 `d85…` 数据运行的语义观察，不能替代当前人审 |
-| [0.2.2 研究预览 PPTX](../deliverables/research_preview_v0_2_2.pptx) / [中文讲稿](../deliverables/demo_script_v0_2_2.zh-CN.md) | 保留 554 块的历史演示；当前 0.2.4 数据为 558 块，未重做演示稿 |
+| [0.2.2 研究预览 PPTX](../deliverables/research_preview_v0_2_2.pptx) / [中文讲稿](../deliverables/demo_script_v0_2_2.zh-CN.md) | 保留 554 块的历史演示；当前 0.3.1 活动索引为 556 块，未重做演示稿 |
 | [94 项截断预检](../reports/truncation_recovery_preflight.md) / [PDF-265 恢复报告](../reports/pdf265_body_recovery.md) | 从候选到单篇有限续文的审核、来源哈希与可复现提取命令；仍非完整全文 |
 
 统一评估汇总入口为 [reports/evaluation.md](../reports/evaluation.md)，以其中明确记载的 run_id、数据版本、分母与人工状态为准。旧版研究预览中的三个早期 smoke 案例仍可展示，但不是最新开发集指标。
 
 ## 2. 当前可以使用的部分
 
-真实原生语料已接入。导入快照为 275 条收录、263 条可计数、226 条合格检索正文。英文 Dash 页面提供六字段明细、公司/媒体数量和占比、时间分布、赞助关系、筛选导出、历史自动标签与来源链接配置。已有浏览器实测全部263条、`exxonmobil`的15条、再叠加`The Washington Post`为5条；历史导出核对过15个不同record_id。0.2.5同次页面刷新直接以明细查询结果汇总图表；未知日期在汇总中显示，不作为月份绘制。
+真实原生语料已接入。导入快照为 275 条收录、263 条可计数、226 条合格检索正文。英文 Dash 页面提供可打开详情的明细、赞助方/媒体数量和占比、完整 20×8 交叉表及导出、历史自动标签分布、年度柱图与单列 Unknown 的 22 条日期。当前筛选对应的明细是图表和交叉表共同的统计来源。CERAWeek 显示为会议/活动，纳入公司分母的规则待客户裁决；历史标签仍非人工金标准。
 
-当前 558 个文本块包含 PDF-265 的有限续文。该记录的旧 CLAIMS 标签保存在旧版本及内部 `previous_body_annotations`，不挂到新正文做标签过滤。原有 94 项截断限制没有整体解除，该篇仍缺部分遮挡文字和图像内容。
+当前 556 个句界片段包含 PDF-265 的有限续文。该记录的旧 CLAIMS 标签保存在旧版本及内部 `previous_body_annotations`，不挂到新正文做标签过滤。原有 94 项截断限制没有整体解除，该篇仍缺部分遮挡文字和图像内容。记录详情展示实际存储正文和质量提示；只有这一篇具备核验本地 PDF 与首页图片，另有 254 条标题关联候选待核，公开 archive URL 仍为 0。部署时须携带核验源文件及预览缓存，维护命令见[运行指南](operations.md#已核验-pdf-与预览缓存)。
 
 免费 **Search keywords** 使用词项检索。**Generate paid answer** 使用服务器 OpenAI 接口、结构化筛选后的证据、引文检查与预算控制。数据库保存原文版本和偏移，历史引文对应其生成时的版本。历史 CLAIMS 保存标签已导入，本期没有重建其分类后端或训练分类模型。
 
@@ -28,7 +28,7 @@
 
 ## 3. 隔离环境与已有安装
 
-当前机器已有 `.venv` 和 `.runtime/postgres`。**用户无需再次下载 PostgreSQL。** 重建时由 `Setup-Postgres.ps1` 自动取得锁定包，无需安装单独的系统数据库服务。版本与安装证据见 [local_postgres.md](local_postgres.md)。
+当前机器的隔离运行环境位于 `.venv` 和 `.runtime/postgres`。重建脚本与历史安装证据见 [local_postgres.md](local_postgres.md)。
 
 此前 0.2.3 wheel 已构建并在 `.runtime/package-check` 独立安装，以隔离 Python 检查包版本 0.2.3、Lingua 2.2.0，以及 `/healthz`、`/_dash-layout`、`/assets/observatory.css` 均返回 200。本机应用重启后健康检查为 `5114…`／558 块。尚未在另一台全新 Windows 机器上完成从零重装。
 

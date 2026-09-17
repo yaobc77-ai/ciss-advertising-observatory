@@ -11,8 +11,16 @@ from urllib.parse import urlsplit
 import dash_ag_grid as dag
 import plotly.graph_objects as go
 from dash import Dash, Input, Output, State, ctx, dcc, html
+from dash.exceptions import PreventUpdate
 from flask import session
 
+from observatory.analytics import (
+    historical_label_distribution,
+    sponsor_display,
+    sponsor_publisher_csv,
+    sponsor_publisher_matrix,
+    yearly_timeline,
+)
 from observatory.models import Filters
 from observatory.service import summarize
 
@@ -21,6 +29,262 @@ NATIVE_COLUMNS = ("url", "publisher", "title", "date", "sponsor", "keyword")
 SOCIAL_COLUMNS = ("platform", "account", "sponsor", "title", "date", "url")
 FILTER_NAMES = ("publishers", "sponsors", "platforms", "keywords", "labels")
 COLORS = {"ink": "#173b3b", "teal": "#207b76", "muted": "#667772", "amber": "#b67c32"}
+
+
+def _page(pathname):
+    return {
+        None: "query",
+        "/": "query",
+        "/query": "query",
+        "/data": "data",
+        "/wireframe": "wireframe",
+    }.get((pathname.rstrip("/") or "/") if pathname else pathname, "not-found")
+
+
+def _research_signature(question, scope, dataset, values):
+    """Keep the submitted scope separate from controls that can change later."""
+    filters = (
+        Filters(dataset="all")
+        if scope == "all"
+        else _filters(dataset, *(values[:8] if dataset == "native" else values[8:]))
+    )
+    return {
+        "question": (question or "").strip(),
+        "filters": filters.model_dump(mode="json"),
+    }
+
+
+def _wireframe(health):
+    """A structural diagram of this release, not screenshots or simulated records."""
+    native_count = health.get("record_counts", {}).get("native", 0)
+    social_count = health.get("record_counts", {}).get("social", 0)
+
+    def block(title, note="", class_name=""):
+        return html.Div(
+            [html.Strong(title), html.Span(note) if note else None],
+            className=f"wire-block {class_name}",
+        )
+
+    def screen(title, route, items):
+        return html.Article(
+            [
+                html.Div(
+                    [html.Span("○ ○ ○"), html.Code(route)], className="wire-browser"
+                ),
+                html.H3(title),
+                block(
+                    "AO · Shared navigation",
+                    "Query  /  Data · Design review in footer",
+                    "wire-nav",
+                ),
+                *items,
+                dcc.Link(f"Open {title} →", href=route, className="wire-open"),
+            ],
+            className="wire-screen",
+        )
+
+    return [
+        html.Div(
+            [
+                html.Span("Current product structure", className="eyebrow"),
+                html.H2("Three pages, one collection scope"),
+                html.P(
+                    "Query and Data share collection filters. Navigation keeps the current question and results in place.",
+                    className="muted",
+                ),
+                html.Div(
+                    [
+                        html.Span(
+                            "Native · available"
+                            if native_count
+                            else "Native · no records loaded",
+                            className="status-chip"
+                            if native_count
+                            else "status-chip status-pending",
+                        ),
+                        html.Span(
+                            "Social · available"
+                            if social_count
+                            else "Social · awaiting dataset",
+                            className="status-chip status-pending"
+                            if not social_count
+                            else "status-chip",
+                        ),
+                    ],
+                    className="wire-status",
+                ),
+            ],
+            className="wire-introduction",
+        ),
+        html.Div(
+            [
+                screen(
+                    "Query",
+                    "/query",
+                    [
+                        block(
+                            "Collection selector",
+                            "Native advertising  |  Social advertising",
+                        ),
+                        html.Div(
+                            [
+                                block(
+                                    "Shared filters",
+                                    "Outlet / sponsor / keyword / historical label / date",
+                                    "wire-side",
+                                ),
+                                html.Div(
+                                    [
+                                        block(
+                                            "Research question",
+                                            "Current selection or both collections",
+                                        ),
+                                        html.Div(
+                                            [
+                                                block("Keyword search", "No paid call"),
+                                                block(
+                                                    "Generate answer", "Uses API budget"
+                                                ),
+                                            ],
+                                            className="wire-actions",
+                                        ),
+                                        block(
+                                            "Answer + original evidence",
+                                            "Source links · record and version · exact quotes",
+                                        ),
+                                        block(
+                                            "Result status",
+                                            "Last submitted scope · changes require a new search",
+                                        ),
+                                    ],
+                                    className="wire-stack",
+                                ),
+                            ],
+                            className="wire-split",
+                        ),
+                    ],
+                ),
+                screen(
+                    "Data",
+                    "/data",
+                    [
+                        block("Collection selector", "Same selection as Query"),
+                        html.Div(
+                            [
+                                block(
+                                    "Shared filters",
+                                    "Collection-specific filters are preserved",
+                                    "wire-side",
+                                ),
+                                html.Div(
+                                    [
+                                        html.Div(
+                                            [
+                                                block("Selected"),
+                                                block("Searchable"),
+                                                block("Unknown date"),
+                                            ],
+                                            className="wire-metrics",
+                                        ),
+                                        html.Div(
+                                            [
+                                                block("Outlet / platform", "▂ ▅ ▃ ▇"),
+                                                block("Sponsors", "▅ ▃ ▇ ▂"),
+                                                block("Timeline", "▁ ▂ ▄ ▂ ▆"),
+                                                block(
+                                                    "Relationships", "Native collection"
+                                                ),
+                                            ],
+                                            className="wire-chart-grid",
+                                        ),
+                                        block(
+                                            "Record table + CSV export",
+                                            "The same filtered records drive charts and export",
+                                        ),
+                                    ],
+                                    className="wire-stack",
+                                ),
+                            ],
+                            className="wire-split",
+                        ),
+                    ],
+                ),
+                screen(
+                    "Project wireframe",
+                    "/wireframe",
+                    [
+                        block(
+                            "Page relationship diagram",
+                            "Query ↔ Data ↔ Project wireframe",
+                        ),
+                        block("Page structures", "Component layout and shared scope"),
+                        block(
+                            "Data flow",
+                            "Sources → quality / versions → index → interface",
+                        ),
+                        block(
+                            "Delivery boundaries",
+                            "Native data available · social data slot reserved",
+                        ),
+                    ],
+                ),
+            ],
+            className="wire-screens",
+            **{"aria-label": "Wireframes for the three application pages"},
+        ),
+        html.Section(
+            [
+                html.Span("Behind the pages", className="eyebrow"),
+                html.H2("Project data flow"),
+                html.Div(
+                    [
+                        block(
+                            "01 · Source material",
+                            "Native records / archived articles / supplied exports",
+                        ),
+                        html.Span(
+                            "→", className="flow-arrow", **{"aria-hidden": "true"}
+                        ),
+                        block(
+                            "02 · Quality + versions",
+                            "Source identity · accepted body ranges · immutable original text",
+                        ),
+                        html.Span(
+                            "→", className="flow-arrow", **{"aria-hidden": "true"}
+                        ),
+                        block(
+                            "03 · PostgreSQL + indexes",
+                            "Records · source spans · keyword and vector retrieval",
+                        ),
+                        html.Span(
+                            "→", className="flow-arrow", **{"aria-hidden": "true"}
+                        ),
+                        html.Div(
+                            [
+                                block(
+                                    "Data page",
+                                    "Filtered counts → charts → records / CSV",
+                                    "wire-output",
+                                ),
+                                block(
+                                    "Query page",
+                                    "Retrieve → optional model answer → verified source quotes",
+                                    "wire-output",
+                                ),
+                            ],
+                            className="wire-stack",
+                        ),
+                    ],
+                    className="wire-flow",
+                ),
+                html.P(
+                    "Counts describe the eligible collection. Retrieved passages support what an advertiser said; they do not establish whether a claim is true. Historical CLAIMS labels remain filterable legacy annotations.",
+                    className="wire-caption",
+                ),
+            ],
+            className="wire-flow-panel",
+        ),
+    ]
 
 
 def _mapping(value):
@@ -63,6 +327,8 @@ def _public_rows(rows, links_enabled):
                 for name in ("record_id", "version_id", "dataset")
             }
         )
+        row["sponsor_key"] = row["sponsor"]
+        row["sponsor"] = sponsor_display(item.get("sponsor"))
         row["labels"] = [str(label) for label in (item.get("labels") or [])]
         row["retrievable"] = bool(item.get("retrievable"))
         row["url"] = _url(item.get("url")) if links_enabled else ""
@@ -150,28 +416,22 @@ def _bars(items, metric="count"):
 
 
 def _timeline(items):
-    items = [
-        item for item in (items or []) if item["month"] not in {"Unknown", UNKNOWN}
-    ]
     if not items:
-        return _figure("No dated records in this selection")
+        return _figure("No records in this selection")
     figure = _figure()
-    figure.add_scatter(
-        x=[item["month"] for item in items],
+    figure.add_bar(
+        x=[item["year"] for item in items],
         y=[item["count"] for item in items],
-        mode="lines+markers",
-        line={"color": COLORS["teal"], "width": 2.5},
-        marker={"size": 6},
-        fill="tozeroy",
-        fillcolor="rgba(32,123,118,.09)",
+        text=[item["count"] for item in items],
+        textposition="outside",
+        marker_color=[
+            COLORS["amber"] if item["year"] == "Unknown" else COLORS["teal"]
+            for item in items
+        ],
         hovertemplate="%{x}<br>%{y:,} records<extra></extra>",
     )
-    figure.update_xaxes(title="Publication month")
-    figure.update_yaxes(
-        title="Records",
-        rangemode="tozero",
-        dtick=1 if max(item["count"] for item in items) < 6 else None,
-    )
+    figure.update_xaxes(title="Publication year", type="category")
+    figure.update_yaxes(title="Records", rangemode="tozero")
     return figure
 
 
@@ -186,8 +446,8 @@ def _relationships(items):
         )
         sponsors[sponsor] = sponsors.get(sponsor, 0) + item["count"]
         publishers[publisher] = publishers.get(publisher, 0) + item["count"]
-    ys = sorted(sponsors, key=sponsors.get, reverse=True)[:8]
-    xs = sorted(publishers, key=publishers.get, reverse=True)[:8]
+    ys = sorted(sponsors, key=lambda s: (-sponsors[s], s))
+    xs = sorted(publishers, key=lambda p: (-publishers[p], p))
     cells = {
         (item.get("sponsor") or UNKNOWN, item.get("publisher") or UNKNOWN): item[
             "count"
@@ -197,14 +457,43 @@ def _relationships(items):
     figure = _figure()
     figure.add_heatmap(
         x=xs,
-        y=ys,
+        y=[sponsor_display(y) for y in ys],
         z=[[cells.get((y, x), 0) for x in xs] for y in ys],
+        texttemplate="%{z}",
+        textfont={"size": 12},
         colorscale=[[0, "#edf3ee"], [1, COLORS["teal"]]],
-        showscale=False,
+        showscale=True,
+        colorbar={"title": "Records", "tickformat": "d"},
         hovertemplate="%{y} → %{x}<br>%{z:,} records<extra></extra>",
     )
-    figure.update_xaxes(automargin=True)
+    figure.update_layout(
+        height=max(340, 30 * len(ys) + 140),
+        margin={"l": 16, "r": 40, "t": 18, "b": 100},
+    )
+    figure.update_xaxes(automargin=True, tickangle=-25)
     figure.update_yaxes(automargin=True, autorange="reversed")
+    return figure
+
+
+def _label_chart(rows):
+    distribution = historical_label_distribution(rows)
+    items = distribution["items"]
+    if not items:
+        return _figure("No historical labels in this selection")
+    figure = _figure()
+    figure.add_bar(
+        y=[
+            item["name"].split(".")[-1].replace("_", " ").capitalize() for item in items
+        ][::-1],
+        x=[item["count"] for item in items][::-1],
+        orientation="h",
+        text=[item["count"] for item in items][::-1],
+        textposition="auto",
+        marker_color=COLORS["teal"],
+    )
+    figure.update_layout(height=max(300, 28 * len(items) + 60))
+    figure.update_xaxes(title="Records", rangemode="tozero")
+    figure.update_yaxes(automargin=True)
     return figure
 
 
@@ -226,7 +515,9 @@ def _search_context(question, filters):
     for name in FILTER_NAMES:
         values = getattr(filters, name)
         if values:
-            selections.append(f"{name.replace('_', ' ').title()}: {', '.join(values)}")
+            selections.append(
+                f"{name.replace('_', ' ').title()}: {', '.join(sponsor_display(v) for v in values) if name == 'sponsors' else ', '.join(values)}"
+            )
     if filters.date_from or filters.date_to:
         selections.append(
             f"Dates: {filters.date_from or 'any'} to {filters.date_to or 'any'}"
@@ -291,6 +582,56 @@ def _source_links(item, enabled):
     )
 
 
+def _coverage_notice(diagnostics):
+    if not diagnostics:
+        return None
+    if diagnostics.get("status") == "unavailable":
+        return _notice(
+            "Keyword coverage unavailable",
+            diagnostics.get("reason", "Coverage could not be measured."),
+        )
+    missing_scope = diagnostics.get("missing_from_scope", [])
+    missing_results = [
+        term
+        for term in diagnostics.get("missing_from_results", [])
+        if term not in missing_scope
+    ]
+    return html.Div(
+        [
+            html.Strong("Search term coverage"),
+            html.P(
+                "Keyword search uses OR matching and English word stems. A passage can match only part of your question. Retrieval rank is not a confidence score."
+            ),
+            html.P(
+                "No indexed-body matches in this selection: "
+                + ", ".join(missing_scope)
+                + ". This does not establish absence from uncaptured or excluded article text.",
+                className="coverage-warning",
+            )
+            if missing_scope
+            else None,
+            html.P(
+                "Found elsewhere in this selection, but not in these returned passages: "
+                + ", ".join(missing_results)
+            )
+            if missing_results
+            else None,
+            html.Ul(
+                [
+                    html.Li(
+                        f"{term['term']}: {term['matching_records']} searchable records"
+                    )
+                    for term in diagnostics.get("term_details", [])
+                ]
+            ),
+            html.P(diagnostics.get("reason", ""))
+            if diagnostics.get("status") == "partial"
+            else None,
+        ],
+        className="notice notice-info",
+    )
+
+
 def _evidence_cards(evidence, enabled, citations=()):
     citation_quotes = {}
     for citation in citations:
@@ -299,7 +640,7 @@ def _evidence_cards(evidence, enabled, citations=()):
             str(citation.get("quote") or "")
         )
     cards = []
-    for value in evidence:
+    for rank, value in enumerate(evidence, start=1):
         item = _mapping(value)
         passage = str(item.get("text") or "")
         supported = [
@@ -321,7 +662,7 @@ def _evidence_cards(evidence, enabled, citations=()):
                                 className="dataset-chip",
                             ),
                             html.Span(
-                                str(item.get("evidence_id") or ""),
+                                f"Result {rank}",
                                 className="evidence-code",
                             ),
                         ],
@@ -330,10 +671,23 @@ def _evidence_cards(evidence, enabled, citations=()):
                     html.H4(str(item.get("title") or "Untitled record")),
                     html.P(
                         " · ".join(
-                            str(item.get(key) or UNKNOWN)
-                            for key in ("publisher", "sponsor")
+                            [
+                                str(item.get("publisher") or UNKNOWN),
+                                sponsor_display(item.get("sponsor")),
+                                str(
+                                    item.get("published_at")
+                                    or "Publication date unknown"
+                                ),
+                            ]
                         ),
                         className="muted",
+                    ),
+                    html.P(
+                        "Matched search terms: "
+                        + ", ".join(item.get("matched_terms") or [])
+                        if item.get("matched_terms")
+                        else "Ordered by retrieval relevance; rank is not a confidence score.",
+                        className="match-note",
                     ),
                     html.Blockquote(excerpt),
                     html.Details(
@@ -342,12 +696,32 @@ def _evidence_cards(evidence, enabled, citations=()):
                             html.P(passage, className="passage"),
                         ]
                     ),
-                    html.Div(
+                    html.Details(
                         [
-                            html.Span(f"Record {item.get('record_id', '')}"),
-                            html.Span(f"Version {item.get('version_id', '')}"),
-                        ],
-                        className="record-reference",
+                            html.Summary("Technical details"),
+                            html.Div(
+                                [
+                                    html.Span(
+                                        f"Evidence {item.get('evidence_id', '')}"
+                                    ),
+                                    html.Span(f"Record {item.get('record_id', '')}"),
+                                    html.Span(f"Version {item.get('version_id', '')}"),
+                                    html.Span(
+                                        f"Character range {item.get('start', '')}–{item.get('end', '')}"
+                                    ),
+                                    html.Span(
+                                        f"Retrieval score {item.get('score', 0):.5f}; not a probability"
+                                    ),
+                                ],
+                                className="record-reference",
+                            ),
+                        ]
+                    ),
+                    html.A(
+                        "View record and archived materials →",
+                        href="/records/" + str(item.get("record_id") or ""),
+                        target="_blank",
+                        rel="noopener",
                     ),
                     _source_links(item, enabled),
                 ],
@@ -365,13 +739,13 @@ def _filter_inputs(dataset, dependency=Input):
     ]
 
 
-def _panel(dataset, facets, links_enabled):
+def _filter_panel(dataset, facets):
     native = dataset == "native"
     names = {
         "publishers": "News outlet",
         "sponsors": "Sponsor / advertiser",
         "platforms": "Platform",
-        "keywords": "Collection keyword",
+        "keywords": "Collection search term",
         "labels": "Historical automated label",
     }
     controls = []
@@ -386,13 +760,20 @@ def _panel(dataset, facets, links_enabled):
                     dcc.Dropdown(
                         id=f"{dataset}-{field}",
                         options=[
-                            {"label": value, "value": value}
+                            {
+                                "label": sponsor_display(value)
+                                if field == "sponsors"
+                                else value,
+                                "value": value,
+                            }
                             for value in facets.get(field, [])
                         ],
                         value=[],
                         multi=True,
                         placeholder="All",
                         className="filter-dropdown",
+                        persistence=True,
+                        persistence_type="session",
                     ),
                 ],
                 className="filter-field",
@@ -411,6 +792,8 @@ def _panel(dataset, facets, links_enabled):
                     display_format="MMM D, YYYY",
                     start_date_placeholder_text="Start date",
                     end_date_placeholder_text="End date",
+                    persistence=True,
+                    persistence_type="session",
                 ),
             ],
             className="filter-field date-filter",
@@ -420,25 +803,53 @@ def _panel(dataset, facets, links_enabled):
             options=[{"label": " Include unknown dates", "value": "include"}],
             value=["include"],
             className="unknown-toggle",
+            persistence=True,
+            persistence_type="session",
         ),
         html.P(
-            "Historical labels come from earlier automated classification runs. Collection keywords are separate from sponsors.",
+            "Historical labels come from earlier automated classification runs. Collection search terms describe how records were collected; they are not sponsor identities or article themes.",
             className="filter-note",
         ),
     ]
-    columns = NATIVE_COLUMNS if native else SOCIAL_COLUMNS
+    return html.Aside(
+        [
+            html.Span("Shared collection scope", className="eyebrow"),
+            html.H2("Filters"),
+            html.P(
+                "These filters apply to Query and Data. Each collection keeps its own selection.",
+                className="shared-filter-note",
+            ),
+            *controls,
+        ],
+        id=f"{dataset}-filter-panel",
+        className="filters-panel",
+        style={} if native else {"display": "none"},
+    )
+
+
+def _panel(dataset, links_enabled):
+    native = dataset == "native"
+    fields = NATIVE_COLUMNS if native else SOCIAL_COLUMNS
     headers = {
-        "url": "Source URL",
+        "url": "Original source",
         "publisher": "News outlet",
         "title": "Title",
-        "date": "Date",
-        "sponsor": "Sponsor",
-        "keyword": "Keyword",
+        "date": "Publication date",
+        "sponsor": "Sponsor / advertiser",
+        "keyword": "Collection search term",
         "platform": "Platform",
         "account": "Account",
     }
-    column_defs = []
-    for field in columns:
+    columns = [
+        {
+            "field": "record_id",
+            "headerName": "Record details",
+            "cellRenderer": "RecordLink",
+            "minWidth": 145,
+            "width": 145,
+        }
+    ]
+    for field in fields:
         column = {
             "field": field,
             "headerName": headers[field],
@@ -446,31 +857,50 @@ def _panel(dataset, facets, links_enabled):
             "flex": 1,
         }
         if field == "title":
-            column.update({"minWidth": 260, "flex": 2, "tooltipField": "title"})
+            column.update(minWidth=260, flex=2, tooltipField="title")
         if field == "url":
             column.update(
-                {
-                    "cellRenderer": "SourceLink",
-                    "cellRendererParams": {"enabled": links_enabled},
-                    "minWidth": 155,
-                }
+                cellRenderer="SourceLink",
+                cellRendererParams={"enabled": links_enabled},
+                minWidth=145,
             )
-        column_defs.append(column)
+        if field == "keyword":
+            column["headerTooltip"] = (
+                "Search term used during collection. It does not identify the sponsor or establish an article theme."
+            )
+        if field == "sponsor":
+            column["headerTooltip"] = (
+                "Sponsor values can include companies, trade groups and events. CERAWeek is an event; entity scope awaits client review."
+            )
+        columns.append(column)
+    columns.append(
+        {
+            "field": "archive_status",
+            "headerName": "Archived materials",
+            "cellRenderer": "ArchiveLink",
+            "cellRendererParams": {"enabled": links_enabled},
+            "minWidth": 180,
+            "flex": 1,
+        }
+    )
     graph_config = {"displayModeBar": False, "responsive": True}
 
-    def chart(key, title, note=""):
+    def chart(key, title, note="", wide=False):
         return html.Section(
             [
                 html.H3(title),
-                html.P(note, className="chart-note") if note else None,
-                dcc.Graph(
-                    id=f"{dataset}-{key}",
-                    figure=_figure("Choose a collection to explore"),
-                    config=graph_config,
-                    style={"height": "300px", "width": "100%"},
+                html.P(note, className="chart-note", id=f"{dataset}-{key}-note"),
+                html.Div(
+                    dcc.Graph(
+                        id=f"{dataset}-{key}",
+                        figure=_figure("Choose a collection to explore"),
+                        config=graph_config,
+                        style={"width": "100%"},
+                    ),
+                    className="chart-scroll" if wide else "",
                 ),
             ],
-            className="chart-card",
+            className="chart-card chart-wide" if wide else "chart-card",
         )
 
     return html.Section(
@@ -478,125 +908,161 @@ def _panel(dataset, facets, links_enabled):
             html.Div(id=f"{dataset}-status", className="collection-status"),
             html.Div(
                 [
-                    html.Aside(
-                        [
-                            html.Div(
-                                [
-                                    html.Span("Refine collection", className="eyebrow"),
-                                    html.H2("Filters"),
-                                ]
-                            ),
-                            *controls,
-                        ],
-                        className="filters-panel",
-                    ),
+                    html.Div(id=f"{dataset}-summary", className="stats-grid"),
                     html.Div(
                         [
-                            html.Div(id=f"{dataset}-summary", className="stats-grid"),
-                            html.Div(
-                                [
-                                    html.P(
-                                        "Counts reflect eligible records in the current filtered selection.",
-                                        className="selection-note",
-                                    ),
-                                    dcc.RadioItems(
-                                        id=f"{dataset}-metric",
-                                        options=[
-                                            {"label": "Count", "value": "count"},
-                                            {"label": "Percent", "value": "percent"},
-                                        ],
-                                        value="count",
-                                        inline=True,
-                                        className="metric-toggle",
-                                    ),
+                            html.P(
+                                "Counts reflect eligible records in the current filtered selection.",
+                                className="selection-note",
+                            ),
+                            dcc.RadioItems(
+                                id=f"{dataset}-metric",
+                                options=[
+                                    {"label": "Count", "value": "count"},
+                                    {"label": "Percent", "value": "percent"},
                                 ],
-                                className="chart-toolbar",
+                                value="count",
+                                inline=True,
+                                className="metric-toggle",
+                            ),
+                        ],
+                        className="chart-toolbar",
+                    ),
+                    html.P(
+                        "Sponsors include companies, trade groups and events. CERAWeek (stored as cera) is a conference/event, not an energy company. This classification and company aggregation require client confirmation.",
+                        className="scope-note",
+                    )
+                    if native
+                    else None,
+                    html.Div(
+                        [
+                            chart(
+                                "primary-chart",
+                                "By news outlet" if native else "By platform",
+                                "Top 10 in this selection",
+                            ),
+                            chart(
+                                "sponsors-chart",
+                                "By sponsor / advertiser",
+                                "Top 10 in this selection; see the complete cross-tab below",
+                            ),
+                            chart(
+                                "timeline-chart",
+                                "Publication history",
+                                "Annual record counts; unknown dates appear as a separate bar.",
+                            ),
+                            chart(
+                                "labels-chart",
+                                "Historical theme labels",
+                                "Earlier automated classifications; not newly inferred or verified themes.",
                             ),
                             html.Div(
+                                chart(
+                                    "relationships-chart",
+                                    "Sponsor × news outlet",
+                                    "All sponsors and outlets in this selection. Every cell is a record count.",
+                                    wide=True,
+                                ),
+                                className="chart-wide",
+                                style={} if native else {"display": "none"},
+                            ),
+                        ],
+                        className="charts-grid",
+                    ),
+                    html.Section(
+                        [
+                            html.Div(
                                 [
-                                    chart(
-                                        "primary-chart",
-                                        "By news outlet" if native else "By platform",
-                                        "Top 10 in this selection",
-                                    ),
-                                    chart(
-                                        "sponsors-chart",
-                                        "By sponsor",
-                                        "Top 10 in this selection",
-                                    ),
-                                    chart(
-                                        "timeline-chart",
-                                        "Over time",
-                                        "Unknown dates are counted separately",
-                                    ),
-                                    html.Div(
-                                        chart(
-                                            "relationships-chart",
-                                            "Sponsors and news outlets",
-                                            "Top 8 sponsors and outlets",
-                                        ),
-                                        style={} if native else {"display": "none"},
+                                    html.H3("Sponsor × news outlet: full cross-tab"),
+                                    html.Button(
+                                        "Download cross-tab ↓",
+                                        id=f"{dataset}-matrix-export",
+                                        n_clicks=0,
+                                        className="button button-quiet",
                                     ),
                                 ],
-                                className="charts-grid",
+                                className="section-heading",
                             ),
-                            html.Section(
+                            html.P(
+                                "All selected sponsors and outlets, including zero cells and totals. Counts use the same selection as the record table.",
+                                className="muted",
+                            ),
+                            dag.AgGrid(
+                                id=f"{dataset}-matrix",
+                                rowData=[],
+                                columnDefs=[],
+                                defaultColDef={
+                                    "sortable": False,
+                                    "resizable": True,
+                                    "minWidth": 125,
+                                },
+                                dashGridOptions={"rowHeight": 40, "animateRows": False},
+                                className="ag-theme-quartz",
+                                style={"height": "440px"},
+                            ),
+                            dcc.Download(id=f"{dataset}-matrix-download"),
+                            html.Div(
+                                id=f"{dataset}-matrix-export-status", role="status"
+                            ),
+                        ],
+                        className="records-panel",
+                        style={} if native else {"display": "none"},
+                    ),
+                    html.Section(
+                        [
+                            html.Div(
                                 [
                                     html.Div(
                                         [
-                                            html.Div(
-                                                [
-                                                    html.Span(
-                                                        "Explore the records",
-                                                        className="eyebrow",
-                                                    ),
-                                                    html.H3("Source collection"),
-                                                ]
+                                            html.Span(
+                                                "Explore the records",
+                                                className="eyebrow",
                                             ),
-                                            html.Button(
-                                                "Download selected records ↓",
-                                                id=f"{dataset}-export",
-                                                n_clicks=0,
-                                                className="button button-quiet",
-                                            ),
-                                        ],
-                                        className="section-heading",
+                                            html.H3("Source collection"),
+                                        ]
                                     ),
-                                    html.P(
-                                        id=f"{dataset}-record-count", className="muted"
-                                    ),
-                                    dag.AgGrid(
-                                        id=f"{dataset}-grid",
-                                        columnDefs=column_defs,
-                                        rowData=[],
-                                        defaultColDef={
-                                            "sortable": True,
-                                            "resizable": True,
-                                            "filter": False,
-                                        },
-                                        dashGridOptions={
-                                            "pagination": True,
-                                            "paginationPageSize": 20,
-                                            "paginationPageSizeSelector": [20, 50, 100],
-                                            "rowHeight": 58,
-                                            "animateRows": False,
-                                            "suppressCellFocus": False,
-                                        },
-                                        className="ag-theme-quartz observatory-grid",
-                                        style={"height": "510px"},
-                                    ),
-                                    dcc.Download(id=f"{dataset}-download"),
-                                    html.Div(
-                                        id=f"{dataset}-export-status", role="status"
+                                    html.Button(
+                                        "Download selected records ↓",
+                                        id=f"{dataset}-export",
+                                        n_clicks=0,
+                                        className="button button-quiet",
                                     ),
                                 ],
-                                className="records-panel",
+                                className="section-heading",
                             ),
+                            html.P(id=f"{dataset}-record-count", className="muted"),
+                            html.P(
+                                "Open View record for the stored article text, source links and verified local PDF/image attachments. Missing archives are shown explicitly; title-only matches are not linked.",
+                                className="muted",
+                            ),
+                            dag.AgGrid(
+                                id=f"{dataset}-grid",
+                                columnDefs=columns,
+                                rowData=[],
+                                defaultColDef={
+                                    "sortable": True,
+                                    "resizable": True,
+                                    "filter": False,
+                                },
+                                dashGridOptions={
+                                    "pagination": True,
+                                    "paginationPageSize": 20,
+                                    "paginationPageSizeSelector": [20, 50, 100],
+                                    "rowHeight": 58,
+                                    "animateRows": False,
+                                    "suppressCellFocus": False,
+                                },
+                                className="ag-theme-quartz observatory-grid",
+                                style={"height": "510px"},
+                            ),
+                            dcc.Download(id=f"{dataset}-download"),
+                            html.Div(id=f"{dataset}-export-status", role="status"),
                         ],
-                        className="collection-content",
+                        className="records-panel",
                     ),
                 ],
-                className="collection-layout",
+                id=f"{dataset}-content",
+                className="collection-content",
             ),
         ],
         id=f"{dataset}-panel",
@@ -604,8 +1070,12 @@ def _panel(dataset, facets, links_enabled):
     )
 
 
-def create_app(service, settings) -> Dash:
+def create_app(service, settings, record_details=None) -> Dash:
     """Build the UI against the small public Service contract."""
+    if record_details is None and hasattr(service, "db"):
+        from observatory.records import RecordDetails
+
+        record_details = RecordDetails(service.db, settings)
     enabled = bool(settings.show_source_links)
     app = Dash(
         __name__,
@@ -621,10 +1091,18 @@ def create_app(service, settings) -> Dash:
         SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE="Lax"
     )
 
-    @app.server.get('/healthz')
+    from observatory.record_view import register_record_page
+
+    register_record_page(app.server, record_details)
+    if record_details is not None:
+        from observatory.records import register_record_routes
+
+        register_record_routes(app.server, record_details)
+
+    @app.server.get("/healthz")
     def health_endpoint():
-        state=service.health()
-        return state, (200 if state.get('status')=='ok' else 503)
+        state = service.health()
+        return state, (200 if state.get("status") == "ok" else 503)
 
     def layout():
         try:
@@ -639,19 +1117,39 @@ def create_app(service, settings) -> Dash:
                 facets[dataset] = {}
         return html.Div(
             [
+                dcc.Location(id="page-location", refresh=False),
+                dcc.Store(id="research-submission"),
+                html.A("Skip to content", href="#main", className="skip-link"),
                 html.Header(
                     [
-                        html.A(
+                        dcc.Link(
                             [
                                 html.Span("AO", className="brand-mark"),
                                 html.Span(
                                     "Advertising Observatory", className="brand-name"
                                 ),
                             ],
-                            href="#main",
+                            href="/query",
                             className="brand",
                         ),
-                        html.Span("Fossil fuel advertising", className="header-label"),
+                        html.Nav(
+                            [
+                                dcc.Link(
+                                    "Query",
+                                    href="/query",
+                                    id="nav-query",
+                                    className="nav-link is-active",
+                                ),
+                                dcc.Link(
+                                    "Data",
+                                    href="/data",
+                                    id="nav-data",
+                                    className="nav-link",
+                                ),
+                            ],
+                            className="page-nav",
+                            **{"aria-label": "Main navigation"},
+                        ),
                     ],
                     className="site-header",
                 ),
@@ -660,11 +1158,13 @@ def create_app(service, settings) -> Dash:
                         html.Section(
                             [
                                 html.Span(
-                                    "A public research collection", className="eyebrow"
+                                    "Fossil fuel advertising · Research collection",
+                                    className="eyebrow",
                                 ),
-                                html.H1("Explore fossil fuel advertising"),
+                                html.H1("Query the evidence", id="page-title"),
                                 html.P(
-                                    "Compare sponsors and publishers, trace changes over time, and examine claims using the original advertising records.",
+                                    "Find original passages and ask research questions with source-linked answers.",
+                                    id="page-description",
                                     className="hero-description",
                                 ),
                             ],
@@ -677,116 +1177,196 @@ def create_app(service, settings) -> Dash:
                         )
                         if health.get("status") == "unavailable"
                         else None,
-                        dcc.Tabs(
-                            id="active-dataset",
-                            value="native",
-                            className="collection-tabs",
-                            children=[
-                                dcc.Tab(
-                                    label="Native advertising",
+                        html.Div(
+                            [
+                                dcc.Tabs(
+                                    id="active-dataset",
                                     value="native",
-                                    className="collection-tab",
-                                    selected_className="collection-tab-selected",
+                                    className="collection-tabs",
+                                    persistence=True,
+                                    persistence_type="session",
+                                    children=[
+                                        dcc.Tab(
+                                            label="Native advertising",
+                                            value="native",
+                                            className="collection-tab",
+                                            selected_className="collection-tab-selected",
+                                        ),
+                                        dcc.Tab(
+                                            label="Social advertising",
+                                            value="social",
+                                            className="collection-tab",
+                                            selected_className="collection-tab-selected",
+                                        ),
+                                    ],
                                 ),
-                                dcc.Tab(
-                                    label="Social advertising",
-                                    value="social",
-                                    className="collection-tab",
-                                    selected_className="collection-tab-selected",
+                                html.Div(
+                                    id="current-scope",
+                                    className="current-scope",
+                                    role="status",
+                                ),
+                                html.Div(
+                                    [
+                                        html.Div(
+                                            [
+                                                _filter_panel(
+                                                    "native", facets["native"]
+                                                ),
+                                                _filter_panel(
+                                                    "social", facets["social"]
+                                                ),
+                                            ],
+                                            className="shared-filters",
+                                            id="shared-filters",
+                                        ),
+                                        html.Div(
+                                            [
+                                                html.Section(
+                                                    [
+                                                        html.Section(
+                                                            [
+                                                                html.Div(
+                                                                    [
+                                                                        html.Div(
+                                                                            [
+                                                                                html.Span(
+                                                                                    "Search the evidence",
+                                                                                    className="eyebrow",
+                                                                                ),
+                                                                                html.H2(
+                                                                                    "Ask a research question"
+                                                                                ),
+                                                                            ]
+                                                                        ),
+                                                                        html.Span(
+                                                                            "Grounded in collection records",
+                                                                            className="search-badge",
+                                                                        ),
+                                                                    ],
+                                                                    className="section-heading",
+                                                                ),
+                                                                html.P(
+                                                                    "Use keyword search to find passages, or request a paid answer supported by retrieved records.",
+                                                                    className="muted",
+                                                                ),
+                                                                html.Label(
+                                                                    "Research question",
+                                                                    htmlFor="research-question",
+                                                                ),
+                                                                dcc.Textarea(
+                                                                    id="research-question",
+                                                                    value="",
+                                                                    placeholder="For example: What claims do sponsors make about carbon capture?",
+                                                                    maxLength=2000,
+                                                                    className="question-input",
+                                                                    persistence=True,
+                                                                    persistence_type="session",
+                                                                ),
+                                                                html.Div(
+                                                                    [
+                                                                        dcc.RadioItems(
+                                                                            id="search-scope",
+                                                                            options=[
+                                                                                {
+                                                                                    "label": "Current collection and its filters",
+                                                                                    "value": "current",
+                                                                                },
+                                                                                {
+                                                                                    "label": "Both collections · all eligible records",
+                                                                                    "value": "all",
+                                                                                },
+                                                                            ],
+                                                                            value="current",
+                                                                            className="search-scope",
+                                                                            persistence=True,
+                                                                            persistence_type="session",
+                                                                        ),
+                                                                        html.Div(
+                                                                            [
+                                                                                html.Button(
+                                                                                    "Search keywords",
+                                                                                    id="search-free",
+                                                                                    n_clicks=0,
+                                                                                    className="button button-primary",
+                                                                                ),
+                                                                                html.Button(
+                                                                                    "Generate paid answer",
+                                                                                    id="answer-paid",
+                                                                                    n_clicks=0,
+                                                                                    className="button button-secondary",
+                                                                                ),
+                                                                            ],
+                                                                            className="search-actions",
+                                                                        ),
+                                                                    ],
+                                                                    className="search-controls",
+                                                                ),
+                                                                html.P(
+                                                                    "Keyword search uses no paid model calls. Generated answers use the project's API budget. Maximum 2,000 characters.",
+                                                                    className="search-help",
+                                                                ),
+                                                                html.Div(
+                                                                    id="research-stale",
+                                                                    role="status",
+                                                                ),
+                                                                dcc.Loading(
+                                                                    html.Div(
+                                                                        id="research-results",
+                                                                        children=html.P(
+                                                                            "Results and supporting evidence will appear here.",
+                                                                            className="results-placeholder",
+                                                                        ),
+                                                                        **{
+                                                                            "aria-live": "polite"
+                                                                        },
+                                                                    ),
+                                                                    type="circle",
+                                                                    color=COLORS[
+                                                                        "teal"
+                                                                    ],
+                                                                ),
+                                                            ],
+                                                            className="research-panel",
+                                                        )
+                                                    ],
+                                                    id="query-page",
+                                                    **{"aria-label": "Query"},
+                                                ),
+                                                html.Section(
+                                                    [
+                                                        _panel("native", enabled),
+                                                        _panel("social", enabled),
+                                                    ],
+                                                    id="data-page",
+                                                    hidden=True,
+                                                    **{"aria-label": "Data"},
+                                                ),
+                                            ],
+                                            className="route-content",
+                                        ),
+                                    ],
+                                    className="collection-layout",
+                                    id="collection-layout",
                                 ),
                             ],
+                            id="collection-workspace",
                         ),
-                        _panel("native", facets["native"], enabled),
-                        _panel("social", facets["social"], enabled),
+                        html.Section(
+                            _wireframe(health),
+                            id="wireframe-page",
+                            hidden=True,
+                            **{"aria-label": "Project wireframe"},
+                        ),
                         html.Section(
                             [
-                                html.Div(
-                                    [
-                                        html.Div(
-                                            [
-                                                html.Span(
-                                                    "Search the evidence",
-                                                    className="eyebrow",
-                                                ),
-                                                html.H2("Ask a research question"),
-                                            ]
-                                        ),
-                                        html.Span(
-                                            "Grounded in collection records",
-                                            className="search-badge",
-                                        ),
-                                    ],
-                                    className="section-heading",
+                                _notice(
+                                    "Page not found",
+                                    "Choose Query or Data from the navigation.",
                                 ),
-                                html.P(
-                                    "Use keyword search to find passages, or request a paid answer supported by retrieved records.",
-                                    className="muted",
-                                ),
-                                html.Label(
-                                    "Research question", htmlFor="research-question"
-                                ),
-                                dcc.Textarea(
-                                    id="research-question",
-                                    value="",
-                                    placeholder="For example: What claims do sponsors make about carbon capture?",
-                                    maxLength=2000,
-                                    className="question-input",
-                                ),
-                                html.Div(
-                                    [
-                                        dcc.RadioItems(
-                                            id="search-scope",
-                                            options=[
-                                                {
-                                                    "label": "Current collection and its filters",
-                                                    "value": "current",
-                                                },
-                                                {
-                                                    "label": "Both collections · all eligible records",
-                                                    "value": "all",
-                                                },
-                                            ],
-                                            value="current",
-                                            className="search-scope",
-                                        ),
-                                        html.Div(
-                                            [
-                                                html.Button(
-                                                    "Search keywords",
-                                                    id="search-free",
-                                                    n_clicks=0,
-                                                    className="button button-primary",
-                                                ),
-                                                html.Button(
-                                                    "Generate paid answer",
-                                                    id="answer-paid",
-                                                    n_clicks=0,
-                                                    className="button button-secondary",
-                                                ),
-                                            ],
-                                            className="search-actions",
-                                        ),
-                                    ],
-                                    className="search-controls",
-                                ),
-                                html.P(
-                                    "Keyword search uses no paid model calls. Generated answers use the project's API budget. Maximum 2,000 characters.",
-                                    className="search-help",
-                                ),
-                                dcc.Loading(
-                                    html.Div(
-                                        id="research-results",
-                                        children=html.P(
-                                            "Results and supporting evidence will appear here.",
-                                            className="results-placeholder",
-                                        ),
-                                        **{"aria-live": "polite"},
-                                    ),
-                                    type="circle",
-                                    color=COLORS["teal"],
-                                ),
+                                dcc.Link("Go to Query →", href="/query"),
                             ],
-                            className="research-panel",
+                            id="not-found-page",
+                            hidden=True,
                         ),
                     ],
                     id="main",
@@ -795,6 +1375,12 @@ def create_app(service, settings) -> Dash:
                 html.Footer(
                     [
                         html.Span("Advertising Observatory · Research collection"),
+                        dcc.Link(
+                            "Project wireframe · design review",
+                            href="/wireframe",
+                            id="nav-wireframe",
+                            className="nav-link",
+                        ),
                         html.Span(
                             "Source links enabled"
                             if enabled
@@ -809,15 +1395,151 @@ def create_app(service, settings) -> Dash:
     app.layout = layout
 
     @app.callback(
+        Output("query-page", "hidden"),
+        Output("data-page", "hidden"),
+        Output("wireframe-page", "hidden"),
+        Output("not-found-page", "hidden"),
+        Output("collection-workspace", "hidden"),
+        Output("page-title", "children"),
+        Output("page-description", "children"),
+        Output("nav-query", "className"),
+        Output("nav-data", "className"),
+        Output("nav-wireframe", "className"),
+        Input("page-location", "pathname"),
+    )
+    def change_page(pathname):
+        page = _page(pathname)
+        title, description = {
+            "query": (
+                "Query the evidence",
+                "Find original passages and ask research questions with source-linked answers.",
+            ),
+            "data": (
+                "Explore the collection",
+                "Compare sponsors and publishers, trace changes over time, and export the records in your selection.",
+            ),
+            "wireframe": (
+                "Project wireframe",
+                "See the page layouts, shared controls, and data flow behind the Observatory.",
+            ),
+            "not-found": (
+                "Page not found",
+                "Return to one of the three Observatory pages.",
+            ),
+        }[page]
+        return (
+            page != "query",
+            page != "data",
+            page != "wireframe",
+            page != "not-found",
+            page not in {"query", "data"},
+            title,
+            description,
+            *[
+                "nav-link is-active" if page == target else "nav-link"
+                for target in ("query", "data", "wireframe")
+            ],
+        )
+
+    @app.callback(
+        Output("current-scope", "children"),
+        Input("active-dataset", "value"),
+        Input("search-scope", "value"),
+        Input("page-location", "pathname"),
+        *_filter_inputs("native"),
+        *_filter_inputs("social"),
+    )
+    def current_scope(dataset, scope, pathname, *values):
+        try:
+            filters = _filters(
+                dataset, *(values[:8] if dataset == "native" else values[8:])
+            )
+        except ValueError:
+            return _notice(
+                "Check the filters",
+                "The start date must be on or before the end date.",
+                "warning",
+            )
+        selected = []
+        for field in FILTER_NAMES:
+            if getattr(filters, field):
+                selected.append(
+                    f"{field.title()}: {', '.join(sponsor_display(v) for v in getattr(filters, field)) if field == 'sponsors' else ', '.join(getattr(filters, field))}"
+                )
+        if filters.date_from or filters.date_to:
+            selected.append(
+                f"Dates: {filters.date_from or 'any'} – {filters.date_to or 'any'}"
+            )
+        selected.append(
+            "Unknown dates included"
+            if filters.include_unknown_dates
+            else "Unknown dates excluded"
+        )
+        heading = "Native advertising" if dataset == "native" else "Social advertising"
+        message = " · ".join(selected)
+        if dataset == "social":
+            try:
+                if service.health().get("record_counts", {}).get("social", 0) == 0:
+                    message = "Dataset not connected. " + message
+            except Exception:  # noqa: BLE001 - no internal health details in the UI.
+                pass
+        if _page(pathname) == "query" and scope == "all":
+            return [
+                html.Strong("Search scope: both collections · all eligible records"),
+                html.Span(
+                    " Collection filters are bypassed for this query; your selection is preserved for Data."
+                ),
+            ]
+        return [
+            html.Strong(f"Current selection: {heading}"),
+            html.Span(f" · {message}"),
+        ]
+
+    @app.callback(
+        Output("research-stale", "children"),
+        Input("research-submission", "data"),
+        Input("research-question", "value"),
+        Input("search-scope", "value"),
+        Input("active-dataset", "value"),
+        *_filter_inputs("native"),
+        *_filter_inputs("social"),
+    )
+    def research_stale(submitted, question, scope, dataset, *values):
+        if not submitted:
+            return None
+        try:
+            current = _research_signature(question, scope, dataset, values)
+        except ValueError:
+            current = None
+        if current == submitted:
+            return None
+        return _notice(
+            "Results are from an earlier selection",
+            "The question or search scope has changed. Run a new search to update the results below.",
+            "warning",
+        )
+
+    @app.callback(
         Output("native-panel", "style"),
         Output("social-panel", "style"),
+        Output("native-filter-panel", "style"),
+        Output("social-filter-panel", "style"),
+        Output("shared-filters", "style"),
+        Output("collection-layout", "style"),
         Input("active-dataset", "value"),
     )
     def change_collection(dataset):
+        missing = (
+            dataset == "social"
+            and service.health().get("record_counts", {}).get("social", 0) == 0
+        )
         return (
-            ({}, {"display": "none"})
-            if dataset == "native"
-            else ({"display": "none"}, {})
+            {} if dataset == "native" else {"display": "none"},
+            {} if dataset == "social" else {"display": "none"},
+            {} if dataset == "native" else {"display": "none"},
+            {} if dataset == "social" and not missing else {"display": "none"},
+            {"display": "none"} if missing else {},
+            {"gridTemplateColumns": "minmax(0, 1fr)"} if missing else {},
         )
 
     def register_collection(dataset):
@@ -830,6 +1552,13 @@ def create_app(service, settings) -> Dash:
             Output(f"{dataset}-relationships-chart", "figure"),
             Output(f"{dataset}-status", "children"),
             Output(f"{dataset}-record-count", "children"),
+            Output(f"{dataset}-labels-chart", "figure"),
+            Output(f"{dataset}-labels-chart-note", "children"),
+            Output(f"{dataset}-matrix", "rowData"),
+            Output(f"{dataset}-matrix", "columnDefs"),
+            Output(f"{dataset}-content", "style"),
+            Output(f"{dataset}-relationships-chart", "style"),
+            Output(f"{dataset}-labels-chart", "style"),
             *_filter_inputs(dataset),
             Input(f"{dataset}-metric", "value"),
         )
@@ -839,6 +1568,18 @@ def create_app(service, settings) -> Dash:
                 source_rows = service.browse(filters)
                 stats = summarize(source_rows)
                 rows = _public_rows(source_rows, enabled)
+                for row in rows:
+                    row["archive_status"] = (
+                        "Online archive"
+                        if row.get("archive_url")
+                        else "No verified archived copy"
+                    )
+                if record_details is not None:
+                    summaries = record_details.summaries(source_rows)
+                    for row in rows:
+                        row.update(summaries.get(row["record_id"], {}))
+                matrix = sponsor_publisher_matrix(source_rows)
+                labels = historical_label_distribution(source_rows)
                 health = service.health()
                 empty_social = (
                     dataset == "social"
@@ -865,11 +1606,30 @@ def create_app(service, settings) -> Dash:
                         stats.get("publishers" if dataset == "native" else "platforms"),
                         metric,
                     ),
-                    _bars(stats.get("sponsors"), metric),
-                    _timeline(stats.get("timeline")),
+                    _bars(
+                        [
+                            dict(item, name=sponsor_display(item["name"]))
+                            for item in stats.get("sponsors", [])
+                        ],
+                        metric,
+                    ),
+                    _timeline(yearly_timeline(source_rows)),
                     _relationships(stats.get("relationships")),
                     notice,
                     f"{len(rows):,} eligible records in the current selection. Download uses the same selection.",
+                    _label_chart(source_rows),
+                    f"Historical automated labels; a record can have several. {labels['unlabeled_records']:,} of {labels['total']:,} selected records have no historical label. These are not verified themes.",
+                    matrix["table_rows"],
+                    matrix["table_columns"],
+                    {"display": "none"} if empty_social else {},
+                    {
+                        "height": f"{max(340, 30 * len(matrix['sponsors']) + 140)}px",
+                        "width": "100%",
+                    },
+                    {
+                        "height": f"{max(300, 28 * len(labels['items']) + 60)}px",
+                        "width": "100%",
+                    },
                 )
             except ValueError:
                 message = _notice(
@@ -892,16 +1652,48 @@ def create_app(service, settings) -> Dash:
                 _figure("Unavailable"),
                 message,
                 "Records unavailable",
+                _figure("Unavailable"),
+                "Labels unavailable",
+                [],
+                [],
+                {"display": "none"},
+                {"height": "340px", "width": "100%"},
+                {"height": "300px", "width": "100%"},
             )
+
+        @app.callback(
+            Output(f"{dataset}-matrix-download", "data"),
+            Output(f"{dataset}-matrix-export-status", "children"),
+            Input(f"{dataset}-matrix-export", "n_clicks"),
+            *_filter_inputs(dataset, State),
+            State("page-location", "pathname"),
+            prevent_initial_call=True,
+        )
+        def export_matrix(clicks, *values):
+            if not clicks or _page(values[-1]) != "data":
+                raise PreventUpdate
+            try:
+                rows = service.browse(_filters(dataset, *values[:-1]))
+                return {
+                    "content": sponsor_publisher_csv(rows),
+                    "filename": f"{dataset}-sponsor-outlet-cross-tab.csv",
+                    "type": "text/csv",
+                }, f"Downloaded cross-tab for {len(rows):,} selected records."
+            except Exception:
+                return None, "Cross-tab download is temporarily unavailable."
 
         @app.callback(
             Output(f"{dataset}-download", "data"),
             Output(f"{dataset}-export-status", "children"),
             Input(f"{dataset}-export", "n_clicks"),
             *_filter_inputs(dataset, State),
+            State("page-location", "pathname"),
             prevent_initial_call=True,
         )
         def export_collection(clicks, *values):
+            if not clicks or _page(values[-1]) != "data":
+                raise PreventUpdate
+            values = values[:-1]
             try:
                 rows = _public_rows(service.browse(_filters(dataset, *values)), enabled)
                 fields = list(
@@ -942,6 +1734,7 @@ def create_app(service, settings) -> Dash:
 
     @app.callback(
         Output("research-results", "children"),
+        Output("research-submission", "data"),
         Input("search-free", "n_clicks"),
         Input("answer-paid", "n_clicks"),
         State("research-question", "value"),
@@ -949,6 +1742,7 @@ def create_app(service, settings) -> Dash:
         State("active-dataset", "value"),
         *_filter_inputs("native", State),
         *_filter_inputs("social", State),
+        State("page-location", "pathname"),
         prevent_initial_call=True,
         running=[
             (Output("search-free", "disabled"), True, False),
@@ -956,6 +1750,22 @@ def create_app(service, settings) -> Dash:
         ],
     )
     def research(search_clicks, answer_clicks, question, scope, dataset, *values):
+        pathname, values = values[-1], values[:-1]
+        if pathname is None or _page(pathname) != "query":
+            raise PreventUpdate
+        if ctx.triggered_id not in {"search-free", "answer-paid"}:
+            raise PreventUpdate
+        clicks = search_clicks if ctx.triggered_id == "search-free" else answer_clicks
+        if not isinstance(clicks, int) or isinstance(clicks, bool) or clicks <= 0:
+            raise PreventUpdate
+        result = run_research(question, scope, dataset, values)
+        try:
+            submitted = _research_signature(question, scope, dataset, values)
+        except ValueError:
+            submitted = None
+        return result, submitted
+
+    def run_research(question, scope, dataset, values):
         question = (question or "").strip()
         if not question or len(question) > 2000:
             return _notice(
@@ -980,7 +1790,16 @@ def create_app(service, settings) -> Dash:
         context = _search_context(question, filters)
         if ctx.triggered_id == "search-free":
             try:
-                evidence = service.search(question, filters, limit=5)
+                report = (
+                    service.search_report(question, filters, limit=5)
+                    if hasattr(service, "search_report")
+                    else {
+                        "evidence": service.search(question, filters, limit=5),
+                        "diagnostics": {},
+                    }
+                )
+                evidence = report["evidence"]
+                diagnostics = _coverage_notice(report.get("diagnostics", {}))
                 return (
                     [
                         context,
@@ -988,6 +1807,7 @@ def create_app(service, settings) -> Dash:
                             "Keyword search",
                             f"{len(evidence)} evidence passages found. No paid model call was made.",
                         ),
+                        diagnostics,
                         *_evidence_cards(evidence, enabled),
                     ]
                     if evidence
@@ -997,6 +1817,7 @@ def create_app(service, settings) -> Dash:
                             "No matching evidence",
                             "Try a different term or widen the search scope.",
                         ),
+                        diagnostics,
                     ]
                 )
             except Exception:  # noqa: BLE001 - public boundary must hide unexpected service details.

@@ -33,6 +33,12 @@ def main():
     social.add_argument("--mapping", type=Path, required=True)
     social.add_argument("--out", default="outputs/social_import.json")
     sub.add_parser("index")
+    for command in ("index-prepare", "index-status", "index-activate"):
+        p = sub.add_parser(command)
+        p.add_argument("profile", nargs="?" if command == "index-status" else None)
+        p.add_argument("--out")
+        if command == "index-activate":
+            p.add_argument("--expected-source-version", required=True)
     for command in ["search", "answer"]:
         p = sub.add_parser(command)
         p.add_argument("question")
@@ -75,6 +81,19 @@ def main():
         from .rag import Rag
 
         emit(Rag(db, settings).index())
+    elif args.command in ("index-prepare", "index-status", "index-activate"):
+        from .indexing import IndexManager
+
+        manager = IndexManager(db)
+        if args.command == "index-prepare":
+            result = manager.prepare(args.profile)
+        elif args.command == "index-activate":
+            result = manager.activate(
+                args.profile, expected_source_data_version=args.expected_source_version,
+            )
+        else:
+            result = manager.status(args.profile)
+        emit(result, args.out)
     elif args.command in ("search", "answer"):
         from .service import Service
 

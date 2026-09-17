@@ -1,0 +1,266 @@
+{
+  "checked_at": "2026-09-17T16:43:32.995511+00:00",
+  "health": {
+    "status": "ok",
+    "record_counts": {
+      "native": 275
+    },
+    "source_data_version": "5114ebc1cf9afe59cdaa715e3ea45166",
+    "active_profile": "sentence600-v1",
+    "index_version": "d580c5962a6222e595db2ed8681f9787cef648dad653b055120b6bed10e3af75",
+    "data_version": "f19d4d697f4e6d2699d2c58b3ce80620b03e02c7e9447f24e012123adcb00f53",
+    "chunks": 556
+  },
+  "matrix": {
+    "sponsors": 20,
+    "outlets": 8,
+    "total": 263,
+    "cell_sum": 263
+  },
+  "labels": {
+    "items": [
+      {
+        "name": "green_labels.green_binary",
+        "count": 189,
+        "percent": 71.86311787072243
+      },
+      {
+        "name": "ff_labels.fossil_fuel_binary",
+        "count": 172,
+        "percent": 65.39923954372624
+      },
+      {
+        "name": "ff_labels.infrastructure_and_production",
+        "count": 159,
+        "percent": 60.456273764258555
+      },
+      {
+        "name": "green_labels.viable_solutions",
+        "count": 150,
+        "percent": 57.034220532319395
+      },
+      {
+        "name": "green_labels.generic_environmental_references",
+        "count": 144,
+        "percent": 54.752851711026615
+      },
+      {
+        "name": "ff_labels.primary_product",
+        "count": 142,
+        "percent": 53.99239543726236
+      },
+      {
+        "name": "green_labels.false_solutions",
+        "count": 101,
+        "percent": 38.40304182509506
+      },
+      {
+        "name": "green_labels.policies_programs",
+        "count": 86,
+        "percent": 32.69961977186312
+      },
+      {
+        "name": "green_labels.decreasing_emissions",
+        "count": 84,
+        "percent": 31.93916349809886
+      },
+      {
+        "name": "green_labels.recycling_waste_management",
+        "count": 49,
+        "percent": 18.631178707224336
+      },
+      {
+        "name": "green_labels.nature_animal_references",
+        "count": 44,
+        "percent": 16.730038022813687
+      },
+      {
+        "name": "ff_labels.petrochemical_product",
+        "count": 40,
+        "percent": 15.209125475285171
+      }
+    ],
+    "total": 263,
+    "labeled_records": 220,
+    "unlabeled_records": 43,
+    "note": "Historical automated CLAIMS labels, not verified themes or factual verdicts. A record can have several labels, so label counts and percentages do not sum to the record total. No labels does not establish that a theme is absent; the current data cannot distinguish missing annotation from no positive labels."
+  },
+  "timeline": [
+    {
+      "year": "2013",
+      "count": 2
+    },
+    {
+      "year": "2014",
+      "count": 6
+    },
+    {
+      "year": "2015",
+      "count": 36
+    },
+    {
+      "year": "2016",
+      "count": 5
+    },
+    {
+      "year": "2017",
+      "count": 30
+    },
+    {
+      "year": "2018",
+      "count": 49
+    },
+    {
+      "year": "2019",
+      "count": 23
+    },
+    {
+      "year": "2020",
+      "count": 23
+    },
+    {
+      "year": "2021",
+      "count": 23
+    },
+    {
+      "year": "2022",
+      "count": 32
+    },
+    {
+      "year": "2023",
+      "count": 8
+    },
+    {
+      "year": "2024",
+      "count": 3
+    },
+    {
+      "year": "2025",
+      "count": 1
+    },
+    {
+      "year": "Unknown",
+      "count": 22
+    }
+  ],
+  "archive_coverage": {
+    "records": 263,
+    "records_with_public_archive": 0,
+    "records_with_reviewed_local_snapshot": 1,
+    "reviewed_local_snapshots": 1,
+    "records_with_unverified_candidates": 254,
+    "note": "Candidate title matches are not verified archive coverage."
+  },
+  "query": "carbon capture and storage biogas",
+  "query_diagnostics": {
+    "status": "available",
+    "operator": "OR",
+    "configuration": "english",
+    "terms": [
+      "carbon",
+      "capture",
+      "storage",
+      "biogas"
+    ],
+    "term_limit": 40,
+    "returned_matched_terms": [
+      "carbon",
+      "capture",
+      "storage"
+    ],
+    "missing_from_results": [
+      "biogas"
+    ],
+    "missing_from_scope": [],
+    "term_details": [
+      {
+        "term": "carbon",
+        "lexemes": [
+          "carbon"
+        ],
+        "matching_records": 115
+      },
+      {
+        "term": "capture",
+        "lexemes": [
+          "captur"
+        ],
+        "matching_records": 61
+      },
+      {
+        "term": "storage",
+        "lexemes": [
+          "storag"
+        ],
+        "matching_records": 66
+      },
+      {
+        "term": "biogas",
+        "lexemes": [
+          "bioga"
+        ],
+        "matching_records": 3
+      }
+    ],
+    "ignored_terms": [],
+    "scope_records": 226,
+    "scope_chunks": 556,
+    "reason": "Keywords are combined with OR, so a result need not match every term. Search considers at most the first 40 terms after basic stop-word filtering. Coverage uses English stemming in indexed body passages within the current selection; it is not a check of meaning or factual truth. Ranking scores are not confidence probabilities."
+  },
+  "returned_evidence": [
+    {
+      "title": "CCUS, the industry that will change industry",
+      "published_at": "2020-01-27",
+      "rank": 1,
+      "matched_terms": [
+        "carbon",
+        "capture",
+        "storage"
+      ],
+      "evidence_id": "797423cd7888c658c77b88db8800b4c43897eb559481e5d5539dfe4be1d4f8c7"
+    },
+    {
+      "title": "Creating a Net-Zero World",
+      "published_at": "2022-08-23",
+      "rank": 2,
+      "matched_terms": [
+        "carbon",
+        "capture",
+        "storage"
+      ],
+      "evidence_id": "3db6837f08b7512dc6df3070c0d0c29e5edae5d9950d3d831b5340e1ceea7481"
+    },
+    {
+      "title": "Responsibly Green",
+      "published_at": null,
+      "rank": 4,
+      "matched_terms": [
+        "carbon",
+        "capture",
+        "storage"
+      ],
+      "evidence_id": "2e00956e9975d0e5bfceeee00dcbfa2a0e97d41e21b77be57d1e49a3731713cf"
+    },
+    {
+      "title": "Can R&D solve the daunting challenges of taking carbon out of the equation?",
+      "published_at": null,
+      "rank": 5,
+      "matched_terms": [
+        "carbon",
+        "capture",
+        "storage"
+      ],
+      "evidence_id": "b5cd20a2bba4b25b6311a7e25efa0ec1394b5b5936b75780a1b5d6cf9fa5c4f1"
+    },
+    {
+      "title": "Linking Carbon Markets To Climate Change",
+      "published_at": "2015-01-12",
+      "rank": 6,
+      "matched_terms": [
+        "carbon"
+      ],
+      "evidence_id": "2abe26fcd1c33796087d7c8538b50bcebbaa71860a140de061c8297b61fde1f8"
+    }
+  ],
+  "paid_api_calls_this_check": 0
+}

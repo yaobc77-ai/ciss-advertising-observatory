@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import re
 from pathlib import Path
 
 import psycopg
@@ -29,13 +30,18 @@ class Database:
         return conn
 
     def initialize(self):
+        from .indexing import bootstrap
+
         with self.connect() as conn:
+            conn.execute("SELECT pg_advisory_xact_lock(54901)")
             conn.execute(
                 Path(__file__).with_name("schema.sql").read_text(encoding="utf-8")
             )
+            bootstrap(conn)
 
     def import_batch(self, batch: ImportBatch, snapshot_dataset=None):
-        from .chunking import chunk_retrieval_body, retrieval_spans
+        from .chunking import retrieval_spans
+        from .indexing import active_profile, record_preparation, store_record_chunks
 
         report = {
             "input_records": len(batch.records),
@@ -59,6 +65,7 @@ class Database:
         with self.connect() as conn:
             # Imports and reads share one atomic publication boundary.
             conn.execute("SELECT pg_advisory_xact_lock(54901)")
+            profile_id = active_profile(conn)
             for record in batch.records:
                 # Records are mutable after validation; reject invalid edited ranges
                 # even when this particular record is not currently retrievable.
@@ -82,6 +89,10 @@ class Database:
                         "UPDATE records SET active=true WHERE record_id=%s",
                         (record.record_id,),
                     )
+                    store_record_chunks(conn, profile_id, {
+                        "record_id": record.record_id, "version_id": version,
+                        "body": record.body, "payload": payload,
+                    })
                     report["unchanged"] += 1
                     continue
                 conn.execute(
@@ -103,30 +114,10 @@ class Database:
                         "INSERT INTO annotations VALUES (%s,%s,%s) ON CONFLICT DO NOTHING",
                         (version, i, Jsonb(ann)),
                     )
-                if record.retrievable:
-                    for chunk in chunk_retrieval_body(
-                        record.body,
-                        retrieval_end=record.retrieval_end,
-                        retrieval_ranges=record.retrieval_ranges,
-                    ):
-                        assert (
-                            record.body[chunk["start"] : chunk["end"]] == chunk["text"]
-                        )
-                        cid = digest(f"{version}:{chunk['start']}:{chunk['end']}")
-                        conn.execute(
-                            "INSERT INTO chunks(chunk_id,record_id,version_id,text,text_hash,start_char,end_char,paragraph_ids,token_count) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING",
-                            (
-                                cid,
-                                record.record_id,
-                                version,
-                                chunk["text"],
-                                digest(chunk["text"]),
-                                chunk["start"],
-                                chunk["end"],
-                                Jsonb(chunk["paragraph_ids"]),
-                                chunk["token_count"],
-                            ),
-                        )
+                store_record_chunks(conn, profile_id, {
+                    "record_id": record.record_id, "version_id": version,
+                    "body": record.body, "payload": payload,
+                })
                 report["new_versions"] += 1
             if snapshot_dataset:
                 retired = conn.execute(
@@ -134,6 +125,8 @@ class Database:
                     (snapshot_dataset, [r.record_id for r in batch.records]),
                 ).fetchall()
                 report["deactivated"] = [r["record_id"] for r in retired]
+            record_preparation(conn, profile_id)
+            report["index_profile"] = profile_id
             conn.execute("INSERT INTO imports(report) VALUES (%s)", (Jsonb(report),))
         return report
 
@@ -195,22 +188,39 @@ class Database:
             return conn.execute(sql, params).fetchall()
 
     def health(self):
+        from .indexing import profile_snapshot
+
         with self.connect() as conn:
+            conn.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY")
             rows = conn.execute(
                 "SELECT dataset,count(*) AS n FROM records WHERE active GROUP BY dataset"
             ).fetchall()
-            version = conn.execute(
-                "SELECT md5(COALESCE(string_agg(current_version,',' ORDER BY record_id),'')) AS value FROM records WHERE active"
-            ).fetchone()["value"]
-            n = conn.execute(
-                "SELECT count(*) AS n FROM chunks c JOIN records r ON r.current_version=c.version_id WHERE r.active"
-            ).fetchone()["n"]
+            snapshot = profile_snapshot(conn)
         return {
             "status": "ok",
             "record_counts": {r["dataset"]: r["n"] for r in rows},
-            "data_version": version,
-            "chunks": n,
+            **snapshot,
         }
+
+    def pending_embeddings(self, model="text-embedding-3-small", profile_id=None):
+        """Only current source chunks belonging to the requested or active profile."""
+        from .indexing import active_profile
+
+        with self.connect() as conn:
+            conn.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY")
+            profile_id = profile_id or active_profile(conn)
+            if not conn.execute(
+                "SELECT 1 FROM retrieval_profiles WHERE profile_id=%s", (profile_id,)
+            ).fetchone():
+                raise ValueError("Profile has not been prepared")
+            return conn.execute(
+                "SELECT DISTINCT c.text_hash,c.text FROM chunks c "
+                "JOIN chunk_profile_membership m USING(chunk_id) "
+                "JOIN records r ON r.current_version=c.version_id AND r.record_id=c.record_id "
+                "LEFT JOIN embeddings e ON e.text_hash=c.text_hash AND e.model=%s "
+                "WHERE r.active AND m.profile_id=%s AND e.text_hash IS NULL ORDER BY c.text_hash",
+                (model, profile_id),
+            ).fetchall()
 
     def search(
         self,
@@ -220,16 +230,21 @@ class Database:
         vector=None,
         model="text-embedding-3-small",
         chunks_per_record=1,
+        _include_diagnostics=False,
     ):
         where, params = self.where(filters)
         select = """SELECT c.chunk_id AS evidence_id,c.record_id,c.version_id,r.dataset,
         v.payload->>'title' AS title,v.payload->>'publisher' AS publisher,v.payload->>'sponsor' AS sponsor,
-        v.payload->>'url' AS url,v.payload->>'archive_url' AS archive_url,c.text,
+        v.payload->>'url' AS url,v.payload->>'archive_url' AS archive_url,
+        (v.payload->>'published_at')::date AS published_at,c.text,
         c.start_char AS start,c.end_char AS end,c.paragraph_ids"""
-        join = " FROM chunks c JOIN records r ON r.current_version=c.version_id JOIN record_versions v ON v.version_id=c.version_id "
+        join = (
+            " FROM chunks c JOIN records r ON r.current_version=c.version_id "
+            "AND r.record_id=c.record_id JOIN record_versions v ON v.version_id=c.version_id "
+            "JOIN chunk_profile_membership m ON m.chunk_id=c.chunk_id "
+            "JOIN retrieval_state s ON s.singleton AND s.active_profile=m.profile_id "
+        )
         # OR query enables question-style lexical retrieval; ranking still rewards overlap.
-        import re
-
         tokens = re.findall(r"[\w-]+", query.lower())
         stop = {
             "what",
@@ -255,6 +270,10 @@ class Database:
         }
         terms = [t for t in tokens if len(t) > 1 and t not in stop][:40]
         if not terms:
+            if _include_diagnostics:
+                return {"evidence": [], "diagnostics": self._unavailable_coverage(
+                    "No meaningful search terms remain after stop-word filtering.", tokens
+                )}
             return []
         lexical_query = " OR ".join('"' + t + '"' for t in terms)
         with self.connect(vector=vector is not None) as conn:
@@ -281,31 +300,123 @@ class Database:
                     + f"WHERE {where} ORDER BY e.embedding <=> %s,c.chunk_id LIMIT 50",
                     [np.array(vector), model, *params, np.array(vector)],
                 ).fetchall()
-        ranking = {}
-        by_id = {}
-        for rows in [lexical, semantic]:
-            for rank, row in enumerate(rows, 1):
-                eid = row["evidence_id"]
-                ranking[eid] = ranking.get(eid, 0) + 1 / (60 + rank)
-                by_id[eid] = row
-        # Rank distinct records first, then retain several ranked passages within
-        # those same records. Article hit alone does not guarantee answer coverage.
-        selected = {}
-        for eid in sorted(ranking, key=lambda k: (-ranking[k], k)):
-            row = by_id[eid]
-            rid = row["record_id"]
-            if rid not in selected and len(selected) >= limit:
-                continue
-            group = selected.setdefault(rid, [])
-            if len(group) >= chunks_per_record:
-                continue
-            row["score"] = ranking[eid]
-            group.append(Evidence(**row))
-        return [
-            evidence
-            for group in selected.values()
-            for evidence in sorted(group, key=lambda e: e.start)
-        ]
+            ranking = {}
+            by_id = {}
+            channels = {}
+            for channel, rows in [("keyword", lexical), ("vector", semantic)]:
+                for rank, row in enumerate(rows, 1):
+                    eid = row["evidence_id"]
+                    ranking[eid] = ranking.get(eid, 0) + 1 / (60 + rank)
+                    by_id[eid] = row
+                    channels.setdefault(eid, []).append(channel)
+            # Rank distinct records first, then retain several ranked passages within
+            # those same records. Article hit alone does not guarantee answer coverage.
+            selected = {}
+            for rank, eid in enumerate(sorted(ranking, key=lambda k: (-ranking[k], k)), 1):
+                row = by_id[eid]
+                rid = row["record_id"]
+                if rid not in selected and len(selected) >= limit:
+                    continue
+                group = selected.setdefault(rid, [])
+                if len(group) >= chunks_per_record:
+                    continue
+                row["score"] = ranking[eid]
+                row["retrieval_rank"] = rank
+                row["retrieval_sources"] = channels[eid]
+                group.append(Evidence(**row))
+            evidence = [
+                evidence
+                for group in selected.values()
+                for evidence in sorted(group, key=lambda e: e.start)
+            ]
+            if _include_diagnostics:
+                diagnostics = self._coverage(conn, terms, join, where, params, evidence)
+                return {"evidence": evidence, "diagnostics": diagnostics}
+            return evidence
+
+    def search_report(self, query, filters, limit=5):
+        """Read results and scoped keyword coverage within one retrieval snapshot."""
+        return self.search(query, filters, limit=limit, _include_diagnostics=True)
+
+    @staticmethod
+    def _unavailable_coverage(reason, ignored_terms):
+        return {
+            "status": "unavailable", "operator": "OR", "configuration": "english",
+            "terms": [], "returned_matched_terms": [], "missing_from_results": [],
+            "missing_from_scope": [], "term_details": [],
+            "ignored_terms": list(dict.fromkeys(ignored_terms)), "reason": reason,
+            "scope_records": None, "scope_chunks": None,
+        }
+
+    @classmethod
+    def _coverage(cls, conn, terms, join, where, params, evidence):
+        """Use the index's exact English tsquery semantics, including stemming.
+
+        Missing terms concern eligible indexed passages, never an entire article's
+        unindexed body or a factual absence. Non-English text is not classified as
+        absent by this English-only diagnostic.
+        """
+        supported = list(dict.fromkeys(
+            term for term in terms if re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", term)
+        ))
+        ignored = list(dict.fromkeys(term for term in terms if term not in supported))
+        if not supported:
+            return cls._unavailable_coverage(
+                "Keyword coverage uses an English index and is unavailable for this query. "
+                "No absence claim is made; try English keywords or semantic search.", terms
+            )
+        analyzed = conn.execute(
+            "SELECT term,tsvector_to_array(to_tsvector('english',term)) AS lexemes "
+            "FROM unnest(%s::text[]) WITH ORDINALITY AS input(term,ordinal) ORDER BY ordinal",
+            (supported,),
+        ).fetchall()
+        meaningful = [row["term"] for row in analyzed if row["lexemes"]]
+        ignored.extend(row["term"] for row in analyzed if not row["lexemes"])
+        if not meaningful:
+            return cls._unavailable_coverage(
+                "No meaningful English search terms remain after index stop-word filtering.", ignored
+            )
+        scope = conn.execute(
+            "SELECT count(DISTINCT r.record_id) AS scope_records,count(*) AS scope_chunks"
+            + join + f" WHERE {where}", params,
+        ).fetchone()
+        coverage = conn.execute(
+            "WITH scope AS MATERIALIZED (SELECT c.chunk_id,r.record_id,c.search_vector"
+            + join + f" WHERE {where}) "
+            "SELECT input.term,count(DISTINCT scope.record_id) AS matching_records,"
+            "array_agg(DISTINCT scope.chunk_id) FILTER (WHERE scope.chunk_id=ANY(%s::text[])) "
+            "AS returned_ids FROM unnest(%s::text[]) WITH ORDINALITY AS input(term,ordinal) "
+            "LEFT JOIN scope ON scope.search_vector @@ "
+            "websearch_to_tsquery('english', '\"' || input.term || '\"') "
+            "GROUP BY input.term,input.ordinal ORDER BY input.ordinal",
+            [*params, [row.evidence_id for row in evidence], meaningful],
+        ).fetchall()
+        lexemes = {row["term"]: row["lexemes"] for row in analyzed}
+        for row in evidence:
+            row.matched_terms = [
+                match["term"] for match in coverage
+                if row.evidence_id in (match["returned_ids"] or [])
+            ]
+            row.literal_matched_terms = [
+                term for term in row.matched_terms
+                if re.search(r"(?<!\w)" + re.escape(term) + r"(?!\w)", row.text, re.I)
+            ]
+        return {
+            "status": "partial" if ignored else "available", "operator": "OR",
+            "configuration": "english", "terms": meaningful, "term_limit": 40,
+            "returned_matched_terms": [row["term"] for row in coverage if row["returned_ids"]],
+            "missing_from_results": [row["term"] for row in coverage if not row["returned_ids"]],
+            "missing_from_scope": [row["term"] for row in coverage if row["matching_records"] == 0],
+            "term_details": [{
+                "term": row["term"], "lexemes": lexemes[row["term"]],
+                "matching_records": row["matching_records"]
+            } for row in coverage],
+            "ignored_terms": ignored, **scope,
+            "reason": "Keywords are combined with OR, so a result need not match every term. "
+            "Search considers at most the first 40 terms after basic stop-word filtering. "
+            "Coverage uses English stemming in indexed body passages within the current selection; "
+            "it is not a check of meaning or factual truth. Ranking scores are not confidence probabilities.",
+        }
 
     def validate_evidence(self, evidence: Evidence):
         with self.connect() as conn:

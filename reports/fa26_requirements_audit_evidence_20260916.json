@@ -1,0 +1,126 @@
+{
+  "checked_utc": "2026-09-16T21:21:34.882295+00:00",
+  "source_docx": "C:\\Users\\yaobc\\Downloads\\[FA26] DS 549_ CISS Fossil Fuel and Animal Agriculture Advertising Observatory (1).docx",
+  "source_docx_sha256": "dcf83544b3b289e789aef93741765df96c5afacafe6c85c41b2ce986dac59ef2",
+  "project_root": "D:\\Projects\\549 native ads",
+  "app_version": "0.2.5",
+  "scope": "requirements review; no implementation changes or paid API calls",
+  "fresh_offline_test_result": "231 passed, 22 deselected in 13.91s",
+  "fresh_ruff_result": "All checks passed!",
+  "ui_observations": {
+    "native_selected": 263,
+    "native_retrievable": 226,
+    "native_unknown_dates": 22,
+    "social_status": "Social advertising is not connected",
+    "social_selected": 0,
+    "social_retrievable": 0
+  },
+  "test_log_sha256": "31355ce349f6ae9f9c0b2bf399417979ae6894f3d29f703fd6c817b167c41a4d",
+  "live_generation_rerun": false,
+  "database_integration_suite_rerun": false,
+  "database_read_only_snapshot": {
+    "checked_at": "2026-09-16T21:18:28.233564+00:00",
+    "project_root": "D:/Projects/549 native ads",
+    "method": "Aggregated SELECT queries in a PostgreSQL REPEATABLE READ READ ONLY transaction; credentials and record plaintext not printed. Issue distinct-record counts were checked in a second read-only transaction during the same audit.",
+    "transaction_read_only": true,
+    "data_version": "5114ebc1cf9afe59cdaa715e3ea45166",
+    "active_datasets": {
+      "native": {
+        "stored_records": 275,
+        "unique_urls": 275,
+        "countable_records": 263,
+        "retrievable_records": 226,
+        "unknown_dates": 22,
+        "unknown_sponsors": 1,
+        "nonempty_disclosure": 267,
+        "nonempty_public_archive_url": 0,
+        "empty_bodies": 1,
+        "literal_video_bodies": 26
+      },
+      "social": {
+        "stored_records": 0,
+        "evidence": "Active-record GROUP BY dataset returned only native."
+      }
+    },
+    "missing_display_fields": {
+      "denominator": 263,
+      "basis": "active current-version countable records",
+      "url": 0,
+      "publisher": 0,
+      "title": 0,
+      "date": 22,
+      "sponsor": 1,
+      "keyword": 0
+    },
+    "current_annotations": {
+      "claims-original": {
+        "records": 267,
+        "annotation_rows": 267,
+        "records_with_positive_label": 216
+      },
+      "claims-calibrated": {
+        "records": 267,
+        "annotation_rows": 267,
+        "records_with_positive_label": 220
+      }
+    },
+    "retrieval": {
+      "current_chunks": 558,
+      "records_with_current_chunks": 226,
+      "current_chunks_with_text_embedding_3_small": 558,
+      "current_embedded_distinct_text_hashes": 558,
+      "all_embedding_cache_rows": 611,
+      "embedding_model": "text-embedding-3-small"
+    },
+    "quality_flags": {
+      "archive_candidate_unverified": {
+        "issue_instances": 292,
+        "distinct_records": 263
+      },
+      "archive_review": {
+        "issue_instances": 8,
+        "distinct_records": 7
+      },
+      "body_truncated_suspected": {
+        "issue_instances": 94,
+        "distinct_records": 94
+      },
+      "body_partial_recovery": {
+        "issue_instances": 1,
+        "distinct_records": 1
+      },
+      "scope_asset_url": {
+        "issue_instances": 12,
+        "distinct_records": 12
+      }
+    },
+    "stored_history": {
+      "record_versions": 828,
+      "all_version_chunks": 1634,
+      "answer_runs": 110,
+      "generation_outputs": 105
+    },
+    "interpretation_limits": [
+      "Record and URL counts do not certify independent advertisement identity or client-approved counting rules.",
+      "Countable and retrievable are implemented engineering flags, not human semantic acceptance.",
+      "Embedding cache rows include content beyond the current article chunks and are not article counts.",
+      "No new API calls, test suite, data import, schema change, or database writes were performed."
+    ]
+  },
+  "package_integrity": {
+    "path": "deliverables/observatory-0.2.5-20260916.zip",
+    "sha256": "a96042a364933201372c91b6e1170c82a0696fe5204933451771a00e50d5675e",
+    "payloads_verified": 167,
+    "zip_entries": 168,
+    "crc_errors": 0,
+    "verified_by": "independent read-only local audit"
+  },
+  "test_log": "reports/requirements_audit_pytest_20260916.txt",
+  "ruff_log": "reports/requirements_audit_ruff_20260916.txt",
+  "local_links": {
+    "checked": 23,
+    "missing": [],
+    "invalid_line_numbers": []
+  },
+  "source_docx_unchanged": true
+}

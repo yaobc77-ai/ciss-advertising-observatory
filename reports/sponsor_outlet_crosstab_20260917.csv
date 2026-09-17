@@ -1,0 +1,22 @@
+﻿Sponsor / organization,Source sponsor value,Entity type,Scope note,CNBC,Forbes,The Wall Street Journal,The New York Times,Politico,The Washington Post,The Atlantic,Business Insider,Total
+TotalEnergies,totalenergies,sponsor,,113,0,0,0,0,0,0,0,113
+CERAWeek,cera,conference/event,"CERA is displayed as CERAWeek, a conference/event, not an energy company. It remains a separate source sponsor category; inclusion in company-level analysis awaits client confirmation.",0,0,29,0,0,0,0,0,29
+Statoil,statoil,sponsor,,0,28,0,0,0,0,0,0,28
+PETRONAS,petronas,sponsor,,2,15,0,0,0,0,0,0,17
+ExxonMobil,exxonmobil,sponsor,,0,0,2,3,0,5,0,5,15
+BP,bp,sponsor,,0,0,0,8,4,0,1,0,13
+Shell,shell,sponsor,,0,0,0,4,0,2,4,0,10
+API,api,industry association,,0,0,1,0,0,6,1,0,8
+Chevron,chevron,sponsor,,0,0,0,3,1,1,3,0,8
+AFPM,afpm,industry association,,0,0,0,0,5,1,0,0,6
+Southern Company,southern company,sponsor,,0,0,0,0,1,2,2,0,5
+Enbridge,enbridge,sponsor,,0,0,0,0,3,0,0,0,3
+(Unknown),(Unknown),unknown,,0,0,1,0,0,0,0,0,1
+Eni,eni,sponsor,,0,0,0,0,0,1,0,0,1
+Exelon,exelon,sponsor,,0,0,0,0,1,0,0,0,1
+NextEra Energy,nextera energy,sponsor,,0,0,0,0,1,0,0,0,1
+PTT,ptt,sponsor,,0,0,0,1,0,0,0,0,1
+"The Williams Companies, Inc.","the williams companies, inc.",sponsor,,1,0,0,0,0,0,0,0,1
+Williams,williams,sponsor,,0,0,0,0,1,0,0,0,1
+Williams Companies,williams companies,sponsor,,0,0,0,0,1,0,0,0,1
+Total,,,,116,43,33,19,18,18,11,5,263
