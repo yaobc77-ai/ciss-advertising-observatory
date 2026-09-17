@@ -21,6 +21,9 @@ class Settings:
     requests_per_day: int = 30
     concurrency: int = 2
     cookie_secret: str = field(default="", repr=False)
+    # Hosted HTTPS deployments send session cookies only over TLS.
+    secure_cookies: bool = False
+    trusted_proxy: str = ""
 
     @classmethod
     def from_env(cls):
@@ -30,7 +33,8 @@ class Settings:
             show_source_links=os.getenv("OBS_SHOW_SOURCE_LINKS", "true").lower()
             == "true",
             host=os.getenv("OBS_HOST", "127.0.0.1"),
-            port=int(os.getenv("OBS_PORT", "8050")),
+            # Platforms such as Railway assign the listening port through PORT.
+            port=int(os.getenv("OBS_PORT") or os.getenv("PORT") or "8050"),
             monthly_budget_usd=Decimal(os.getenv("OBS_MONTHLY_BUDGET_USD", "100")),
             generation_model=os.getenv("OBS_GENERATION_MODEL", "gpt-5.6-luna"),
             embedding_model=os.getenv("OBS_EMBEDDING_MODEL", "text-embedding-3-small"),
@@ -38,4 +42,6 @@ class Settings:
             requests_per_day=int(os.getenv("OBS_REQUESTS_PER_DAY", "30")),
             concurrency=int(os.getenv("OBS_CONCURRENCY", "2")),
             cookie_secret=os.getenv("OBS_COOKIE_SECRET", ""),
+            secure_cookies=os.getenv("OBS_SECURE_COOKIES", "false").lower() == "true",
+            trusted_proxy=os.getenv("OBS_TRUSTED_PROXY", ""),
         )

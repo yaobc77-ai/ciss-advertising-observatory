@@ -1088,7 +1088,9 @@ def create_app(service, settings, record_details=None) -> Dash:
         settings, "cookie_secret", None
     ) or secrets.token_hex(32)
     app.server.config.update(
-        SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE="Lax"
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SAMESITE="Lax",
+        SESSION_COOKIE_SECURE=bool(getattr(settings, "secure_cookies", False)),
     )
 
     from observatory.record_view import register_record_page

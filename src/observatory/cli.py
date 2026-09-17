@@ -111,8 +111,20 @@ def main():
         from .app import create_app
         from .service import Service
 
+        if settings.secure_cookies and not settings.cookie_secret:
+            raise SystemExit("OBS_COOKIE_SECRET is required when OBS_SECURE_COOKIES=true")
         app = create_app(Service(settings), settings)
-        serve(app.server, host=settings.host, port=settings.port, threads=8)
+        proxy = {}
+        if settings.trusted_proxy:
+            # Honour X-Forwarded-Proto/For only from the hosting platform's proxy.
+            proxy = {
+                "trusted_proxy": settings.trusted_proxy,
+                "trusted_proxy_headers": {"x-forwarded-for", "x-forwarded-proto"},
+                "clear_untrusted_proxy_headers": True,
+            }
+        serve(
+            app.server, host=settings.host, port=settings.port, threads=8, **proxy
+        )
 
 
 if __name__ == "__main__":
