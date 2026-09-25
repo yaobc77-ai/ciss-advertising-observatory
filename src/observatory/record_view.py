@@ -8,13 +8,15 @@ TEMPLATE = """<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{ record.title or 'Record details' }} · Advertising Observatory</title>
 <link rel="stylesheet" href="/assets/observatory.css"></head><body>
-<header class="site-header"><a class="brand" href="/query"><span class="brand-mark">AO</span> Advertising Observatory</a>
+<header class="site-header"><a class="brand" href="/query"><span class="brand-text"><span class="brand-name">Advertising Observatory</span></span></a>
 <nav class="page-nav" aria-label="Main navigation"><a class="nav-link" href="/query">Query</a><a class="nav-link" href="/data">Data</a></nav></header>
-<main class="page-shell record-page"><section class="hero"><span class="eyebrow">Article record</span>
-<h1>{{ record.title or 'Untitled record' }}</h1><p>{{ record.publisher or '(Unknown outlet)' }} · {{ sponsor }} · {{ record.date or 'Publication date unknown' }}</p>
-<p><strong>Collection search term:</strong> {{ record.keyword or '(Unknown)' }}. This describes collection, not sponsor identity or article theme.</p>
+<main class="page-shell record-page"><nav class="record-breadcrumb" aria-label="Breadcrumb"><a href="/data">Data</a><span aria-hidden="true">/</span><span aria-current="page">Article record</span></nav>
+<section class="hero record-hero">
+<h1>{{ record.title or 'Untitled record' }}</h1>
+<dl class="record-meta"><div class="record-meta-item"><dt>Publisher</dt><dd>{{ record.publisher or '(Unknown outlet)' }}</dd></div><div class="record-meta-item"><dt>Sponsor / organization</dt><dd>{{ sponsor }}</dd></div><div class="record-meta-item"><dt>Publication date</dt><dd>{{ record.date or 'Publication date unknown' }}</dd></div></dl>
+<p class="record-collection-note"><strong>Collection search term:</strong> {{ record.keyword or '(Unknown)' }}. This describes collection, not sponsor identity or article theme.</p>
 {% if sponsor_note %}<p class="scope-note">{{ sponsor_note }}</p>{% endif %}</section>
-<section class="records-panel"><h2>Sources and archived materials</h2>
+<section class="records-panel record-sources"><h2>Sources and archived materials</h2>
 <div class="source-links">{% if record.url %}<a href="{{ record.url }}" target="_blank" rel="noopener noreferrer">Original source ↗</a>{% endif %}
 {% if record.archive_url %}<a href="{{ record.archive_url }}" target="_blank" rel="noopener noreferrer">Online archive ↗</a>{% endif %}</div>
 <p><strong>{{ record.archive_status }}</strong></p><p>{{ record.archive_note }}</p>
@@ -26,11 +28,11 @@ TEMPLATE = """<!doctype html>
 <iframe class="snapshot-preview" src="{{ asset.url }}" title="{{ asset.label }} PDF preview"></iframe>{% endif %}
 <details><summary>Attachment verification</summary><p class="record-reference">SHA-256 {{ asset.sha256 }}</p></details></article>{% endfor %}
 {% if not record.attachments %}<p>No verified PDF or screenshot is attached to this record.</p>{% endif %}</section>
-<section class="records-panel"><h2>{{ record.body_label }}</h2><p class="scope-note">{{ record.body_note }}</p>
+<section class="records-panel record-body-panel"><h2>{{ record.body_label }}</h2><p class="scope-note">{{ record.body_note }}</p>
 {% if record.quality_notes %}<ul>{% for note in record.quality_notes %}<li>{{ note }}</li>{% endfor %}</ul>{% endif %}
 {% if record.body %}<div class="stored-body">{{ record.body }}</div>{% else %}<p>No article text is available.</p>{% endif %}
 <details><summary>Technical details</summary><div class="record-reference"><span>Record {{ record.record_id }}</span><span>Version {{ record.version_id }}</span><span>Body SHA-256 {{ record.body_hash }}</span><span>{{ record.body_characters }} stored characters. Eligible for retrieval: {{ record.retrievable }}.</span></div></details></section>
-</main><footer class="site-footer"><span>Advertising Observatory · Research collection</span><a href="/wireframe">Project wireframe · design review</a></footer>
+</main><footer class="site-footer"><span>CISS · Fossil fuel advertising · Research preview</span><a href="/wireframe">Project wireframe · design review</a></footer>
 </body></html>"""
 
 

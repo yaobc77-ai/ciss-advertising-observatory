@@ -28,7 +28,7 @@ UNKNOWN = "(Unknown)"
 NATIVE_COLUMNS = ("url", "publisher", "title", "date", "sponsor", "keyword")
 SOCIAL_COLUMNS = ("platform", "account", "sponsor", "title", "date", "url")
 FILTER_NAMES = ("publishers", "sponsors", "platforms", "keywords", "labels")
-COLORS = {"ink": "#173b3b", "teal": "#207b76", "muted": "#667772", "amber": "#b67c32"}
+COLORS = {"ink": "#202633", "teal": "#003262", "muted": "#687587", "amber": "#a86b25"}
 
 
 def _page(pathname):
@@ -73,7 +73,7 @@ def _wireframe(health):
                 ),
                 html.H3(title),
                 block(
-                    "AO · Shared navigation",
+                    "Advertising Observatory · Shared navigation",
                     "Query  /  Data · Design review in footer",
                     "wire-nav",
                 ),
@@ -123,15 +123,14 @@ def _wireframe(health):
                     "/query",
                     [
                         block(
-                            "Collection selector",
-                            "Native advertising  |  Social advertising",
+                            "Collection + question + answer",
+                            "Native / Social dropdown · research question · Generate answer",
                         ),
                         html.Div(
                             [
                                 block(
-                                    "Shared filters",
-                                    "Outlet / sponsor / keyword / historical label / date",
-                                    "wire-side",
+                                    "Shared filters · collapsed by default",
+                                    "Expand outlet / sponsor / collection term / historical label / date",
                                 ),
                                 html.Div(
                                     [
@@ -141,9 +140,13 @@ def _wireframe(health):
                                         ),
                                         html.Div(
                                             [
-                                                block("Keyword search", "No paid call"),
                                                 block(
-                                                    "Generate answer", "Uses API budget"
+                                                    "Generate answer",
+                                                    "Primary action · uses API budget",
+                                                ),
+                                                block(
+                                                    "Keyword search",
+                                                    "Secondary action · no paid call",
                                                 ),
                                             ],
                                             className="wire-actions",
@@ -160,7 +163,7 @@ def _wireframe(health):
                                     className="wire-stack",
                                 ),
                             ],
-                            className="wire-split",
+                            className="wire-stack",
                         ),
                     ],
                 ),
@@ -370,11 +373,21 @@ def _figure(message=None):
         template="plotly_white",
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
-        font={"family": "Arial, sans-serif", "color": COLORS["ink"]},
+        font={
+            "family": "Segoe UI, Arial, sans-serif",
+            "color": COLORS["ink"],
+            "size": 12,
+        },
         margin={"l": 16, "r": 18, "t": 18, "b": 35},
         height=290,
-        xaxis={"gridcolor": "#e7eeea", "zeroline": False},
-        yaxis={"gridcolor": "#e7eeea", "zeroline": False},
+        xaxis={"gridcolor": "#e8ecf0", "zeroline": False, "title_font_size": 11},
+        yaxis={"gridcolor": "#e8ecf0", "zeroline": False, "title_font_size": 11},
+        bargap=0.3,
+        hoverlabel={
+            "bgcolor": "#142d4e",
+            "font_color": "#ffffff",
+            "bordercolor": "#142d4e",
+        },
     )
     if message:
         figure.add_annotation(
@@ -404,6 +417,10 @@ def _bars(items, metric="count"):
         x=[item.get(metric, 0) for item in items],
         orientation="h",
         marker_color=COLORS["teal"],
+        text=[item.get(metric, 0) for item in items],
+        texttemplate="%{text:.1f}%" if metric == "percent" else "%{text:,}",
+        textposition="outside",
+        cliponaxis=False,
         customdata=[[item.get("count", 0), item.get("percent", 0)] for item in items],
         hovertemplate="%{y}<br>%{customdata[0]:,} records · %{customdata[1]:.1f}%<extra></extra>",
     )
@@ -411,7 +428,7 @@ def _bars(items, metric="count"):
         title="Share of selected records (%)" if metric == "percent" else "Records",
         rangemode="tozero",
     )
-    figure.update_yaxes(automargin=True)
+    figure.update_yaxes(automargin=True, showgrid=False)
     return figure
 
 
@@ -461,9 +478,16 @@ def _relationships(items):
         z=[[cells.get((y, x), 0) for x in xs] for y in ys],
         texttemplate="%{z}",
         textfont={"size": 12},
-        colorscale=[[0, "#edf3ee"], [1, COLORS["teal"]]],
+        colorscale=[[0, "#f1f5f6"], [0.35, "#a4cccb"], [1, COLORS["teal"]]],
         showscale=True,
-        colorbar={"title": "Records", "tickformat": "d"},
+        colorbar={
+            "title": "Records",
+            "tickformat": "d",
+            "thickness": 12,
+            "outlinewidth": 0,
+        },
+        xgap=2,
+        ygap=2,
         hovertemplate="%{y} → %{x}<br>%{z:,} records<extra></extra>",
     )
     figure.update_layout(
@@ -542,19 +566,32 @@ def _search_context(question, filters):
 
 def _summary(stats):
     values = [
-        ("Selected records", stats.get("total", 0)),
-        ("Searchable records", stats.get("retrievable", 0)),
-        ("Unknown dates", stats.get("unknown_dates", 0)),
+        (
+            "Selected records",
+            stats.get("total", 0),
+            "Eligible records in this selection",
+        ),
+        (
+            "Searchable records",
+            stats.get("retrievable", 0),
+            "With text available for retrieval",
+        ),
+        (
+            "Unknown dates",
+            stats.get("unknown_dates", 0),
+            "Publication date not available",
+        ),
     ]
     return [
         html.Div(
             [
                 html.Span(label, className="stat-label"),
                 html.Strong(f"{int(value):,}", className="stat-value"),
+                html.Span(note, className="stat-note"),
             ],
             className="stat-card",
         )
-        for label, value in values
+        for label, value, note in values
     ]
 
 
@@ -806,17 +843,21 @@ def _filter_panel(dataset, facets):
             persistence=True,
             persistence_type="session",
         ),
-        html.P(
-            "Historical labels come from earlier automated classification runs. Collection search terms describe how records were collected; they are not sponsor identities or article themes.",
+        html.Details(
+            [
+                html.Summary("About these filters"),
+                html.P(
+                    "Historical labels come from earlier automated classification runs. Collection search terms describe how records were collected; they are not sponsor identities or article themes."
+                ),
+            ],
             className="filter-note",
         ),
     ]
     return html.Aside(
         [
-            html.Span("Shared collection scope", className="eyebrow"),
             html.H2("Filters"),
             html.P(
-                "These filters apply to Query and Data. Each collection keeps its own selection.",
+                "Applies to Query and Data.",
                 className="shared-filter-note",
             ),
             *controls,
@@ -997,7 +1038,7 @@ def _panel(dataset, links_enabled):
                                     "minWidth": 125,
                                 },
                                 dashGridOptions={"rowHeight": 40, "animateRows": False},
-                                className="ag-theme-quartz",
+                                className="ag-theme-quartz observatory-grid",
                                 style={"height": "440px"},
                             ),
                             dcc.Download(id=f"{dataset}-matrix-download"),
@@ -1014,10 +1055,6 @@ def _panel(dataset, links_enabled):
                                 [
                                     html.Div(
                                         [
-                                            html.Span(
-                                                "Explore the records",
-                                                className="eyebrow",
-                                            ),
                                             html.H3("Source collection"),
                                         ]
                                     ),
@@ -1109,14 +1146,99 @@ def create_app(service, settings, record_details=None) -> Dash:
     def layout():
         try:
             health = service.health()
-        except Exception:  # noqa: BLE001 - public boundary must hide unexpected service details.
+        except Exception:  # noqa: BLE001 - hide internal service errors at the public boundary.
             health = {"status": "unavailable"}
         facets = {}
         for dataset in ("native", "social"):
             try:
                 facets[dataset] = service.facets(dataset)
-            except Exception:  # noqa: BLE001 - public boundary must hide unexpected service details.
+            except Exception:  # noqa: BLE001 - leave controls usable during service failures.
                 facets[dataset] = {}
+
+        collection_toolbar = html.Div(
+            [
+                html.Div(
+                    [
+                        html.Label(
+                            "Collection",
+                            htmlFor="active-dataset",
+                            className="collection-label",
+                        ),
+                        dcc.Dropdown(
+                            id="active-dataset",
+                            options=[
+                                {"label": "Native advertising", "value": "native"},
+                                {"label": "Social advertising", "value": "social"},
+                            ],
+                            value="native",
+                            clearable=False,
+                            searchable=False,
+                            persistence=True,
+                            persistence_type="session",
+                            className="collection-picker",
+                        ),
+                    ],
+                    className="collection-selector",
+                ),
+                html.Div(
+                    [
+                        html.Label(
+                            "Research question",
+                            htmlFor="research-question",
+                            className="visually-hidden",
+                        ),
+                        dcc.Textarea(
+                            id="research-question",
+                            value="",
+                            placeholder="Ask a question about these ads…",
+                            maxLength=2000,
+                            className="question-input",
+                            persistence=True,
+                            persistence_type="session",
+                        ),
+                        html.Button(
+                            "Generate answer",
+                            id="answer-paid",
+                            n_clicks=0,
+                            className="button button-primary",
+                            **{"aria-describedby": "query-cost"},
+                        ),
+                    ],
+                    id="query-composer",
+                    className="query-composer",
+                ),
+            ],
+            className="collection-toolbar",
+        )
+        query_options = html.Div(
+            [
+                dcc.RadioItems(
+                    id="search-scope",
+                    options=[
+                        {
+                            "label": "Current collection and its filters",
+                            "value": "current",
+                        },
+                        {
+                            "label": "Both collections · all eligible records",
+                            "value": "all",
+                        },
+                    ],
+                    value="current",
+                    className="search-scope",
+                    persistence=True,
+                    persistence_type="session",
+                ),
+                html.Button(
+                    "Search keywords",
+                    id="search-free",
+                    n_clicks=0,
+                    className="button button-secondary",
+                ),
+            ],
+            id="query-options",
+            className="query-options",
+        )
         return html.Div(
             [
                 dcc.Location(id="page-location", refresh=False),
@@ -1125,12 +1247,9 @@ def create_app(service, settings, record_details=None) -> Dash:
                 html.Header(
                     [
                         dcc.Link(
-                            [
-                                html.Span("AO", className="brand-mark"),
-                                html.Span(
-                                    "Advertising Observatory", className="brand-name"
-                                ),
-                            ],
+                            html.Span(
+                                "Advertising Observatory", className="brand-name"
+                            ),
                             href="/query",
                             className="brand",
                         ),
@@ -1159,13 +1278,9 @@ def create_app(service, settings, record_details=None) -> Dash:
                     [
                         html.Section(
                             [
-                                html.Span(
-                                    "Fossil fuel advertising · Research collection",
-                                    className="eyebrow",
-                                ),
                                 html.H1("Query the evidence", id="page-title"),
                                 html.P(
-                                    "Find original passages and ask research questions with source-linked answers.",
+                                    "Search fossil fuel advertising and explore claims with source-linked answers.",
                                     id="page-description",
                                     className="hero-description",
                                 ),
@@ -1181,26 +1296,12 @@ def create_app(service, settings, record_details=None) -> Dash:
                         else None,
                         html.Div(
                             [
-                                dcc.Tabs(
-                                    id="active-dataset",
-                                    value="native",
-                                    className="collection-tabs",
-                                    persistence=True,
-                                    persistence_type="session",
-                                    children=[
-                                        dcc.Tab(
-                                            label="Native advertising",
-                                            value="native",
-                                            className="collection-tab",
-                                            selected_className="collection-tab-selected",
-                                        ),
-                                        dcc.Tab(
-                                            label="Social advertising",
-                                            value="social",
-                                            className="collection-tab",
-                                            selected_className="collection-tab-selected",
-                                        ),
-                                    ],
+                                collection_toolbar,
+                                query_options,
+                                html.P(
+                                    "Generated answers use the project's API budget. Keyword search is free. Up to 2,000 characters.",
+                                    id="query-cost",
+                                    className="search-help",
                                 ),
                                 html.Div(
                                     id="current-scope",
@@ -1209,8 +1310,11 @@ def create_app(service, settings, record_details=None) -> Dash:
                                 ),
                                 html.Div(
                                     [
-                                        html.Div(
+                                        html.Details(
                                             [
+                                                html.Summary(
+                                                    "Filters", className="filter-toggle"
+                                                ),
                                                 _filter_panel(
                                                     "native", facets["native"]
                                                 ),
@@ -1218,120 +1322,35 @@ def create_app(service, settings, record_details=None) -> Dash:
                                                     "social", facets["social"]
                                                 ),
                                             ],
-                                            className="shared-filters",
                                             id="shared-filters",
+                                            className="shared-filters",
+                                            open=False,
                                         ),
                                         html.Div(
                                             [
                                                 html.Section(
                                                     [
-                                                        html.Section(
-                                                            [
-                                                                html.Div(
-                                                                    [
-                                                                        html.Div(
-                                                                            [
-                                                                                html.Span(
-                                                                                    "Search the evidence",
-                                                                                    className="eyebrow",
-                                                                                ),
-                                                                                html.H2(
-                                                                                    "Ask a research question"
-                                                                                ),
-                                                                            ]
-                                                                        ),
-                                                                        html.Span(
-                                                                            "Grounded in collection records",
-                                                                            className="search-badge",
-                                                                        ),
-                                                                    ],
-                                                                    className="section-heading",
+                                                        html.Div(
+                                                            id="research-stale",
+                                                            role="status",
+                                                        ),
+                                                        dcc.Loading(
+                                                            html.Div(
+                                                                id="research-results",
+                                                                children=html.P(
+                                                                    "Ask a question to explore the evidence.",
+                                                                    className="results-placeholder",
                                                                 ),
-                                                                html.P(
-                                                                    "Use keyword search to find passages, or request a paid answer supported by retrieved records.",
-                                                                    className="muted",
-                                                                ),
-                                                                html.Label(
-                                                                    "Research question",
-                                                                    htmlFor="research-question",
-                                                                ),
-                                                                dcc.Textarea(
-                                                                    id="research-question",
-                                                                    value="",
-                                                                    placeholder="For example: What claims do sponsors make about carbon capture?",
-                                                                    maxLength=2000,
-                                                                    className="question-input",
-                                                                    persistence=True,
-                                                                    persistence_type="session",
-                                                                ),
-                                                                html.Div(
-                                                                    [
-                                                                        dcc.RadioItems(
-                                                                            id="search-scope",
-                                                                            options=[
-                                                                                {
-                                                                                    "label": "Current collection and its filters",
-                                                                                    "value": "current",
-                                                                                },
-                                                                                {
-                                                                                    "label": "Both collections · all eligible records",
-                                                                                    "value": "all",
-                                                                                },
-                                                                            ],
-                                                                            value="current",
-                                                                            className="search-scope",
-                                                                            persistence=True,
-                                                                            persistence_type="session",
-                                                                        ),
-                                                                        html.Div(
-                                                                            [
-                                                                                html.Button(
-                                                                                    "Search keywords",
-                                                                                    id="search-free",
-                                                                                    n_clicks=0,
-                                                                                    className="button button-primary",
-                                                                                ),
-                                                                                html.Button(
-                                                                                    "Generate paid answer",
-                                                                                    id="answer-paid",
-                                                                                    n_clicks=0,
-                                                                                    className="button button-secondary",
-                                                                                ),
-                                                                            ],
-                                                                            className="search-actions",
-                                                                        ),
-                                                                    ],
-                                                                    className="search-controls",
-                                                                ),
-                                                                html.P(
-                                                                    "Keyword search uses no paid model calls. Generated answers use the project's API budget. Maximum 2,000 characters.",
-                                                                    className="search-help",
-                                                                ),
-                                                                html.Div(
-                                                                    id="research-stale",
-                                                                    role="status",
-                                                                ),
-                                                                dcc.Loading(
-                                                                    html.Div(
-                                                                        id="research-results",
-                                                                        children=html.P(
-                                                                            "Results and supporting evidence will appear here.",
-                                                                            className="results-placeholder",
-                                                                        ),
-                                                                        **{
-                                                                            "aria-live": "polite"
-                                                                        },
-                                                                    ),
-                                                                    type="circle",
-                                                                    color=COLORS[
-                                                                        "teal"
-                                                                    ],
-                                                                ),
-                                                            ],
-                                                            className="research-panel",
-                                                        )
+                                                                **{
+                                                                    "aria-live": "polite"
+                                                                },
+                                                            ),
+                                                            type="circle",
+                                                            color=COLORS["teal"],
+                                                        ),
                                                     ],
                                                     id="query-page",
+                                                    className="research-panel",
                                                     **{"aria-label": "Query"},
                                                 ),
                                                 html.Section(
@@ -1347,8 +1366,8 @@ def create_app(service, settings, record_details=None) -> Dash:
                                             className="route-content",
                                         ),
                                     ],
-                                    className="collection-layout",
                                     id="collection-layout",
+                                    className="collection-layout",
                                 ),
                             ],
                             id="collection-workspace",
@@ -1376,7 +1395,7 @@ def create_app(service, settings, record_details=None) -> Dash:
                 ),
                 html.Footer(
                     [
-                        html.Span("Advertising Observatory · Research collection"),
+                        html.Span("CISS · Research preview"),
                         dcc.Link(
                             "Project wireframe · design review",
                             href="/wireframe",
@@ -1391,7 +1410,9 @@ def create_app(service, settings, record_details=None) -> Dash:
                     ],
                     className="site-footer",
                 ),
-            ]
+            ],
+            id="observatory-app",
+            className="view-query",
         )
 
     app.layout = layout
@@ -1407,6 +1428,11 @@ def create_app(service, settings, record_details=None) -> Dash:
         Output("nav-query", "className"),
         Output("nav-data", "className"),
         Output("nav-wireframe", "className"),
+        Output("observatory-app", "className"),
+        Output("shared-filters", "open"),
+        Output("query-composer", "hidden"),
+        Output("query-options", "hidden"),
+        Output("query-cost", "hidden"),
         Input("page-location", "pathname"),
     )
     def change_page(pathname):
@@ -1414,7 +1440,7 @@ def create_app(service, settings, record_details=None) -> Dash:
         title, description = {
             "query": (
                 "Query the evidence",
-                "Find original passages and ask research questions with source-linked answers.",
+                "Search fossil fuel advertising and explore claims with source-linked answers.",
             ),
             "data": (
                 "Explore the collection",
@@ -1441,6 +1467,11 @@ def create_app(service, settings, record_details=None) -> Dash:
                 "nav-link is-active" if page == target else "nav-link"
                 for target in ("query", "data", "wireframe")
             ],
+            f"view-{page}",
+            page == "data",
+            page != "query",
+            page != "query",
+            page != "query",
         )
 
     @app.callback(

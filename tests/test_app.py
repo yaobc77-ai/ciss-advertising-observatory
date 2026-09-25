@@ -652,6 +652,10 @@ def test_routes_switch_visible_page_without_touching_controls_or_results(
     for target in ("query", "data", "wireframe", "not-found"):
         assert result[f"{target}-page"]["hidden"] == (target != page)
     assert result["collection-workspace"]["hidden"] == (page not in ("query", "data"))
+    assert result["observatory-app"]["className"] == f"view-{page}"
+    assert result["shared-filters"]["open"] == (page == "data")
+    for control in ("query-composer", "query-options", "query-cost"):
+        assert result[control]["hidden"] == (page != "query")
     assert all(
         "children" not in data for key, data in result.items() if key.endswith("-page")
     )
