@@ -9,7 +9,10 @@ TEMPLATE = """<!doctype html>
 <title>{{ record.title or 'Record details' }} · Advertising Observatory</title>
 <link rel="stylesheet" href="/assets/observatory.css"></head><body>
 <header class="site-header"><a class="brand" href="/query"><span class="brand-text"><span class="brand-name">Advertising Observatory</span></span></a>
-<nav class="page-nav" aria-label="Main navigation"><a class="nav-link" href="/query">Query</a><a class="nav-link" href="/data">Data</a></nav></header>
+<div class="header-actions"><nav class="page-nav" aria-label="Main navigation"><a class="nav-link" href="/query">Query</a><a class="nav-link" href="/data">Data</a></nav>
+<details id="toolbox" class="toolbox"><summary class="toolbox-trigger" title="Tools" aria-label="Tools"><img src="/assets/tools.svg" width="22" height="22" alt=""></summary>
+<div class="toolbox-panel" aria-label="Research tools"><div class="toolbox-heading"><h2>Tools</h2><button type="button" class="toolbox-close" aria-label="Close tools">×</button></div>
+<a class="toolbox-link" href="/query">Ask a question</a><a class="toolbox-link" href="/data">Explore data</a><a class="toolbox-link" href="/wireframe">Project wireframe</a></div></details></div></header>
 <main class="page-shell record-page"><nav class="record-breadcrumb" aria-label="Breadcrumb"><a href="/data">Data</a><span aria-hidden="true">/</span><span aria-current="page">Article record</span></nav>
 <section class="hero record-hero">
 <h1>{{ record.title or 'Untitled record' }}</h1>
@@ -32,7 +35,7 @@ TEMPLATE = """<!doctype html>
 {% if record.quality_notes %}<ul>{% for note in record.quality_notes %}<li>{{ note }}</li>{% endfor %}</ul>{% endif %}
 {% if record.body %}<div class="stored-body">{{ record.body }}</div>{% else %}<p>No article text is available.</p>{% endif %}
 <details><summary>Technical details</summary><div class="record-reference"><span>Record {{ record.record_id }}</span><span>Version {{ record.version_id }}</span><span>Body SHA-256 {{ record.body_hash }}</span><span>{{ record.body_characters }} stored characters. Eligible for retrieval: {{ record.retrievable }}.</span></div></details></section>
-</main><footer class="site-footer"><span>CISS · Fossil fuel advertising · Research preview</span><a href="/wireframe">Project wireframe · design review</a></footer>
+</main><script src="/assets/toolbox.js" defer></script>
 </body></html>"""
 
 

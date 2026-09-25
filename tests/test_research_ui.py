@@ -113,15 +113,27 @@ def test_timeline_and_label_coverage_show_unknown_records(research_ui):
     )
 
 
-def test_main_navigation_is_english_and_wireframe_is_only_in_footer(research_ui):
+def test_toolbox_groups_secondary_controls_outside_main_navigation(research_ui):
     _, client, _ = research_ui
     components = list(component_tree(client.get("/_dash-layout").json))
     nav = next(item for item in components if item["type"] == "Nav")
     nav_links = [item for item in component_tree(nav) if item["type"] == "Link"]
     assert [item["props"]["children"] for item in nav_links] == ["Query", "Data"]
-    footer = next(item for item in components if item["type"] == "Footer")
-    footer_links = [item for item in component_tree(footer) if item["type"] == "Link"]
-    assert any(item["props"].get("href") == "/wireframe" for item in footer_links)
+    toolbox = next(item for item in components if item["props"].get("id") == "toolbox")
+    assert toolbox["type"] == "Details"
+    assert not toolbox["props"].get("open", False)
+    tool_nodes = list(component_tree(toolbox))
+    tool_ids = {item["props"].get("id") for item in tool_nodes}
+    assert {
+        "search-free",
+        "search-scope",
+        "shared-filters",
+        "query-cost",
+        "nav-wireframe",
+    } <= tool_ids
+    assert "answer-paid" not in tool_ids
+    tool_links = [item for item in tool_nodes if item["type"] == "Link"]
+    assert any(item["props"].get("href") == "/wireframe" for item in tool_links)
     assert all(item["props"].get("href") != "/wireframe" for item in nav_links)
 
 

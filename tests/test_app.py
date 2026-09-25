@@ -653,7 +653,7 @@ def test_routes_switch_visible_page_without_touching_controls_or_results(
         assert result[f"{target}-page"]["hidden"] == (target != page)
     assert result["collection-workspace"]["hidden"] == (page not in ("query", "data"))
     assert result["observatory-app"]["className"] == f"view-{page}"
-    assert result["shared-filters"]["open"] == (page == "data")
+    assert result["shared-filters"]["hidden"] == (page not in {"query", "data"})
     for control in ("query-composer", "query-options", "query-cost"):
         assert result[control]["hidden"] == (page != "query")
     assert all(
@@ -795,6 +795,24 @@ def test_all_scope_summary_explains_filter_bypass_and_ignores_filter_changes(
     )
     assert "filters are bypassed" in json.dumps(scope)
     assert len(service.search_calls) == 1 and not service.answer_calls
+
+
+def test_default_scope_is_quiet_but_active_filters_remain_visible(application):
+    app, client, service = application
+    values = research_values()
+    default_scope = callback(
+        app, client, "current-scope.children", values, "active-dataset.value"
+    )
+    assert default_scope["current-scope"]["children"] is None
+    filtered_scope = callback(
+        app,
+        client,
+        "current-scope.children",
+        values | {"native-sponsors.value": ["Sponsor B"]},
+        "native-sponsors.value",
+    )
+    assert "Sponsor B" in json.dumps(filtered_scope)
+    assert service.answer_calls == service.search_calls == []
 
 
 def test_route_navigation_never_dispatches_or_clears_existing_paid_answer(application):

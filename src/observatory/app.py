@@ -74,7 +74,7 @@ def _wireframe(health):
                 html.H3(title),
                 block(
                     "Advertising Observatory · Shared navigation",
-                    "Query  /  Data · Design review in footer",
+                    "Query  /  Data · Tools in the top-right corner",
                     "wire-nav",
                 ),
                 *items,
@@ -129,8 +129,8 @@ def _wireframe(health):
                         html.Div(
                             [
                                 block(
-                                    "Shared filters · collapsed by default",
-                                    "Expand outlet / sponsor / collection term / historical label / date",
+                                    "Tools · closed by default",
+                                    "Search scope / keyword search / shared filters / usage notes",
                                 ),
                                 html.Div(
                                     [
@@ -175,9 +175,8 @@ def _wireframe(health):
                         html.Div(
                             [
                                 block(
-                                    "Shared filters",
-                                    "Collection-specific filters are preserved",
-                                    "wire-side",
+                                    "Tools · shared filters",
+                                    "Collection-specific filters are preserved across pages",
                                 ),
                                 html.Div(
                                     [
@@ -208,7 +207,7 @@ def _wireframe(health):
                                     className="wire-stack",
                                 ),
                             ],
-                            className="wire-split",
+                            className="wire-stack",
                         ),
                     ],
                 ),
@@ -854,17 +853,15 @@ def _filter_panel(dataset, facets):
         ),
     ]
     return html.Aside(
-        [
-            html.H2("Filters"),
-            html.P(
-                "Applies to Query and Data.",
-                className="shared-filter-note",
-            ),
-            *controls,
-        ],
+        controls,
         id=f"{dataset}-filter-panel",
         className="filters-panel",
         style={} if native else {"display": "none"},
+        **{
+            "aria-label": "Native advertising filters"
+            if native
+            else "Social advertising filters"
+        },
     )
 
 
@@ -1201,6 +1198,7 @@ def create_app(service, settings, record_details=None) -> Dash:
                             id="answer-paid",
                             n_clicks=0,
                             className="button button-primary",
+                            title="Generate an answer using the project's API budget",
                             **{"aria-describedby": "query-cost"},
                         ),
                     ],
@@ -1212,6 +1210,7 @@ def create_app(service, settings, record_details=None) -> Dash:
         )
         query_options = html.Div(
             [
+                html.H3("Search scope"),
                 dcc.RadioItems(
                     id="search-scope",
                     options=[
@@ -1239,6 +1238,57 @@ def create_app(service, settings, record_details=None) -> Dash:
             id="query-options",
             className="query-options",
         )
+        toolbox = html.Details(
+            [
+                html.Summary(
+                    html.Img(src="/assets/tools.svg", width=22, height=22, alt=""),
+                    className="toolbox-trigger",
+                    title="Tools",
+                    **{"aria-label": "Tools"},
+                ),
+                html.Div(
+                    [
+                        html.Div(
+                            [
+                                html.H2("Tools"),
+                                html.Button(
+                                    "×",
+                                    type="button",
+                                    className="toolbox-close",
+                                    **{"aria-label": "Close tools"},
+                                ),
+                            ],
+                            className="toolbox-heading",
+                        ),
+                        query_options,
+                        html.Div(
+                            [
+                                html.H3("Filters"),
+                                _filter_panel("native", facets["native"]),
+                                _filter_panel("social", facets["social"]),
+                            ],
+                            id="shared-filters",
+                            className="shared-filters",
+                        ),
+                        html.P(
+                            "Generated answers use the project's API budget. Keyword search is free. Questions can contain up to 2,000 characters.",
+                            id="query-cost",
+                            className="search-help",
+                        ),
+                        dcc.Link(
+                            "Project wireframe",
+                            href="/wireframe",
+                            id="nav-wireframe",
+                            className="toolbox-link",
+                        ),
+                    ],
+                    className="toolbox-panel",
+                    **{"aria-label": "Research tools"},
+                ),
+            ],
+            id="toolbox",
+            className="toolbox",
+        )
         return html.Div(
             [
                 dcc.Location(id="page-location", refresh=False),
@@ -1253,23 +1303,29 @@ def create_app(service, settings, record_details=None) -> Dash:
                             href="/query",
                             className="brand",
                         ),
-                        html.Nav(
+                        html.Div(
                             [
-                                dcc.Link(
-                                    "Query",
-                                    href="/query",
-                                    id="nav-query",
-                                    className="nav-link is-active",
+                                html.Nav(
+                                    [
+                                        dcc.Link(
+                                            "Query",
+                                            href="/query",
+                                            id="nav-query",
+                                            className="nav-link is-active",
+                                        ),
+                                        dcc.Link(
+                                            "Data",
+                                            href="/data",
+                                            id="nav-data",
+                                            className="nav-link",
+                                        ),
+                                    ],
+                                    className="page-nav",
+                                    **{"aria-label": "Main navigation"},
                                 ),
-                                dcc.Link(
-                                    "Data",
-                                    href="/data",
-                                    id="nav-data",
-                                    className="nav-link",
-                                ),
+                                toolbox,
                             ],
-                            className="page-nav",
-                            **{"aria-label": "Main navigation"},
+                            className="header-actions",
                         ),
                     ],
                     className="site-header",
@@ -1280,7 +1336,7 @@ def create_app(service, settings, record_details=None) -> Dash:
                             [
                                 html.H1("Query the evidence", id="page-title"),
                                 html.P(
-                                    "Search fossil fuel advertising and explore claims with source-linked answers.",
+                                    "",
                                     id="page-description",
                                     className="hero-description",
                                 ),
@@ -1297,12 +1353,6 @@ def create_app(service, settings, record_details=None) -> Dash:
                         html.Div(
                             [
                                 collection_toolbar,
-                                query_options,
-                                html.P(
-                                    "Generated answers use the project's API budget. Keyword search is free. Up to 2,000 characters.",
-                                    id="query-cost",
-                                    className="search-help",
-                                ),
                                 html.Div(
                                     id="current-scope",
                                     className="current-scope",
@@ -1310,22 +1360,6 @@ def create_app(service, settings, record_details=None) -> Dash:
                                 ),
                                 html.Div(
                                     [
-                                        html.Details(
-                                            [
-                                                html.Summary(
-                                                    "Filters", className="filter-toggle"
-                                                ),
-                                                _filter_panel(
-                                                    "native", facets["native"]
-                                                ),
-                                                _filter_panel(
-                                                    "social", facets["social"]
-                                                ),
-                                            ],
-                                            id="shared-filters",
-                                            className="shared-filters",
-                                            open=False,
-                                        ),
                                         html.Div(
                                             [
                                                 html.Section(
@@ -1337,10 +1371,6 @@ def create_app(service, settings, record_details=None) -> Dash:
                                                         dcc.Loading(
                                                             html.Div(
                                                                 id="research-results",
-                                                                children=html.P(
-                                                                    "Ask a question to explore the evidence.",
-                                                                    className="results-placeholder",
-                                                                ),
                                                                 **{
                                                                     "aria-live": "polite"
                                                                 },
@@ -1393,23 +1423,6 @@ def create_app(service, settings, record_details=None) -> Dash:
                     id="main",
                     className="page-shell",
                 ),
-                html.Footer(
-                    [
-                        html.Span("CISS · Research preview"),
-                        dcc.Link(
-                            "Project wireframe · design review",
-                            href="/wireframe",
-                            id="nav-wireframe",
-                            className="nav-link",
-                        ),
-                        html.Span(
-                            "Source links enabled"
-                            if enabled
-                            else "Source links disabled"
-                        ),
-                    ],
-                    className="site-footer",
-                ),
             ],
             id="observatory-app",
             className="view-query",
@@ -1429,7 +1442,7 @@ def create_app(service, settings, record_details=None) -> Dash:
         Output("nav-data", "className"),
         Output("nav-wireframe", "className"),
         Output("observatory-app", "className"),
-        Output("shared-filters", "open"),
+        Output("shared-filters", "hidden"),
         Output("query-composer", "hidden"),
         Output("query-options", "hidden"),
         Output("query-cost", "hidden"),
@@ -1440,7 +1453,7 @@ def create_app(service, settings, record_details=None) -> Dash:
         title, description = {
             "query": (
                 "Query the evidence",
-                "Search fossil fuel advertising and explore claims with source-linked answers.",
+                "",
             ),
             "data": (
                 "Explore the collection",
@@ -1465,10 +1478,11 @@ def create_app(service, settings, record_details=None) -> Dash:
             description,
             *[
                 "nav-link is-active" if page == target else "nav-link"
-                for target in ("query", "data", "wireframe")
+                for target in ("query", "data")
             ],
+            "toolbox-link is-active" if page == "wireframe" else "toolbox-link",
             f"view-{page}",
-            page == "data",
+            page not in {"query", "data"},
             page != "query",
             page != "query",
             page != "query",
@@ -1503,11 +1517,8 @@ def create_app(service, settings, record_details=None) -> Dash:
             selected.append(
                 f"Dates: {filters.date_from or 'any'} – {filters.date_to or 'any'}"
             )
-        selected.append(
-            "Unknown dates included"
-            if filters.include_unknown_dates
-            else "Unknown dates excluded"
-        )
+        if not filters.include_unknown_dates:
+            selected.append("Unknown dates excluded")
         heading = "Native advertising" if dataset == "native" else "Social advertising"
         message = " · ".join(selected)
         if dataset == "social":
@@ -1518,13 +1529,13 @@ def create_app(service, settings, record_details=None) -> Dash:
                 pass
         if _page(pathname) == "query" and scope == "all":
             return [
-                html.Strong("Search scope: both collections · all eligible records"),
-                html.Span(
-                    " Collection filters are bypassed for this query; your selection is preserved for Data."
-                ),
+                html.Strong("Both collections"),
+                html.Span(" · Collection filters are bypassed for this query."),
             ]
+        if not message:
+            return None
         return [
-            html.Strong(f"Current selection: {heading}"),
+            html.Strong(heading),
             html.Span(f" · {message}"),
         ]
 
