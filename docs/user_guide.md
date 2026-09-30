@@ -121,4 +121,4 @@ If the source or retrieval index changes while an answer is being prepared, the 
 
 ## Current scope
 
-The application covers the two fossil fuel advertising collections. Rebuilding the CLAIMS backend and adding animal agriculture datasets are future work. Availability of a social tab does not indicate that social data has already been connected.
+The application covers the two fossil fuel advertising collections. CLAIMS2 import and read-only evidence views are implemented; real results await reviewed publication. New classification batches and animal agriculture datasets remain future work. Availability of a social tab does not indicate that social data has already been connected. See [CLAIMS2 evidence](claims_read_views.md) for category filters, review states and source limitations.

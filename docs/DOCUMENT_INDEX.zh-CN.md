@@ -1,5 +1,7 @@
 # 项目文档阅读索引
 
+**0.4.6 当前入口**：[CLAIMS2 只读网页／图谱／MCP](claims_read_views.md) · [旧来源 URL 补查](claims_source_discovery.md) · [实施说明](../reports/CLAIMS_READ_V0_4_6_20260930.en.md) · [工程回执](../reports/claims_read_engineering_v0_4_6_20260930.json)。1,589 项安装包离线检查、33 项隔离数据库检查通过；一次付费来源搜索未确认原始文章，37 项候选仍待审，下方旧版本证据保留其当时范围。
+
 **0.4.5 新增工程入口**：[CLAIMS 审核结果导入与撤销](claims_result_import.md) · [冻结评价输入](frozen_evaluation.md)。实际候选尚未批准／发布；真实社交与人工／客户验收继续列为待办。下方 0.4.4 与旧版本回执保留其当时范围。
 
 工程核对：[0.4.5 实施说明](../reports/CLAIMS_IMPORT_V0_4_5_20260930.en.md) · [实际测试与迁移回执](../reports/claims_import_engineering_v0_4_5_20260930.json) · [独立安装包核对](../reports/current_release_offline_reproduction_v0_4_5_20260930.json)。1,406 项安装包离线检查和 22 项隔离测试库检查通过；新分类尚未发布，网页／MCP 读取列入下一阶段。
@@ -8,7 +10,7 @@
 
 更新：2026-09-30。按阅读目的查找文档，历史回执保留原日期与范围。按路径／性质排序时使用[文档清单](document_catalog.csv)。
 
-**CLAIMS 当前推进：** 0.4.4 维护工具已完成[来源审计与结果适配](../reports/CLAIMS_SOURCE_LINKAGE_20260930.zh-CN.md)，可运行 [claims-audit](claims_source_audit.md)。两次审计使用相同正文快照，零数据库写入、零模型调用、零标签发布；[数字和文件哈希](../reports/claims_source_linkage_20260930.json)与[独立安装包核对](../reports/current_release_offline_reproduction_v0_4_4_20260930.json)分别记录证据。网页接入、权威分类批次和人工语义审查仍待完成。
+**CLAIMS 历史推进：** 0.4.4 维护工具已完成[来源审计与结果适配](../reports/CLAIMS_SOURCE_LINKAGE_20260930.zh-CN.md)，可运行 [claims-audit](claims_source_audit.md)。两次审计使用相同正文快照，零数据库写入、零模型调用、零标签发布；[数字和文件哈希](../reports/claims_source_linkage_20260930.json)与[独立安装包核对](../reports/current_release_offline_reproduction_v0_4_4_20260930.json)分别记录证据。网页接入、权威分类批次和人工语义审查仍待完成。
 
 英文入口：[README](../README.md) · [简明设置与用户指南](guide.md) · [英文仓库](https://github.com/yaobc77-ai/ciss-advertising-observatory-549) · [静态项目页](https://yaobc77-ai.github.io/ciss-advertising-observatory-549/)。
 
@@ -39,7 +41,7 @@
 | 使用与维护完整范围的大幅知识图谱 | [图谱使用与技术契约](COLLECTION_KNOWLEDGE_GRAPH.zh-CN.md) | **当前本机契约**。双模式、稳定身份、源字段见证、完整 JSON 和可见 PNG、按需详细来源检查器与未来扩展边界。 |
 | 核对大图实现和实际验证 | [实现报告](../reports/COLLECTION_KNOWLEDGE_GRAPH_20260929.zh-CN.md) · [真实库核对](../reports/collection_graph_smoke_20260929.json) | **当前本机工程证据**。完整图计数与交叉表一致；浏览器检查与测试分母，不代替线上或客户验收。 |
 | 看 How Do They Lobby 借鉴依据 | [参考站点实际交互研究](../reports/LOBBY_GRAPH_REFERENCE_20260929.zh-CN.md) | **只读参考研究**。大网络、对象详情、名称变体与支持记录的实际核对；不移植游说关系语义或导入其数据。 |
-| 使用模型理解与 MCP 数据工具 | [MCP 技术路线与接口](MCP_RESEARCH_TOOLS.zh-CN.md) | **当前本机契约**。七个只读工具、模型调用与真正 MCP 的区别、来源及图谱扩展、费用和缺口。 |
+| 使用模型理解与 MCP 数据工具 | [MCP 技术路线与接口](MCP_RESEARCH_TOOLS.zh-CN.md) | **当前本机契约**。八个只读工具与独立维护搜索、模型调用与真正 MCP 的区别、来源及图谱扩展、费用和缺口。 |
 | 核对本次模型与 MCP 实测 | [实施验证](../reports/MCP_RESEARCH_IMPLEMENTATION_20260929.zh-CN.md) | **当前工程与有限真实模型证据**。三个付费问题、独立进程协议、真实库来源读取及未完成项。 |
 | 回查公司、媒体与计数问题的第一版修正 | [本机修正与试用说明](../reports/MICHELLE_IMPLEMENTATION_20260929.zh-CN.md) | **同日基础版证据**。免费固定句式统计与双向探索；当前默认 Query 由模型理解后调用工具，理解步骤收费，见上方 MCP 入口。不是线上或客户验收。 |
 | 核对 Michelle 的六项研究要求 | [六项反馈审计](../reports/MICHELLE_FEEDBACK_AUDIT_20260929.zh-CN.md) | **2026-09-29 审计与沟通草稿**。修正前根因、当日记录统计、部署差异及剩余材料；英文回复未发送。 |

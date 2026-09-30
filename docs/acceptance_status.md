@@ -1,12 +1,40 @@
-# 实施与验收状态 — 当前补充与历史阶段记录
+# Implementation and acceptance status
+
+## 0.4.6 implementation — 30 September 2026
+
+CLAIMS2 read-only views are implemented for Overview, article detail, Query and
+the article-provenance graph. They show exact source quotations, taxonomy
+definitions and the selected assignment's relationships. The matching-page JSON
+export separates its page from whole-selection counts. An absent assignment is
+not a negative classification.
+
+All 37 real saved-result candidates remain on hold. No new real classification
+has been imported or published. Authority, source identity and semantic review
+still need approval.
+
+Legacy article URL discovery checks exact local text first. Its maintenance MCP
+tool is hidden by default and can make at most one paid web search when explicitly
+enabled. Returned URLs are candidates for review; the tool changes usage
+accounting only, not article or classification data. See [read-only views](claims_read_views.md)
+and [source discovery](claims_source_discovery.md).
+
+The 0.4.6 installed-wheel, CI, deployment and real search results must be recorded
+in their own receipts. Implementation alone does not establish those checks,
+source recovery, classification accuracy or client acceptance. Real social data
+and customer review materials remain deferred TODOs.
+
+## Earlier implementation and acceptance records
+
+Dated records below retain their original language and verification scope. Earlier
+statements about pending interfaces are superseded by the 0.4.6 implementation above.
 
 **0.4.5 工程推进（2026-09-30）**：已实现来源审核后的 CLAIMS2 导入、独立表、分批批准、追加人工复核版本、原文更新阻断及显式撤销。实际 37 项候选均在私有模板中 hold，权威分类批次与客户审核仍待确认；新标签没有发布。M6 已补 format-2 双集合冻结／评估接口，M8 源码包补齐 Docker、Railway、CI 与资源文件，并带提交和逐文件哈希；工程实现不代替真实社交数据、人工语义和客户验收。详见 [CLAIMS 导入](claims_result_import.md)和[冻结输入](frozen_evaluation.md)。
 
 0.4.5 的安装包离线 1,406 项、独立隔离库 22 项均通过；两个仓库 CI 成功，生产部署及迁移3已核对，原文／索引不变。两个源码包的清单和哈希已验证。证据分别见[工程](../reports/claims_import_engineering_v0_4_5_20260930.json)、[发布](../reports/release_v0_4_5_publication_20260930.json)与[源码包](../reports/source_handoff_v0_4_5_20260930.json)，均不替代分类语义／客户验收。
 
-## 2026-09-30 当前推进
+## 2026-09-30 — historical 0.4.4 status
 
-**CLAIMS 来源接入推进（0.4.4 维护工具）：** [只读来源审计与结果适配](../reports/CLAIMS_SOURCE_LINKAGE_20260930.zh-CN.md)已完成。810 个输入段落中有 806 条保存结果；显式上游字符投影得到 8 篇文章关联候选、84 条可用段落候选、37 个唯一原文分类引文候选。全部保留为未批准状态，没有导入新标签或调用模型。权威 taxonomy／批次、来源确认、语义审查、结果导入和网页／MCP 读取仍待完成。以下发布记录属于各自检查范围。
+**CLAIMS 来源接入推进（0.4.4 维护工具）：** [只读来源审计与结果适配](../reports/CLAIMS_SOURCE_LINKAGE_20260930.zh-CN.md)已完成。810 个输入段落中有 806 条保存结果；显式上游字符投影得到 8 篇文章关联候选、84 条可用段落候选、37 个唯一原文分类引文候选。全部保留为未批准状态，没有导入新标签或调用模型。当时权威 taxonomy／批次、来源确认、语义审查、结果导入和网页／MCP 读取仍待完成；当前接口状态见上方 0.4.6 段落。以下发布记录属于各自检查范围。
 
 线上已核对 **0.4.4 / e01edc9**，来源与句界索引标识未变，275 条原生记录、556 个活动片段。两个仓库 CI 各通过 1,258 项、跳过 1 项；本机安装包通过 1,258 项、跳过 1 项，62 项 integration／live 未运行。[0.4.4 发布回执](../reports/release_v0_4_4_publication_20260930.json)绑定实际代码提交与检查范围；新 CLAIMS 标签没有导入或发布。下面旧标题中的“当前”属于对应日期与版本。
 
