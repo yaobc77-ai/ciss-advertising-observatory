@@ -142,9 +142,11 @@ def test_no_evidence_output_does_not_publish_model_claims():
 def test_unsupported_count_question_never_calls_model():
     service = Service(Settings(), db=object(), rag=object())
     result = service.answer(
-        "How many Exxon ads were published in 2018?", Filters(), "test"
+        "How many ads contain greenwashing claims?", Filters(), "test"
     )
-    assert result.status == "insufficient_evidence" and "filters" in result.answer
+    assert result.status == "insufficient_evidence"
+    assert result.answer_mode == "clarification"
+    assert "validated" in result.answer
 
 
 def test_explicit_article_title_does_not_mix_other_articles():

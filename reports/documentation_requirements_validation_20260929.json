@@ -1,0 +1,30 @@
+{
+  "date_local": "2026-09-29",
+  "prepared_at_utc": "2026-09-30T03:33:17.115639+00:00",
+  "scope": "requirements_audit_documentation_only",
+  "catalog_rows": 140,
+  "changed_catalog_paths": [
+    "README.md",
+    "analysis/DS549_meeting_20260925_numbered_20260929.txt",
+    "analysis/FA26_project_brief_v1_numbered_20260929.txt",
+    "analysis/MICHELLE_FEEDBACK_EMAIL_EXCERPT_UNDATED.txt",
+    "docs/DOCUMENT_INDEX.zh-CN.md",
+    "docs/acceptance_status.md",
+    "reports/FA26_REQUIREMENTS_AUDIT.zh-CN.md",
+    "reports/MEETING_REQUIREMENTS_GAP_20260925.zh-CN.md",
+    "reports/MICHELLE_IMPLEMENTATION_20260929.zh-CN.md",
+    "reports/REQUIREMENTS_CONSOLIDATED_AUDIT_20260929.zh-CN.md",
+    "reports/assisted_semantic_review_v0_2_4.md",
+    "reports/backup_restore_v0_2_4.md",
+    "reports/documentation_requirements_validation_20260929.json",
+    "reports/quote_context_v0_2_4.md",
+    "reports/requirements_consolidated_evidence_20260929.json"
+  ],
+  "scoped_local_links_checked": 232,
+  "missing_local_links": [],
+  "changed_catalog_hash_failures": [],
+  "product_tests_rerun": false,
+  "paid_api_calls": 0,
+  "deployment": false,
+  "limits": "Checks are local links and changed catalog entries only, not semantic or client acceptance."
+}

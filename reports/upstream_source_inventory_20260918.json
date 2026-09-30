@@ -1,0 +1,1279 @@
+{
+  "checked_at": "2026-09-18",
+  "method": "Read bytes and ZIP contents only; no upstream code executed.",
+  "source_root": "D:\\549\\ml-ciss-native-ads-main",
+  "archive": "C:\\Users\\yaobc\\Downloads\\ml-ciss-native-ads-main.zip",
+  "archive_sha256": "d15f8e558c13d168c73edebdc65b490a3ed3e6c417aca7c64987da7202a14e2c",
+  "file_count": 243,
+  "total_bytes": 164831430,
+  "by_extension": {
+    ".yml": 7,
+    "[none]": 18,
+    ".png": 3,
+    ".py": 64,
+    ".csv": 47,
+    ".md": 10,
+    ".json": 38,
+    ".db": 3,
+    ".24": 1,
+    ".sql": 2,
+    ".txt": 12,
+    ".svg": 5,
+    ".html": 2,
+    ".toml": 1,
+    ".js": 3,
+    ".css": 3,
+    ".zip": 1,
+    ".jsonl": 2,
+    ".ipynb": 10,
+    ".jsx": 2,
+    ".pkl": 2,
+    ".xlsx": 4,
+    ".log": 2,
+    ".sh": 1
+  },
+  "by_directory": {
+    ".github": 2,
+    "[root]": 6,
+    "assets": 1,
+    "CLAIMS_2.0_model": 104,
+    "CLAIMS_model": 59,
+    "data": 14,
+    "data_cleaning": 3,
+    "dataset-documentation": 3,
+    "docs": 1,
+    "Labelling": 4,
+    "notebooks": 2,
+    "scraper": 44
+  },
+  "zip_comparison": {
+    "matching_files": 243,
+    "changed_files": [],
+    "missing_files": [],
+    "additional_files": []
+  },
+  "files": [
+    {
+      "path": ".github/workflows/add_collaborators.yml",
+      "bytes": 1558,
+      "sha256": "5e85def37a2ed62e9ec20532002afbc923cfe2d930832e68a53b2840d1d2f623"
+    },
+    {
+      "path": ".github/workflows/release_archive.yml",
+      "bytes": 378,
+      "sha256": "610bfae240378091bda7e55114557313cd8669e60f2d476f4ffa126771492628"
+    },
+    {
+      "path": ".gitignore",
+      "bytes": 3184,
+      "sha256": "188dca06f935065af975264b5e60cf882ad9a427e50f66fea7757fcd25670b38"
+    },
+    {
+      "path": "assets/figures/serpapi.png",
+      "bytes": 216436,
+      "sha256": "861cfe28db632c74494da6be20fc9753726b50af6a2bb7a849759a6ed271fe85"
+    },
+    {
+      "path": "CLAIMS_2.0_model/cal-open-coding/.gitignore",
+      "bytes": 4708,
+      "sha256": "523d1ea3ec35d342685329955a771c42cbd0ccf57ec35cf616e15f3d5a4d42d7"
+    },
+    {
+      "path": "CLAIMS_2.0_model/cal-open-coding/aggregate_superclaim_frequencies.py",
+      "bytes": 5681,
+      "sha256": "d791a22194a7f69fb7ed67c6b1f71269969f05e67caefcdf61777862dc3be2b9"
+    },
+    {
+      "path": "CLAIMS_2.0_model/cal-open-coding/convert_seed_data.py",
+      "bytes": 4797,
+      "sha256": "23c41c765599ce1d3d0b62b4de033a3ceb8dc692d403209d2fefe06d5e50de06"
+    },
+    {
+      "path": "CLAIMS_2.0_model/cal-open-coding/create_superclaim_examples_dataset.py",
+      "bytes": 9247,
+      "sha256": "0f9531907556cab4e671f7ebe6ef29534d2e6334dbcbce8971f76f6b33724848"
+    },
+    {
+      "path": "CLAIMS_2.0_model/cal-open-coding/data/open_coding/claims_2.0_subclaims.csv",
+      "bytes": 707,
+      "sha256": "3032d1d4dbb529198d943bdf61f76385a791050296bc5ac1d94ce9bdff548380"
+    },
+    {
+      "path": "CLAIMS_2.0_model/cal-open-coding/data/open_coding/claims_2.0_superclaims.csv",
+      "bytes": 228,
+      "sha256": "a5f09ed723145cb2adec102278869f8fcbdbc0af581d9040ae67a4b29815bc6f"
+    },
+    {
+      "path": "CLAIMS_2.0_model/cal-open-coding/greenwashing_builder.py",
+      "bytes": 24872,
+      "sha256": "4148a21f6ed638e6a491a6816a616f2b168cbb99ec5ce230a20a520e3d9f860d"
+    },
+    {
+      "path": "CLAIMS_2.0_model/cal-open-coding/greenwashing_prompts.py",
+      "bytes": 8752,
+      "sha256": "33f98b4ef43a0129379b553226639c3ad92b4736c3e6da10c3c40c19374e9f76"
+    },
+    {
+      "path": "CLAIMS_2.0_model/cal-open-coding/LICENSE",
+      "bytes": 1536,
+      "sha256": "2bfb04b86a39fb9f55c90a7bce1c25fa186d86095bb6576c3bb7efd5a21da2be"
+    },
+    {
+      "path": "CLAIMS_2.0_model/cal-open-coding/process_claim_extraction_results.py",
+      "bytes": 8590,
+      "sha256": "67a73644af71df618d5826f857f28c0b1fc6a99084ddbb2e7f22f64e5cd7b9ae"
+    },
+    {
+      "path": "CLAIMS_2.0_model/cal-open-coding/README.md",
+      "bytes": 9190,
+      "sha256": "0055db02906548bf7886099579806cf28b5042c0f83ca13ac641b3ca1e2abf64"
+    },
+    {
+      "path": "CLAIMS_2.0_model/cal-open-coding/runs/test_run/claim_superclaim_map.json",
+      "bytes": 192,
+      "sha256": "80fb031a4847f013ea118ea2e8ffa028e20c4f7b028b2d9abd117125fa3c77ed"
+    },
+    {
+      "path": "CLAIMS_2.0_model/cal-open-coding/runs/test_run/claims_dataset.csv",
+      "bytes": 3573,
+      "sha256": "013ad21435988554ae6955a9a5365a73ac5fb51b327095134d8cd7090d782d2e"
+    },
+    {
+      "path": "CLAIMS_2.0_model/cal-open-coding/runs/test_run/greenwashing_claim_history.json",
+      "bytes": 32513,
+      "sha256": "6830bb2f931b76a10313502f60b50df1f7baef2366fa90693b2f743a59ac31bb"
+    },
+    {
+      "path": "CLAIMS_2.0_model/cal-open-coding/runs/test_run/greenwashing_codebook.json",
+      "bytes": 2198,
+      "sha256": "fe388f3deb08941efc6f03f33d5f13e9187f0347a86754b7cbe454538b4251da"
+    },
+    {
+      "path": "CLAIMS_2.0_model/cal-open-coding/runs/test_run/greenwashing_discourse_analysis.db",
+      "bytes": 241664,
+      "sha256": "f64fa1a5db12d5c1fb12f74a82f7b7e4030a92756f83a83b6b82c64c44db8f5d"
+    },
+    {
+      "path": "CLAIMS_2.0_model/cal-open-coding/runs/test_run/greenwashing_superclaims.json",
+      "bytes": 164,
+      "sha256": "105fd3afad1d17901ab60ebb0af490f372f5c02d801f87e41a1214ee4dd38be8"
+    },
+    {
+      "path": "CLAIMS_2.0_model/cal-open-coding/runs/test_run/seed_codebook.json",
+      "bytes": 1470,
+      "sha256": "5dc05c3beb6e692ba4a454ee5f6221960529cf3fb9bb1594db2f4cbd0be4fa58"
+    },
+    {
+      "path": "CLAIMS_2.0_model/cal-open-coding/runs/test_run/seed_superclaims.json",
+      "bytes": 164,
+      "sha256": "105fd3afad1d17901ab60ebb0af490f372f5c02d801f87e41a1214ee4dd38be8"
+    },
+    {
+      "path": "CLAIMS_2.0_model/cal-open-coding/runs/test_run/superclaim_examples.csv",
+      "bytes": 20775,
+      "sha256": "a7039f17eb04f7c023c2c04a354016ad7356ffeca5f33aff5afcc188d79ce9e3"
+    },
+    {
+      "path": "CLAIMS_2.0_model/cal-open-coding/runs/test_run/superclaim_frequencies.csv",
+      "bytes": 486,
+      "sha256": "d9a33374019e4c22932a37602ac8411e4f86609c3f0fabf9e095d0aab9dc2158"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/dashboard/.dockerignore",
+      "bytes": 70,
+      "sha256": "ca17feabf3080565a2e3a239368bd0cc6fdd75aaa77b188cc4ac04d66ac56925"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/dashboard/.github/workflows/deploy-to-hf.yml",
+      "bytes": 799,
+      "sha256": "9964cb4f936bd7180430f3197b9f2db5c947d61441ab5e5da115f3e93447d194"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/dashboard/.gitignore",
+      "bytes": 4741,
+      "sha256": "be8580ff2c812f24d09aabbece601c47ce938ad8596d6f91296f5af6c7c814ca"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/dashboard/.python-version",
+      "bytes": 5,
+      "sha256": "7b55f8e67b5623c4bef3fa691288da9437d79d3aba156de48d481db32ac7d16d"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/dashboard/0.24",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/dashboard/backend/.gitignore",
+      "bytes": 4688,
+      "sha256": "48b33f9f89ef24f8a66f461ea9278e7ecf21b4660c26088989d231e53c578724"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/dashboard/backend/__init__.py",
+      "bytes": 1,
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/dashboard/backend/api/index.py",
+      "bytes": 20,
+      "sha256": "aaa2e52024247281e79c49aa30642bc89c8400c2951fdcf46ac01608d43fa76d"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/dashboard/backend/app.py",
+      "bytes": 72147,
+      "sha256": "1fee2a716f15c2ccbd56b8e97da13a23ec206cff76ecc7c1e069f63968449c4b"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/dashboard/backend/claim_superclaim_map.json",
+      "bytes": 2482,
+      "sha256": "73b4909fa3a3ffcddbdb110a2cbaaa37edd63a5e1be99eaf1de67fe9ad717a12"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/dashboard/backend/greenwashing_claim_history.json",
+      "bytes": 501788,
+      "sha256": "8cef59b5ecda4627cfdd1e8796cc4351e3c69d443eba4dce52767e2d06fc986a"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/dashboard/backend/greenwashing_codebook.json",
+      "bytes": 57533,
+      "sha256": "36ce5904f2c45002b3e91608f2e68c578a7d27253594e8fce6243fed1144cac7"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/dashboard/backend/greenwashing_superclaims.json",
+      "bytes": 5094,
+      "sha256": "d923cb594ec2b51bb079b7a657637fdb4500f301dbcd81978a2a2ad2a147d493"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/dashboard/backend/LICENSE",
+      "bytes": 11357,
+      "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/dashboard/backend/llm_confidence.py",
+      "bytes": 3241,
+      "sha256": "7a4d92400e55871d163ef2b97e58e993c193c4f3f81f43cfef4d9876b9a985f1"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/dashboard/backend/railway_schema.sql",
+      "bytes": 2028,
+      "sha256": "a236863da7ef661c523e534c93179748472c916796b89699af64919b33024b76"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/dashboard/backend/requirements.txt",
+      "bytes": 82,
+      "sha256": "f7c17f6d867001d443876d4eb384064ed795b16804b14fbc603004883a71e5c3"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/dashboard/backend/supabase_schema.sql",
+      "bytes": 3973,
+      "sha256": "74e0936bd9628c33f31d80ffb027802f532500a7a7b61ba02efe6cc4db816247"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/dashboard/backend/vercel.json",
+      "bytes": 147,
+      "sha256": "c1f8ccc678e99938d949ccf1d39b50005c53c40583d8552ecc2c94d38474088c"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/dashboard/claim_superclaim_map.json",
+      "bytes": 2482,
+      "sha256": "73b4909fa3a3ffcddbdb110a2cbaaa37edd63a5e1be99eaf1de67fe9ad717a12"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/dashboard/Dockerfile",
+      "bytes": 317,
+      "sha256": "63e24392c1e1b63a41f456b567a882aabd94a633005dc9282782871a0dd9d625"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/dashboard/favicon.svg",
+      "bytes": 597,
+      "sha256": "42de448c6e9750b1731c6baff665e98ff5ef25f0fdd6d89e8fb04104d490fae1"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/dashboard/greenwashing_claim_history.json",
+      "bytes": 501788,
+      "sha256": "8cef59b5ecda4627cfdd1e8796cc4351e3c69d443eba4dce52767e2d06fc986a"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/dashboard/greenwashing_codebook.json",
+      "bytes": 57533,
+      "sha256": "36ce5904f2c45002b3e91608f2e68c578a7d27253594e8fce6243fed1144cac7"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/dashboard/greenwashing_prompts.py",
+      "bytes": 9854,
+      "sha256": "22422b9f288e3ed22324f780318fbbd8bf1751d036b2600fd87364f74ad255b0"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/dashboard/greenwashing_superclaims.json",
+      "bytes": 5094,
+      "sha256": "d923cb594ec2b51bb079b7a657637fdb4500f301dbcd81978a2a2ad2a147d493"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/dashboard/index.html",
+      "bytes": 17012,
+      "sha256": "8d81844a93c083e490ffb22bd2d75e5ad8a75eea7e6d9f6d64d7d9d7585bf9a9"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/dashboard/LICENSE",
+      "bytes": 11357,
+      "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/dashboard/main.py",
+      "bytes": 318,
+      "sha256": "78785d3baa6eb01347e3541314375b235d17cf22a64666bd02ad4396a25cc2b6"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/dashboard/pyproject.toml",
+      "bytes": 825,
+      "sha256": "009dbc58948829e2c1644fa14aedaf5ad3cba495dc11a4fd5f1063f2d9d660f1"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/dashboard/README.md",
+      "bytes": 3902,
+      "sha256": "12d597d6e689142304abed25a6fd05e3a54cde918321d26db5f5c4640a40af63"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/dashboard/requirements.txt",
+      "bytes": 223,
+      "sha256": "db6c79ddc68242c952b2b0e753b6dc1194c4d9b9d5b978cc3566fb352d10dc37"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/dashboard/runs/validation_run_20260306/claims_validation.py",
+      "bytes": 12128,
+      "sha256": "5fb0402b23a9d1ffabb2461f22f9aac6de291f829586cc76fc5ae00ffe6dee62"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/dashboard/script.js",
+      "bytes": 58460,
+      "sha256": "de4efbde7f2860b51e21730cc9e8dfa8863b388709484eee9e2d990cc100fb52"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/dashboard/scripts/build_subclaim_collapse_bertopic.py",
+      "bytes": 21347,
+      "sha256": "1b4ea3ee134b293e4dd72c8f6c6982a80272bc514654b73c8585661a29fe6aaa"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/dashboard/styles.css",
+      "bytes": 22683,
+      "sha256": "f6f6050e1eb3456d0651087c7a48235eb7de7085a95f6b5544fd155a112eda71"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/dashboard/subclaim_bertopic_collapse.json",
+      "bytes": 21777,
+      "sha256": "2daf56491387d9f5239c9d5b14fe68f2d93a207cdeff2a958a8944617679e406"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/dashboard/tmp/claims-data/greenwashing_claim_history.json",
+      "bytes": 501788,
+      "sha256": "8cef59b5ecda4627cfdd1e8796cc4351e3c69d443eba4dce52767e2d06fc986a"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/dashboard/tmp/claims-data/greenwashing_codebook.json",
+      "bytes": 57533,
+      "sha256": "36ce5904f2c45002b3e91608f2e68c578a7d27253594e8fce6243fed1144cac7"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/dashboard/tmp/claims-data/greenwashing_superclaims.json",
+      "bytes": 5094,
+      "sha256": "d923cb594ec2b51bb079b7a657637fdb4500f301dbcd81978a2a2ad2a147d493"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/dashboard/vercel.json",
+      "bytes": 83,
+      "sha256": "20cd8b1642efff94c866c7fddefd9ec74f486931da92906c8eb0c177db0a0f18"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/data/claim_superclaim_map.json",
+      "bytes": 10035,
+      "sha256": "18b1dc8f15c6db358ae8260cc7b6d831ad07263f6013c13884ee271d9308f494"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/data/greenwashing_claim_history.json",
+      "bytes": 501788,
+      "sha256": "8cef59b5ecda4627cfdd1e8796cc4351e3c69d443eba4dce52767e2d06fc986a"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/data/greenwashing_codebook.json",
+      "bytes": 57533,
+      "sha256": "36ce5904f2c45002b3e91608f2e68c578a7d27253594e8fce6243fed1144cac7"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/data/greenwashing_discourse_analysis.db",
+      "bytes": 3342336,
+      "sha256": "d3d047a6bbdd437555be5eff03760e5c5fa0ebf100c623f5e90e7af29bb7d218"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/data/greenwashing_superclaims.json",
+      "bytes": 5094,
+      "sha256": "d923cb594ec2b51bb079b7a657637fdb4500f301dbcd81978a2a2ad2a147d493"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/data/Manual dataset Native Ads.zip",
+      "bytes": 836359,
+      "sha256": "fd251b066d3415380f8bf3ab0501a7a8eea6588e0fd5e9f7424942ee5f8fb4d1"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/data/native_ads_paragraphs_cleaned.csv",
+      "bytes": 1562894,
+      "sha256": "cd4c8d17c6f19e59db3d80ceefa3363c47ee934a7608968576156905b89c0e59"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/data/sampled_50_articles_paragraphs.csv",
+      "bytes": 328636,
+      "sha256": "f0395d8316cf3a8d98b36473bdb0dfe1f95027ab6b990ea27e23faee080903b1"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/data/seed_codebook.json",
+      "bytes": 964,
+      "sha256": "c77edec1b503ab4850151f189b451c594b8c35dd4edcaac637e23e48327fbc75"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/data/seed_superclaims.json",
+      "bytes": 373,
+      "sha256": "f17378b1e98f9ae484a8d19bfa35706df16b30426c52d62aea9f89f56602f869"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/data/sentence_run_Mar6/claim_superclaim_map.json",
+      "bytes": 89332,
+      "sha256": "7bfb37a1409c5821734865b12042fb8c1f6807208d40ab65e4f2f247270930bf"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/data/sentence_run_Mar6/claims_validation.py",
+      "bytes": 7358,
+      "sha256": "8b46fbc8b7761b69df0cd316903b5358f222cd52223944cc8a9a3df34d2a2cfd"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/data/sentence_run_Mar6/flagged_mappings.jsonl",
+      "bytes": 992127,
+      "sha256": "e6b2c9a3ccfd7dcafadb2992a90d6edb669b40ac8dcae774100378bb609566aa"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/data/sentence_run_Mar6/greenwashing_claim_history.json",
+      "bytes": 3870047,
+      "sha256": "116ee2b5646a115cef511cd21f414ccd1b05a8bb09bc04217fa5c07d53290bb9"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/data/sentence_run_Mar6/greenwashing_codebook.json",
+      "bytes": 591113,
+      "sha256": "543b5850daacde6226b8b815f1fef4d8be76d464c455abe97a3b94263c62865d"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/data/sentence_run_Mar6/greenwashing_discourse_analysis.db",
+      "bytes": 30507008,
+      "sha256": "e45cd3ad380aebb7111bdde847d86ec95c49f26843c3c8437fcacc30cac6de45"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/data/sentence_run_Mar6/greenwashing_superclaims.json",
+      "bytes": 53649,
+      "sha256": "8e61d936254d4eddd781dc9b32c8a69e3c5ed25695aa86a889936f130fe3faed"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/data/sentence_run_Mar6/superclaim_to_subclaims.json",
+      "bytes": 70172,
+      "sha256": "ea802c2e4ad7571e36f4cc63e42820209c75c3623371e8b65c1e1709fb4aa217"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/data/sentence_run_Mar6/superclaim_to_subclaims_flagged_only.json",
+      "bytes": 327778,
+      "sha256": "7221257c946dd2b6e2bf9480d9bac22f307c150e06bb9aa470f6596fd1ebed58"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/data/sentence_run_Mar6/validated_mappings.jsonl",
+      "bytes": 1051454,
+      "sha256": "abfe0fede5b0e8b9eaeb31676cdcb32cf52bc2830320612f4bf8d8ed322a13ff"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/notebooks/article_sampling_paragraph_level.ipynb",
+      "bytes": 96438,
+      "sha256": "d3017d70903de49be7b7325327d3e50faf3d1d896baafc38de5b1a0b294b6298"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/notebooks/BERTopic_analysis_paragraph.ipynb",
+      "bytes": 222474,
+      "sha256": "56319d61bf7a33c749607a3d65d05ff2614158c41fa1421d8bbed76566ded0c5"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/notebooks/clean_paragraph_data.ipynb",
+      "bytes": 28427,
+      "sha256": "8c4b6bf88a38dff90bb2446e9293577056b3d9b7a78924d23ca377ebbcba768e"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/wordmap/wordmap-main/.github/workflows/deploy-to-hf.yml",
+      "bytes": 805,
+      "sha256": "f2f615a5320f7d9299f4b7a412b25ecf75ce4cfcf4771b8a5e48b1998ff57171"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/wordmap/wordmap-main/.gitignore",
+      "bytes": 305,
+      "sha256": "63938a65d1947592b037776d09d93590320074de91a8963fec4dc81ed6d06b38"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/wordmap/wordmap-main/Dockerfile",
+      "bytes": 178,
+      "sha256": "dc480b3fffa139ecfe95c4bd6702d08d07b4f6ac955161f56aa084566f1ef8e3"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/wordmap/wordmap-main/eslint.config.js",
+      "bytes": 568,
+      "sha256": "0197d9a843aaae267303c4d1ab1a43afad1afacc7646cdf6cf94a5af6b815fb8"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/wordmap/wordmap-main/index.html",
+      "bytes": 359,
+      "sha256": "e6ec54945adff309be4a309a59d1339bdba7664206978c9ec1c677399530d22e"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/wordmap/wordmap-main/LICENSE",
+      "bytes": 11357,
+      "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/wordmap/wordmap-main/package-lock.json",
+      "bytes": 81732,
+      "sha256": "b3df54349f6be92ad3e25b6fba15054a107b2e4cf5f95d421e0d2b5de458ec79"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/wordmap/wordmap-main/package.json",
+      "bytes": 778,
+      "sha256": "e10a0efbc1869e20bfc2582118800f5362ac4d64fe3237a36047837f01cc420a"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/wordmap/wordmap-main/public/favicon.svg",
+      "bytes": 9522,
+      "sha256": "61bc9a161de58248288e6905425d7180f0624c2865007b97d763fdac12043a66"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/wordmap/wordmap-main/public/icons.svg",
+      "bytes": 5031,
+      "sha256": "b45fa506195cfcdef406ba9f0c77b36ddc1a7c224040926ec70abc2fdea7b93a"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/wordmap/wordmap-main/README.md",
+      "bytes": 1084,
+      "sha256": "355a8c4be424e87f4ce415a5aa74214e679d41cbd4f0c736b025faa03d754c8c"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/wordmap/wordmap-main/src/App.css",
+      "bytes": 2891,
+      "sha256": "6e25a776d3e8102da5bacb3cb99f4a5fc662a2e01e6143140671a556d28c3d5c"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/wordmap/wordmap-main/src/App.jsx",
+      "bytes": 24522,
+      "sha256": "ceea6ac196328744fea8760a640dc839a3106579d795abfe560f7dec8bda3c93"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/wordmap/wordmap-main/src/assets/hero.png",
+      "bytes": 13057,
+      "sha256": "881ffbcaafc212e49addad08846a5b82761355fa20624253af3477ba33262c5c"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/wordmap/wordmap-main/src/assets/react.svg",
+      "bytes": 4126,
+      "sha256": "35ef61ed53b323ae94a16a8ec659b3d0af3880698791133f23b084085ab1c2e5"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/wordmap/wordmap-main/src/assets/vite.svg",
+      "bytes": 8709,
+      "sha256": "5be21acd42eb7b896e517f4e0f0f11eb5c5d9e54fbbcebe9453f033008fcca6f"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/wordmap/wordmap-main/src/index.css",
+      "bytes": 22,
+      "sha256": "944e6e12c0067a6767836a78ad6c4095b829f966b44f33bc95cfef1401ab3c10"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/wordmap/wordmap-main/src/main.jsx",
+      "bytes": 229,
+      "sha256": "4b4b864dbe45253425d0c925337180ec07e204295179f80f59551216f466f618"
+    },
+    {
+      "path": "CLAIMS_2.0_model/src/wordmap/wordmap-main/vite.config.js",
+      "bytes": 191,
+      "sha256": "46ce8a6cd6487d3fed7a376af36b8fc5943d2772cc0b676763d9486b68da249c"
+    },
+    {
+      "path": "CLAIMS_model/.gitignore",
+      "bytes": 4931,
+      "sha256": "e98153700c8879e5e1ffba3254623379fc522620ebbaf7e4d31b744b8c3cfe6f"
+    },
+    {
+      "path": "CLAIMS_model/autoprompt_model/ff_autoprompt_trainer.py",
+      "bytes": 8427,
+      "sha256": "14e7d87cecc1d3950d2fd938b9b6593983e6be5fc0cf4850e4db417cd7f3c39d"
+    },
+    {
+      "path": "CLAIMS_model/autoprompt_model/green_autoprompt_trainer.py",
+      "bytes": 10373,
+      "sha256": "6d88bb2f09db51f29e2fa4c9dc097bf38cdb6a68fa0560e4735fb1ebcce9e167"
+    },
+    {
+      "path": "CLAIMS_model/autoprompt_model/model.py",
+      "bytes": 3056,
+      "sha256": "74eb64ac3556eca268f91192320c69347047b485ccdb6446b24b693f7586c700"
+    },
+    {
+      "path": "CLAIMS_model/autoprompt_model/model_saves/ff_training_light.json",
+      "bytes": 10242,
+      "sha256": "18c19ca894245bc39abd03f6c643f9fc1e468c41283dc7f9c5e1456b5ab2bb28"
+    },
+    {
+      "path": "CLAIMS_model/autoprompt_model/model_saves/ff_training_light.pkl",
+      "bytes": 9520,
+      "sha256": "626a57b9864df2406e1d7b4a13003fd952b76960eb0a4d7ae84ebd7ed9455aad"
+    },
+    {
+      "path": "CLAIMS_model/autoprompt_model/model_saves/green_training_light.json",
+      "bytes": 14563,
+      "sha256": "0f797135115939b3c689b71ccdda0b19c45974189605a9fb765234133f18ef34"
+    },
+    {
+      "path": "CLAIMS_model/autoprompt_model/model_saves/green_training_light.pkl",
+      "bytes": 13439,
+      "sha256": "710bdfda875f63899868485ec91b2e308c3296e51747ed224ea0af2e8b38bb0b"
+    },
+    {
+      "path": "CLAIMS_model/baseline_run.py",
+      "bytes": 8487,
+      "sha256": "006ad05700fe9cf4d6013a5c65e288f8c06ca00b00f313127926848f2f978d72"
+    },
+    {
+      "path": "CLAIMS_model/basemodel/fossil_fuel_prompt.py",
+      "bytes": 10558,
+      "sha256": "62e30ff4f76589737e1081e78a21222324ee59da170b7bb87a9b3d3a6ef89980"
+    },
+    {
+      "path": "CLAIMS_model/basemodel/green_prompt.py",
+      "bytes": 10049,
+      "sha256": "495e72774626299c210006882a66aecd37c8f44ed8acab48fea325123ab7983c"
+    },
+    {
+      "path": "CLAIMS_model/basemodel/model.py",
+      "bytes": 1131,
+      "sha256": "a61a3052ace046227662c8ac54f62ca6a03ab4ca496937a90da7b5fcfba958ef"
+    },
+    {
+      "path": "CLAIMS_model/consensus_run.py",
+      "bytes": 4029,
+      "sha256": "a1fa8f7b5b4ac32bc1c207dc97a49e5a2f13b5c7bbf2df2d40bb7a7e977abfee"
+    },
+    {
+      "path": "CLAIMS_model/csv_manager.py",
+      "bytes": 8812,
+      "sha256": "5d5b4c5d0a1f54691ee3ac705ef603b1635d924328b1d927e739ea1a569cb148"
+    },
+    {
+      "path": "CLAIMS_model/datasets/.gitkeep",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "CLAIMS_model/dynamic_fewshot/embeddings.py",
+      "bytes": 1537,
+      "sha256": "163af593fc0d27c43221e25d5fa20c6c50d1cfcaf47df6699b73f0677d6c298f"
+    },
+    {
+      "path": "CLAIMS_model/dynamic_fewshot/fewshot_retriever.py",
+      "bytes": 2774,
+      "sha256": "e2bc8fb5a1a63b0e071edd4d32b82db6decce56d15ad7e95fdcda5ac51f9d475"
+    },
+    {
+      "path": "CLAIMS_model/fewshot_run.py",
+      "bytes": 8644,
+      "sha256": "a6b887c8945ff015e80ac284ba8d6ebd524d7bba2d9c3461d4224eff0a00db9b"
+    },
+    {
+      "path": "CLAIMS_model/main.py",
+      "bytes": 10934,
+      "sha256": "03bfc1b40a47b54a0980ce43e07639e425ea9b1b53e43029740878d882b3c357"
+    },
+    {
+      "path": "CLAIMS_model/metrics.py",
+      "bytes": 4757,
+      "sha256": "4bb8f7804d9dccb3cdba9064d3c2ffda89cc16b917362f3c4d5872b0b23f9371"
+    },
+    {
+      "path": "CLAIMS_model/README.md",
+      "bytes": 1647,
+      "sha256": "60436a49d6c092c87d49608cb311255607c145975d2a262ce7f8d4dbb1abd9bb"
+    },
+    {
+      "path": "CLAIMS_model/requirements.txt",
+      "bytes": 229,
+      "sha256": "4b8f30e5a643d09772443ee7a480542d9c7a347dbc17eecfd1c87b924c065231"
+    },
+    {
+      "path": "CLAIMS_model/runs/baseline_paragraph/cooccurrence_counts.csv",
+      "bytes": 4665,
+      "sha256": "5c4c171dcb534d6b5119ffa7b1014660d29c4b71fd74681d98efd492acb1bfd8"
+    },
+    {
+      "path": "CLAIMS_model/runs/baseline_paragraph/label_counts.csv",
+      "bytes": 458,
+      "sha256": "b1f7e22bbff1250c5bcbe67f2c9a2be9dbd6d152c9661722d4b366e66e9e740d"
+    },
+    {
+      "path": "CLAIMS_model/runs/baseline_paragraph/model_results.json",
+      "bytes": 526203,
+      "sha256": "0336fa10a4ca4b6fb04189bf005c66787cf4fe0651fd1772fd3cce81fda4abdc"
+    },
+    {
+      "path": "CLAIMS_model/runs/baseline_paragraph/overlap_green_fossil.csv",
+      "bytes": 2650,
+      "sha256": "b89a06a6f1b29ef6e02957b7e22793b8ba036e4abd82a181369e0c04e2f7a27e"
+    },
+    {
+      "path": "CLAIMS_model/runs/baseline_paragraph/predictions_merged.csv",
+      "bytes": 1553367,
+      "sha256": "957c9a400968e68908ce595edfb53afc54adcc009ea820f6cbad614a9fd1a2cf"
+    },
+    {
+      "path": "CLAIMS_model/runs/baseline_paragraph/tension_pairs.csv",
+      "bytes": 2653,
+      "sha256": "543f2f971a08874f59e5f0373e2a6da783f9fac3dcf668e33152527d86791308"
+    },
+    {
+      "path": "CLAIMS_model/runs/consensus_paragraph/consensus_label_counts.csv",
+      "bytes": 458,
+      "sha256": "07344447ab3434da7dbfc7cd5bf61ae1fbb738da9233a285698ab80387fbe4b1"
+    },
+    {
+      "path": "CLAIMS_model/runs/consensus_paragraph/consensus_labels.csv",
+      "bytes": 7802,
+      "sha256": "88f8d8a805d8d5f32766099905b5f183719025058f99eeeb4d0c821758309b70"
+    },
+    {
+      "path": "CLAIMS_model/runs/fewshot_paragraph/cooccurrence_counts.csv",
+      "bytes": 4661,
+      "sha256": "fa95aceb0488afbd8077cd8957cf3da93ba14503619ce13ddb5a8ceb8b663914"
+    },
+    {
+      "path": "CLAIMS_model/runs/fewshot_paragraph/label_counts.csv",
+      "bytes": 458,
+      "sha256": "e45e9f78ad2c23c6b45f55c1bcfbc9c38c1a7021e7d853f4986515eab3fafebe"
+    },
+    {
+      "path": "CLAIMS_model/runs/fewshot_paragraph/model_results.json",
+      "bytes": 519545,
+      "sha256": "eaa0313e9cfa3cca18ae93334975b241b04157e9372332e523459289b46895f8"
+    },
+    {
+      "path": "CLAIMS_model/runs/fewshot_paragraph/overlap_green_fossil.csv",
+      "bytes": 2650,
+      "sha256": "df35bd305525e76d3b42c73e015b322f60f93d9aea2fc8edfc64eb90735918c3"
+    },
+    {
+      "path": "CLAIMS_model/runs/fewshot_paragraph/predictions_merged.csv",
+      "bytes": 1547090,
+      "sha256": "f26a6f9f3b0e92b41f42aa8a7af4143fb89459b6bf1c57973d5cfbda39ff7415"
+    },
+    {
+      "path": "CLAIMS_model/runs/fewshot_paragraph/tension_pairs.csv",
+      "bytes": 2653,
+      "sha256": "5502717a9f89fad5841aec4bac98db5552c8ad3f7342c630cef64ba41066e671"
+    },
+    {
+      "path": "CLAIMS_model/runs/sentence_level/article_label_coverage.csv",
+      "bytes": 727,
+      "sha256": "aa2de934b118a7fae0dbecc0d32909a1bb9e76dad2d30154153222177e6a86c0"
+    },
+    {
+      "path": "CLAIMS_model/runs/sentence_level/article_prop_summary.csv",
+      "bytes": 6075,
+      "sha256": "4813fab8b7305cbe049b2bd43d8104ad373ab551b9f73527c2c2cef4ec3789b4"
+    },
+    {
+      "path": "CLAIMS_model/runs/sentence_level/article_proportions.csv",
+      "bytes": 46239,
+      "sha256": "ab6138afb9d633845336d3bad588f0f09d00bb89f207bc7e49b1f988e7807d92"
+    },
+    {
+      "path": "CLAIMS_model/runs/sentence_level/articles_high_climate_share.csv",
+      "bytes": 25157,
+      "sha256": "ffd1a04cfa674ffe50a73403553fb0606953a1a393f206b0862a57808dcce2fa"
+    },
+    {
+      "path": "CLAIMS_model/runs/sentence_level/high_climate_articles_sentences.csv",
+      "bytes": 3298115,
+      "sha256": "c99fb9b655f82bae4aa5d3cabd23cca7fd24242fee866a49948a3d847600a132"
+    },
+    {
+      "path": "CLAIMS_model/runs/sentence_level/merged_labels_normalized.csv",
+      "bytes": 95674,
+      "sha256": "f7fc1a73504e4b19803888e8d578b412fc806b49a258d30bb424b78091b5d64f"
+    },
+    {
+      "path": "CLAIMS_model/runs/sentence_level/sentence_explanations.csv",
+      "bytes": 6209901,
+      "sha256": "8ca03406df058447ed815b850548f8f8cc64ab75b0f64dd58ef4e9dbb6c52e80"
+    },
+    {
+      "path": "CLAIMS_model/runs/sentence_level/sentence_label_cooccurrence.csv",
+      "bytes": 4667,
+      "sha256": "3c0a0649525b24e91e46c6881b7c015cffea71a99670db718cbe1c586228b3e7"
+    },
+    {
+      "path": "CLAIMS_model/runs/sentence_level/sentence_label_counts.csv",
+      "bytes": 459,
+      "sha256": "25cc89090ee209118a2e5bb511af890cdbc4d80c1c53c06e57cbbc88fc246fe7"
+    },
+    {
+      "path": "CLAIMS_model/runs/sentence_level/sentence_predictions.csv",
+      "bytes": 6409142,
+      "sha256": "c5a2f0ffdcc3f2695a7326fce256d22ad7ba87931e2d6b4cb0d991d57755b157"
+    },
+    {
+      "path": "CLAIMS_model/runs/sentence_level/sentence_predictions_raw.csv",
+      "bytes": 9895590,
+      "sha256": "15212dd4dce87bf9d519c783245049c94438989333f6148a5eb469809eebcd78"
+    },
+    {
+      "path": "CLAIMS_model/runs/sentence_level/validation_article_proportions.csv",
+      "bytes": 3645,
+      "sha256": "e2c797f19d8d86ee75048e13274c69fc20e6d7ac1704b344af41d8aef2856045"
+    },
+    {
+      "path": "CLAIMS_model/runs/sentence_level/validation_overall_metrics.csv",
+      "bytes": 154,
+      "sha256": "df766a7cdb85bdcf54a72088a2b8cf4add6c2ac483cb86f044130df47ea48a25"
+    },
+    {
+      "path": "CLAIMS_model/runs/sentence_level/validation_per_label_metrics.csv",
+      "bytes": 1193,
+      "sha256": "41e72ff7aa090e1168b736e222f04ae851e93070bff5a8a855ba328f1a51a811"
+    },
+    {
+      "path": "CLAIMS_model/runs/sentence_level/validation_sentence_explanations.csv",
+      "bytes": 424040,
+      "sha256": "59e15f81301f6b33870133dbf6f5e6f84594e5cd19bb24abe4298e3d0bbf906b"
+    },
+    {
+      "path": "CLAIMS_model/runs/sentence_level/validation_sentence_predictions.csv",
+      "bytes": 1007869,
+      "sha256": "1a98187fe0808a937bcbe3f1f053dc88e7af7a02eb11bf209fc4277b82800f02"
+    },
+    {
+      "path": "CLAIMS_model/sentence_level_analysis.py",
+      "bytes": 6998,
+      "sha256": "41302620bf425dde81f4885d914a9fa32f755c501e30335e9755f564aef64f3a"
+    },
+    {
+      "path": "CLAIMS_model/sentence_level_run.py",
+      "bytes": 10857,
+      "sha256": "dc964a5cc818044da6409a71dfd1f0ff3fff7851cd8407c34d65677b8fa406fb"
+    },
+    {
+      "path": "CLAIMS_model/sentence_level_run_validation.py",
+      "bytes": 8801,
+      "sha256": "ed6b411c613657a154d899bbe9442c735fd01092b5fa0e79b75d02384e1cacbe"
+    },
+    {
+      "path": "CLAIMS_model/utils.py",
+      "bytes": 4474,
+      "sha256": "81ffecb3ca8ea6d124ba038c5bd6a707d105f2871304a400e46a5d693670d94e"
+    },
+    {
+      "path": "CLAIMS_model/validation_metrics.py",
+      "bytes": 4931,
+      "sha256": "f4382ce834fbab5a9afa6b9198fd19d361e01172e1f521e0fffcb40078399bc5"
+    },
+    {
+      "path": "CLAIMS_model/visualisations/.gitkeep",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "CLAIMS_model/visualisations_creator.py",
+      "bytes": 7548,
+      "sha256": "ce6738e4fc69695a325c7ebc8326730e71a3248b73043c12123fcb2dc8b60bcc"
+    },
+    {
+      "path": "COLLABORATORS",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "data/filtered/atl_data.csv",
+      "bytes": 5928574,
+      "sha256": "9de847947d6783e12bc21733555fc413ab760ef59a92eb57618161f69788679d"
+    },
+    {
+      "path": "data/filtered/carrie.xlsx",
+      "bytes": 242782,
+      "sha256": "9637f3c33d6fc1bd373102116100ae13260e5ee9df8155833a5056760800538f"
+    },
+    {
+      "path": "data/filtered/forbes_dataset_2025-06-20.csv",
+      "bytes": 225355,
+      "sha256": "e510bed0c5c03573f1919a60e5a5ffe9411bc972bd2452f1880591717d61707e"
+    },
+    {
+      "path": "data/filtered/nyt_dataset_2025-06-20.csv",
+      "bytes": 208581,
+      "sha256": "fb0fa6e10897c1bc293a39dbb0528756b47b032ffbee3dfb2f433eb5f2646de8"
+    },
+    {
+      "path": "data/filtered/politico_dataset_2025-06-20.csv",
+      "bytes": 153645,
+      "sha256": "7dcd6d782b902e2f34eb9e829779bcd6035dbbbc9a32bac4467ff10bfcca3267"
+    },
+    {
+      "path": "data/filtered/washingtonpost_dataset_2025-06-20.csv",
+      "bytes": 79968,
+      "sha256": "eb2e936efbca0ee4f396e9db751070d3f5f641c8e80742bb2a6b80761b4ef599"
+    },
+    {
+      "path": "data/filtered/wsj_data.csv",
+      "bytes": 1890161,
+      "sha256": "1ba762959598ead232da956e6e6c79b3696b9cf594c2d242dff476cd27a30c92"
+    },
+    {
+      "path": "data/final_dataset.xlsx",
+      "bytes": 866129,
+      "sha256": "f919f94750efb7939f25f85c9b8d5c8ceed9a6a926e3c31d11a398b3c3fb1659"
+    },
+    {
+      "path": "data/handcoded_labels.csv",
+      "bytes": 95674,
+      "sha256": "f7fc1a73504e4b19803888e8d578b412fc806b49a258d30bb424b78091b5d64f"
+    },
+    {
+      "path": "data/prev_data/full_data.xlsx",
+      "bytes": 56564737,
+      "sha256": "874c7bd7dbe69a9bbc8efe198d01bc82402d52834f8378f920a54086f8c3e878"
+    },
+    {
+      "path": "data/raw/Forbes_dataset.csv",
+      "bytes": 6912811,
+      "sha256": "e251058871fb43c313d4070437977f7d3e87ae10b93836010173a672038d5e85"
+    },
+    {
+      "path": "data/raw/nyt_dataset.csv",
+      "bytes": 4260965,
+      "sha256": "3599bbfa1b048e1689b5d05de4db62e937dd8f7429fbfb331a80ef6b7059dbb0"
+    },
+    {
+      "path": "data/raw/Politico_dataset.csv",
+      "bytes": 3233278,
+      "sha256": "842f3e5aaaca814a7086ecf01ca037845026344e77e804a85bd1d5cab223fac9"
+    },
+    {
+      "path": "data/raw/washingtonpost_dataset.csv",
+      "bytes": 79968,
+      "sha256": "eb2e936efbca0ee4f396e9db751070d3f5f641c8e80742bb2a6b80761b4ef599"
+    },
+    {
+      "path": "data_cleaning/clean_data.ipynb",
+      "bytes": 13595,
+      "sha256": "59a7fb2e3c55dad3b0edbb0d8b0f516b3cdf9fa647ed7fe81de0105d79e41fa4"
+    },
+    {
+      "path": "data_cleaning/merge_data.ipynb",
+      "bytes": 30323,
+      "sha256": "d708d2953edb502bee1d5fcc4e2b95df011b0714bf7ece37d4e954fbb50982df"
+    },
+    {
+      "path": "data_cleaning/validate_data.ipynb",
+      "bytes": 265399,
+      "sha256": "edc145ddbf93cc2715a3cb1491f73661044960bc4c35328bdf00e015e45b5652"
+    },
+    {
+      "path": "dataset-documentation/DATASETDOC-fa25.md",
+      "bytes": 22044,
+      "sha256": "71d2ae2a1713f10cda401276189047f372840b147eea40fe86357561cc25919b"
+    },
+    {
+      "path": "dataset-documentation/DATASETDOC-sp26.md",
+      "bytes": 23391,
+      "sha256": "30b424cb93fcc142d6a887383e339c328968ea4e1717713c3cc2144f211bdf97"
+    },
+    {
+      "path": "dataset-documentation/lessons_learned.md",
+      "bytes": 6909,
+      "sha256": "4763da0f4de8214e838ff4bdf44115c3c079065c9324d49a650144e33bd5bd2f"
+    },
+    {
+      "path": "docs/CLAIMS2.0_system.png",
+      "bytes": 151630,
+      "sha256": "50148d3ee055afc6e0f54ea4a5def91c24d7b2a5d9da14b6d58b96ee7f96490b"
+    },
+    {
+      "path": "Labelling/label_batch_1_sentences.xlsx",
+      "bytes": 82757,
+      "sha256": "5b49b154abae8e1223a08b1c55eb9b9b59f34eb6ca057f7ff73fdd9978f98456"
+    },
+    {
+      "path": "Labelling/merged_labels_all_three.csv",
+      "bytes": 90244,
+      "sha256": "668261592d3337569c2e6fcf1bdaf20b9c44c0e752b61ecdcb9d0d34643260b9"
+    },
+    {
+      "path": "Labelling/Native_Ads_Labelling.ipynb",
+      "bytes": 67664,
+      "sha256": "f803bd3769c22f831cc1bd8bf2121948a51700ef98c3200e502b16e190bd71b4"
+    },
+    {
+      "path": "Labelling/Statistics_for_labelling.ipynb",
+      "bytes": 14536,
+      "sha256": "57264c76bc9bcc16e432e5de1fa34a7a5d7cfec5c3f2fbd6baec4af16aec4b9c"
+    },
+    {
+      "path": "LICENSE",
+      "bytes": 35149,
+      "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+    },
+    {
+      "path": "notebooks/NativeAdsCARDS_py.ipynb",
+      "bytes": 1473148,
+      "sha256": "a8343b016e353f37023ceafb8f720539c29e837e6a3514f634d8e9e57163e458"
+    },
+    {
+      "path": "notebooks/NativeAdsDataCleaning_py.ipynb",
+      "bytes": 2239757,
+      "sha256": "a299be3326ff4c432d973cc0c4c44a14aaae7d3381479986c7f6eb6f500f181c"
+    },
+    {
+      "path": "README.md",
+      "bytes": 30246,
+      "sha256": "c568e2c33f5cf412ccd22225f664cf3bbdb7885874d9f8dfc7ba625abde5c699"
+    },
+    {
+      "path": "requirements.txt",
+      "bytes": 177,
+      "sha256": "2aac417a54552b402a2d2cda753c13997f7f12ec33174ade89b8da32e92bf9aa"
+    },
+    {
+      "path": "scraper/__init__.py",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "scraper/auto_run.py",
+      "bytes": 13948,
+      "sha256": "007e0ac55f8126d976358007b55c23da079f5962e5e7eb9853ce865413dbfd5f"
+    },
+    {
+      "path": "scraper/config.yml",
+      "bytes": 3761,
+      "sha256": "a5c5409233f2a646a5d4926d6c029772fdcc059608d6e544492db12ed553429f"
+    },
+    {
+      "path": "scraper/error_log.txt",
+      "bytes": 1581,
+      "sha256": "9f17ff7065671b90e4d67aa89acfd3fb60197feffeb6ebb37beee5f05476b8d4"
+    },
+    {
+      "path": "scraper/filter_data.py",
+      "bytes": 4860,
+      "sha256": "a109cb5669a3ed99404d3d191170ab4ae9e56024ee9f6fd1bff1eba668b8bce9"
+    },
+    {
+      "path": "scraper/Forbes_error_log.txt",
+      "bytes": 259,
+      "sha256": "8145240697fd5bdeb5038c96cc046402df817ed39e6d2bb54eada180b75e57be"
+    },
+    {
+      "path": "scraper/Forbes_progress_log.txt",
+      "bytes": 133013,
+      "sha256": "3d879fdfd9a1ddecd537c527279fd48a8231350efdf6f92cd0cd07fa700c0e2d"
+    },
+    {
+      "path": "scraper/load_bigquery.py",
+      "bytes": 3176,
+      "sha256": "2921aaa21d450e5e6770f233f7498b34899b7e5da41333961cbf4ecb8ac25001"
+    },
+    {
+      "path": "scraper/logs/The New York Times_errors.log",
+      "bytes": 39670,
+      "sha256": "3d6be452bca59737a89874efd7a9c45bf671fc75c39a942423fc20c57b0619e9"
+    },
+    {
+      "path": "scraper/logs/The New York Times_progress.log",
+      "bytes": 1758,
+      "sha256": "d028f5d1d4860c75658aa13837b92942f5668f84bf9e5a386ea77268f68c1d5f"
+    },
+    {
+      "path": "scraper/main.py",
+      "bytes": 5885,
+      "sha256": "538f9ebae3f1a22b56f0a5768237147681b644110584a3555c0e5dc464bf1308"
+    },
+    {
+      "path": "scraper/old_main.py",
+      "bytes": 5875,
+      "sha256": "6bb94f92429c056f6f60018389b72e43b6e1dccf6372edc3fd274d86db57af44"
+    },
+    {
+      "path": "scraper/outlet_scrapers/__init__.py",
+      "bytes": 540,
+      "sha256": "85f1e2a7aabbe9c1f7eea649c74ffd41110a18ecf598581862086ee6fecdb02a"
+    },
+    {
+      "path": "scraper/outlet_scrapers/base_scraper.py",
+      "bytes": 874,
+      "sha256": "1687395f27726d74754c6cccbffb88fa63001f1747be8fdde140ca7cfff624f8"
+    },
+    {
+      "path": "scraper/outlet_scrapers/bi.py",
+      "bytes": 2319,
+      "sha256": "82e2a61ca682d7d5f321ea709012f0d96be8260fe5bbf2c23aaea331d8d20cad"
+    },
+    {
+      "path": "scraper/outlet_scrapers/cnbc.py",
+      "bytes": 3844,
+      "sha256": "bc6297ea48d796946ef3f272b36512a67318b7b6b5ce9602a3694c850258a36c"
+    },
+    {
+      "path": "scraper/outlet_scrapers/cnn.py",
+      "bytes": 2066,
+      "sha256": "5dd66575bdca894e49cc9574734b2ce12354dea4b4f28d60ba74ab5f31dbfdd1"
+    },
+    {
+      "path": "scraper/outlet_scrapers/forbes.py",
+      "bytes": 2310,
+      "sha256": "a49696eb2eccb7ce5e7c2c1ad9f6c3b1b00735789d308a9dbb7949c0eb773bb5"
+    },
+    {
+      "path": "scraper/outlet_scrapers/main_search.py",
+      "bytes": 875,
+      "sha256": "ace55a69f5d1ad8dc654bfcf90c7726175479a339cf89da23a97f8b23481fb35"
+    },
+    {
+      "path": "scraper/outlet_scrapers/nyt.py",
+      "bytes": 3244,
+      "sha256": "1c1ddab7b71070dfc047f6fa6c8951c20c93c6593f59019a0bb8df6f06c364f7"
+    },
+    {
+      "path": "scraper/outlet_scrapers/politico.py",
+      "bytes": 5153,
+      "sha256": "bf7461c94ebeaf1fb701cecdaf43483974784ed66c9f9352e22f96d5558caf15"
+    },
+    {
+      "path": "scraper/outlet_scrapers/theatlantic.py",
+      "bytes": 4783,
+      "sha256": "6c2e69dc2dde288c525d8d052f478d9246440a66da445e6d32f4c6d3722aef20"
+    },
+    {
+      "path": "scraper/outlet_scrapers/washingtonpost.py",
+      "bytes": 4499,
+      "sha256": "04780721910c85c8c55dc1cbf4d197925e3d70683bb38d1520a1402861981015"
+    },
+    {
+      "path": "scraper/outlet_scrapers/wsj.py",
+      "bytes": 5428,
+      "sha256": "ddb64d40318414dca8a7c6bf2f004e6d2b61a2bf9e9f67c1ee39a61a78810823"
+    },
+    {
+      "path": "scraper/Politico_error_log.txt",
+      "bytes": 914,
+      "sha256": "7142568bbdacc9bc3bbfbec1f92c69c564dff44ca49591b8baca4efb6e65090a"
+    },
+    {
+      "path": "scraper/Politico_progress_log.txt",
+      "bytes": 35451,
+      "sha256": "dbcf4d61c9dd77a63ee362ec13a99e7db64fd47eedcd5c8da26c580753f63e20"
+    },
+    {
+      "path": "scraper/prev_config.yml",
+      "bytes": 6854,
+      "sha256": "d7b6714ae463ea317078d5857977c8383f03cfe633923f9f76ab6c2b40ac3ad6"
+    },
+    {
+      "path": "scraper/progress_log_0.txt",
+      "bytes": 33631,
+      "sha256": "8ea60f9715dc93c2a417e389441b829f5c46d63a02dff98cebfe1deeb56d166f"
+    },
+    {
+      "path": "scraper/README.md",
+      "bytes": 5701,
+      "sha256": "fb34d5643e18591e9239fa267947c74c57392286e577f401861bc292793fb6bb"
+    },
+    {
+      "path": "scraper/requirements.txt",
+      "bytes": 109,
+      "sha256": "235fba037404c4d29e953a83fcfbc94ab269d0e5443a5a6fc73d1d96642d91fe"
+    },
+    {
+      "path": "scraper/searchkit/__init__.py",
+      "bytes": 296,
+      "sha256": "369c5f593d4b9cda93d395f8f72ecc3f105c9630c81374373338c0003257ce84"
+    },
+    {
+      "path": "scraper/searchkit/ddg_simple.py",
+      "bytes": 6917,
+      "sha256": "fd3aa124e12f06da107533089ad3450e611c38ceb1950acc917daa8fda646b3e"
+    },
+    {
+      "path": "scraper/searchkit/engines.py",
+      "bytes": 4372,
+      "sha256": "a904134b801e9b31356afae88d626fde2284a8431acf9f8464c627db3e89bfaf"
+    },
+    {
+      "path": "scraper/searchkit/pdf_save.py",
+      "bytes": 2764,
+      "sha256": "bf24bb19dc1bd46d0a6f5331c4655de7b7469b2fba0e1624af9fee4a73f4488f"
+    },
+    {
+      "path": "scraper/searchkit/pipeline.py",
+      "bytes": 6755,
+      "sha256": "c2b1dffccdafb95779f6301a2058eae4fc8fccc87141351fde3bdc6e0c93f02d"
+    },
+    {
+      "path": "scraper/searchkit/search.py",
+      "bytes": 1305,
+      "sha256": "f8bb9f92980c0a15609ad839e3ed45c85c1a4096e9f61473411db0c9889c5339"
+    },
+    {
+      "path": "scraper/sites.yml",
+      "bytes": 2655,
+      "sha256": "e60c8a23b0951eba1b25fbfed9f44aa1efd708352d2a3a42ee47d6e156eb86ff"
+    },
+    {
+      "path": "scraper/startup_script.sh",
+      "bytes": 612,
+      "sha256": "382b4b0bd96efdb2a7c4f7cf09bba251fa07ebf5c98e4ea22805bde00a709e52"
+    },
+    {
+      "path": "scraper/The Washington Post_progress_log.txt",
+      "bytes": 1621,
+      "sha256": "236e32c8308f5d11674a158a59d2b86582ed2ad8cbe86c9efe6cb7cc5ae93bce"
+    },
+    {
+      "path": "scraper/utils/__init__.py",
+      "bytes": 84,
+      "sha256": "6f4b699e03aa07e3fc9b12dc5afb4579f30e0bf8cc9fda397ca3be2135dcf9d1"
+    },
+    {
+      "path": "scraper/utils/generic_scraper.py",
+      "bytes": 2906,
+      "sha256": "b60ecf3f413db75e8d30eee6007f360c3a2dbf00a6bc04f2b85ae5f2d581da2a"
+    },
+    {
+      "path": "scraper/utils/rescrape_content.py",
+      "bytes": 1727,
+      "sha256": "892a9e8afc54519655a85704817538a739a2629bfbd8ecb94bf218f1e986edd5"
+    },
+    {
+      "path": "scraper/utils/save_results.py",
+      "bytes": 411,
+      "sha256": "5d1f587aa207638f44af5e27e91bc280d5cec306f431571402c922f39e750ea6"
+    },
+    {
+      "path": "scraper/utils/search_engine.py",
+      "bytes": 1079,
+      "sha256": "55d47d3474690c0bddcc613fb295e93c865e59de09d0ba1d9856ecefc3a2cbf6"
+    },
+    {
+      "path": "TECHNICAL_MANIFEST.md",
+      "bytes": 75931,
+      "sha256": "058868c856e6900aae9e7e42b11c2b6a2f5249b8bfdd4a4689bc5d75f8c4900e"
+    }
+  ],
+  "static_syntax_check": {
+    "python_files": 64,
+    "parsed": 64,
+    "failures": 0,
+    "executed": false,
+    "test_named_python_files_found": 0
+  }
+}

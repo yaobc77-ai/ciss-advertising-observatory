@@ -1,0 +1,2380 @@
+{
+  "local": {
+    "/healthz": {
+      "status": "unavailable",
+      "error_type": "URLError"
+    },
+    "/data": {
+      "status": "unavailable",
+      "error_type": "URLError"
+    },
+    "/_dash-layout": {
+      "status": "unavailable",
+      "error_type": "URLError"
+    },
+    "/_dash-dependencies": {
+      "status": "unavailable",
+      "error_type": "URLError"
+    },
+    "/api/knowledge-graph/schema": {
+      "status": "unavailable",
+      "error_type": "URLError"
+    }
+  },
+  "production": {
+    "/healthz": {
+      "status": 200,
+      "content_type": "application/json",
+      "bytes": 316,
+      "payload": {
+        "active_profile": "sentence600-v1",
+        "chunks": 556,
+        "data_version": "f19d4d697f4e6d2699d2c58b3ce80620b03e02c7e9447f24e012123adcb00f53",
+        "index_version": "d580c5962a6222e595db2ed8681f9787cef648dad653b055120b6bed10e3af75",
+        "record_counts": {
+          "native": 275
+        },
+        "source_data_version": "5114ebc1cf9afe59cdaa715e3ea45166",
+        "status": "ok"
+      }
+    },
+    "/data": {
+      "status": 200,
+      "content_type": "text/html; charset=utf-8",
+      "bytes": 127199
+    },
+    "/_dash-layout": {
+      "status": 200,
+      "content_type": "application/json",
+      "bytes": 122566,
+      "component_ids": [
+        "active-dataset",
+        "answer-paid",
+        "collection-layout",
+        "collection-workspace",
+        "current-scope",
+        "data-page",
+        "main",
+        "native-content",
+        "native-dates",
+        "native-download",
+        "native-export",
+        "native-export-status",
+        "native-filter-panel",
+        "native-grid",
+        "native-keywords",
+        "native-labels",
+        "native-labels-chart",
+        "native-labels-chart-note",
+        "native-matrix",
+        "native-matrix-download",
+        "native-matrix-export",
+        "native-matrix-export-status",
+        "native-metric",
+        "native-panel",
+        "native-platforms",
+        "native-primary-chart",
+        "native-primary-chart-note",
+        "native-publishers",
+        "native-record-count",
+        "native-relationships-chart",
+        "native-relationships-chart-note",
+        "native-sponsors",
+        "native-sponsors-chart",
+        "native-sponsors-chart-note",
+        "native-status",
+        "native-summary",
+        "native-timeline-chart",
+        "native-timeline-chart-note",
+        "native-unknown-dates",
+        "nav-data",
+        "nav-query",
+        "nav-wireframe",
+        "not-found-page",
+        "observatory-app",
+        "page-description",
+        "page-location",
+        "page-title",
+        "query-composer",
+        "query-cost",
+        "query-options",
+        "query-page",
+        "research-question",
+        "research-results",
+        "research-stale",
+        "research-submission",
+        "search-free",
+        "search-scope",
+        "shared-filters",
+        "social-content",
+        "social-dates",
+        "social-download",
+        "social-export",
+        "social-export-status",
+        "social-filter-panel",
+        "social-grid",
+        "social-keywords",
+        "social-labels",
+        "social-labels-chart",
+        "social-labels-chart-note",
+        "social-matrix",
+        "social-matrix-download",
+        "social-matrix-export",
+        "social-matrix-export-status",
+        "social-metric",
+        "social-panel",
+        "social-platforms",
+        "social-primary-chart",
+        "social-primary-chart-note",
+        "social-publishers",
+        "social-record-count",
+        "social-relationships-chart",
+        "social-relationships-chart-note",
+        "social-sponsors",
+        "social-sponsors-chart",
+        "social-sponsors-chart-note",
+        "social-status",
+        "social-summary",
+        "social-timeline-chart",
+        "social-timeline-chart-note",
+        "social-unknown-dates",
+        "toolbox",
+        "wireframe-page"
+      ],
+      "filter_facets": {
+        "native-publishers": [
+          {
+            "label": "Business Insider",
+            "value": "Business Insider"
+          },
+          {
+            "label": "CNBC",
+            "value": "CNBC"
+          },
+          {
+            "label": "Forbes",
+            "value": "Forbes"
+          },
+          {
+            "label": "Politico",
+            "value": "Politico"
+          },
+          {
+            "label": "The Atlantic",
+            "value": "The Atlantic"
+          },
+          {
+            "label": "The New York Times",
+            "value": "The New York Times"
+          },
+          {
+            "label": "The Wall Street Journal",
+            "value": "The Wall Street Journal"
+          },
+          {
+            "label": "The Washington Post",
+            "value": "The Washington Post"
+          }
+        ],
+        "native-sponsors": [
+          {
+            "label": "(Unknown)",
+            "value": "(Unknown)"
+          },
+          {
+            "label": "AFPM",
+            "value": "afpm"
+          },
+          {
+            "label": "API",
+            "value": "api"
+          },
+          {
+            "label": "BP",
+            "value": "bp"
+          },
+          {
+            "label": "CERAWeek",
+            "value": "cera"
+          },
+          {
+            "label": "Chevron",
+            "value": "chevron"
+          },
+          {
+            "label": "Enbridge",
+            "value": "enbridge"
+          },
+          {
+            "label": "Eni",
+            "value": "eni"
+          },
+          {
+            "label": "Exelon",
+            "value": "exelon"
+          },
+          {
+            "label": "ExxonMobil",
+            "value": "exxonmobil"
+          },
+          {
+            "label": "NextEra Energy",
+            "value": "nextera energy"
+          },
+          {
+            "label": "PETRONAS",
+            "value": "petronas"
+          },
+          {
+            "label": "PTT",
+            "value": "ptt"
+          },
+          {
+            "label": "Shell",
+            "value": "shell"
+          },
+          {
+            "label": "Southern Company",
+            "value": "southern company"
+          },
+          {
+            "label": "Statoil",
+            "value": "statoil"
+          },
+          {
+            "label": "The Williams Companies, Inc.",
+            "value": "the williams companies, inc."
+          },
+          {
+            "label": "TotalEnergies",
+            "value": "totalenergies"
+          },
+          {
+            "label": "Williams",
+            "value": "williams"
+          },
+          {
+            "label": "Williams Companies",
+            "value": "williams companies"
+          }
+        ],
+        "social-platforms": []
+      },
+      "visible_static_text": [
+        "Current collection and its filters",
+        "Both collections · all eligible records",
+        "Sponsor / advertiser",
+        "native-sponsors",
+        "native-sponsors",
+        "Collection search term",
+        "Historical labels come from earlier automated classification runs. Collection search terms describe how records were collected; they are not sponsor identities or article themes.",
+        "Sponsor / advertiser",
+        "social-sponsors",
+        "social-sponsors",
+        "Collection search term",
+        "Historical labels come from earlier automated classification runs. Collection search terms describe how records were collected; they are not sponsor identities or article themes.",
+        "Collection",
+        "collection-label",
+        "collection-picker",
+        "collection-selector",
+        "collection-toolbar",
+        "collection-status",
+        "Sponsors include companies, trade groups and events. CERAWeek (stored as cera) is a conference/event, not an energy company. This classification and company aggregation require client confirmation.",
+        "Choose a collection to explore",
+        "By sponsor / advertiser",
+        "native-sponsors-chart-note",
+        "native-sponsors-chart",
+        "Choose a collection to explore",
+        "Choose a collection to explore",
+        "Choose a collection to explore",
+        "Sponsor × news outlet",
+        "All sponsors and outlets in this selection. Every cell is a record count.",
+        "Choose a collection to explore",
+        "Sponsor × news outlet: full cross-tab",
+        "All selected sponsors and outlets, including zero cells and totals. Counts use the same selection as the record table.",
+        "Source collection",
+        "sponsor",
+        "Sponsor / advertiser",
+        "Sponsor values can include companies, trade groups and events. CERAWeek is an event; entity scope awaits client review.",
+        "Collection search term",
+        "Search term used during collection. It does not identify the sponsor or establish an article theme.",
+        "collection-content",
+        "collection-status",
+        "Choose a collection to explore",
+        "By sponsor / advertiser",
+        "social-sponsors-chart-note",
+        "social-sponsors-chart",
+        "Choose a collection to explore",
+        "Choose a collection to explore",
+        "Choose a collection to explore",
+        "Sponsor × news outlet",
+        "All sponsors and outlets in this selection. Every cell is a record count.",
+        "Choose a collection to explore",
+        "Sponsor × news outlet: full cross-tab",
+        "All selected sponsors and outlets, including zero cells and totals. Counts use the same selection as the record table.",
+        "Source collection",
+        "sponsor",
+        "Sponsor / advertiser",
+        "Sponsor values can include companies, trade groups and events. CERAWeek is an event; entity scope awaits client review.",
+        "collection-content",
+        "collection-layout",
+        "collection-layout",
+        "collection-workspace",
+        "Three pages, one collection scope",
+        "Query and Data share collection filters. Navigation keeps the current question and results in place.",
+        "Collection + question + answer",
+        "Current selection or both collections",
+        "Collection selector",
+        "Collection-specific filters are preserved across pages",
+        "Sponsors",
+        "Native collection",
+        "Counts describe the eligible collection. Retrieved passages support what an advertiser said; they do not establish whether a claim is true. Historical CLAIMS labels remain filterable legacy annotations."
+      ]
+    },
+    "/_dash-dependencies": {
+      "status": 200,
+      "content_type": "application/json",
+      "bytes": 9724
+    },
+    "/api/knowledge-graph/schema": {
+      "status": 200,
+      "content_type": "text/html; charset=utf-8",
+      "bytes": 127199,
+      "json_schema_available": false,
+      "html_document": true
+    }
+  },
+  "database": {
+    "health_before": {
+      "status": "ok",
+      "record_counts": {
+        "native": 275
+      },
+      "source_data_version": "5114ebc1cf9afe59cdaa715e3ea45166",
+      "active_profile": "sentence600-v1",
+      "index_version": "d580c5962a6222e595db2ed8681f9787cef648dad653b055120b6bed10e3af75",
+      "data_version": "f19d4d697f4e6d2699d2c58b3ce80620b03e02c7e9447f24e012123adcb00f53",
+      "chunks": 556
+    },
+    "facets": {
+      "publishers": [
+        "Business Insider",
+        "CNBC",
+        "Forbes",
+        "Politico",
+        "The Atlantic",
+        "The New York Times",
+        "The Wall Street Journal",
+        "The Washington Post"
+      ],
+      "sponsors": [
+        "(Unknown)",
+        "afpm",
+        "api",
+        "bp",
+        "cera",
+        "chevron",
+        "enbridge",
+        "eni",
+        "exelon",
+        "exxonmobil",
+        "nextera energy",
+        "petronas",
+        "ptt",
+        "shell",
+        "southern company",
+        "statoil",
+        "the williams companies, inc.",
+        "totalenergies",
+        "williams",
+        "williams companies"
+      ],
+      "platforms": [
+        "(Unknown)"
+      ],
+      "keywords": [
+        "AFPM",
+        "API",
+        "BP",
+        "Cera",
+        "Ceraweek",
+        "Chevron",
+        "Direct Energy",
+        "Enbridge",
+        "Energy Transfer Partners",
+        "Eni",
+        "Exelon",
+        "ExxonMobil",
+        "PTT",
+        "Pacific Gas & Electric",
+        "Petronas",
+        "SCG",
+        "Shell",
+        "Southern Company",
+        "Statoil",
+        "TOTALENERGIES",
+        "Williams",
+        "Williams Companies",
+        "atmosphere; anthropogenic; climate; ecology; energy; fuel; gas; natural; oil; petroleum; renewable",
+        "atmosphere; climate; ecology; environment; electric; fuel; oil; petroleum; renewable; solar",
+        "carbon; climate; energy; environment*; electric; global; green; greenhouse; \"greenhouse gas*\"; gas; sustainable; sustainability"
+      ],
+      "labels": [
+        "ff_labels.fossil_fuel_binary",
+        "ff_labels.infrastructure_and_production",
+        "ff_labels.petrochemical_product",
+        "ff_labels.primary_product",
+        "green_labels.decreasing_emissions",
+        "green_labels.false_solutions",
+        "green_labels.generic_environmental_references",
+        "green_labels.green_binary",
+        "green_labels.nature_animal_references",
+        "green_labels.policies_programs",
+        "green_labels.recycling_waste_management",
+        "green_labels.viable_solutions"
+      ]
+    },
+    "native_stats": {
+      "total": 263,
+      "retrievable": 226,
+      "unknown_dates": 22,
+      "publishers": [
+        {
+          "name": "CNBC",
+          "count": 116,
+          "percent": 44.106463878327
+        },
+        {
+          "name": "Forbes",
+          "count": 43,
+          "percent": 16.34980988593156
+        },
+        {
+          "name": "The Wall Street Journal",
+          "count": 33,
+          "percent": 12.547528517110266
+        },
+        {
+          "name": "The New York Times",
+          "count": 19,
+          "percent": 7.224334600760456
+        },
+        {
+          "name": "Politico",
+          "count": 18,
+          "percent": 6.844106463878327
+        },
+        {
+          "name": "The Washington Post",
+          "count": 18,
+          "percent": 6.844106463878327
+        },
+        {
+          "name": "The Atlantic",
+          "count": 11,
+          "percent": 4.182509505703422
+        },
+        {
+          "name": "Business Insider",
+          "count": 5,
+          "percent": 1.9011406844106464
+        }
+      ],
+      "sponsors": [
+        {
+          "name": "totalenergies",
+          "count": 113,
+          "percent": 42.965779467680605
+        },
+        {
+          "name": "cera",
+          "count": 29,
+          "percent": 11.02661596958175
+        },
+        {
+          "name": "statoil",
+          "count": 28,
+          "percent": 10.64638783269962
+        },
+        {
+          "name": "petronas",
+          "count": 17,
+          "percent": 6.4638783269961975
+        },
+        {
+          "name": "exxonmobil",
+          "count": 15,
+          "percent": 5.7034220532319395
+        },
+        {
+          "name": "bp",
+          "count": 13,
+          "percent": 4.942965779467681
+        },
+        {
+          "name": "shell",
+          "count": 10,
+          "percent": 3.802281368821293
+        },
+        {
+          "name": "api",
+          "count": 8,
+          "percent": 3.041825095057034
+        },
+        {
+          "name": "chevron",
+          "count": 8,
+          "percent": 3.041825095057034
+        },
+        {
+          "name": "afpm",
+          "count": 6,
+          "percent": 2.2813688212927756
+        },
+        {
+          "name": "southern company",
+          "count": 5,
+          "percent": 1.9011406844106464
+        },
+        {
+          "name": "enbridge",
+          "count": 3,
+          "percent": 1.1406844106463878
+        },
+        {
+          "name": "(Unknown)",
+          "count": 1,
+          "percent": 0.38022813688212925
+        },
+        {
+          "name": "eni",
+          "count": 1,
+          "percent": 0.38022813688212925
+        },
+        {
+          "name": "exelon",
+          "count": 1,
+          "percent": 0.38022813688212925
+        },
+        {
+          "name": "nextera energy",
+          "count": 1,
+          "percent": 0.38022813688212925
+        },
+        {
+          "name": "ptt",
+          "count": 1,
+          "percent": 0.38022813688212925
+        },
+        {
+          "name": "the williams companies, inc.",
+          "count": 1,
+          "percent": 0.38022813688212925
+        },
+        {
+          "name": "williams",
+          "count": 1,
+          "percent": 0.38022813688212925
+        },
+        {
+          "name": "williams companies",
+          "count": 1,
+          "percent": 0.38022813688212925
+        }
+      ],
+      "platforms": [
+        {
+          "name": "(Unknown)",
+          "count": 263,
+          "percent": 100.0
+        }
+      ],
+      "keywords": [
+        {
+          "name": "TOTALENERGIES",
+          "count": 113,
+          "percent": 42.965779467680605
+        },
+        {
+          "name": "Cera",
+          "count": 29,
+          "percent": 11.02661596958175
+        },
+        {
+          "name": "Statoil",
+          "count": 20,
+          "percent": 7.604562737642586
+        },
+        {
+          "name": "ExxonMobil",
+          "count": 17,
+          "percent": 6.4638783269961975
+        },
+        {
+          "name": "Petronas",
+          "count": 15,
+          "percent": 5.7034220532319395
+        },
+        {
+          "name": "BP",
+          "count": 11,
+          "percent": 4.182509505703422
+        },
+        {
+          "name": "API",
+          "count": 10,
+          "percent": 3.802281368821293
+        },
+        {
+          "name": "Shell",
+          "count": 10,
+          "percent": 3.802281368821293
+        },
+        {
+          "name": "Chevron",
+          "count": 8,
+          "percent": 3.041825095057034
+        },
+        {
+          "name": "AFPM",
+          "count": 6,
+          "percent": 2.2813688212927756
+        },
+        {
+          "name": "Energy Transfer Partners",
+          "count": 4,
+          "percent": 1.520912547528517
+        },
+        {
+          "name": "Southern Company",
+          "count": 4,
+          "percent": 1.520912547528517
+        },
+        {
+          "name": "Enbridge",
+          "count": 3,
+          "percent": 1.1406844106463878
+        },
+        {
+          "name": "Eni",
+          "count": 2,
+          "percent": 0.7604562737642585
+        },
+        {
+          "name": "Ceraweek",
+          "count": 1,
+          "percent": 0.38022813688212925
+        },
+        {
+          "name": "Direct Energy",
+          "count": 1,
+          "percent": 0.38022813688212925
+        },
+        {
+          "name": "Exelon",
+          "count": 1,
+          "percent": 0.38022813688212925
+        },
+        {
+          "name": "PTT",
+          "count": 1,
+          "percent": 0.38022813688212925
+        },
+        {
+          "name": "Pacific Gas & Electric",
+          "count": 1,
+          "percent": 0.38022813688212925
+        },
+        {
+          "name": "SCG",
+          "count": 1,
+          "percent": 0.38022813688212925
+        },
+        {
+          "name": "Williams",
+          "count": 1,
+          "percent": 0.38022813688212925
+        },
+        {
+          "name": "Williams Companies",
+          "count": 1,
+          "percent": 0.38022813688212925
+        },
+        {
+          "name": "atmosphere; anthropogenic; climate; ecology; energy; fuel; gas; natural; oil; petroleum; renewable",
+          "count": 1,
+          "percent": 0.38022813688212925
+        },
+        {
+          "name": "atmosphere; climate; ecology; environment; electric; fuel; oil; petroleum; renewable; solar",
+          "count": 1,
+          "percent": 0.38022813688212925
+        },
+        {
+          "name": "carbon; climate; energy; environment*; electric; global; green; greenhouse; \"greenhouse gas*\"; gas; sustainable; sustainability",
+          "count": 1,
+          "percent": 0.38022813688212925
+        }
+      ],
+      "relationships": [
+        {
+          "sponsor": "totalenergies",
+          "publisher": "CNBC",
+          "count": 113
+        },
+        {
+          "sponsor": "cera",
+          "publisher": "The Wall Street Journal",
+          "count": 29
+        },
+        {
+          "sponsor": "statoil",
+          "publisher": "Forbes",
+          "count": 28
+        },
+        {
+          "sponsor": "petronas",
+          "publisher": "Forbes",
+          "count": 15
+        },
+        {
+          "sponsor": "bp",
+          "publisher": "The New York Times",
+          "count": 8
+        },
+        {
+          "sponsor": "api",
+          "publisher": "The Washington Post",
+          "count": 6
+        },
+        {
+          "sponsor": "afpm",
+          "publisher": "Politico",
+          "count": 5
+        },
+        {
+          "sponsor": "exxonmobil",
+          "publisher": "Business Insider",
+          "count": 5
+        },
+        {
+          "sponsor": "exxonmobil",
+          "publisher": "The Washington Post",
+          "count": 5
+        },
+        {
+          "sponsor": "bp",
+          "publisher": "Politico",
+          "count": 4
+        },
+        {
+          "sponsor": "shell",
+          "publisher": "The Atlantic",
+          "count": 4
+        },
+        {
+          "sponsor": "shell",
+          "publisher": "The New York Times",
+          "count": 4
+        },
+        {
+          "sponsor": "chevron",
+          "publisher": "The Atlantic",
+          "count": 3
+        },
+        {
+          "sponsor": "chevron",
+          "publisher": "The New York Times",
+          "count": 3
+        },
+        {
+          "sponsor": "enbridge",
+          "publisher": "Politico",
+          "count": 3
+        },
+        {
+          "sponsor": "exxonmobil",
+          "publisher": "The New York Times",
+          "count": 3
+        },
+        {
+          "sponsor": "exxonmobil",
+          "publisher": "The Wall Street Journal",
+          "count": 2
+        },
+        {
+          "sponsor": "petronas",
+          "publisher": "CNBC",
+          "count": 2
+        },
+        {
+          "sponsor": "shell",
+          "publisher": "The Washington Post",
+          "count": 2
+        },
+        {
+          "sponsor": "southern company",
+          "publisher": "The Atlantic",
+          "count": 2
+        },
+        {
+          "sponsor": "southern company",
+          "publisher": "The Washington Post",
+          "count": 2
+        },
+        {
+          "sponsor": "(Unknown)",
+          "publisher": "The Wall Street Journal",
+          "count": 1
+        },
+        {
+          "sponsor": "afpm",
+          "publisher": "The Washington Post",
+          "count": 1
+        },
+        {
+          "sponsor": "api",
+          "publisher": "The Atlantic",
+          "count": 1
+        },
+        {
+          "sponsor": "api",
+          "publisher": "The Wall Street Journal",
+          "count": 1
+        },
+        {
+          "sponsor": "bp",
+          "publisher": "The Atlantic",
+          "count": 1
+        },
+        {
+          "sponsor": "chevron",
+          "publisher": "Politico",
+          "count": 1
+        },
+        {
+          "sponsor": "chevron",
+          "publisher": "The Washington Post",
+          "count": 1
+        },
+        {
+          "sponsor": "eni",
+          "publisher": "The Washington Post",
+          "count": 1
+        },
+        {
+          "sponsor": "exelon",
+          "publisher": "Politico",
+          "count": 1
+        },
+        {
+          "sponsor": "nextera energy",
+          "publisher": "Politico",
+          "count": 1
+        },
+        {
+          "sponsor": "ptt",
+          "publisher": "The New York Times",
+          "count": 1
+        },
+        {
+          "sponsor": "southern company",
+          "publisher": "Politico",
+          "count": 1
+        },
+        {
+          "sponsor": "the williams companies, inc.",
+          "publisher": "CNBC",
+          "count": 1
+        },
+        {
+          "sponsor": "williams",
+          "publisher": "Politico",
+          "count": 1
+        },
+        {
+          "sponsor": "williams companies",
+          "publisher": "Politico",
+          "count": 1
+        }
+      ],
+      "timeline": [
+        {
+          "month": "2013-10",
+          "count": 1
+        },
+        {
+          "month": "2013-11",
+          "count": 1
+        },
+        {
+          "month": "2014-07",
+          "count": 1
+        },
+        {
+          "month": "2014-10",
+          "count": 3
+        },
+        {
+          "month": "2014-11",
+          "count": 2
+        },
+        {
+          "month": "2015-01",
+          "count": 15
+        },
+        {
+          "month": "2015-02",
+          "count": 9
+        },
+        {
+          "month": "2015-03",
+          "count": 3
+        },
+        {
+          "month": "2015-05",
+          "count": 1
+        },
+        {
+          "month": "2015-06",
+          "count": 3
+        },
+        {
+          "month": "2015-08",
+          "count": 1
+        },
+        {
+          "month": "2015-10",
+          "count": 1
+        },
+        {
+          "month": "2015-11",
+          "count": 1
+        },
+        {
+          "month": "2015-12",
+          "count": 2
+        },
+        {
+          "month": "2016-02",
+          "count": 1
+        },
+        {
+          "month": "2016-03",
+          "count": 1
+        },
+        {
+          "month": "2016-08",
+          "count": 1
+        },
+        {
+          "month": "2016-11",
+          "count": 1
+        },
+        {
+          "month": "2016-12",
+          "count": 1
+        },
+        {
+          "month": "2017-01",
+          "count": 1
+        },
+        {
+          "month": "2017-02",
+          "count": 1
+        },
+        {
+          "month": "2017-03",
+          "count": 10
+        },
+        {
+          "month": "2017-04",
+          "count": 3
+        },
+        {
+          "month": "2017-05",
+          "count": 2
+        },
+        {
+          "month": "2017-06",
+          "count": 3
+        },
+        {
+          "month": "2017-07",
+          "count": 1
+        },
+        {
+          "month": "2017-08",
+          "count": 1
+        },
+        {
+          "month": "2017-09",
+          "count": 3
+        },
+        {
+          "month": "2017-10",
+          "count": 1
+        },
+        {
+          "month": "2017-11",
+          "count": 2
+        },
+        {
+          "month": "2017-12",
+          "count": 2
+        },
+        {
+          "month": "2018-01",
+          "count": 2
+        },
+        {
+          "month": "2018-02",
+          "count": 2
+        },
+        {
+          "month": "2018-03",
+          "count": 15
+        },
+        {
+          "month": "2018-04",
+          "count": 2
+        },
+        {
+          "month": "2018-05",
+          "count": 4
+        },
+        {
+          "month": "2018-06",
+          "count": 3
+        },
+        {
+          "month": "2018-07",
+          "count": 4
+        },
+        {
+          "month": "2018-08",
+          "count": 2
+        },
+        {
+          "month": "2018-09",
+          "count": 5
+        },
+        {
+          "month": "2018-10",
+          "count": 3
+        },
+        {
+          "month": "2018-11",
+          "count": 5
+        },
+        {
+          "month": "2018-12",
+          "count": 2
+        },
+        {
+          "month": "2019-01",
+          "count": 6
+        },
+        {
+          "month": "2019-02",
+          "count": 3
+        },
+        {
+          "month": "2019-03",
+          "count": 3
+        },
+        {
+          "month": "2019-04",
+          "count": 1
+        },
+        {
+          "month": "2019-05",
+          "count": 1
+        },
+        {
+          "month": "2019-06",
+          "count": 2
+        },
+        {
+          "month": "2019-07",
+          "count": 1
+        },
+        {
+          "month": "2019-08",
+          "count": 1
+        },
+        {
+          "month": "2019-09",
+          "count": 3
+        },
+        {
+          "month": "2019-10",
+          "count": 2
+        },
+        {
+          "month": "2020-01",
+          "count": 4
+        },
+        {
+          "month": "2020-05",
+          "count": 2
+        },
+        {
+          "month": "2020-06",
+          "count": 1
+        },
+        {
+          "month": "2020-07",
+          "count": 2
+        },
+        {
+          "month": "2020-09",
+          "count": 3
+        },
+        {
+          "month": "2020-10",
+          "count": 3
+        },
+        {
+          "month": "2020-11",
+          "count": 6
+        },
+        {
+          "month": "2020-12",
+          "count": 2
+        },
+        {
+          "month": "2021-01",
+          "count": 3
+        },
+        {
+          "month": "2021-03",
+          "count": 2
+        },
+        {
+          "month": "2021-04",
+          "count": 1
+        },
+        {
+          "month": "2021-05",
+          "count": 1
+        },
+        {
+          "month": "2021-06",
+          "count": 3
+        },
+        {
+          "month": "2021-07",
+          "count": 1
+        },
+        {
+          "month": "2021-08",
+          "count": 1
+        },
+        {
+          "month": "2021-09",
+          "count": 1
+        },
+        {
+          "month": "2021-10",
+          "count": 6
+        },
+        {
+          "month": "2021-12",
+          "count": 4
+        },
+        {
+          "month": "2022-02",
+          "count": 5
+        },
+        {
+          "month": "2022-03",
+          "count": 1
+        },
+        {
+          "month": "2022-04",
+          "count": 2
+        },
+        {
+          "month": "2022-05",
+          "count": 3
+        },
+        {
+          "month": "2022-06",
+          "count": 1
+        },
+        {
+          "month": "2022-07",
+          "count": 7
+        },
+        {
+          "month": "2022-08",
+          "count": 5
+        },
+        {
+          "month": "2022-09",
+          "count": 3
+        },
+        {
+          "month": "2022-11",
+          "count": 3
+        },
+        {
+          "month": "2022-12",
+          "count": 2
+        },
+        {
+          "month": "2023-03",
+          "count": 1
+        },
+        {
+          "month": "2023-05",
+          "count": 1
+        },
+        {
+          "month": "2023-06",
+          "count": 1
+        },
+        {
+          "month": "2023-07",
+          "count": 1
+        },
+        {
+          "month": "2023-08",
+          "count": 1
+        },
+        {
+          "month": "2023-09",
+          "count": 1
+        },
+        {
+          "month": "2023-11",
+          "count": 1
+        },
+        {
+          "month": "2023-12",
+          "count": 1
+        },
+        {
+          "month": "2024-05",
+          "count": 1
+        },
+        {
+          "month": "2024-09",
+          "count": 1
+        },
+        {
+          "month": "2024-12",
+          "count": 1
+        },
+        {
+          "month": "2025-02",
+          "count": 1
+        },
+        {
+          "month": "Unknown",
+          "count": 22
+        }
+      ]
+    },
+    "historical_labels": {
+      "items": [
+        {
+          "name": "green_labels.green_binary",
+          "count": 189,
+          "percent": 71.86311787072243
+        },
+        {
+          "name": "ff_labels.fossil_fuel_binary",
+          "count": 172,
+          "percent": 65.39923954372624
+        },
+        {
+          "name": "ff_labels.infrastructure_and_production",
+          "count": 159,
+          "percent": 60.456273764258555
+        },
+        {
+          "name": "green_labels.viable_solutions",
+          "count": 150,
+          "percent": 57.034220532319395
+        },
+        {
+          "name": "green_labels.generic_environmental_references",
+          "count": 144,
+          "percent": 54.752851711026615
+        },
+        {
+          "name": "ff_labels.primary_product",
+          "count": 142,
+          "percent": 53.99239543726236
+        },
+        {
+          "name": "green_labels.false_solutions",
+          "count": 101,
+          "percent": 38.40304182509506
+        },
+        {
+          "name": "green_labels.policies_programs",
+          "count": 86,
+          "percent": 32.69961977186312
+        },
+        {
+          "name": "green_labels.decreasing_emissions",
+          "count": 84,
+          "percent": 31.93916349809886
+        },
+        {
+          "name": "green_labels.recycling_waste_management",
+          "count": 49,
+          "percent": 18.631178707224336
+        },
+        {
+          "name": "green_labels.nature_animal_references",
+          "count": 44,
+          "percent": 16.730038022813687
+        },
+        {
+          "name": "ff_labels.petrochemical_product",
+          "count": 40,
+          "percent": 15.209125475285171
+        }
+      ],
+      "total": 263,
+      "labeled_records": 220,
+      "unlabeled_records": 43,
+      "note": "Historical automated CLAIMS labels, not verified themes or factual verdicts. A record can have several labels, so label counts and percentages do not sum to the record total. No labels does not establish that a theme is absent; the current data cannot distinguish missing annotation from no positive labels."
+    },
+    "client_examples": {
+      "exxon_publishers": {
+        "matched_source_values": [
+          "exxonmobil"
+        ],
+        "filters": {
+          "dataset": "native",
+          "publishers": [],
+          "sponsors": [
+            "exxonmobil"
+          ],
+          "platforms": [],
+          "keywords": [],
+          "labels": [],
+          "record_ids": [],
+          "date_from": null,
+          "date_to": null,
+          "include_unknown_dates": true
+        },
+        "stats": {
+          "total": 15,
+          "retrievable": 13,
+          "unknown_dates": 0,
+          "publishers": [
+            {
+              "name": "Business Insider",
+              "count": 5,
+              "percent": 33.333333333333336
+            },
+            {
+              "name": "The Washington Post",
+              "count": 5,
+              "percent": 33.333333333333336
+            },
+            {
+              "name": "The New York Times",
+              "count": 3,
+              "percent": 20.0
+            },
+            {
+              "name": "The Wall Street Journal",
+              "count": 2,
+              "percent": 13.333333333333334
+            }
+          ],
+          "sponsors": [
+            {
+              "name": "exxonmobil",
+              "count": 15,
+              "percent": 100.0
+            }
+          ],
+          "platforms": [
+            {
+              "name": "(Unknown)",
+              "count": 15,
+              "percent": 100.0
+            }
+          ],
+          "keywords": [
+            {
+              "name": "ExxonMobil",
+              "count": 15,
+              "percent": 100.0
+            }
+          ],
+          "relationships": [
+            {
+              "sponsor": "exxonmobil",
+              "publisher": "Business Insider",
+              "count": 5
+            },
+            {
+              "sponsor": "exxonmobil",
+              "publisher": "The Washington Post",
+              "count": 5
+            },
+            {
+              "sponsor": "exxonmobil",
+              "publisher": "The New York Times",
+              "count": 3
+            },
+            {
+              "sponsor": "exxonmobil",
+              "publisher": "The Wall Street Journal",
+              "count": 2
+            }
+          ],
+          "timeline": [
+            {
+              "month": "2018-09",
+              "count": 3
+            },
+            {
+              "month": "2018-11",
+              "count": 1
+            },
+            {
+              "month": "2021-12",
+              "count": 2
+            },
+            {
+              "month": "2022-02",
+              "count": 1
+            },
+            {
+              "month": "2022-04",
+              "count": 2
+            },
+            {
+              "month": "2022-05",
+              "count": 2
+            },
+            {
+              "month": "2022-06",
+              "count": 1
+            },
+            {
+              "month": "2022-07",
+              "count": 2
+            },
+            {
+              "month": "2023-09",
+              "count": 1
+            }
+          ]
+        },
+        "records": [
+          {
+            "record_id": "fbf3adb3-b68a-59cc-9237-75aafbf1e5ee",
+            "version_id": "32cd23d829788a8d7a3c4519d600e0529d6a5c28dac206b197fe73d01ab17b83",
+            "title": "Let's deliver American industry with low emissions",
+            "publisher": "The Washington Post",
+            "sponsor": "exxonmobil",
+            "date": "2023-09-15"
+          },
+          {
+            "record_id": "b2ee5d40-330a-5dfc-a520-b9affc31ded9",
+            "version_id": "8de4c3098b4758c62f0f47db0803ca7f247a288827ed68ba4bc87be72d869aaf",
+            "title": "Renewable Diesel for Our Changing World",
+            "publisher": "The Wall Street Journal",
+            "sponsor": "exxonmobil",
+            "date": "2022-07-18"
+          },
+          {
+            "record_id": "8b8f9f05-b60b-509c-bcc0-959b601f7215",
+            "version_id": "f9ee03bdffb4b118117dc70c8a2c03fe17388030eb7091032a641f9b6bb213b2",
+            "title": "Renewable diesel for our changing world",
+            "publisher": "The Washington Post",
+            "sponsor": "exxonmobil",
+            "date": "2022-07-14"
+          },
+          {
+            "record_id": "12d72720-e44d-585f-9be0-8a1d6d122fd5",
+            "version_id": "cc27796be9cd915bb778c8ab4192d1f739cfcfc88d80efdd561dfaa327c143d9",
+            "title": "The future of lower-emission transportation fuels",
+            "publisher": "Business Insider",
+            "sponsor": "exxonmobil",
+            "date": "2022-06-21"
+          },
+          {
+            "record_id": "0d2b4bc2-4397-5604-8235-fcda8c7088f7",
+            "version_id": "7edbf6617dc344578452865c341bfe53f5f18beb6b9bc30caa51aa6e96269cde",
+            "title": "Hydrogen: Another Chapter in ExxonMobil's Lower-Emissions Ambitions",
+            "publisher": "The Wall Street Journal",
+            "sponsor": "exxonmobil",
+            "date": "2022-05-16"
+          },
+          {
+            "record_id": "2ca410b6-ac69-500a-8a03-5751d3942321",
+            "version_id": "531ab776a6443cebb918a3bc8e0722e0c613e30c5e6145875b4bd6ba893b4232",
+            "title": "Content from Hydrogen: Another chapter in ExxonMobil's lower-emissions ambitions",
+            "publisher": "The Washington Post",
+            "sponsor": "exxonmobil",
+            "date": "2022-05-03"
+          },
+          {
+            "record_id": "9815c667-a404-597b-aaac-ad616c9b7a7c",
+            "version_id": "a0e7ccfea8e970bf0da2f59d2371bb2b921da6b8d6ffc430590b1bf902441728",
+            "title": "Content from Supporting policies that can reduce emissions",
+            "publisher": "The Washington Post",
+            "sponsor": "exxonmobil",
+            "date": "2022-04-28"
+          },
+          {
+            "record_id": "1b624a41-8e85-5bb1-8fff-a88e17bda391",
+            "version_id": "c4cc0bc07e24e33d77d0203a75c7665ced654916b55348e7ecb9a4385877c80e",
+            "title": "How lower-emission fuels can help power the future of transportation",
+            "publisher": "Business Insider",
+            "sponsor": "exxonmobil",
+            "date": "2022-04-25"
+          },
+          {
+            "record_id": "b71173c8-d616-5dc1-93b8-c48524e37bc7",
+            "version_id": "8666d41a23658414ac24a46ffa2e832c0b4daa5db4d19156539f08c1105e6462",
+            "title": "A top engineer talks carbon storage safety",
+            "publisher": "Business Insider",
+            "sponsor": "exxonmobil",
+            "date": "2022-02-09"
+          },
+          {
+            "record_id": "49fb0b44-15e5-533f-a0de-99929c0d29c5",
+            "version_id": "e79ec4713af34b13d96680446d651cd9d40dcfd35bf157618e06110d6a23877a",
+            "title": "Capturing carbon around the world",
+            "publisher": "The Washington Post",
+            "sponsor": "exxonmobil",
+            "date": "2021-12-08"
+          },
+          {
+            "record_id": "789e13f9-659a-55ef-b024-a3528ba7c2f3",
+            "version_id": "c720ad2091363e9bd72bd092d16b79f22b8b8ebd34ab82213011924e8db02cac",
+            "title": "7 things to know about carbon capture and storage technology",
+            "publisher": "Business Insider",
+            "sponsor": "exxonmobil",
+            "date": "2021-12-08"
+          },
+          {
+            "record_id": "218ec681-89f4-554e-928a-54818a8932bb",
+            "version_id": "e4378d616507f102b500ca2379b34666ae51fe290b7855f3bf1ab934aacceed8",
+            "title": "ExxonMobil just launched its new rewards program — here's everything you need to know",
+            "publisher": "Business Insider",
+            "sponsor": "exxonmobil",
+            "date": "2018-11-20"
+          },
+          {
+            "record_id": "10cc59a2-ee02-5dfc-bcc6-a4768b843db8",
+            "version_id": "bb5ce1dcaa9550de8cb0e5ae655885e6f880c25faeb8ef5d583f77a3996d89a5",
+            "title": "Algae May Be Small — But Its Impact Could Be Big",
+            "publisher": "The New York Times",
+            "sponsor": "exxonmobil",
+            "date": "2018-09-24"
+          },
+          {
+            "record_id": "2841951a-33de-574a-9159-d4c0b3403c00",
+            "version_id": "f20b6a20d481ed3fb5859e3dacaeb73d22367dc46c8cafeb301c4bcb7367f31e",
+            "title": "From Farm Waste to Fuel Tank",
+            "publisher": "The New York Times",
+            "sponsor": "exxonmobil",
+            "date": "2018-09-24"
+          },
+          {
+            "record_id": "45b87835-eaec-500d-8a45-8cabd2d649ee",
+            "version_id": "98695ac576eb0740dfc53f24a8b4debe2c5d8b736a73415aa2c338c26410e5e5",
+            "title": "The Future of Energy? It May Come From Where You Least Expect",
+            "publisher": "The New York Times",
+            "sponsor": "exxonmobil",
+            "date": "2018-09-24"
+          }
+        ]
+      },
+      "washington_post_sponsors": {
+        "matched_source_values": [
+          "The Washington Post"
+        ],
+        "filters": {
+          "dataset": "native",
+          "publishers": [
+            "The Washington Post"
+          ],
+          "sponsors": [],
+          "platforms": [],
+          "keywords": [],
+          "labels": [],
+          "record_ids": [],
+          "date_from": null,
+          "date_to": null,
+          "include_unknown_dates": true
+        },
+        "stats": {
+          "total": 18,
+          "retrievable": 18,
+          "unknown_dates": 2,
+          "publishers": [
+            {
+              "name": "The Washington Post",
+              "count": 18,
+              "percent": 100.0
+            }
+          ],
+          "sponsors": [
+            {
+              "name": "api",
+              "count": 6,
+              "percent": 33.333333333333336
+            },
+            {
+              "name": "exxonmobil",
+              "count": 5,
+              "percent": 27.77777777777778
+            },
+            {
+              "name": "shell",
+              "count": 2,
+              "percent": 11.11111111111111
+            },
+            {
+              "name": "southern company",
+              "count": 2,
+              "percent": 11.11111111111111
+            },
+            {
+              "name": "afpm",
+              "count": 1,
+              "percent": 5.555555555555555
+            },
+            {
+              "name": "chevron",
+              "count": 1,
+              "percent": 5.555555555555555
+            },
+            {
+              "name": "eni",
+              "count": 1,
+              "percent": 5.555555555555555
+            }
+          ],
+          "platforms": [
+            {
+              "name": "(Unknown)",
+              "count": 18,
+              "percent": 100.0
+            }
+          ],
+          "keywords": [
+            {
+              "name": "API",
+              "count": 6,
+              "percent": 33.333333333333336
+            },
+            {
+              "name": "ExxonMobil",
+              "count": 5,
+              "percent": 27.77777777777778
+            },
+            {
+              "name": "Shell",
+              "count": 2,
+              "percent": 11.11111111111111
+            },
+            {
+              "name": "Southern Company",
+              "count": 2,
+              "percent": 11.11111111111111
+            },
+            {
+              "name": "AFPM",
+              "count": 1,
+              "percent": 5.555555555555555
+            },
+            {
+              "name": "Chevron",
+              "count": 1,
+              "percent": 5.555555555555555
+            },
+            {
+              "name": "Eni",
+              "count": 1,
+              "percent": 5.555555555555555
+            }
+          ],
+          "relationships": [
+            {
+              "sponsor": "api",
+              "publisher": "The Washington Post",
+              "count": 6
+            },
+            {
+              "sponsor": "exxonmobil",
+              "publisher": "The Washington Post",
+              "count": 5
+            },
+            {
+              "sponsor": "shell",
+              "publisher": "The Washington Post",
+              "count": 2
+            },
+            {
+              "sponsor": "southern company",
+              "publisher": "The Washington Post",
+              "count": 2
+            },
+            {
+              "sponsor": "afpm",
+              "publisher": "The Washington Post",
+              "count": 1
+            },
+            {
+              "sponsor": "chevron",
+              "publisher": "The Washington Post",
+              "count": 1
+            },
+            {
+              "sponsor": "eni",
+              "publisher": "The Washington Post",
+              "count": 1
+            }
+          ],
+          "timeline": [
+            {
+              "month": "2017-09",
+              "count": 1
+            },
+            {
+              "month": "2018-06",
+              "count": 1
+            },
+            {
+              "month": "2018-10",
+              "count": 1
+            },
+            {
+              "month": "2018-11",
+              "count": 1
+            },
+            {
+              "month": "2019-02",
+              "count": 2
+            },
+            {
+              "month": "2019-03",
+              "count": 1
+            },
+            {
+              "month": "2020-09",
+              "count": 1
+            },
+            {
+              "month": "2020-10",
+              "count": 1
+            },
+            {
+              "month": "2020-12",
+              "count": 1
+            },
+            {
+              "month": "2021-12",
+              "count": 1
+            },
+            {
+              "month": "2022-04",
+              "count": 1
+            },
+            {
+              "month": "2022-05",
+              "count": 1
+            },
+            {
+              "month": "2022-07",
+              "count": 1
+            },
+            {
+              "month": "2023-09",
+              "count": 1
+            },
+            {
+              "month": "2024-09",
+              "count": 1
+            },
+            {
+              "month": "Unknown",
+              "count": 2
+            }
+          ]
+        },
+        "records": [
+          {
+            "record_id": "5799d6c7-1ca5-5a63-afa2-df243f6a2a60",
+            "version_id": "8021ac2227ba26d8a5b48772557f8364ebc8c768473490674cce762e739eb09d",
+            "title": "Powering Progress: How Southern Company is ensuring America’s energy future",
+            "publisher": "The Washington Post",
+            "sponsor": "southern company",
+            "date": "2024-09-04"
+          },
+          {
+            "record_id": "fbf3adb3-b68a-59cc-9237-75aafbf1e5ee",
+            "version_id": "32cd23d829788a8d7a3c4519d600e0529d6a5c28dac206b197fe73d01ab17b83",
+            "title": "Let's deliver American industry with low emissions",
+            "publisher": "The Washington Post",
+            "sponsor": "exxonmobil",
+            "date": "2023-09-15"
+          },
+          {
+            "record_id": "8b8f9f05-b60b-509c-bcc0-959b601f7215",
+            "version_id": "f9ee03bdffb4b118117dc70c8a2c03fe17388030eb7091032a641f9b6bb213b2",
+            "title": "Renewable diesel for our changing world",
+            "publisher": "The Washington Post",
+            "sponsor": "exxonmobil",
+            "date": "2022-07-14"
+          },
+          {
+            "record_id": "2ca410b6-ac69-500a-8a03-5751d3942321",
+            "version_id": "531ab776a6443cebb918a3bc8e0722e0c613e30c5e6145875b4bd6ba893b4232",
+            "title": "Content from Hydrogen: Another chapter in ExxonMobil's lower-emissions ambitions",
+            "publisher": "The Washington Post",
+            "sponsor": "exxonmobil",
+            "date": "2022-05-03"
+          },
+          {
+            "record_id": "9815c667-a404-597b-aaac-ad616c9b7a7c",
+            "version_id": "a0e7ccfea8e970bf0da2f59d2371bb2b921da6b8d6ffc430590b1bf902441728",
+            "title": "Content from Supporting policies that can reduce emissions",
+            "publisher": "The Washington Post",
+            "sponsor": "exxonmobil",
+            "date": "2022-04-28"
+          },
+          {
+            "record_id": "49fb0b44-15e5-533f-a0de-99929c0d29c5",
+            "version_id": "e79ec4713af34b13d96680446d651cd9d40dcfd35bf157618e06110d6a23877a",
+            "title": "Capturing carbon around the world",
+            "publisher": "The Washington Post",
+            "sponsor": "exxonmobil",
+            "date": "2021-12-08"
+          },
+          {
+            "record_id": "bcd5e833-2ba1-5309-97b7-d56865784bed",
+            "version_id": "d241b31eef0c35d228a5e69c7e6a50c1e209be026689ce031921edd83137c0ce",
+            "title": "Real climate solutions won't happen without natural gas and oil",
+            "publisher": "The Washington Post",
+            "sponsor": "api",
+            "date": "2020-12-14"
+          },
+          {
+            "record_id": "2b45fa53-0ba0-5b0c-a520-514afe669f45",
+            "version_id": "415fd1446f38d7479021311a5d67e4168ca7b720a26716c35fda4709a94c02d9",
+            "title": "Saving tomorrow's cities",
+            "publisher": "The Washington Post",
+            "sponsor": "eni",
+            "date": "2020-10-16"
+          },
+          {
+            "record_id": "7b8159fb-62f4-5c5e-85f6-11a726b2e32d",
+            "version_id": "8492748001099ff9b3f2457d0e4b6e40a6436a109f006f423bba8595eef3acbe",
+            "title": "Why Pipelines and Production are pathways to progress",
+            "publisher": "The Washington Post",
+            "sponsor": "api",
+            "date": "2020-09-28"
+          },
+          {
+            "record_id": "e559f9a9-f201-5835-87fa-c6bb0e8a8d7e",
+            "version_id": "b8cc94cc5bf739936651c119626dc94a15e78fcd1feca76cca8be2d0a4265249",
+            "title": "Why natural gas will thrive in the age of renewables",
+            "publisher": "The Washington Post",
+            "sponsor": "api",
+            "date": "2019-03-27"
+          },
+          {
+            "record_id": "24ce3a73-a316-5b71-8947-75568b0f0764",
+            "version_id": "6de0931bbe37bd9fa4e208148b42bea8e9a9b74895f29a7c5a7d2c8ee43ac001",
+            "title": "Can natural gas be the key to lowering emissions?",
+            "publisher": "The Washington Post",
+            "sponsor": "api",
+            "date": "2019-02-25"
+          },
+          {
+            "record_id": "07c7bf47-8cd6-501c-84f0-4b5e25d0e509",
+            "version_id": "642c9f33d967ee51a4a36398f314321f4c5232ddbcb89a41de8350ea70a72431",
+            "title": "Low- and no-carbon future starts with natural gas",
+            "publisher": "The Washington Post",
+            "sponsor": "api",
+            "date": "2019-02-15"
+          },
+          {
+            "record_id": "3564c7c8-1f26-5e51-98ea-8841e6ada48a",
+            "version_id": "cd8ea35ea0c388dcc5de91ec52611a2be8f28d85dfbf9a85f6a296283417d413",
+            "title": "The making of sustainable mobility",
+            "publisher": "The Washington Post",
+            "sponsor": "shell",
+            "date": "2018-11-05"
+          },
+          {
+            "record_id": "5e0b90e8-8f24-5bce-83fe-993e95e363cf",
+            "version_id": "a0ce74fc3a358cd865656c1168b5c8f4997f65c987c3cbd25d7da4a805f4313e",
+            "title": "The mobility quandary",
+            "publisher": "The Washington Post",
+            "sponsor": "shell",
+            "date": "2018-10-09"
+          },
+          {
+            "record_id": "668b9696-982f-5142-a612-36958deaa089",
+            "version_id": "c46fe9f3ceacaddef6e271ac51a80abaca7e22d2e6337b0df66cd1885b725dd8",
+            "title": "The development project that's revealing how energy and the environment can collectively thrive",
+            "publisher": "The Washington Post",
+            "sponsor": "chevron",
+            "date": "2018-06-25"
+          },
+          {
+            "record_id": "eb4ae774-d711-56de-a5be-9e1ae0da2da8",
+            "version_id": "afb08fc86d26d08e06f41775621e45dba092c83d82faa56df2ce1e0c8d64e58a",
+            "title": "Molding the future",
+            "publisher": "The Washington Post",
+            "sponsor": "api",
+            "date": "2017-09-20"
+          },
+          {
+            "record_id": "013124e5-4550-5661-bfd8-a2bf1e717ff5",
+            "version_id": "9e81efc07207f52f3d9b429551e163de084546975f2533b27826f694cef09d23",
+            "title": "Oil refiners and petrochemical producers are critical in the drive to save energy",
+            "publisher": "The Washington Post",
+            "sponsor": "afpm",
+            "date": null
+          },
+          {
+            "record_id": "128102c5-6632-5fe7-abe3-dca6920ccf11",
+            "version_id": "9486ba17005f640b6b4274b3fac2e67be0c4f9d6fb5d6621e87f45997ff8f270",
+            "title": "Responsibly Green",
+            "publisher": "The Washington Post",
+            "sponsor": "southern company",
+            "date": null
+          }
+        ]
+      },
+      "nyt_count": {
+        "matched_source_values": [
+          "The New York Times"
+        ],
+        "filters": {
+          "dataset": "native",
+          "publishers": [
+            "The New York Times"
+          ],
+          "sponsors": [],
+          "platforms": [],
+          "keywords": [],
+          "labels": [],
+          "record_ids": [],
+          "date_from": null,
+          "date_to": null,
+          "include_unknown_dates": true
+        },
+        "stats": {
+          "total": 19,
+          "retrievable": 15,
+          "unknown_dates": 1,
+          "publishers": [
+            {
+              "name": "The New York Times",
+              "count": 19,
+              "percent": 100.0
+            }
+          ],
+          "sponsors": [
+            {
+              "name": "bp",
+              "count": 8,
+              "percent": 42.10526315789474
+            },
+            {
+              "name": "shell",
+              "count": 4,
+              "percent": 21.05263157894737
+            },
+            {
+              "name": "chevron",
+              "count": 3,
+              "percent": 15.789473684210526
+            },
+            {
+              "name": "exxonmobil",
+              "count": 3,
+              "percent": 15.789473684210526
+            },
+            {
+              "name": "ptt",
+              "count": 1,
+              "percent": 5.2631578947368425
+            }
+          ],
+          "platforms": [
+            {
+              "name": "(Unknown)",
+              "count": 19,
+              "percent": 100.0
+            }
+          ],
+          "keywords": [
+            {
+              "name": "BP",
+              "count": 6,
+              "percent": 31.57894736842105
+            },
+            {
+              "name": "Shell",
+              "count": 4,
+              "percent": 21.05263157894737
+            },
+            {
+              "name": "Chevron",
+              "count": 3,
+              "percent": 15.789473684210526
+            },
+            {
+              "name": "ExxonMobil",
+              "count": 3,
+              "percent": 15.789473684210526
+            },
+            {
+              "name": "API",
+              "count": 1,
+              "percent": 5.2631578947368425
+            },
+            {
+              "name": "PTT",
+              "count": 1,
+              "percent": 5.2631578947368425
+            },
+            {
+              "name": "carbon; climate; energy; environment*; electric; global; green; greenhouse; \"greenhouse gas*\"; gas; sustainable; sustainability",
+              "count": 1,
+              "percent": 5.2631578947368425
+            }
+          ],
+          "relationships": [
+            {
+              "sponsor": "bp",
+              "publisher": "The New York Times",
+              "count": 8
+            },
+            {
+              "sponsor": "shell",
+              "publisher": "The New York Times",
+              "count": 4
+            },
+            {
+              "sponsor": "chevron",
+              "publisher": "The New York Times",
+              "count": 3
+            },
+            {
+              "sponsor": "exxonmobil",
+              "publisher": "The New York Times",
+              "count": 3
+            },
+            {
+              "sponsor": "ptt",
+              "publisher": "The New York Times",
+              "count": 1
+            }
+          ],
+          "timeline": [
+            {
+              "month": "2014-07",
+              "count": 1
+            },
+            {
+              "month": "2014-11",
+              "count": 1
+            },
+            {
+              "month": "2018-06",
+              "count": 1
+            },
+            {
+              "month": "2018-09",
+              "count": 3
+            },
+            {
+              "month": "2018-11",
+              "count": 1
+            },
+            {
+              "month": "2019-01",
+              "count": 1
+            },
+            {
+              "month": "2019-03",
+              "count": 1
+            },
+            {
+              "month": "2022-07",
+              "count": 5
+            },
+            {
+              "month": "2022-08",
+              "count": 3
+            },
+            {
+              "month": "2022-09",
+              "count": 1
+            },
+            {
+              "month": "Unknown",
+              "count": 1
+            }
+          ]
+        },
+        "records": [
+          {
+            "record_id": "c81a1ca8-6b79-5cfb-98fd-c4e7c5e4f828",
+            "version_id": "ac799e5f4a6df60f51c8cafac493fd1e5e0988d40d9b3d674b8b170737c654fa",
+            "title": "Achieving Net Zero",
+            "publisher": "The New York Times",
+            "sponsor": "ptt",
+            "date": "2022-09-26"
+          },
+          {
+            "record_id": "353f5209-24cb-5523-b0af-7ad6c843536b",
+            "version_id": "106c7abcee43c464d336cb2dce4edf6c2cfd0794d6f5609f884b2d7c29ccf0a3",
+            "title": "How can aviation fly toward net zero?",
+            "publisher": "The New York Times",
+            "sponsor": "bp",
+            "date": "2022-08-18"
+          },
+          {
+            "record_id": "cb579bb8-1bc3-54a5-bed3-ce6967bdb9c8",
+            "version_id": "d1deaa931751f54cf229f84d7e2aa55bd7380fc04c605ba4fcc8964bd77f1ea8",
+            "title": "How do we create green buildings today and for tomorrow?",
+            "publisher": "The New York Times",
+            "sponsor": "bp",
+            "date": "2022-08-11"
+          },
+          {
+            "record_id": "9fab60d8-3a1d-5718-9563-a94c63aa347e",
+            "version_id": "1730b0ac10c039fdf658c5f62c84ed8118912c598f711097ea6f59f3508f5720",
+            "title": "PAID POST by BP — How can private finance accelerate the net-zero energy transition?",
+            "publisher": "The New York Times",
+            "sponsor": "bp",
+            "date": "2022-08-04"
+          },
+          {
+            "record_id": "d0ac4679-4b87-54f7-9d39-b496f55f8e49",
+            "version_id": "45d1eb2fe82a2c9afda86d37e0e7d39f934bbd9b9bb8399fe919941a3e337496",
+            "title": "What is driving decarbonization in road transport?",
+            "publisher": "The New York Times",
+            "sponsor": "bp",
+            "date": "2022-07-28"
+          },
+          {
+            "record_id": "f7757454-e5d0-5b18-8f70-3b22cce704f1",
+            "version_id": "e92e96fb2b1298717f23256999c54fe79b2350a43b26a2fa772088efa12953f6",
+            "title": "How is shipping rising to the challenge of global decarbonization?",
+            "publisher": "The New York Times",
+            "sponsor": "bp",
+            "date": "2022-07-21"
+          },
+          {
+            "record_id": "152eeebc-fa96-590e-90da-ec454fe2b0be",
+            "version_id": "8f80e39fa56cdd47d2b0394c3c9257f447ebea8a183588a0fb400f4239f58fea",
+            "title": "How can we create a sustainable, secure and affordable energy future?",
+            "publisher": "The New York Times",
+            "sponsor": "bp",
+            "date": "2022-07-14"
+          },
+          {
+            "record_id": "307105a4-9f48-52a5-8e9b-f789d8188a66",
+            "version_id": "9c00c055eeca1ae1df7a0ba48400386a8e516ad5c1dd9d2af81ad3ad9436fdc5",
+            "title": "Energy Trilemma",
+            "publisher": "The New York Times",
+            "sponsor": "bp",
+            "date": "2022-07-14"
+          },
+          {
+            "record_id": "339c7578-9244-54d8-91f5-418514d2e838",
+            "version_id": "1259de709612f716b2707a00be0af4f44ad917078dd7a29831175f60ba73d323",
+            "title": "Energy Trilemma",
+            "publisher": "The New York Times",
+            "sponsor": "bp",
+            "date": "2022-07-14"
+          },
+          {
+            "record_id": "77b3a873-13ab-58a2-94cd-35505e7b76d9",
+            "version_id": "32d9df1d3deb0cc3e9ea1ed9b35a3fad2adbed0d4b51684c43a4a88ce2f84f47",
+            "title": "Reimagining the Future Of Transportation",
+            "publisher": "The New York Times",
+            "sponsor": "shell",
+            "date": "2019-03-20"
+          },
+          {
+            "record_id": "a1b5446c-d04f-50cf-9ddb-04a36208e22c",
+            "version_id": "87d733606f4da6a4c063967bc0166d8fc459577afb848a55c54c9157d3bc29a7",
+            "title": "Moving Forward: A Path To Net Zero Emissions By 2070",
+            "publisher": "The New York Times",
+            "sponsor": "shell",
+            "date": "2019-01-10"
+          },
+          {
+            "record_id": "95a0dcd0-ae13-59fb-9824-15d8b29250ea",
+            "version_id": "8c3bae24af6d97f7e7bf59044e5f538296a206b6043130295521ddf9028cdcf3",
+            "title": "Net Zero Emissions By 2070?",
+            "publisher": "The New York Times",
+            "sponsor": "shell",
+            "date": "2018-11-03"
+          },
+          {
+            "record_id": "10cc59a2-ee02-5dfc-bcc6-a4768b843db8",
+            "version_id": "bb5ce1dcaa9550de8cb0e5ae655885e6f880c25faeb8ef5d583f77a3996d89a5",
+            "title": "Algae May Be Small — But Its Impact Could Be Big",
+            "publisher": "The New York Times",
+            "sponsor": "exxonmobil",
+            "date": "2018-09-24"
+          },
+          {
+            "record_id": "2841951a-33de-574a-9159-d4c0b3403c00",
+            "version_id": "f20b6a20d481ed3fb5859e3dacaeb73d22367dc46c8cafeb301c4bcb7367f31e",
+            "title": "From Farm Waste to Fuel Tank",
+            "publisher": "The New York Times",
+            "sponsor": "exxonmobil",
+            "date": "2018-09-24"
+          },
+          {
+            "record_id": "45b87835-eaec-500d-8a45-8cabd2d649ee",
+            "version_id": "98695ac576eb0740dfc53f24a8b4debe2c5d8b736a73415aa2c338c26410e5e5",
+            "title": "The Future of Energy? It May Come From Where You Least Expect",
+            "publisher": "The New York Times",
+            "sponsor": "exxonmobil",
+            "date": "2018-09-24"
+          },
+          {
+            "record_id": "cd6d295b-3757-5588-9451-de5a155c371e",
+            "version_id": "a6a018f57a4770a636529293a8c5761d33d9171a0ade84f9c432d2a698c0d53d",
+            "title": "How Abundant Energy Is Fueling U.S. Growth",
+            "publisher": "The New York Times",
+            "sponsor": "chevron",
+            "date": "2018-06-06"
+          },
+          {
+            "record_id": "2fa8551f-5508-51a1-92f6-b1951dde76d9",
+            "version_id": "edcb6875cd08cbe519e094aac1f3fbced2264b3bb3c3219fbadc3d5bfd7f7d19",
+            "title": "Cities Energized",
+            "publisher": "The New York Times",
+            "sponsor": "shell",
+            "date": "2014-11-18"
+          },
+          {
+            "record_id": "3a280e51-61e6-5bd3-a4a9-faa3428ff2bf",
+            "version_id": "629732ee34aedcb32f2ea48a9973ba56148bccc2527495aaee87fa44f10bf86f",
+            "title": "A Complex Flow of Energy",
+            "publisher": "The New York Times",
+            "sponsor": "chevron",
+            "date": "2014-07-09"
+          },
+          {
+            "record_id": "a513c5b5-5a7e-54ee-abdd-6f8156c77243",
+            "version_id": "f32192942ac64caca50dca0c368a2f54da431256c4c56b36af86e5148c299fbc",
+            "title": "PAID POST by Chevron — Meet The Problem Solvers",
+            "publisher": "The New York Times",
+            "sponsor": "chevron",
+            "date": null
+          }
+        ]
+      }
+    },
+    "eligibility": [
+      {
+        "dataset": "native",
+        "stored": 275,
+        "active": 275,
+        "active_countable": 263,
+        "active_countable_retrievable": 226
+      }
+    ],
+    "annotation_versions": [
+      {
+        "annotation_version": "claims-calibrated",
+        "annotations": 255
+      },
+      {
+        "annotation_version": "claims-original",
+        "annotations": 255
+      }
+    ],
+    "health_after": {
+      "status": "ok",
+      "record_counts": {
+        "native": 275
+      },
+      "source_data_version": "5114ebc1cf9afe59cdaa715e3ea45166",
+      "active_profile": "sentence600-v1",
+      "index_version": "d580c5962a6222e595db2ed8681f9787cef648dad653b055120b6bed10e3af75",
+      "data_version": "f19d4d697f4e6d2699d2c58b3ce80620b03e02c7e9447f24e012123adcb00f53",
+      "chunks": 556
+    },
+    "data_and_index_version_unchanged": true,
+    "sql_verified_at_utc": "2026-09-30T00:02:26.207948+00:00",
+    "read_only": true,
+    "paid_model_calls": 0
+  },
+  "audit_date_client": "2026-09-29",
+  "audit_stage": "baseline before Michelle feedback implementation",
+  "recorded_at_utc": "2026-09-30T00:01:43.852665+00:00",
+  "historical_count_crosscheck": {
+    "source": "reports/sponsor_outlet_crosstab_20260917.csv",
+    "source_date": "2026-09-17",
+    "verified_today_sql": false,
+    "total": 263,
+    "nyt": 19,
+    "exxon_publishers": {
+      "Business Insider": 5,
+      "The Washington Post": 5,
+      "The New York Times": 3,
+      "The Wall Street Journal": 2
+    },
+    "washington_post_source_sponsors": {
+      "API": 6,
+      "ExxonMobil": 5,
+      "Shell": 2,
+      "Southern Company": 2,
+      "Chevron": 1,
+      "AFPM": 1,
+      "Eni": 1
+    }
+  },
+  "initial_local_database_status": {
+    "status": "unavailable",
+    "error_type": "ConnectionTimeout"
+  },
+  "consistency_checks": {
+    "exxon_publishers": {
+      "row_count_equals_sql_count": true,
+      "distinct_record_ids_equal_count": true,
+      "publisher_group_sum_equals_count": true,
+      "sponsor_group_sum_equals_count": true
+    },
+    "washington_post_sponsors": {
+      "row_count_equals_sql_count": true,
+      "distinct_record_ids_equal_count": true,
+      "publisher_group_sum_equals_count": true,
+      "sponsor_group_sum_equals_count": true
+    },
+    "nyt_count": {
+      "row_count_equals_sql_count": true,
+      "distinct_record_ids_equal_count": true,
+      "publisher_group_sum_equals_count": true,
+      "sponsor_group_sum_equals_count": true
+    },
+    "native_totals": {
+      "stored": 275,
+      "countable": 263,
+      "retrievable": 226,
+      "unknown_dates": 22,
+      "excluded_from_dashboard": 12
+    }
+  }
+}

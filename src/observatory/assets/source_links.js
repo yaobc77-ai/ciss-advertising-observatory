@@ -15,6 +15,14 @@ dagcomponentfuncs.RecordLink = function (props) {
     var id = props.data && props.data.record_id;
     return id ? React.createElement('a', {href: '/records/' + encodeURIComponent(id), target: '_blank', rel: 'noopener noreferrer'}, 'View record ↗') : React.createElement('span', null, 'Unavailable');
 };
+dagcomponentfuncs.RecordTitle = function (props) {
+    var id = props.data && props.data.record_id;
+    var title = props.value || 'Untitled record';
+    return id ? React.createElement('a', {
+        href: '/records/' + encodeURIComponent(id), target: '_blank', rel: 'noopener noreferrer',
+        className: 'record-title-link'
+    }, title) : React.createElement('span', null, title);
+};
 dagcomponentfuncs.ArchiveLink = function (props) {
     if (!props.enabled) return React.createElement('span', {className:'source-muted'}, 'Links disabled');
     var data = props.data || {};
@@ -23,5 +31,5 @@ dagcomponentfuncs.ArchiveLink = function (props) {
         var url = new URL(data.archive_url);
         if ((url.protocol === 'https:' || url.protocol === 'http:') && !url.username && !url.password) return React.createElement('a',{href:url.href,target:'_blank',rel:'noopener noreferrer'},'Online archive ↗');
     } catch (error) { /* No valid archive destination. */ }
-    return React.createElement('span',{className:'source-muted'},props.value || 'No verified archived copy');
+    return React.createElement('span',{className:'source-muted',title:props.value || 'No verified archived copy linked'},'Not linked');
 };

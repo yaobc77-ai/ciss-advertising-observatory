@@ -98,6 +98,9 @@ class Answer(BaseModel):
         "answered", "insufficient_evidence", "service_unavailable", "limited"
     ]
     answer: str
+    answer_mode: Literal["rag", "statistics", "clarification", "tools"] = "rag"
+    structured_result: dict[str, Any] | None = None
+    research_trace: dict[str, Any] = Field(default_factory=dict)
     citations: list[Citation] = Field(default_factory=list)
     evidence: list[Evidence] = Field(default_factory=list)
     cost_usd: float = 0.0

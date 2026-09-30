@@ -1,19 +1,27 @@
 # CISS Advertising Observatory
 
-面向 DS 549 FA26 项目的广告研究工具：浏览化石燃料原生广告，使用筛选与图表探索数据，并通过 RAG 问答返回可定位的原文证据。
+面向 DS 549 FA26 的广告研究工具：交互探索公司与媒体的广告数量，查看原始记录，并用带引用的问答检索广告正文。
 
-**当前版本：0.3.1，原生广告研究预览。** 句界索引与生成前引用去重已启用，数据页已增加全量赞助方×媒体交叉表、历史标签分布、年度统计和记录详情；线框图入口移至页脚。真实社交数据、正式公网部署及人工语义验收仍待完成。本期以 Dashboard、证据问答和工程交接为主，CLAIMS 后端重建及动物农业数据扩展属于后续工作。
+## 当前版本：0.4.0
 
-本机直接使用：[查询](http://127.0.0.1:8050/query) · [数据](http://127.0.0.1:8050/data) · [项目线框图](http://127.0.0.1:8050/wireframe)。查询和数据共享筛选；切页保留结果，筛选变化后旧结果会提示重新检索。
+2026-09-30：已完成本机实现、安装包与隔离数据库验证，正在同步 GitHub 和 Railway。发布状态与证据见[0.4.0 发布记录](reports/RELEASE_V0_4_0_20260930.zh-CN.md)。
 
-最新改动与保留缺口见 [0.3.1 研究任务修订](reports/research_ui_v0_3_1_20260917.zh-CN.md)。本地归档已接入 1 份核验 PDF，其余标题关联候选需继续核验。
+- **Data**：大幅来源知识图谱、公司／媒体点击后的数量和占比环图、文章下钻；Overview 提供带数字的公司 × 媒体矩阵、日期和历史标签分布；Records 提供服务端分页、正文与来源详情。
+- **Query**：语言模型理解问题后调用受限只读工具。数量和名单由 SQL 对整个筛选集合计算；正文问题使用带引用的 RAG。模型理解有 API 费用，数据浏览和关键词搜索免费。
+- **维护**：默认增量 upsert、有序数据库迁移、锁定依赖和非 editable 安装包；可选 MCP 与网页复用七个只读研究工具。
+
+当前语料：275 条收录、263 条可统计、226 条正文可检索、556 个 sentence600-v1 片段。图谱关联来自源字段，不独立证明付费商业关系；历史标签未核验，不能直接当作漂绿结论。
+
+正式社交数据、组织身份与研究口径裁决、客户独立语义／使用验收仍待材料。CLAIMS 后端重建和动物农业扩展属于原文未来工作。规模基准采用明确标记的合成数据，不替代客户验收。
+
+试用：[线上 Data](https://ciss-advertising-observatory-production.up.railway.app/data) · [线上 Query](https://ciss-advertising-observatory-production.up.railway.app/query) · [本机 Data](http://127.0.0.1:8050/data)。要求来源见[FA26／会议／邮件合并核对](reports/REQUIREMENTS_CONSOLIDATED_AUDIT_20260929.zh-CN.md)，历史实现证据见[图谱第二版](reports/GRAPH_DETAILS_V2_20260929.zh-CN.md)、[MCP 实现](reports/MCP_RESEARCH_IMPLEMENTATION_20260929.zh-CN.md)。
 
 ## 从这里开始
 
 | 你要做什么 | 阅读入口 |
 | --- | --- |
 | 找到全部说明、报告和历史资料 | [文档总索引](docs/DOCUMENT_INDEX.zh-CN.md) · [可排序文档清单](docs/document_catalog.csv) |
-| 核对原文要求与完成情况 | [FA26 要求核对](reports/FA26_REQUIREMENTS_AUDIT.zh-CN.md) · [实施与验收状态](docs/acceptance_status.md) |
+| 核对原文、会议、邮件与完成情况 | [当前要求总核对](reports/REQUIREMENTS_CONSOLIDATED_AUDIT_20260929.zh-CN.md) · [实施与验收状态](docs/acceptance_status.md) |
 | 使用网页、筛选或提问 | [用户指南](docs/user_guide.md) |
 | 接手运行、数据更新和维护 | [交接说明](docs/handoff.md) · [运行维护](docs/operations.md) |
 | 理解字段、来源和系统结构 | [数据字典](docs/data_dictionary.md) · [架构说明](docs/architecture.md) |
@@ -22,22 +30,25 @@
 | 审查模型回答是否合格 | [评价协议](docs/evaluation_protocol.md) · [人工审查表](reports/citation_review_v0_2_4.csv) |
 | 核对句界索引、三页网页和回退 | [0.3.0 发布记录](reports/release_v0_3_0_20260917.zh-CN.md)；[此前的只读比较](reports/rag_chunking_review_20260916.zh-CN.md)保留历史指标 |
 
-推荐阅读顺序：**本 README → 文档总索引 → FA26 要求核对 → 对应的使用或交接文档**。
+推荐阅读顺序：**本 README → 文档总索引 → 当前要求总核对 → 对应的使用或交接文档**。
 
 ## 目前能做什么
 
 | 功能 | 状态与边界 |
 | --- | --- |
+| 公司／媒体探索与统计问答 | Overview 免费双向探索；Query 模型理解问题后调用全量字段统计，包含没有可检索正文的记录，理解步骤有 API 费用。名称归并与公司身份分类仍需裁决。 |
+| MCP 与模型工具层 | 七个只读工具共用参数与范围校验，提供官方 SDK stdio／本机 HTTP 协议入口。来源版本和图谱类型可追溯；正式 CLAIMS、社交详情及核验附件适配器尚未接入。 |
 | 原生广告 Dashboard | 已实现日期、媒体、Sponsor / advertiser、关键词和历史标签筛选，包含标数字的全量交叉表、历史标签图、年度图、记录详情与筛选结果导出。公司和赞助方当前共用字段，研究口径仍需确认。 |
+| 大幅交互来源知识图谱 | 完整范围总览、真实点阵及正文覆盖外环；点击对象查看完整环图、可点击计数／占比表、对应文章与类型化来源路径；支持计数 CSV、PNG／完整 JSON。身份归并、主张抽取和事实核查尚未完成。 |
 | 免费关键词搜索 | 返回当前检索范围内的原文片段，不调用付费模型。返回数量是本次选出的片段数，不是全库命中总数或事实确认数量。 |
 | 付费证据问答 | 使用检索证据生成回答，保存正文版本、引用位置和费用记录。引用可定位不等于回答语义已通过验收。 |
-| 历史 CLAIMS 标签 | 使用前届保存的标签，并核对 URL 与正文版本；不是当前系统重新运行分类模型。 |
+| 历史 CLAIMS 标签 | 使用前届保存标签；Overview 点标签下钻到当前范围的文章，保留原筛选交集。标签可重叠、未人工确认，不是当前重新运行的模型或已验证的漂绿结论。 |
 | 社交广告 | 页面和适配接口已有，真实语料未接入，界面显示 `not connected`。 |
-| 对外部署与交付 | 本机研究预览已有运行证据；指定 GitHub、最终云端环境和客户验收尚未完成。 |
+| 对外部署与交付 | 已有指定 GitHub 仓库与 Railway 预览；9 月 25 日新雏形当前仅本机启用，最终客户验收尚未完成。 |
 
 ### 数据快照
 
-以下为 2026-09-17 发布后的快照，不是每次打开 README 时的实时查询。
+以下为 2026-09-29 本地再次核对的快照，不是每次打开 README 时的实时查询。
 
 | 指标 | 数量 |
 | --- | ---: |
@@ -46,7 +57,7 @@
 | 可检索正文 | 226 |
 | 当前原文片段 | 556（sentence600-v1） |
 
-正文版本 `source_data_version`：`5114ebc1cf9afe59cdaa715e3ea45166`，本轮未变。旧 558 块索引保留；健康检查的 `data_version` 现包含索引版本，完整标识见 [0.3.0 发布记录](reports/release_v0_3_0_20260917.zh-CN.md)。统计、检索资格不同，不能把文件数、记录数和有效广告数混用。来源与准入见 [数据字典](docs/data_dictionary.md)；项目交付差距见 [要求核对](reports/FA26_REQUIREMENTS_AUDIT.zh-CN.md)。
+正文版本 `source_data_version`：`5114ebc1cf9afe59cdaa715e3ea45166`，本轮未变。旧 558 块索引保留；健康检查的 `data_version` 现包含索引版本，完整标识见 [0.3.0 发布记录](reports/release_v0_3_0_20260917.zh-CN.md)。统计、检索资格不同，不能把文件数、记录数和有效广告数混用。来源与准入见 [数据字典](docs/data_dictionary.md)；项目交付差距见 [当前要求总核对](reports/REQUIREMENTS_CONSOLIDATED_AUDIT_20260929.zh-CN.md)。
 
 ## 在现有环境中启动
 
@@ -80,7 +91,7 @@
 | --- | --- | --- |
 | 网页与图表 | Python、Dash、Plotly、Dash AG Grid、Waitress | [app.py](src/observatory/app.py) |
 | 数据校验与导入 | pandas、Pandera、Pydantic，来源与版本记录 | [ingest.py](src/observatory/ingest.py) · [数据字典](docs/data_dictionary.md) |
-| 存储和检索 | PostgreSQL、pgvector、关键词与向量检索 | [schema.sql](src/observatory/schema.sql) · [db.py](src/observatory/db.py) |
+| 存储和检索 | PostgreSQL、pgvector、关键词与向量检索、有序迁移 | [迁移文件](src/observatory/migrations/) · [db.py](src/observatory/db.py) |
 | 回答与证据检查 | OpenAI SDK、原文区间引用、语言与预算控制 | [rag.py](src/observatory/rag.py) · [架构](docs/architecture.md) |
 | 环境和依赖 | Python 3.12/3.13；依赖锁定在 `uv.lock` | [pyproject.toml](pyproject.toml) · [配置示例](.env.example) |
 
@@ -90,7 +101,7 @@
 
 数据更新需要注意：
 
-- `import-native` 使用完整快照语义，不能把小批样本当作完整数据集替换。
+- `import-native`、`import-social` 默认增量 upsert；完整替换必须明确传入 `--mode snapshot`。新批次可以先用 `import-records --dry-run` 验证，详见[导入契约](docs/PROTOTYPE_DATA_PIPELINE.md)。
 - `config/native_admissions.json`、`config/native_body_ranges.json`、`config/native_body_recoveries.json` 共同约束准入、正文范围和恢复材料；所需源文件需与记录的哈希一致。
 - `index` 和 `answer` 命令可能调用付费 API；数据更新和预算核对的步骤见 [运行维护](docs/operations.md)。
 - `sources/`、`analysis/`、`outputs/`、运行时、凭据和备份属于另行管理的本地材料；仅取得代码仓库不等于取得这些输入。文档索引会标明这一点。
@@ -120,16 +131,16 @@
 
 ## 部署与下一步
 
-FA26 原文在 Preferred Tech Stack 中列出 Railway；仓库已有 [Cloudflare Tunnel 模板](config/cloudflared.example.yml)。最终环境尚待落实，模板本身不代表已完成公网发布。
+FA26 原文在 Preferred Tech Stack 中列出 Railway；上一版预览已在 Railway 运行。2026-09-29 只读检查确认健康接口可达，但公开布局缺少本机新增图谱／占比组件。当前需要同步新版并验证实际流程与持久化；已有 [Cloudflare Tunnel 模板](config/cloudflared.example.yml) 是另一路线参考。
 
 当前优先事项：
 
-1. 完成应用构建配置、云端数据迁移准备与外部访问验证。
+1. 将当前可审阅版本同步指定 GitHub／Railway，核对配置和数据，验证线上计数、图谱下钻、附件、问答及持久化。
 2. 取得真实社交导出，验证字段映射、统计及跨数据集问答。
 3. 核对影响使用的正文与归档问题，完成回答语义和客户审阅。
 4. 提交指定 GitHub，更新最终演示及交接记录。
 
-详见 [FA26 要求核对](reports/FA26_REQUIREMENTS_AUDIT.zh-CN.md)。CLAIMS 后端重建不作为这些交付工作的前置条件。
+详见 [当前要求总核对](reports/REQUIREMENTS_CONSOLIDATED_AUDIT_20260929.zh-CN.md)。CLAIMS 后端仍是原文未来工作；若提前接入须确认范围和正式产物，不作为这些交付工作的前置条件。
 
 ## 项目目录与文档维护
 

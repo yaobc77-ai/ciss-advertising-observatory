@@ -1,0 +1,244 @@
+{
+  "data_version": "f19d4d697f4e6d2699d2c58b3ce80620b03e02c7e9447f24e012123adcb00f53",
+  "source_records_unchanged": true,
+  "checks": {
+    "washington_post": {
+      "status": "ok",
+      "collections": [
+        {
+          "dataset": "native",
+          "total": 18,
+          "retrievable": 18,
+          "unknown_dates": 2
+        }
+      ],
+      "groups": [
+        {
+          "dataset": "native",
+          "name": "api",
+          "count": 6,
+          "display_name": "API"
+        },
+        {
+          "dataset": "native",
+          "name": "exxonmobil",
+          "count": 5,
+          "display_name": "ExxonMobil"
+        },
+        {
+          "dataset": "native",
+          "name": "shell",
+          "count": 2,
+          "display_name": "Shell"
+        },
+        {
+          "dataset": "native",
+          "name": "southern company",
+          "count": 2,
+          "display_name": "Southern Company"
+        },
+        {
+          "dataset": "native",
+          "name": "afpm",
+          "count": 1,
+          "display_name": "AFPM"
+        },
+        {
+          "dataset": "native",
+          "name": "chevron",
+          "count": 1,
+          "display_name": "Chevron"
+        },
+        {
+          "dataset": "native",
+          "name": "eni",
+          "count": 1,
+          "display_name": "Eni"
+        }
+      ]
+    },
+    "get_graph_schema": {
+      "status": "ok",
+      "data_version": null,
+      "coverage": null,
+      "record_id": "5799d6c7-1ca5-5a63-afa2-df243f6a2a60",
+      "source_refs": null,
+      "nodes": 0,
+      "edges": 0,
+      "source_artifacts": 0
+    },
+    "get_graph_neighborhood": {
+      "status": "ok",
+      "data_version": "f19d4d697f4e6d2699d2c58b3ce80620b03e02c7e9447f24e012123adcb00f53",
+      "coverage": "paged_neighborhood_not_complete_graph",
+      "record_id": "5799d6c7-1ca5-5a63-afa2-df243f6a2a60",
+      "source_refs": null,
+      "nodes": 5,
+      "edges": 4,
+      "source_artifacts": 0
+    },
+    "get_record_sources": {
+      "status": "ok",
+      "data_version": "f19d4d697f4e6d2699d2c58b3ce80620b03e02c7e9447f24e012123adcb00f53",
+      "coverage": null,
+      "record_id": "5799d6c7-1ca5-5a63-afa2-df243f6a2a60",
+      "source_refs": null,
+      "nodes": 0,
+      "edges": 0,
+      "source_artifacts": 1
+    },
+    "get_record": {
+      "status": "ok",
+      "data_version": "f19d4d697f4e6d2699d2c58b3ce80620b03e02c7e9447f24e012123adcb00f53",
+      "coverage": null,
+      "record_id": "5799d6c7-1ca5-5a63-afa2-df243f6a2a60",
+      "source_refs": [
+        {
+          "record_id": "5799d6c7-1ca5-5a63-afa2-df243f6a2a60",
+          "version_id": "8021ac2227ba26d8a5b48772557f8364ebc8c768473490674cce762e739eb09d",
+          "body_hash": "687df7f618bc40768c71eacc179d7c342e30463cf61b745bf923639ed81e8cd1",
+          "start": 0,
+          "end": 500
+        }
+      ],
+      "nodes": 0,
+      "edges": 0,
+      "source_artifacts": 0
+    }
+  },
+  "paid_smoke": [
+    {
+      "question": "纽约时报这里收集了几篇原生广告？",
+      "status": "answered",
+      "mode": "statistics",
+      "answer": "19 eligible native ad records match this question and the active filters.",
+      "failure_reason": "",
+      "filters": {
+        "dataset": "native",
+        "publishers": [
+          "The New York Times"
+        ],
+        "sponsors": [],
+        "platforms": [],
+        "keywords": [],
+        "labels": [],
+        "record_ids": [],
+        "date_from": null,
+        "date_to": null,
+        "include_unknown_dates": true
+      },
+      "collections": [
+        {
+          "dataset": "native",
+          "total": 19,
+          "retrievable": 15,
+          "unknown_dates": 1
+        }
+      ],
+      "groups": [],
+      "cost_usd": 0.00100275,
+      "model_calls": 1,
+      "usage": [
+        {
+          "input_tokens": 3685,
+          "input_tokens_details": {
+            "cache_write_tokens": 3563,
+            "cached_tokens": 0
+          },
+          "output_tokens": 73,
+          "output_tokens_details": {
+            "reasoning_tokens": 0
+          },
+          "total_tokens": 3758
+        }
+      ],
+      "tools": [
+        {
+          "tool": "record_statistics",
+          "status": "ok"
+        }
+      ],
+      "expectation_met": true
+    },
+    {
+      "question": "ExxonMobil 的广告出现在什么媒体？列出每家数量。",
+      "status": "answered",
+      "mode": "statistics",
+      "answer": "4 publishers appear in 15 eligible native ad records within this selection. Every category and its count is listed below.",
+      "failure_reason": "",
+      "filters": {
+        "dataset": "native",
+        "publishers": [],
+        "sponsors": [
+          "exxonmobil"
+        ],
+        "platforms": [],
+        "keywords": [],
+        "labels": [],
+        "record_ids": [],
+        "date_from": null,
+        "date_to": null,
+        "include_unknown_dates": true
+      },
+      "collections": [
+        {
+          "dataset": "native",
+          "total": 15,
+          "retrievable": 13,
+          "unknown_dates": 0
+        }
+      ],
+      "groups": [
+        {
+          "dataset": "native",
+          "name": "Business Insider",
+          "count": 5,
+          "display_name": "Business Insider"
+        },
+        {
+          "dataset": "native",
+          "name": "The Washington Post",
+          "count": 5,
+          "display_name": "The Washington Post"
+        },
+        {
+          "dataset": "native",
+          "name": "The New York Times",
+          "count": 3,
+          "display_name": "The New York Times"
+        },
+        {
+          "dataset": "native",
+          "name": "The Wall Street Journal",
+          "count": 2,
+          "display_name": "The Wall Street Journal"
+        }
+      ],
+      "cost_usd": 0.00032134,
+      "model_calls": 1,
+      "usage": [
+        {
+          "input_tokens": 3689,
+          "input_tokens_details": {
+            "cache_write_tokens": 600,
+            "cached_tokens": 2967
+          },
+          "output_tokens": 73,
+          "output_tokens_details": {
+            "reasoning_tokens": 0
+          },
+          "total_tokens": 3762
+        }
+      ],
+      "tools": [
+        {
+          "tool": "record_statistics",
+          "status": "ok"
+        }
+      ],
+      "expectation_met": true
+    }
+  ],
+  "semantic_benchmark": false,
+  "client_acceptance": false
+}

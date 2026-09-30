@@ -1,0 +1,28 @@
+{
+  "checked_at": "2026-09-25",
+  "scope": "local real-corpus read-only verification; single request timing, not load benchmark",
+  "health": {
+    "status": "ok",
+    "record_counts": {
+      "native": 275
+    },
+    "source_data_version": "5114ebc1cf9afe59cdaa715e3ea45166",
+    "active_profile": "sentence600-v1",
+    "index_version": "d580c5962a6222e595db2ed8681f9787cef648dad653b055120b6bed10e3af75",
+    "data_version": "f19d4d697f4e6d2699d2c58b3ce80620b03e02c7e9447f24e012123adcb00f53",
+    "chunks": 556
+  },
+  "eligible_records": 263,
+  "searchable_records": 226,
+  "unknown_dates": 22,
+  "relationship_pairs": 36,
+  "first_page_rows": 20,
+  "second_page_disjoint": true,
+  "aggregates_equal_previous_python_views": true,
+  "exxonmobil_new_york_times_records": 3,
+  "single_dashboard_ms": 390.44,
+  "migration_version": 2,
+  "paid_calls_in_this_change": 0,
+  "semantic_acceptance": "pending",
+  "social_data": "pending"
+}

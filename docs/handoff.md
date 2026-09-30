@@ -1,6 +1,27 @@
 # CISS Observatory 当前交接说明
 
-更新日期：2026-09-17。当前版本为 **0.3.1 / Research preview / Native corpus connected**，已在本机启用，436 项非 live 测试通过。先读[研究界面修订报告](../reports/research_ui_v0_3_1_20260917.zh-CN.md)：全量交叉表、年度与标签图、正文详情、核验 PDF 预览和检索词覆盖诊断已可使用。当前使用 556 个句界片段，旧 558 块索引保留，发布依据见上一版[句界索引记录](../reports/release_v0_3_0_20260917.zh-CN.md)。本轮正文和索引未变，没有付费调用；两次真实 API 检查及其语义限制属于 0.3.0。此前的 [0.2.5 Dashboard 检查](../reports/dashboard_consistency_v0_2_5.md)、[0.2.4 付费生成与隔离导入](../reports/quote_context_v0_2_4.md)、[快照恢复验证](../reports/backup_restore_v0_2_4.md)均保留历史版本，不能代替新增索引表的恢复验收。下面的旧源码包、演示与各次复现数字仍按对应版本阅读；本次没有重新打包最终交付 ZIP。
+更新日期：**2026-09-30**。当前发布版本为 **0.4.0 / Research preview / Native corpus connected**。本机已实现集合知识图谱、实体占比与来源记录下钻、历史标签明细和语言模型选择共享只读工具；真实社交数据、正式 CLAIMS 判断与客户语义验收仍未完成。历史赞助方候选不等于已认证公司或商业合作，历史自动标签不等于已证实漂绿。
+
+启用 `OBS_RESEARCH_AGENT_ENABLED=true` 后，Generate answer 先付费理解问题，再选择工具；关闭开关保留旧固定句式的无模型统计作为对照。同一执行器提供可选官方 SDK stdio MCP 服务。请先读 [MCP 接口与扩展](MCP_RESEARCH_TOOLS.zh-CN.md)、[图谱详情验证](../reports/GRAPH_DETAILS_V2_20260929.zh-CN.md)和下节运行契约。Railway 本轮设置已在 UI 准备，最终应用、CI 与线上发布结果由 9 月 30 日部署回执记录；不能由本机功能或 staged 设置推出已上线。
+
+**历史基线**：2026-09-17 的 0.3.1 界面修订记录 436 项非 live 测试通过，见[修订报告](../reports/research_ui_v0_3_1_20260917.zh-CN.md)。现有语料仍使用 556 个句界片段，旧 558 块索引保留，切换依据见[0.3.0 句界索引记录](../reports/release_v0_3_0_20260917.zh-CN.md)。此前的 [0.2.5 Dashboard 检查](../reports/dashboard_consistency_v0_2_5.md)、[0.2.4 付费生成与隔离导入](../reports/quote_context_v0_2_4.md)、[快照恢复验证](../reports/backup_restore_v0_2_4.md)均保留历史版本，不能代替 0.4.0 检查或当前全库恢复。下文旧源码包、演示、测试和费用按对应版本阅读，不视作本轮最终交付或客户验收。
+
+## 0.4.0 发布运行契约
+
+| 项目 | 接手时核对 |
+|---|---|
+| 制品与依赖 | [Dockerfile](../Dockerfile)固定 uv 0.12.7、Python 3.12，按 `uv.lock` frozen 安装，项目采用非 editable 制品；浏览器资源与 SQL 迁移均随包安装 |
+| CI | [工作流](../.github/workflows/ci.yml)构建并安装 wheel，再以 `OBS_RELEASE_WHEEL` 核对资源和 CLI，并运行非 integration／live 工程测试；核对目标提交的实际成功记录，不能只检查 YAML |
+| 已执行的独立复现 | [9 月 30 日数据库回执](../reports/current_release_database_reproduction_20260930.json)：实际 0.4.0 wheel，Python 3.12.14，本机 `obs_test` 的新随机 schema；迁移至 2、跨年 upsert、重复幂等、6 个句界片段定位与缺向量激活阻断通过，模型调用 0 |
+| 部署前迁移 | `/app/.venv/bin/observatory migrate`；先备份目标库，核对实际部署前日志和 `migration-status`，不重新导入资料、不自动计算 embedding |
+| Railway UI 目标设置 | Wait for CI 开启、健康路径 `/healthz`、超时 60 秒、上述部署前命令、`OBS_RESEARCH_AGENT_ENABLED=true`；staged 值需应用后再核对 |
+| 线上识别 | `/healthz` 的 `application.version=0.4.0`、有效的 `application.commit` 与目标提交一致、`application.features` 符合目标；同时核对来源、索引、计数和片段数 |
+
+`/healthz` 仅公开状态、收录数、片段数、活动 profile、来源／索引／组合版本，以及 application 的版本、有效 Git SHA 和三个 feature。无有效平台 SHA 时 commit 为 `null`，须从部署记录确认；接口不回传凭据、完整设置或内部路径。feature 表示功能／开关，不能证明真实数据完整或模型判断正确。
+
+本轮 Railway UI 提示 config-as-code deprecated；[railway.json](../railway.json)是仓库中的目标契约，不能假定平台已采用。按[运行指南](operations.md#railway-040-发布配置与生效核对)检查已应用 UI 设置、构建、迁移、启动与健康日志。源码／环境开关／数据库分别核对；CI、部署连通和客户验收分别记录。
+
+独立复现使用合成数据，未恢复生产 275 条语料、556 个片段的等价快照、生产向量、历史答案或用量账本；没有真实社交测试、客户语义验收或大规模性能结论。当前制品复现方法见 [CURRENT_RELEASE_REPRODUCTION.md](CURRENT_RELEASE_REPRODUCTION.md)。生产移交还需完整数据库备份、固定哈希的源资料／配置及核验 PDF、预览缓存；`.env`、密钥和备份通过私有渠道交接，预算预留和历史账本不能因升级清空。
 
 ## 1. 接手入口
 
@@ -11,7 +32,7 @@
 | [运行指南](operations.md) / [用户指南](user_guide.md) | 本机维护、预算、筛选、导出和证据检查 |
 | [评价协议](evaluation_protocol.md) | 题库、分母、草案边界及人工复核工作 |
 | [0.2.2 AI 辅助语义审阅](../reports/assisted_semantic_review_v0_2_2.md) | 旧 `d85…` 数据运行的语义观察，不能替代当前人审 |
-| [0.2.2 研究预览 PPTX](../deliverables/research_preview_v0_2_2.pptx) / [中文讲稿](../deliverables/demo_script_v0_2_2.zh-CN.md) | 保留 554 块的历史演示；当前 0.3.1 活动索引为 556 块，未重做演示稿 |
+| [0.2.2 研究预览 PPTX](../deliverables/research_preview_v0_2_2.pptx) / [中文讲稿](../deliverables/demo_script_v0_2_2.zh-CN.md) | 保留 554 块的历史演示；现有活动索引为 556 块，不能当作 0.4.0 最终演示稿 |
 | [94 项截断预检](../reports/truncation_recovery_preflight.md) / [PDF-265 恢复报告](../reports/pdf265_body_recovery.md) | 从候选到单篇有限续文的审核、来源哈希与可复现提取命令；仍非完整全文 |
 
 统一评估汇总入口为 [reports/evaluation.md](../reports/evaluation.md)，以其中明确记载的 run_id、数据版本、分母与人工状态为准。旧版研究预览中的三个早期 smoke 案例仍可展示，但不是最新开发集指标。
@@ -22,13 +43,15 @@
 
 当前 556 个句界片段包含 PDF-265 的有限续文。该记录的旧 CLAIMS 标签保存在旧版本及内部 `previous_body_annotations`，不挂到新正文做标签过滤。原有 94 项截断限制没有整体解除，该篇仍缺部分遮挡文字和图像内容。记录详情展示实际存储正文和质量提示；只有这一篇具备核验本地 PDF 与首页图片，另有 254 条标题关联候选待核，公开 archive URL 仍为 0。部署时须携带核验源文件及预览缓存，维护命令见[运行指南](operations.md#已核验-pdf-与预览缓存)。
 
-免费 **Search keywords** 使用词项检索。**Generate paid answer** 使用服务器 OpenAI 接口、结构化筛选后的证据、引文检查与预算控制。数据库保存原文版本和偏移，历史引文对应其生成时的版本。历史 CLAIMS 保存标签已导入，本期没有重建其分类后端或训练分类模型。
+免费 **Search keywords** 使用词项检索。**Generate answer** 在启用研究开关后先用服务器 OpenAI 接口理解问题，选择共享只读工具；内容回答继续使用筛选后的证据、引文检查与预算控制。数据库保存原文版本和偏移，历史引文对应其生成时的版本。历史 CLAIMS 保存标签已导入，本期没有重建其分类后端或训练分类模型。
 
 社交适配器和独立界面已实现，真实语料尚未连接，页面明确显示 **not connected**。社交零条不能解释为真实世界没有广告，也不构成该模块验收。
 
 ## 3. 隔离环境与已有安装
 
 当前机器的隔离运行环境位于 `.venv` 和 `.runtime/postgres`。重建脚本与历史安装证据见 [local_postgres.md](local_postgres.md)。
+
+0.4.0 新 wheel 在 `.runtime/current-release-venv` 的独立 Python 3.12.14 环境中安装并运行；不是从 editable 源码加载。实际迁移和默认 upsert 的新 schema 验证见上节 9 月 30 日回执。该环境与备份均不提交公开仓库；当前两份复现回执不能替代另一台新机器的完整源数据导入或生产灾备恢复。
 
 此前 0.2.3 wheel 已构建并在 `.runtime/package-check` 独立安装，以隔离 Python 检查包版本 0.2.3、Lingua 2.2.0，以及 `/healthz`、`/_dash-layout`、`/assets/observatory.css` 均返回 200。本机应用重启后健康检查为 `5114…`／558 块。尚未在另一台全新 Windows 机器上完成从零重装。
 
@@ -113,7 +136,7 @@
 .\.venv\Scripts\python.exe -m observatory.cli search "biogas" --dataset native
 ```
 
-原生导入按**完整快照**发布：本次缺失或隔离的旧记录会停用，历史保留。先检查完整输入和导入报告，再决定是否索引。社交导入默认增量，映射入口为 `config/social_mapping.example.json`。
+9 月 25 日起，原生与社交导入默认 **upsert**，保留本批未出现的历史记录。仅对整个数据集的完整替换使用 `--mode snapshot`，此时缺失记录停用、历史保留。新来源先用 canonical JSONL 的 `import-records --dry-run` 检查，参见[导入与迁移说明](PROTOTYPE_DATA_PIPELINE.md)。先审查导入报告，再决定是否索引；社交 CSV 映射入口仍为 `config/social_mapping.example.json`。
 
 CLI 同时要求 `native_admissions.json`、`native_body_ranges.json`、`native_body_recoveries.json` 三份配置。PDF 恢复清单绑定的原 PDF 与 UTF-8 抽取文本需要单独提供；缺失或哈希不符时导入停止，不会自动回退旧正文。[恢复报告](../reports/pdf265_body_recovery.md)给出锁定 `pypdf` 的可选提取命令，保留原字符和每页 `U+000C` 分隔。已有数据库的日常运行不需要重新提取 PDF。
 
@@ -141,14 +164,16 @@ CLI 同时要求 `native_admissions.json`、`native_body_ranges.json`、`native_
 
 pySBD 已接入 `src/observatory/rag.py`。最新句子组合最多 60 词，长句使用 60 词窗口和 15 词重叠。这些处理改善可定位引用的生成输入，是否充分支持回答仍需语义复核。依赖声明与解析版本分别见 [pyproject.toml](../pyproject.toml) 和 `uv.lock`。
 
-## 6. 当前数据与生成诊断
+## 6. 历史数据与生成诊断
+
+本节保留 0.2.x 的测试、生成费用与快照检查。0.4.0 当前界面验证见[图谱详情报告](../reports/GRAPH_DETAILS_V2_20260929.zh-CN.md)，独立制品／合成数据库验证见上节；不要把本节旧 558 块结果标为当前 556 块检索或新版模型答案评价。
 
 0.2.5完整工程回归253项通过（22.07秒），包含8个新增界面一致性案例；应用已重启，独立安装的0.2.5 wheel三个路由均200。浏览器未知日期筛选实测263/226/22→241/204/0。详见[当前Dashboard报告](../reports/dashboard_consistency_v0_2_5.md)。未重跑付费生成，下面结果保留0.2.4及更早版本。
 
 0.2.4 全套 **245 项 / 19.03 秒**通过。原开发集重新执行 13 个原生题：8 个回答、2 个计数、3 个拒答，7 个社交/跨库题 pending；19/19 引用可定位，语义未验收。另两题 PDF smoke 的完整引文得到改善，但第二答仍错误地把行动主体写成广告。两次合计 $0.01798645，见 [报告](../reports/quote_context_v0_2_4.md)、[AI 审阅](../reports/assisted_semantic_review_v0_2_4.md)和 [21 条人工表](../reports/citation_review_v0_2_4.csv)。下文保留 0.2.3/0.2.2 历史记录。
 
 
-当前数据版本为 `5114ebc1cf9afe59cdaa715e3ea45166`，275 条收录、263 条可统计、226 条可检索，558 个块。0.2.3 发布时只生成 PDF-265 对应记录的新版本，其余 274 条不变；重复导入 275 unchanged。558 个当前块、86 个历史证据定位和 15 段原开发 gold 前置校验有效。实际记录见 [发布验证](../outputs/pdf265_publication_validation_20260916.json)。
+0.2.3 当时的源数据版本为 `5114ebc1cf9afe59cdaa715e3ea45166`，275 条收录、263 条可统计、226 条可检索，558 个块。该次发布只生成 PDF-265 对应记录的新版本，其余 274 条不变；重复导入 275 unchanged。558 个当时的当前块、86 个历史证据定位和 15 段原开发 gold 前置校验有效。实际记录见 [发布验证](../outputs/pdf265_publication_validation_20260916.json)。
 
 0.2.3 [两题定向 smoke](../outputs/pdf265_recovery_paid_smoke_20260916.json) 的 run 为 `6c250056841b47feab178ffcc95bf2bd`，绑定当前 `5114…`；两题 answered，所需片段 2/2、证据定位 6/6、引用定位 2/2，语言 match 2。smoke $0.00118708，加本轮 6 块 embedding $0.00002284，合计 $0.00120992。该检查使用独立文件 `eval/pdf265_recovery_smoke.jsonl`；模板 `suite=development` 不表示原 20 题开发集已重新运行，也不替代 20 题验收草案或人工评价。
 
@@ -165,8 +190,8 @@ pySBD 已接入 `src/observatory/rag.py`。最新句子组合最多 60 词，长
 | 待办 | 下一步需要 | 完成证据 |
 |---|---|---|
 | 社交数据 | 真实导出、字段说明、来源链接及所需原型资料 | 导入对账、真实图表、社交与跨库评价 |
-| 指定 GitHub | 本期仓库和目标分支 | 可定位源码提交、依赖锁、测试和文档 |
-| 固定公网入口 | Cloudflare Named Tunnel / 域名配置 | 另一网络上的 HTTPS、功能、预算与故障验证 |
+| 本轮源码发布 | 已指定的 GitHub 仓库与目标提交的 CI、版本和发布回执 | 可定位提交、依赖锁、已安装制品测试和同步文档 |
+| 现有 Railway 入口 | 应用 staged 设置，核对目标提交、部署前迁移、健康 metadata；Cloudflare 为可选方案 | 线上制品一致及另一网络上的 HTTPS、功能、预算与故障验证 |
 | 人工语义验收 | 审题、冻结题库、独立判读答案与引用 | 带人工判定的验收记录和未解决失败 |
 | 最终展示 | 双数据集与公众环境完成 | 最终演示和客户反馈，与当前 research preview 分开标记 |
 
@@ -189,7 +214,9 @@ CLAIMS 后端、动物农业扩展及模型训练不是本次预览的已实施�
 打包时只将指向实际已随包文件的本机绝对链接改为相对链接；原始报告不被改写。其余本地绝对路径只适用于原工作区。包外原始语料、备份和历史运行链接可能不可用；新机器应根据数据字典单独取得授权来源，再由 setup 脚本重建环境。manifest 可以记录文件相对路径、用途、哈希与版本，不应写入秘密值。这里不创建远程仓库、不上传数据，也不替用户确认公网发布完成。
 
 
-## 9. 从空测试库复现当前快照
+## 9. 历史 0.2.x 从空测试库复现快照
+
+以下是旧 `verify_clean_import.py` 的固定原始数据复现方法，仍保留其清表警告与 558 块预期。0.4.0 当前独立安装／迁移验证使用 [verify_current_release.py](../scripts/verify_current_release.py) 和 [CURRENT_RELEASE_REPRODUCTION.md](CURRENT_RELEASE_REPRODUCTION.md)，在新随机 schema 中处理合成记录，不以本节旧成绩替代新版验证。
 
 0.2.4 的 [源码安装结果](../outputs/clean_import_source_v0_2_4_20260916.json)与 [wheel 安装结果](../outputs/clean_import_wheel_v0_2_4_20260916.json)均通过。源码安装使用独立解包目录、CPython 3.13.3、包内 uv.lock；wheel 在独立 CPython 3.12.14 的 site-packages 中加载。两种方式以 `-I` 启动，并记录实际包路径和模块哈希。本机应用亦已重启，健康、布局和 CSS 路由通过。
 

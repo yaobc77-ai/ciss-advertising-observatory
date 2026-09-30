@@ -54,9 +54,17 @@ def test_full_numeric_heatmap_and_cross_tab_do_not_drop_ninth_sponsor(research_u
         for i, sponsor in enumerate(sponsors)
     ]
     result = update_collection(research_ui)
-    heatmap = result["native-relationships-chart"]["figure"]["data"][0]
+    figure = result["native-relationships-chart"]["figure"]
+    heatmap = figure["data"][0]
     assert len(heatmap["y"]) == 11
-    assert {"ExxonMobil", "CERAWeek"} <= set(heatmap["y"])
+    assert set(heatmap["y"]) == set(sponsors)
+    # Click coordinates retain source values; readable aliases are labels only.
+    labels = dict(zip(figure["layout"]["yaxis"]["tickvals"], figure["layout"]["yaxis"]["ticktext"], strict=True))
+    assert labels["exxonmobil"] == "ExxonMobil"
+    assert labels["cera"] == "CERAWeek"
+    assert heatmap["text"][heatmap["y"].index("cera")] == ["CERAWeek"] * len(heatmap["x"])
+    for row, sponsor in zip(heatmap["customdata"], heatmap["y"], strict=True):
+        assert row == [{"kind": "edge", "sponsor": sponsor, "publisher": outlet} for outlet in heatmap["x"]]
     assert heatmap["texttemplate"] == "%{z}"
     assert heatmap["showscale"]
     assert heatmap["colorbar"]["title"]["text"] == "Records"
@@ -127,11 +135,18 @@ def test_toolbox_groups_secondary_controls_outside_main_navigation(research_ui):
     assert {
         "search-free",
         "search-scope",
-        "shared-filters",
+        "open-collection-filters",
         "query-cost",
         "nav-wireframe",
     } <= tool_ids
     assert "answer-paid" not in tool_ids
+    assert "shared-filters" not in tool_ids
+    filters_link = next(item for item in tool_nodes if item["props"].get("id") == "open-collection-filters")
+    assert filters_link["props"]["href"] == "#collection-filters"
+    collection_filters = next(item for item in components if item["props"].get("id") == "collection-filters")
+    assert collection_filters["type"] == "Details"
+    filter_ids = {item["props"].get("id") for item in component_tree(collection_filters)}
+    assert {"shared-filters", "native-filter-panel", "social-filter-panel"} <= filter_ids
     tool_links = [item for item in tool_nodes if item["type"] == "Link"]
     assert any(item["props"].get("href") == "/wireframe" for item in tool_links)
     assert all(item["props"].get("href") != "/wireframe" for item in nav_links)
@@ -198,19 +213,33 @@ def test_evidence_identifiers_are_collapsed_but_date_and_terms_remain_visible(
     assert "Matched search terms: carbon, capture" in public_text
 
 
-def test_record_table_disambiguates_search_term_and_links_record_details(research_ui):
+def test_record_titles_link_details_and_advanced_filters_explain_search_terms(research_ui):
     _, client, _ = research_ui
+    layout = client.get("/_dash-layout").json
     components = {
         item["props"]["id"]: item["props"]
-        for item in component_tree(client.get("/_dash-layout").json)
+        for item in component_tree(layout)
         if "id" in item["props"]
     }
     columns = {item["field"]: item for item in components["native-grid"]["columnDefs"]}
-    assert columns["keyword"]["headerName"] == "Collection search term"
-    assert "does not identify the sponsor" in columns["keyword"]["headerTooltip"]
-    assert columns["record_id"]["cellRenderer"] == "RecordLink"
+    assert columns["title"]["cellRenderer"] == "RecordTitle"
+    assert columns["title"]["headerName"] == "Article"
+    assert "record_id" not in columns and "keyword" not in columns
     assert columns["archive_status"]["cellRenderer"] == "ArchiveLink"
-    assert "CERAWeek is an event" in columns["sponsor"]["headerTooltip"]
+    assert "company, trade group or event" in columns["sponsor"]["headerTooltip"]
+    assert "CERAWeek is an event" in json.dumps(components["native-overview"])
+    advanced = next(
+        item for item in component_tree(components["native-filter-panel"])
+        if item["type"] == "Details" and item["props"].get("className") == "advanced-filters"
+    )
+    assert not advanced["props"].get("open", False)
+    assert any(item["props"].get("id") == "native-keywords" for item in component_tree(advanced))
+    term_label = next(item for item in component_tree(advanced) if item["props"].get("htmlFor") == "native-keywords")
+    assert term_label["props"]["children"] == "Collection search term"
+    assert "they are not sponsor identities or article themes" in json.dumps(advanced)
+    # The title renderer and record detail still receive identity and source terms.
+    rows = update_collection(research_ui)["native-grid"]["rowData"]
+    assert {row["record_id"]: row["keyword"] for row in rows} == {"native-a": "CCS", "native-b": "gas"}
 
 
 def test_record_detail_page_renders_text_pdf_and_escaped_source_content():

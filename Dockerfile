@@ -13,7 +13,8 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev --no-install-project
 
 COPY src ./src
-RUN uv sync --frozen --no-dev
+# Install the deployable wheel, including SQL migrations and browser assets.
+RUN uv sync --frozen --no-dev --no-editable
 
 # The container never reads a .env file; configuration comes from the platform.
 CMD ["/app/.venv/bin/observatory", "serve"]

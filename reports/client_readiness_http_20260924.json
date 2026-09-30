@@ -1,0 +1,16 @@
+{
+  "checked_at": "2026-09-24T12:26:10.0302742-04:00",
+  "page_http": 200,
+  "health": {
+    "active_profile": "sentence600-v1",
+    "chunks": 556,
+    "data_version": "f19d4d697f4e6d2699d2c58b3ce80620b03e02c7e9447f24e012123adcb00f53",
+    "index_version": "d580c5962a6222e595db2ed8681f9787cef648dad653b055120b6bed10e3af75",
+    "record_counts": {
+      "native": 275
+    },
+    "source_data_version": "5114ebc1cf9afe59cdaa715e3ea45166",
+    "status": "ok"
+  },
+  "check_scope": "GET /data and GET /healthz only; no user workflows, generation, or mutations"
+}

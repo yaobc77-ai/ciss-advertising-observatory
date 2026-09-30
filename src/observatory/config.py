@@ -24,6 +24,8 @@ class Settings:
     # Hosted HTTPS deployments send session cookies only over TLS.
     secure_cookies: bool = False
     trusted_proxy: str = ""
+    # Explicit opt-in preserves the deterministic baseline for reproducible checks.
+    research_agent_enabled: bool = False
 
     @classmethod
     def from_env(cls):
@@ -44,4 +46,5 @@ class Settings:
             cookie_secret=os.getenv("OBS_COOKIE_SECRET", ""),
             secure_cookies=os.getenv("OBS_SECURE_COOKIES", "false").lower() == "true",
             trusted_proxy=os.getenv("OBS_TRUSTED_PROXY", ""),
+            research_agent_enabled=os.getenv("OBS_RESEARCH_AGENT_ENABLED", "false").lower() == "true",
         )

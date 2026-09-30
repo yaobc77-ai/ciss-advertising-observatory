@@ -1,0 +1,737 @@
+{
+  "status": "passed",
+  "no_model_calls": true,
+  "source_data_unchanged": true,
+  "data_version": "f19d4d697f4e6d2699d2c58b3ce80620b03e02c7e9447f24e012123adcb00f53",
+  "active_profile": "sentence600-v1",
+  "results": [
+    {
+      "selection": "complete",
+      "filters": {
+        "dataset": "native",
+        "publishers": [],
+        "sponsors": [],
+        "platforms": [],
+        "keywords": [],
+        "labels": [],
+        "record_ids": [],
+        "date_from": null,
+        "date_to": null,
+        "include_unknown_dates": true
+      },
+      "counts": {
+        "articles": 263,
+        "sponsors": 19,
+        "outlets": 8,
+        "source_edges": 525,
+        "summary_edges": 35
+      },
+      "coverage": {
+        "total_records": 263,
+        "shown_records": 263,
+        "truncated": false,
+        "associated_records": 262,
+        "missing_sponsor_records": 1,
+        "missing_outlet_records": 0,
+        "known_sponsor_records": 262,
+        "known_outlet_records": 263,
+        "retrievable_records": 226,
+        "scope": "complete_supplied_selection",
+        "counting_unit": "eligible_native_record"
+      },
+      "visible_entity_nodes": 27,
+      "node_record_counts": {
+        "CNBC": 116,
+        "The New York Times": 19,
+        "The Atlantic": 11,
+        "Forbes": 43,
+        "Politico": 18,
+        "The Washington Post": 18,
+        "Business Insider": 5,
+        "The Wall Street Journal": 33,
+        "Statoil": 28,
+        "CERAWeek": 29,
+        "ExxonMobil": 15,
+        "TotalEnergies": 113,
+        "Enbridge": 3,
+        "NextEra Energy": 1,
+        "The Williams Companies, Inc.": 1,
+        "BP": 13,
+        "Williams Companies": 1,
+        "PTT": 1,
+        "Southern Company": 5,
+        "PETRONAS": 17,
+        "AFPM": 6,
+        "Chevron": 8,
+        "Exelon": 1,
+        "API": 8,
+        "Williams": 1,
+        "Shell": 10,
+        "Eni": 1
+      },
+      "associations": [
+        {
+          "sponsor": "afpm",
+          "outlet": "Politico",
+          "count": 5
+        },
+        {
+          "sponsor": "afpm",
+          "outlet": "The Washington Post",
+          "count": 1
+        },
+        {
+          "sponsor": "api",
+          "outlet": "The Atlantic",
+          "count": 1
+        },
+        {
+          "sponsor": "api",
+          "outlet": "The Wall Street Journal",
+          "count": 1
+        },
+        {
+          "sponsor": "api",
+          "outlet": "The Washington Post",
+          "count": 6
+        },
+        {
+          "sponsor": "bp",
+          "outlet": "Politico",
+          "count": 4
+        },
+        {
+          "sponsor": "bp",
+          "outlet": "The Atlantic",
+          "count": 1
+        },
+        {
+          "sponsor": "bp",
+          "outlet": "The New York Times",
+          "count": 8
+        },
+        {
+          "sponsor": "cera",
+          "outlet": "The Wall Street Journal",
+          "count": 29
+        },
+        {
+          "sponsor": "chevron",
+          "outlet": "Politico",
+          "count": 1
+        },
+        {
+          "sponsor": "chevron",
+          "outlet": "The Atlantic",
+          "count": 3
+        },
+        {
+          "sponsor": "chevron",
+          "outlet": "The New York Times",
+          "count": 3
+        },
+        {
+          "sponsor": "chevron",
+          "outlet": "The Washington Post",
+          "count": 1
+        },
+        {
+          "sponsor": "enbridge",
+          "outlet": "Politico",
+          "count": 3
+        },
+        {
+          "sponsor": "eni",
+          "outlet": "The Washington Post",
+          "count": 1
+        },
+        {
+          "sponsor": "exelon",
+          "outlet": "Politico",
+          "count": 1
+        },
+        {
+          "sponsor": "exxonmobil",
+          "outlet": "Business Insider",
+          "count": 5
+        },
+        {
+          "sponsor": "exxonmobil",
+          "outlet": "The New York Times",
+          "count": 3
+        },
+        {
+          "sponsor": "exxonmobil",
+          "outlet": "The Wall Street Journal",
+          "count": 2
+        },
+        {
+          "sponsor": "exxonmobil",
+          "outlet": "The Washington Post",
+          "count": 5
+        },
+        {
+          "sponsor": "nextera energy",
+          "outlet": "Politico",
+          "count": 1
+        },
+        {
+          "sponsor": "petronas",
+          "outlet": "CNBC",
+          "count": 2
+        },
+        {
+          "sponsor": "petronas",
+          "outlet": "Forbes",
+          "count": 15
+        },
+        {
+          "sponsor": "ptt",
+          "outlet": "The New York Times",
+          "count": 1
+        },
+        {
+          "sponsor": "shell",
+          "outlet": "The Atlantic",
+          "count": 4
+        },
+        {
+          "sponsor": "shell",
+          "outlet": "The New York Times",
+          "count": 4
+        },
+        {
+          "sponsor": "shell",
+          "outlet": "The Washington Post",
+          "count": 2
+        },
+        {
+          "sponsor": "southern company",
+          "outlet": "Politico",
+          "count": 1
+        },
+        {
+          "sponsor": "southern company",
+          "outlet": "The Atlantic",
+          "count": 2
+        },
+        {
+          "sponsor": "southern company",
+          "outlet": "The Washington Post",
+          "count": 2
+        },
+        {
+          "sponsor": "statoil",
+          "outlet": "Forbes",
+          "count": 28
+        },
+        {
+          "sponsor": "the williams companies, inc.",
+          "outlet": "CNBC",
+          "count": 1
+        },
+        {
+          "sponsor": "totalenergies",
+          "outlet": "CNBC",
+          "count": 113
+        },
+        {
+          "sponsor": "williams",
+          "outlet": "Politico",
+          "count": 1
+        },
+        {
+          "sponsor": "williams companies",
+          "outlet": "Politico",
+          "count": 1
+        }
+      ],
+      "matrix_matches": true
+    },
+    {
+      "selection": "exxonmobil",
+      "filters": {
+        "dataset": "native",
+        "publishers": [],
+        "sponsors": [
+          "exxonmobil"
+        ],
+        "platforms": [],
+        "keywords": [],
+        "labels": [],
+        "record_ids": [],
+        "date_from": null,
+        "date_to": null,
+        "include_unknown_dates": true
+      },
+      "counts": {
+        "articles": 15,
+        "sponsors": 1,
+        "outlets": 4,
+        "source_edges": 30,
+        "summary_edges": 4
+      },
+      "coverage": {
+        "total_records": 15,
+        "shown_records": 15,
+        "truncated": false,
+        "associated_records": 15,
+        "missing_sponsor_records": 0,
+        "missing_outlet_records": 0,
+        "known_sponsor_records": 15,
+        "known_outlet_records": 15,
+        "retrievable_records": 13,
+        "scope": "complete_supplied_selection",
+        "counting_unit": "eligible_native_record"
+      },
+      "visible_entity_nodes": 5,
+      "node_record_counts": {
+        "The New York Times": 3,
+        "The Washington Post": 5,
+        "Business Insider": 5,
+        "The Wall Street Journal": 2,
+        "ExxonMobil": 15
+      },
+      "associations": [
+        {
+          "sponsor": "exxonmobil",
+          "outlet": "Business Insider",
+          "count": 5
+        },
+        {
+          "sponsor": "exxonmobil",
+          "outlet": "The New York Times",
+          "count": 3
+        },
+        {
+          "sponsor": "exxonmobil",
+          "outlet": "The Wall Street Journal",
+          "count": 2
+        },
+        {
+          "sponsor": "exxonmobil",
+          "outlet": "The Washington Post",
+          "count": 5
+        }
+      ],
+      "matrix_matches": true
+    },
+    {
+      "selection": "washington_post",
+      "filters": {
+        "dataset": "native",
+        "publishers": [
+          "The Washington Post"
+        ],
+        "sponsors": [],
+        "platforms": [],
+        "keywords": [],
+        "labels": [],
+        "record_ids": [],
+        "date_from": null,
+        "date_to": null,
+        "include_unknown_dates": true
+      },
+      "counts": {
+        "articles": 18,
+        "sponsors": 7,
+        "outlets": 1,
+        "source_edges": 36,
+        "summary_edges": 7
+      },
+      "coverage": {
+        "total_records": 18,
+        "shown_records": 18,
+        "truncated": false,
+        "associated_records": 18,
+        "missing_sponsor_records": 0,
+        "missing_outlet_records": 0,
+        "known_sponsor_records": 18,
+        "known_outlet_records": 18,
+        "retrievable_records": 18,
+        "scope": "complete_supplied_selection",
+        "counting_unit": "eligible_native_record"
+      },
+      "visible_entity_nodes": 8,
+      "node_record_counts": {
+        "The Washington Post": 18,
+        "ExxonMobil": 5,
+        "Southern Company": 2,
+        "AFPM": 1,
+        "Chevron": 1,
+        "API": 6,
+        "Shell": 2,
+        "Eni": 1
+      },
+      "associations": [
+        {
+          "sponsor": "afpm",
+          "outlet": "The Washington Post",
+          "count": 1
+        },
+        {
+          "sponsor": "api",
+          "outlet": "The Washington Post",
+          "count": 6
+        },
+        {
+          "sponsor": "chevron",
+          "outlet": "The Washington Post",
+          "count": 1
+        },
+        {
+          "sponsor": "eni",
+          "outlet": "The Washington Post",
+          "count": 1
+        },
+        {
+          "sponsor": "exxonmobil",
+          "outlet": "The Washington Post",
+          "count": 5
+        },
+        {
+          "sponsor": "shell",
+          "outlet": "The Washington Post",
+          "count": 2
+        },
+        {
+          "sponsor": "southern company",
+          "outlet": "The Washington Post",
+          "count": 2
+        }
+      ],
+      "matrix_matches": true
+    },
+    {
+      "selection": "exxonmobil_at_washington_post",
+      "filters": {
+        "dataset": "native",
+        "publishers": [
+          "The Washington Post"
+        ],
+        "sponsors": [
+          "exxonmobil"
+        ],
+        "platforms": [],
+        "keywords": [],
+        "labels": [],
+        "record_ids": [],
+        "date_from": null,
+        "date_to": null,
+        "include_unknown_dates": true
+      },
+      "counts": {
+        "articles": 5,
+        "sponsors": 1,
+        "outlets": 1,
+        "source_edges": 10,
+        "summary_edges": 1
+      },
+      "coverage": {
+        "total_records": 5,
+        "shown_records": 5,
+        "truncated": false,
+        "associated_records": 5,
+        "missing_sponsor_records": 0,
+        "missing_outlet_records": 0,
+        "known_sponsor_records": 5,
+        "known_outlet_records": 5,
+        "retrievable_records": 5,
+        "scope": "complete_supplied_selection",
+        "counting_unit": "eligible_native_record"
+      },
+      "visible_entity_nodes": 2,
+      "node_record_counts": {
+        "The Washington Post": 5,
+        "ExxonMobil": 5
+      },
+      "associations": [
+        {
+          "sponsor": "exxonmobil",
+          "outlet": "The Washington Post",
+          "count": 5
+        }
+      ],
+      "matrix_matches": true
+    },
+    {
+      "selection": "known_dates",
+      "filters": {
+        "dataset": "native",
+        "publishers": [],
+        "sponsors": [],
+        "platforms": [],
+        "keywords": [],
+        "labels": [],
+        "record_ids": [],
+        "date_from": null,
+        "date_to": null,
+        "include_unknown_dates": false
+      },
+      "counts": {
+        "articles": 241,
+        "sponsors": 19,
+        "outlets": 8,
+        "source_edges": 481,
+        "summary_edges": 34
+      },
+      "coverage": {
+        "total_records": 241,
+        "shown_records": 241,
+        "truncated": false,
+        "associated_records": 240,
+        "missing_sponsor_records": 1,
+        "missing_outlet_records": 0,
+        "known_sponsor_records": 240,
+        "known_outlet_records": 241,
+        "retrievable_records": 204,
+        "scope": "complete_supplied_selection",
+        "counting_unit": "eligible_native_record"
+      },
+      "visible_entity_nodes": 27,
+      "node_record_counts": {
+        "CNBC": 97,
+        "The New York Times": 18,
+        "The Atlantic": 11,
+        "Forbes": 43,
+        "Politico": 18,
+        "The Washington Post": 16,
+        "Business Insider": 5,
+        "The Wall Street Journal": 33,
+        "Statoil": 28,
+        "CERAWeek": 29,
+        "ExxonMobil": 15,
+        "TotalEnergies": 94,
+        "Enbridge": 3,
+        "NextEra Energy": 1,
+        "The Williams Companies, Inc.": 1,
+        "BP": 13,
+        "Williams Companies": 1,
+        "PTT": 1,
+        "Southern Company": 4,
+        "PETRONAS": 17,
+        "AFPM": 5,
+        "Chevron": 7,
+        "Exelon": 1,
+        "API": 8,
+        "Williams": 1,
+        "Shell": 10,
+        "Eni": 1
+      },
+      "associations": [
+        {
+          "sponsor": "afpm",
+          "outlet": "Politico",
+          "count": 5
+        },
+        {
+          "sponsor": "api",
+          "outlet": "The Atlantic",
+          "count": 1
+        },
+        {
+          "sponsor": "api",
+          "outlet": "The Wall Street Journal",
+          "count": 1
+        },
+        {
+          "sponsor": "api",
+          "outlet": "The Washington Post",
+          "count": 6
+        },
+        {
+          "sponsor": "bp",
+          "outlet": "Politico",
+          "count": 4
+        },
+        {
+          "sponsor": "bp",
+          "outlet": "The Atlantic",
+          "count": 1
+        },
+        {
+          "sponsor": "bp",
+          "outlet": "The New York Times",
+          "count": 8
+        },
+        {
+          "sponsor": "cera",
+          "outlet": "The Wall Street Journal",
+          "count": 29
+        },
+        {
+          "sponsor": "chevron",
+          "outlet": "Politico",
+          "count": 1
+        },
+        {
+          "sponsor": "chevron",
+          "outlet": "The Atlantic",
+          "count": 3
+        },
+        {
+          "sponsor": "chevron",
+          "outlet": "The New York Times",
+          "count": 2
+        },
+        {
+          "sponsor": "chevron",
+          "outlet": "The Washington Post",
+          "count": 1
+        },
+        {
+          "sponsor": "enbridge",
+          "outlet": "Politico",
+          "count": 3
+        },
+        {
+          "sponsor": "eni",
+          "outlet": "The Washington Post",
+          "count": 1
+        },
+        {
+          "sponsor": "exelon",
+          "outlet": "Politico",
+          "count": 1
+        },
+        {
+          "sponsor": "exxonmobil",
+          "outlet": "Business Insider",
+          "count": 5
+        },
+        {
+          "sponsor": "exxonmobil",
+          "outlet": "The New York Times",
+          "count": 3
+        },
+        {
+          "sponsor": "exxonmobil",
+          "outlet": "The Wall Street Journal",
+          "count": 2
+        },
+        {
+          "sponsor": "exxonmobil",
+          "outlet": "The Washington Post",
+          "count": 5
+        },
+        {
+          "sponsor": "nextera energy",
+          "outlet": "Politico",
+          "count": 1
+        },
+        {
+          "sponsor": "petronas",
+          "outlet": "CNBC",
+          "count": 2
+        },
+        {
+          "sponsor": "petronas",
+          "outlet": "Forbes",
+          "count": 15
+        },
+        {
+          "sponsor": "ptt",
+          "outlet": "The New York Times",
+          "count": 1
+        },
+        {
+          "sponsor": "shell",
+          "outlet": "The Atlantic",
+          "count": 4
+        },
+        {
+          "sponsor": "shell",
+          "outlet": "The New York Times",
+          "count": 4
+        },
+        {
+          "sponsor": "shell",
+          "outlet": "The Washington Post",
+          "count": 2
+        },
+        {
+          "sponsor": "southern company",
+          "outlet": "Politico",
+          "count": 1
+        },
+        {
+          "sponsor": "southern company",
+          "outlet": "The Atlantic",
+          "count": 2
+        },
+        {
+          "sponsor": "southern company",
+          "outlet": "The Washington Post",
+          "count": 1
+        },
+        {
+          "sponsor": "statoil",
+          "outlet": "Forbes",
+          "count": 28
+        },
+        {
+          "sponsor": "the williams companies, inc.",
+          "outlet": "CNBC",
+          "count": 1
+        },
+        {
+          "sponsor": "totalenergies",
+          "outlet": "CNBC",
+          "count": 94
+        },
+        {
+          "sponsor": "williams",
+          "outlet": "Politico",
+          "count": 1
+        },
+        {
+          "sponsor": "williams companies",
+          "outlet": "Politico",
+          "count": 1
+        }
+      ],
+      "matrix_matches": true
+    },
+    {
+      "selection": "empty",
+      "filters": {
+        "dataset": "native",
+        "publishers": [
+          "unavailable-outlet"
+        ],
+        "sponsors": [],
+        "platforms": [],
+        "keywords": [],
+        "labels": [],
+        "record_ids": [],
+        "date_from": null,
+        "date_to": null,
+        "include_unknown_dates": true
+      },
+      "counts": {
+        "articles": 0,
+        "sponsors": 0,
+        "outlets": 0,
+        "source_edges": 0,
+        "summary_edges": 0
+      },
+      "coverage": {
+        "total_records": 0,
+        "shown_records": 0,
+        "truncated": false,
+        "associated_records": 0,
+        "missing_sponsor_records": 0,
+        "missing_outlet_records": 0,
+        "known_sponsor_records": 0,
+        "known_outlet_records": 0,
+        "retrievable_records": 0,
+        "scope": "complete_supplied_selection",
+        "counting_unit": "eligible_native_record"
+      },
+      "visible_entity_nodes": 0,
+      "node_record_counts": {},
+      "associations": [],
+      "matrix_matches": true
+    }
+  ]
+}

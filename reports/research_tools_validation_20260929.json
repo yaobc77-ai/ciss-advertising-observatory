@@ -1,0 +1,48 @@
+{
+  "date": "2026-09-29",
+  "scope": "local implementation; no publication or deployment",
+  "offline_regression": {
+    "command": "python -m pytest -q -m \"not integration and not live\"",
+    "passed": 778,
+    "deselected": 60,
+    "wall_time_seconds": 40.48
+  },
+  "focused_new_modules": {
+    "passed": 106,
+    "included_in_regression": true
+  },
+  "ruff": {
+    "command": "python -m ruff check src tests scripts",
+    "status": "passed"
+  },
+  "mcp": {
+    "sdk_version": "2.2.0",
+    "transport": "stdio",
+    "real_process_real_database": true,
+    "tools": 7,
+    "http_end_to_end": "not_run",
+    "model_calls": 0
+  },
+  "paid_smoke": {
+    "questions": 3,
+    "model_calls": 3,
+    "cost_usd": 0.00164318,
+    "all_expected_statistics": true,
+    "independent_semantic_benchmark": false,
+    "client_acceptance": false
+  },
+  "data_version": "f19d4d697f4e6d2699d2c58b3ce80620b03e02c7e9447f24e012123adcb00f53",
+  "source_records_and_index_unchanged": true,
+  "audit_and_usage_rows_added": true,
+  "local_model_route_enabled": true,
+  "not_connected": [
+    "formal CLAIMS",
+    "social detail and graph",
+    "reviewed attachment tool adapter",
+    "external fact checking"
+  ],
+  "screenshots": [
+    "reports/screenshots/model_tools_query_20260929.jpg",
+    "reports/screenshots/model_tools_washington_post_20260929.jpg"
+  ]
+}

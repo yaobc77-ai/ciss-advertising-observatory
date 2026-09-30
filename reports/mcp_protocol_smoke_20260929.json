@@ -1,0 +1,85 @@
+{
+  "status": "passed",
+  "transport": "stdio",
+  "real_subprocess": true,
+  "database": "configured_local_collection",
+  "model_calls": 0,
+  "tools": [
+    "resolve_entity",
+    "record_statistics",
+    "search_records",
+    "get_record",
+    "get_record_sources",
+    "get_graph_schema",
+    "get_graph_neighborhood"
+  ],
+  "data_version": "f19d4d697f4e6d2699d2c58b3ce80620b03e02c7e9447f24e012123adcb00f53",
+  "statistics": {
+    "collections": [
+      {
+        "dataset": "native",
+        "total": 18,
+        "retrievable": 18,
+        "unknown_dates": 2
+      }
+    ],
+    "groups": [
+      {
+        "dataset": "native",
+        "name": "api",
+        "count": 6,
+        "display_name": "API"
+      },
+      {
+        "dataset": "native",
+        "name": "exxonmobil",
+        "count": 5,
+        "display_name": "ExxonMobil"
+      },
+      {
+        "dataset": "native",
+        "name": "shell",
+        "count": 2,
+        "display_name": "Shell"
+      },
+      {
+        "dataset": "native",
+        "name": "southern company",
+        "count": 2,
+        "display_name": "Southern Company"
+      },
+      {
+        "dataset": "native",
+        "name": "afpm",
+        "count": 1,
+        "display_name": "AFPM"
+      },
+      {
+        "dataset": "native",
+        "name": "chevron",
+        "count": 1,
+        "display_name": "Chevron"
+      },
+      {
+        "dataset": "native",
+        "name": "eni",
+        "count": 1,
+        "display_name": "Eni"
+      }
+    ]
+  },
+  "record_id": "5799d6c7-1ca5-5a63-afa2-df243f6a2a60",
+  "version_id": "8021ac2227ba26d8a5b48772557f8364ebc8c768473490674cce762e739eb09d",
+  "source_refs": [
+    {
+      "record_id": "5799d6c7-1ca5-5a63-afa2-df243f6a2a60",
+      "version_id": "8021ac2227ba26d8a5b48772557f8364ebc8c768473490674cce762e739eb09d",
+      "body_hash": "687df7f618bc40768c71eacc179d7c342e30463cf61b745bf923639ed81e8cd1",
+      "verification_status": "body_hash_matched"
+    }
+  ],
+  "source_artifacts": 1,
+  "graph_nodes": 5,
+  "graph_edges": 4,
+  "extra_sql_argument_rejected": true
+}

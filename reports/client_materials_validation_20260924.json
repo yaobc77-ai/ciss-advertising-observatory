@@ -1,0 +1,14 @@
+{
+  "checked_at": "2026-09-24",
+  "files_checked": [
+    "docs/CLIENT_TESTING_AND_MATERIALS_20260924.zh-CN.md",
+    "deliverables/client_review_request_20260924.en.md",
+    "docs/evaluation_protocol.md",
+    "docs/acceptance_status.md"
+  ],
+  "local_links_checked": 48,
+  "missing": [],
+  "application_tests_run": false,
+  "paid_calls": 0,
+  "client_message_sent": false
+}

@@ -3,7 +3,6 @@
 import hashlib
 import json
 import re
-from pathlib import Path
 
 import psycopg
 from pgvector.psycopg import register_vector
@@ -31,12 +30,11 @@ class Database:
 
     def initialize(self):
         from .indexing import bootstrap
+        from .migrations import run_migrations
 
         with self.connect() as conn:
             conn.execute("SELECT pg_advisory_xact_lock(54901)")
-            conn.execute(
-                Path(__file__).with_name("schema.sql").read_text(encoding="utf-8")
-            )
+            run_migrations(conn)
             bootstrap(conn)
 
     def import_batch(self, batch: ImportBatch, snapshot_dataset=None):
@@ -77,9 +75,11 @@ class Database:
                 )
                 version = digest(serialized)
                 current = conn.execute(
-                    "SELECT current_version FROM records WHERE record_id=%s",
+                    "SELECT current_version,dataset FROM records WHERE record_id=%s",
                     (record.record_id,),
                 ).fetchone()
+                if current and current["dataset"] != record.dataset:
+                    raise ValueError("A record ID cannot change datasets")
                 report["issues"].extend(
                     {"record_id": record.record_id, **i.model_dump()}
                     for i in record.issues
@@ -172,7 +172,7 @@ class Database:
             params.append(filters.labels)
         return " AND ".join(terms), params
 
-    def public_rows(self, filters: Filters):
+    def _public_query(self, filters: Filters):
         where, params = self.where(filters)
         # Explicit projection prevents raw data, disclosure and local paths escaping.
         sql = f"""SELECT r.record_id,r.dataset,v.version_id,
@@ -181,11 +181,211 @@ class Database:
          v.payload->>'published_at' AS date,v.payload->>'sponsor' AS sponsor,
          v.payload->>'keyword' AS keyword,v.payload->>'platform' AS platform,
          v.payload->>'account' AS account,(v.payload->>'retrievable')::boolean AS retrievable,
-         COALESCE((SELECT a.payload->'labels' FROM annotations a WHERE a.version_id=v.version_id AND a.payload->>'version'='claims-calibrated' LIMIT 1),'[]'::jsonb) AS labels
+         COALESCE((SELECT a.payload->'labels' FROM annotations a WHERE a.version_id=v.version_id AND a.payload->>'version'='claims-calibrated' ORDER BY a.ordinal LIMIT 1),'[]'::jsonb) AS labels
          FROM records r JOIN record_versions v ON v.version_id=r.current_version
-         WHERE {where} ORDER BY v.payload->>'published_at' DESC NULLS LAST,r.record_id"""
+         WHERE {where}"""
+        return sql, params
+
+    def public_rows(self, filters: Filters):
+        sql, params = self._public_query(filters)
         with self.connect() as conn:
-            return conn.execute(sql, params).fetchall()
+            return conn.execute(sql + " ORDER BY date DESC NULLS LAST,record_id", params).fetchall()
+
+    def knowledge_map_rows(self, filters: Filters):
+        """Complete filtered graph identities from one read-only SQL snapshot.
+
+        This excludes body, raw imports and annotation payloads. Text and
+        materials are inspected through the existing version-bound detail path.
+        """
+        if filters.dataset != "native":
+            raise ValueError("The collection knowledge graph supports native records")
+        select, params = self._public_query(filters)
+        with self.connect() as conn:
+            conn.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY")
+            return conn.execute(
+                "SELECT selected.*,v.body_hash FROM (" + select + ") AS selected "
+                "JOIN record_versions v ON v.version_id=selected.version_id "
+                "ORDER BY selected.date DESC NULLS LAST,selected.record_id",
+                params,
+            ).fetchall()
+
+    @staticmethod
+    def _page_bounds(offset, limit):
+        if isinstance(offset, bool) or not isinstance(offset, int) or offset < 0:
+            raise ValueError("Offset must be a nonnegative integer")
+        if isinstance(limit, bool) or not isinstance(limit, int) or limit < 1:
+            raise ValueError("Limit must be a positive integer")
+        return offset, min(limit, 100)
+
+    def public_page(self, filters: Filters, offset=0, limit=20, sort_by="date", descending=True):
+        """Return one bounded page and a matching count from the same snapshot."""
+        offset, limit = self._page_bounds(offset, limit)
+        order = self._page_order(sort_by, descending)
+        select, params = self._public_query(filters)
+        sql = (
+            f"WITH filtered AS ({select}) SELECT * FROM filtered "
+            f"ORDER BY {order} LIMIT %s OFFSET %s"
+        )
+        with self.connect() as conn:
+            conn.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY")
+            total = conn.execute(
+                f"SELECT count(*) AS total FROM ({select}) AS filtered", params
+            ).fetchone()["total"]
+            offset = min(offset, max(0, ((total - 1) // limit) * limit))
+            rows = conn.execute(sql, [*params, limit, offset]).fetchall()
+        return {"rows": rows, "total": total, "offset": offset}
+
+    def knowledge_page(self, filters: Filters, offset=0, limit=5):
+        """Internal graph input, bound to current versions in one read snapshot.
+
+        Body and annotation payloads are for validation by the graph builder,
+        never a browser response. Raw imports and private provenance stay here.
+        """
+        if filters.dataset != "native":
+            raise ValueError("The knowledge graph currently supports the native collection")
+        offset, limit = self._page_bounds(offset, limit)
+        limit = min(limit, 20)
+        where, params = self.where(filters)
+        base = f"""FROM records r JOIN record_versions v ON v.version_id=r.current_version
+            WHERE {where}"""
+        with self.connect() as conn:
+            conn.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY")
+            total = conn.execute("SELECT count(*) AS total " + base, params).fetchone()["total"]
+            offset = min(offset, max(0, ((total - 1) // limit) * limit))
+            rows = conn.execute("""SELECT r.record_id,r.dataset,v.version_id,
+                v.body,v.body_hash,v.created_at,
+                v.payload->>'title' AS title,v.payload->>'publisher' AS publisher,
+                v.payload->>'sponsor' AS sponsor,v.payload->>'published_at' AS date,
+                v.payload->>'url' AS url,v.payload->>'archive_url' AS archive_url,
+                (v.payload->>'retrievable')::boolean AS retrievable,
+                COALESCE((SELECT jsonb_agg(jsonb_build_object('code',i->>'code'))
+                    FROM jsonb_array_elements(v.payload->'issues') i),'[]'::jsonb) AS issues,
+                COALESCE((SELECT jsonb_agg(jsonb_build_object('ordinal',a.ordinal,
+                    'payload',a.payload) ORDER BY a.ordinal)
+                    FROM annotations a WHERE a.version_id=v.version_id),'[]'::jsonb) AS annotations
+                """ + base + " ORDER BY (v.payload->>'published_at') DESC NULLS LAST,r.record_id LIMIT %s OFFSET %s",
+                [*params, limit, offset],
+            ).fetchall()
+        return {"rows": rows, "total": total, "offset": offset, "limit": limit}
+
+    @staticmethod
+    def _page_order(sort_by, descending):
+        columns = {
+            "date", "title", "sponsor", "publisher", "platform", "account",
+            "keyword", "record_id", "dataset", "retrievable",
+        }
+        if sort_by not in columns:
+            raise ValueError("Unsupported sort column")
+        if not isinstance(descending, bool):
+            raise ValueError("Descending must be a boolean")
+        direction = "DESC" if descending else "ASC"
+        # Only allowlisted identifiers and a fixed direction enter SQL text.
+        return f"{sort_by} {direction} NULLS LAST,record_id ASC"
+
+    def facets(self, dataset):
+        """Fetch distinct filter options, without transferring article rows."""
+        select, params = self._public_query(Filters(dataset=dataset))
+        sql = f"""WITH filtered AS ({select}), options AS (
+            SELECT option.name,COALESCE(NULLIF(option.value,''),'(Unknown)') AS value
+            FROM filtered CROSS JOIN LATERAL (VALUES
+                ('publishers',publisher),('sponsors',sponsor),
+                ('platforms',platform),('keywords',keyword)
+            ) AS option(name,value)
+            UNION
+            SELECT 'labels',label FROM filtered
+            CROSS JOIN LATERAL jsonb_array_elements_text(labels) AS label
+        ) SELECT name,value FROM (SELECT DISTINCT name,value FROM options) AS distinct_options
+        ORDER BY name,value COLLATE "C" """
+        with self.connect() as conn:
+            rows = conn.execute(sql, params).fetchall()
+        result = {name: [] for name in ("publishers", "sponsors", "platforms", "keywords", "labels")}
+        for row in rows:
+            result[row["name"]].append(row["value"])
+        return result
+
+    def dashboard(self, filters: Filters, offset=0, limit=20, sort_by="date", descending=True):
+        """Aggregate in PostgreSQL; all charts share one read-only snapshot."""
+        from .analytics import LABEL_NOTE, sponsor_publisher_matrix_from_counts
+
+        offset, limit = self._page_bounds(offset, limit)
+        order = self._page_order(sort_by, descending)
+        select, params = self._public_query(filters)
+        prefix = f"WITH filtered AS ({select}) "
+        with self.connect() as conn:
+            conn.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY")
+            totals = conn.execute(prefix + """SELECT count(*) AS total,
+                count(*) FILTER (WHERE retrievable) AS retrievable,
+                count(*) FILTER (WHERE date IS NULL OR date='') AS unknown_dates
+                FROM filtered""", params).fetchone()
+            offset = min(offset, max(0, ((totals["total"] - 1) // limit) * limit))
+            page_rows = conn.execute(
+                prefix + f"SELECT * FROM filtered ORDER BY {order} LIMIT %s OFFSET %s",
+                [*params, limit, offset],
+            ).fetchall()
+            groups = conn.execute(prefix + """SELECT * FROM (SELECT option.name,
+                COALESCE(NULLIF(option.value,''),'(Unknown)') AS value,count(*) AS count
+                FROM filtered CROSS JOIN LATERAL (VALUES
+                    ('publishers',publisher),('sponsors',sponsor),
+                    ('platforms',platform),('keywords',keyword)
+                ) AS option(name,value)
+                GROUP BY option.name,COALESCE(NULLIF(option.value,''),'(Unknown)')) AS groups
+                ORDER BY name,count DESC,value COLLATE "C" """, params).fetchall()
+            relationships = conn.execute(prefix + """SELECT
+                COALESCE(NULLIF(sponsor,''),'(Unknown)') AS sponsor,
+                COALESCE(NULLIF(publisher,''),'(Unknown)') AS publisher,count(*) AS count
+                FROM filtered GROUP BY 1,2 ORDER BY count DESC,1,2""", params).fetchall()
+            months = conn.execute(prefix + """SELECT
+                COALESCE(NULLIF(left(date,7),''),'Unknown') AS month,count(*) AS count
+                FROM filtered GROUP BY 1 ORDER BY 1""", params).fetchall()
+            years = conn.execute(prefix + """SELECT
+                COALESCE(NULLIF(left(date,4),''),'Unknown') AS year,count(*) AS count
+                FROM filtered GROUP BY 1 ORDER BY 1""", params).fetchall()
+            labels = conn.execute(prefix + """, label_records AS (
+                SELECT DISTINCT record_id,btrim(label) AS name FROM filtered
+                CROSS JOIN LATERAL jsonb_array_elements_text(labels) AS label
+                WHERE btrim(label)<>''
+                ) SELECT name,count(*) AS count FROM label_records
+                GROUP BY name ORDER BY count DESC,name COLLATE "C" """, params).fetchall()
+            labeled = conn.execute(prefix + """SELECT count(*) AS count FROM filtered
+                WHERE EXISTS (SELECT 1 FROM jsonb_array_elements_text(labels) AS label
+                WHERE btrim(label)<>'')""", params).fetchone()["count"]
+        total = totals["total"]
+        stats = {**totals, **{name: [] for name in ("publishers", "sponsors", "platforms", "keywords")},
+                 "relationships": relationships, "timeline": months}
+        for row in groups:
+            stats[row["name"]].append({
+                "name": row["value"], "count": row["count"],
+                "percent": 100 * row["count"] / total if total else 0,
+            })
+        return {
+            "stats": stats, "timeline": years,
+            "page": {"rows": page_rows, "total": total, "offset": offset},
+            "labels": {
+                "items": [{**row, "percent": 100 * row["count"] / total if total else 0} for row in labels],
+                "total": total, "labeled_records": labeled,
+                "unlabeled_records": total - labeled, "note": LABEL_NOTE,
+            },
+            "matrix": sponsor_publisher_matrix_from_counts(relationships),
+        }
+
+    def network(self, filters: Filters, limit=60):
+        """Bounded source-listed sponsor/outlet links for native advertisements."""
+        if filters.dataset != "native":
+            raise ValueError("The prototype network supports native advertisements only")
+        _, limit = self._page_bounds(0, limit)
+        select, params = self._public_query(filters)
+        prefix = f"""WITH filtered AS ({select}), relationships AS (
+            SELECT COALESCE(NULLIF(sponsor,''),'(Unknown)') AS sponsor,
+                COALESCE(NULLIF(publisher,''),'(Unknown)') AS publisher,count(*) AS count
+            FROM filtered GROUP BY 1,2
+        ) """
+        with self.connect() as conn:
+            conn.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY")
+            totals = conn.execute(prefix + """SELECT count(*) AS total_relationships,
+                COALESCE(sum(count),0)::bigint AS total_records FROM relationships""", params).fetchone()
+            rows = conn.execute(prefix + """SELECT * FROM relationships
+                ORDER BY count DESC,sponsor,publisher LIMIT %s""", [*params, limit]).fetchall()
+        return {"relationships": rows, **totals, "truncated": len(rows) < totals["total_relationships"]}
 
     def health(self):
         from .indexing import profile_snapshot

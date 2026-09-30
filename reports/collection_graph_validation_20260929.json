@@ -1,0 +1,59 @@
+{
+  "date": "2026-09-29",
+  "scope": "local_collection_source_graph",
+  "status": "passed",
+  "tests": {
+    "full_non_integration_non_live_passed": 834,
+    "full_deselected": 62,
+    "latest_graph_passed": 57,
+    "isolated_database_integration_included": 2,
+    "related_app_source_ui_passed": 112,
+    "latest_graph_and_source_ui_passed": 92,
+    "ruff": "passed"
+  },
+  "corpus": {
+    "smoke_report": "reports/collection_graph_smoke_20260929.json",
+    "scopes_checked": 6,
+    "all_matrix_counts_match": true,
+    "records": 263,
+    "searchable_records": 226,
+    "entity_nodes": 27,
+    "summary_edges": 35,
+    "all_article_nodes_and_entities": 290,
+    "article_source_edges": 525,
+    "source_data_and_index_unchanged": true
+  },
+  "browser": {
+    "default_knowledge_graph": "checked",
+    "expanded_view": "checked",
+    "keyboard_entity_selection": "checked",
+    "company_publishers_15_records_4_outlets": "checked",
+    "outlet_sponsors_18_records_7_names": "checked",
+    "pair_5_records": "checked",
+    "record_paging": "checked",
+    "article_expansion_18_records_26_nodes_36_edges": "checked",
+    "detail_source_disclosure_loads_first_5_of_263": "checked",
+    "mobile_viewport": [
+      390,
+      844
+    ],
+    "mobile_client_width": 375,
+    "mobile_document_width": 375,
+    "temporary_viewport_reset": true,
+    "export_callback": "tested",
+    "browser_json_preparation_status": "checked",
+    "browser_download_bytes": "not_captured",
+    "pointer_gestures": "not_exhaustively_tested"
+  },
+  "paid_model_calls": 0,
+  "github_push": false,
+  "railway_deployment": false,
+  "client_acceptance": "pending",
+  "local_links_checked": 214,
+  "missing_local_links": [],
+  "screenshots": [
+    "reports/screenshots/collection_graph_exxonmobil_20260929.jpg",
+    "reports/screenshots/collection_graph_washington_post_20260929.jpg",
+    "reports/screenshots/collection_graph_mobile_20260929.jpg"
+  ]
+}

@@ -1,11 +1,12 @@
 [project]
 name = "ciss-observatory"
-version = "0.3.1"
+version = "0.4.0"
 description = "Evidence-linked fossil fuel advertising observatory"
 requires-python = ">=3.12,<3.14"
 dependencies = [
     "dash>=3,<5",
     "dash-ag-grid>=32,<35",
+    "dash-cytoscape>=1.0.2,<2",
     "plotly>=6,<7",
     "pandas>=2.2,<3",
     "pandera[pandas]>=0.26,<1",
@@ -24,6 +25,7 @@ dependencies = [
 [project.optional-dependencies]
 test = ["pytest>=8,<10", "ruff>=0.12"]
 pdf = ["pypdf==6.10.0"]
+mcp = ["mcp>=2.2,<3"]
 
 [project.scripts]
 observatory = "observatory.cli:main"

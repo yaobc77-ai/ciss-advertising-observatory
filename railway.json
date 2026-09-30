@@ -5,6 +5,7 @@
     "dockerfilePath": "Dockerfile"
   },
   "deploy": {
+    "preDeployCommand": ["/app/.venv/bin/observatory migrate"],
     "healthcheckPath": "/healthz",
     "healthcheckTimeout": 60,
     "restartPolicyType": "ON_FAILURE",

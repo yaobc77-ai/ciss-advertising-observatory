@@ -1,0 +1,97 @@
+{
+  "question": "Washington Post 有哪些赞助方?",
+  "status": "answered",
+  "mode": "statistics",
+  "answer": "7 source-listed sponsors / organizations appear in 18 eligible native ad records within this selection. Every category and its count is listed below.",
+  "filters": {
+    "labels": [],
+    "dataset": "native",
+    "date_to": null,
+    "keywords": [],
+    "sponsors": [],
+    "date_from": null,
+    "platforms": [],
+    "publishers": [
+      "The Washington Post"
+    ],
+    "record_ids": [],
+    "include_unknown_dates": true
+  },
+  "collections": [
+    {
+      "total": 18,
+      "dataset": "native",
+      "retrievable": 18,
+      "unknown_dates": 2
+    }
+  ],
+  "groups": [
+    {
+      "name": "api",
+      "count": 6,
+      "dataset": "native",
+      "display_name": "API"
+    },
+    {
+      "name": "exxonmobil",
+      "count": 5,
+      "dataset": "native",
+      "display_name": "ExxonMobil"
+    },
+    {
+      "name": "shell",
+      "count": 2,
+      "dataset": "native",
+      "display_name": "Shell"
+    },
+    {
+      "name": "southern company",
+      "count": 2,
+      "dataset": "native",
+      "display_name": "Southern Company"
+    },
+    {
+      "name": "afpm",
+      "count": 1,
+      "dataset": "native",
+      "display_name": "AFPM"
+    },
+    {
+      "name": "chevron",
+      "count": 1,
+      "dataset": "native",
+      "display_name": "Chevron"
+    },
+    {
+      "name": "eni",
+      "count": 1,
+      "dataset": "native",
+      "display_name": "Eni"
+    }
+  ],
+  "cost_usd": 0.00031909,
+  "model_calls": 1,
+  "usage": [
+    {
+      "input_tokens": 3680,
+      "total_tokens": 3753,
+      "output_tokens": 73,
+      "input_tokens_details": {
+        "cached_tokens": 2967,
+        "cache_write_tokens": 591
+      },
+      "output_tokens_details": {
+        "reasoning_tokens": 0
+      }
+    }
+  ],
+  "tools": [
+    {
+      "tool": "record_statistics",
+      "status": "ok"
+    }
+  ],
+  "data_version": "f19d4d697f4e6d2699d2c58b3ce80620b03e02c7e9447f24e012123adcb00f53",
+  "browser_verified": true,
+  "screenshot": "reports/screenshots/model_tools_washington_post_20260929.jpg"
+}

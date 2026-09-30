@@ -1,0 +1,26 @@
+{
+  "date": "2026-09-29",
+  "environment": "local",
+  "pytest": {"passed": 732, "failed": 0, "seconds": 58.25},
+  "ruff": {"status": "passed", "scope": ["src/observatory", "tests", "scripts/check_michelle_questions.py"]},
+  "real_database_smoke": "michelle_statistics_smoke_20260929.json",
+  "read_only_corpus_audit": "michelle_feedback_audit_evidence_20260929.json",
+  "browser_checks": {
+    "company_explorer_exxonmobil": {"records": 15, "outlets": 4},
+    "outlet_explorer_washington_post": {"records": 18, "sponsor_categories": 7},
+    "outlet_explorer_exxonmobil_selection": {"records": 5},
+    "query_nyt_count": {"records": 19, "mode": "statistics"},
+    "query_exxonmobil_publishers": {"records": 15, "groups": 4, "mode": "statistics"},
+    "query_washington_post_sponsors": {"records": 18, "groups": 7, "mode": "statistics"},
+    "statistics_no_generated_answer_label": true,
+    "screenshot_paths": ["screenshots/michelle_nyt_answer_20260929.jpg", "screenshots/michelle_outlet_explorer_20260929.jpg"]
+  },
+  "paid_model_calls": 0,
+  "source_or_index_imports": 0,
+  "github_pushed": false,
+  "railway_deployed": false,
+  "client_message_sent": false,
+  "client_acceptance": "pending",
+  "annotation_semantics_acceptance": "pending",
+  "formal_social_data": "not_connected"
+}

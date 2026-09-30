@@ -1,0 +1,160 @@
+{
+  "date_local": "2026-09-30",
+  "checked_at_utc": "2026-09-30T04:16:41.863048+00:00",
+  "checked_at_local": "2026-09-30T00:16:41.863048-04:00",
+  "status": "passed",
+  "scope": "0.4.0 scoped catalog hashes and local document links",
+  "catalog_path": "docs/document_catalog.csv",
+  "catalog_rows": 151,
+  "added_catalog_paths": [
+    "docs/CURRENT_RELEASE_REPRODUCTION.md",
+    "docs/PERFORMANCE_BASELINE.md",
+    "reports/current_release_offline_reproduction_20260929.json",
+    "reports/current_release_offline_reproduction_20260929.stage1.json",
+    "reports/current_release_database_reproduction_20260930.json",
+    "reports/dashboard_performance_baseline_20260930.json",
+    "reports/RELEASE_V0_4_0_20260930.zh-CN.md",
+    "reports/release_v0_4_0_preflight_20260930.json",
+    "scripts/verify_current_release.py",
+    "scripts/benchmark_dashboard.py",
+    "reports/documentation_release_validation_20260930.json"
+  ],
+  "refreshed_catalog_paths": [
+    "README.md",
+    "docs/DOCUMENT_INDEX.zh-CN.md",
+    "docs/acceptance_status.md",
+    "docs/handoff.md",
+    "docs/operations.md"
+  ],
+  "checked_catalog_files": [
+    {
+      "path": "README.md",
+      "bytes": 13295,
+      "sha256": "c8bb3f703b427400ac117c7229c4558af7e9185bdc603646cf852a752662d209"
+    },
+    {
+      "path": "docs/DOCUMENT_INDEX.zh-CN.md",
+      "bytes": 29102,
+      "sha256": "51be2491be42d1a4c180bf37de908ea935e33f09aa3922b5c2b802a4c87eb0c8"
+    },
+    {
+      "path": "docs/acceptance_status.md",
+      "bytes": 15006,
+      "sha256": "db083199c66b2fefd0a10bb984b77f7d0f347bfcf68f862284840b71a2705500"
+    },
+    {
+      "path": "docs/handoff.md",
+      "bytes": 25238,
+      "sha256": "41e04764faf6d11d57da7d60d9e3c9d4629076f1aeaf485a576f9921059dc65b"
+    },
+    {
+      "path": "docs/operations.md",
+      "bytes": 20876,
+      "sha256": "e22e48c32f4e5da8f526ad0e1e34fd40ffa0e3d209b9d15994747397a4d2b8f7"
+    },
+    {
+      "path": "docs/CURRENT_RELEASE_REPRODUCTION.md",
+      "bytes": 5727,
+      "sha256": "cd507be534d70efb466a0613f329d800eb73964e56e0fc3a404f5a7b103d0d22"
+    },
+    {
+      "path": "docs/PERFORMANCE_BASELINE.md",
+      "bytes": 7093,
+      "sha256": "f4240751f8c47e1220a832ec0121745111bc840fc71a7008cc2855e97614fc11"
+    },
+    {
+      "path": "reports/current_release_offline_reproduction_20260929.json",
+      "bytes": 10757,
+      "sha256": "389606a76d886357ded2b6d911b695254891421ff63fa8e22ea8a3bf35df349f"
+    },
+    {
+      "path": "reports/current_release_offline_reproduction_20260929.stage1.json",
+      "bytes": 8092,
+      "sha256": "8b820f64a72bdfdbcd543169ff0c3666124a066e2282e3bcbc4632d1063cd7b5"
+    },
+    {
+      "path": "reports/current_release_database_reproduction_20260930.json",
+      "bytes": 11563,
+      "sha256": "d79562f1a4b1210aaa939e84ed9b40c1e136e7d4bf5643e8144e8b14cf133c62"
+    },
+    {
+      "path": "reports/dashboard_performance_baseline_20260930.json",
+      "bytes": 25572,
+      "sha256": "d920d3b14ff3fef2f3e9161430d22ccec3f565ad478f513b2ef71b17917d2363"
+    },
+    {
+      "path": "reports/RELEASE_V0_4_0_20260930.zh-CN.md",
+      "bytes": 3755,
+      "sha256": "03c9d754e7debce72f8e20a88049e67abb9322fa40260ee33f070619547a8693"
+    },
+    {
+      "path": "reports/release_v0_4_0_preflight_20260930.json",
+      "bytes": 1766,
+      "sha256": "f105d6697f2ebb8786ef870846495654941849716cefc22304188fd097a5d4ef"
+    },
+    {
+      "path": "scripts/verify_current_release.py",
+      "bytes": 15437,
+      "sha256": "f0cb9e0f4f22335117eb45f59b966c6f59b2a89cbba2243b3a513c9b09e9297e"
+    },
+    {
+      "path": "scripts/benchmark_dashboard.py",
+      "bytes": 14398,
+      "sha256": "04666c4525be043db44f13cb16cbdeb846bd0ca3b78b8556cfeb0d729ce972cc"
+    }
+  ],
+  "scoped_local_links_checked": 296,
+  "files_checked": [
+    {
+      "path": "README.md",
+      "local_link_occurrences": 50,
+      "missing": []
+    },
+    {
+      "path": "docs/DOCUMENT_INDEX.zh-CN.md",
+      "local_link_occurrences": 131,
+      "missing": []
+    },
+    {
+      "path": "docs/acceptance_status.md",
+      "local_link_occurrences": 36,
+      "missing": []
+    },
+    {
+      "path": "docs/handoff.md",
+      "local_link_occurrences": 48,
+      "missing": []
+    },
+    {
+      "path": "docs/operations.md",
+      "local_link_occurrences": 23,
+      "missing": []
+    },
+    {
+      "path": "docs/CURRENT_RELEASE_REPRODUCTION.md",
+      "local_link_occurrences": 2,
+      "missing": []
+    },
+    {
+      "path": "docs/PERFORMANCE_BASELINE.md",
+      "local_link_occurrences": 1,
+      "missing": []
+    },
+    {
+      "path": "reports/RELEASE_V0_4_0_20260930.zh-CN.md",
+      "local_link_occurrences": 5,
+      "missing": []
+    }
+  ],
+  "missing_local_links": [],
+  "changed_catalog_hash_failures": [],
+  "catalog_self_hash": "excluded",
+  "validation_report_self_hash": "excluded_from_report_registered_in_catalog",
+  "historical_manifests_modified": false,
+  "external_urls_rechecked": false,
+  "product_tests_rerun": false,
+  "paid_api_calls": 0,
+  "database_access": false,
+  "deployment": false,
+  "limits": "Local links and scoped registration only; no semantic, performance, customer or deployment acceptance."
+}

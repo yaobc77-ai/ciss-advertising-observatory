@@ -3,14 +3,18 @@
 from __future__ import annotations
 
 import csv
+import os
+import re
 import secrets
+import textwrap
+from html import escape
+from importlib.metadata import PackageNotFoundError, version
 from io import StringIO
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import quote, urlsplit
 
-import dash_ag_grid as dag
 import plotly.graph_objects as go
-from dash import Dash, Input, Output, State, ctx, dcc, html
+from dash import Dash, Input, Output, State, ctx, dcc, html, no_update
 from dash.exceptions import PreventUpdate
 from flask import session
 
@@ -18,17 +22,19 @@ from observatory.analytics import (
     historical_label_distribution,
     sponsor_display,
     sponsor_publisher_csv,
-    sponsor_publisher_matrix,
-    yearly_timeline,
 )
 from observatory.models import Filters
-from observatory.service import summarize
 
 UNKNOWN = "(Unknown)"
 NATIVE_COLUMNS = ("url", "publisher", "title", "date", "sponsor", "keyword")
 SOCIAL_COLUMNS = ("platform", "account", "sponsor", "title", "date", "url")
 FILTER_NAMES = ("publishers", "sponsors", "platforms", "keywords", "labels")
 COLORS = {"ink": "#202633", "teal": "#003262", "muted": "#687587", "amber": "#a86b25"}
+QUERY_EXAMPLES = (
+    ("example-outlet-count", "Count ads at an outlet", "How many native ads are from the New York Times?"),
+    ("example-company-outlets", "Explore a company's publishers", "Which publishers is ExxonMobil working with?"),
+    ("example-outlet-sponsors", "Explore an outlet's sponsors", "Which fossil fuel companies has the Washington Post worked with?"),
+)
 
 
 def _page(pathname):
@@ -193,15 +199,13 @@ def _wireframe(health):
                                                 block("Outlet / platform", "▂ ▅ ▃ ▇"),
                                                 block("Sponsors", "▅ ▃ ▇ ▂"),
                                                 block("Timeline", "▁ ▂ ▄ ▂ ▆"),
-                                                block(
-                                                    "Relationships", "Native collection"
-                                                ),
+                                                block("Interactive network", "Sponsor → source records → outlet"),
                                             ],
                                             className="wire-chart-grid",
                                         ),
                                         block(
                                             "Record table + CSV export",
-                                            "The same filtered records drive charts and export",
+                                            "Server-side pages; SQL charts and export cover the full selection",
                                         ),
                                     ],
                                     className="wire-stack",
@@ -265,7 +269,7 @@ def _wireframe(health):
                             [
                                 block(
                                     "Data page",
-                                    "Filtered counts → charts → records / CSV",
+                                    "SQL counts → network / charts → paged records / CSV",
                                     "wire-output",
                                 ),
                                 block(
@@ -375,10 +379,10 @@ def _figure(message=None):
         font={
             "family": "Segoe UI, Arial, sans-serif",
             "color": COLORS["ink"],
-            "size": 12,
+            "size": 14,
         },
         margin={"l": 16, "r": 18, "t": 18, "b": 35},
-        height=290,
+        height=340,
         xaxis={"gridcolor": "#e8ecf0", "zeroline": False, "title_font_size": 11},
         yaxis={"gridcolor": "#e8ecf0", "zeroline": False, "title_font_size": 11},
         bargap=0.3,
@@ -403,6 +407,10 @@ def _figure(message=None):
     return figure
 
 
+def _wrap_label(value, width=24):
+    return "<br>".join(escape(line) for line in textwrap.wrap(str(value), width=width, break_long_words=False))
+
+
 def _bars(items, metric="count"):
     items = sorted(items or [], key=lambda item: item.get("count", 0), reverse=True)[
         :10
@@ -419,6 +427,7 @@ def _bars(items, metric="count"):
         text=[item.get(metric, 0) for item in items],
         texttemplate="%{text:.1f}%" if metric == "percent" else "%{text:,}",
         textposition="outside",
+        textangle=0,
         cliponaxis=False,
         customdata=[[item.get("count", 0), item.get("percent", 0)] for item in items],
         hovertemplate="%{y}<br>%{customdata[0]:,} records · %{customdata[1]:.1f}%<extra></extra>",
@@ -427,7 +436,10 @@ def _bars(items, metric="count"):
         title="Share of selected records (%)" if metric == "percent" else "Records",
         rangemode="tozero",
     )
-    figure.update_yaxes(automargin=True, showgrid=False)
+    figure.update_yaxes(automargin=True, showgrid=False, tickmode="array",
+                        tickvals=[str(item.get("name") or UNKNOWN) for item in items],
+                        ticktext=[_wrap_label(item.get("name") or UNKNOWN) for item in items])
+    figure.update_layout(height=max(320, len(items) * 36 + 65), margin={"l": 16, "r": 50, "t": 18, "b": 45})
     return figure
 
 
@@ -440,13 +452,15 @@ def _timeline(items):
         y=[item["count"] for item in items],
         text=[item["count"] for item in items],
         textposition="outside",
+        textangle=0,
+        cliponaxis=False,
         marker_color=[
             COLORS["amber"] if item["year"] == "Unknown" else COLORS["teal"]
             for item in items
         ],
         hovertemplate="%{x}<br>%{y:,} records<extra></extra>",
     )
-    figure.update_xaxes(title="Publication year", type="category")
+    figure.update_xaxes(title="Publication year", type="category", tickangle=0, automargin=True)
     figure.update_yaxes(title="Records", rangemode="tozero")
     return figure
 
@@ -473,11 +487,13 @@ def _relationships(items):
     figure = _figure()
     figure.add_heatmap(
         x=xs,
-        y=[sponsor_display(y) for y in ys],
+        y=ys,
         z=[[cells.get((y, x), 0) for x in xs] for y in ys],
+        customdata=[[{"kind": "edge", "sponsor": y, "publisher": x} for x in xs] for y in ys],
+        text=[[escape(sponsor_display(y)) for x in xs] for y in ys],
         texttemplate="%{z}",
-        textfont={"size": 12},
-        colorscale=[[0, "#f1f5f6"], [0.35, "#a4cccb"], [1, COLORS["teal"]]],
+        textfont={"size": 14},
+        colorscale=[[0, "#f3f5f6"], [0.15, "#d4e1ec"], [0.5, "#7597b4"], [1, COLORS["teal"]]],
         showscale=True,
         colorbar={
             "title": "Records",
@@ -487,19 +503,23 @@ def _relationships(items):
         },
         xgap=2,
         ygap=2,
-        hovertemplate="%{y} → %{x}<br>%{z:,} records<extra></extra>",
+        hovertemplate="%{text} → %{x}<br>%{z:,} records · Select to view articles<extra></extra>",
     )
     figure.update_layout(
-        height=max(340, 30 * len(ys) + 140),
-        margin={"l": 16, "r": 40, "t": 18, "b": 100},
+        height=max(380, 38 * len(ys) + 150),
+        margin={"l": 16, "r": 22, "t": 90, "b": 45},
+        clickmode="event", dragmode=False,
     )
-    figure.update_xaxes(automargin=True, tickangle=-25)
-    figure.update_yaxes(automargin=True, autorange="reversed")
+    figure.update_xaxes(automargin=True, tickangle=0, side="top", tickmode="array", tickvals=xs,
+                        ticktext=[_wrap_label(x.removeprefix("The "), 12) for x in xs], tickfont={"size": 12}, fixedrange=True, showgrid=False)
+    figure.update_yaxes(automargin=True, autorange="reversed", tickmode="array",
+                        tickvals=ys,
+                        ticktext=[_wrap_label(sponsor_display(y), 22) for y in ys], fixedrange=True, showgrid=False)
     return figure
 
 
-def _label_chart(rows):
-    distribution = historical_label_distribution(rows)
+def _label_chart(rows=None, distribution=None):
+    distribution = distribution if distribution is not None else historical_label_distribution(rows or [])
     items = distribution["items"]
     if not items:
         return _figure("No historical labels in this selection")
@@ -511,12 +531,17 @@ def _label_chart(rows):
         x=[item["count"] for item in items][::-1],
         orientation="h",
         text=[item["count"] for item in items][::-1],
-        textposition="auto",
+        customdata=[item["name"] for item in items][::-1],
+        textposition="outside",
+        textangle=0,
+        cliponaxis=False,
         marker_color=COLORS["teal"],
     )
-    figure.update_layout(height=max(300, 28 * len(items) + 60))
+    figure.update_layout(height=max(340, 38 * len(items) + 70), margin={"l": 16, "r": 55, "t": 18, "b": 45})
     figure.update_xaxes(title="Records", rangemode="tozero")
-    figure.update_yaxes(automargin=True)
+    labels = [item["name"].split(".")[-1].replace("_", " ").capitalize() for item in items][::-1]
+    figure.update_yaxes(automargin=True, showgrid=False, tickmode="array", tickvals=labels,
+                        ticktext=[_wrap_label(label, 26) for label in labels])
     return figure
 
 
@@ -555,12 +580,130 @@ def _search_context(question, filters):
             html.Strong("Last submitted search"),
             html.P(question),
             html.P(" · ".join(selections)),
-            html.Small(
-                "Run a new search after changing the question, scope or filters."
-            ),
+            html.Small("Run a new search after changing the question, scope or filters."),
         ],
         className="notice notice-info",
     )
+
+
+def _statistics_card(result, links_enabled):
+    """Display complete SQL categories and bounded example record references."""
+    from observatory.network_ui import record_cards
+
+    data = result["structured_result"]
+    collections = data.get("collections", [])
+    groups = data.get("groups", [])
+    records = data.get("records", [])
+    names = {"native": "Native ad records", "social": "Social ad records"}
+    model_query = bool(result.get("research_trace"))
+    sections = [
+        html.Span("Collection statistics · model-assisted query" if model_query
+                  else "Collection statistics · no model charge", className="eyebrow"),
+        html.H3("Records in this selection"),
+        html.P(result["answer"], className="answer-text"),
+    ]
+    if groups:
+        sections.append(html.Div(html.Table([
+            html.Caption({"publishers": "All publishers and counts", "sponsors": "All source-listed sponsors / organizations and counts",
+                          "platforms": "All platforms and counts"}.get(data.get("group_by"), "All categories and counts")),
+            html.Thead(html.Tr([
+                html.Th({"publishers": "News outlet", "sponsors": "Source-listed sponsor / organization", "platforms": "Platform"}.get(data.get("group_by"), "Category"), scope="col"),
+                html.Th("Collection", scope="col"), html.Th("Records", scope="col"),
+            ])),
+            html.Tbody([html.Tr([
+                html.Th(group.get("display_name") or group["name"], scope="row"),
+                html.Td(names[group["dataset"]]), html.Td(f"{group['count']:,}", className="count-value"),
+            ]) for group in groups]),
+        ]), className="statistics-table"))
+    notes = [
+        f"{names[item['dataset']]}: {item['total']:,} eligible · {item['retrievable']:,} searchable · {item['unknown_dates']:,} with unknown dates."
+        for item in collections
+    ]
+    sections.extend([
+        html.Ul([html.Li(note) for note in notes + data.get("scope_notes", [])], className="scope-note"),
+        html.P("Computed from all eligible stored records in this selection, including records without searchable text. Native articles and social posts are separate units. These are collection counts, not a census of all advertising.", className="scope-note"),
+    ])
+    if records:
+        total = sum(item["total"] for item in collections)
+        sections.append(html.Details([
+            html.Summary(f"Inspect matching records · showing {len(records):,} of {total:,}"),
+            *record_cards(records, links_enabled),
+            dcc.Link("Explore the full collection →", href="/data"),
+        ], className="statistics-records"))
+    sections.append(_research_steps(result))
+    return html.Div(sections, className="answer-card statistics-answer")
+
+
+def _research_steps(result):
+    """Public tool execution trace, rather than private model reasoning."""
+    trace = result.get("research_trace") or {}
+    if not trace:
+        return None
+    steps = trace.get("tools") or []
+    calls = trace.get("model_calls") or []
+    call_label = "model call" if len(calls) == 1 else "model calls"
+    return html.Details([
+        html.Summary("How this question was answered"),
+        html.P(f"Model-assisted interpretation · {len(calls)} {call_label} · API cost ${result.get('cost_usd', 0):.5f}. Database calculations and source reads do not call a model."),
+        html.Ol([html.Li([
+            html.Code(str(step.get("name") or step.get("tool") or "read-only tool")),
+            html.Span(f" · {step.get('status') or step.get('result_status') or 'completed'}"),
+        ]) for step in steps]),
+        html.P("Tools preserve the current filters. Source relationships and historical annotations retain their review limits."),
+    ], className="research-steps")
+
+
+def _tools_card(result, links_enabled):
+    """Render typed, bounded tool results beside their record references."""
+    from observatory.network_ui import record_cards
+    from observatory.service import safe_url
+
+    data = result["structured_result"]
+    kind = data.get("kind")
+    sections = [html.Span("Read-only data tools", className="eyebrow")]
+    if kind == "graph":
+        graph = data.get("graph") or {}
+        nodes = {node["id"]: node for node in graph.get("nodes", [])}
+        sections.extend([
+            html.H3("Source relationships"),
+            html.P("This is a page of recorded relationships. It is not the complete graph and does not establish corporate contracts or verified claims.", className="scope-note"),
+            html.Div(html.Table([
+                html.Caption("Typed relationships and their originating record"),
+                html.Thead(html.Tr([html.Th(label, scope="col") for label in ("From", "Relationship", "To", "Source record")])),
+                html.Tbody([html.Tr([
+                    html.Td(nodes.get(edge["source"], {}).get("label", "Source")),
+                    html.Td(edge.get("label") or edge["predicate"]),
+                    html.Td(nodes.get(edge["target"], {}).get("label", "Target")),
+                    html.Td(dcc.Link("Open record", href="/records/" + quote(str(edge.get("provenance", {}).get("record_id", "")), safe=""))),
+                ]) for edge in graph.get("edges", [])]),
+            ]), className="statistics-table"),
+            dcc.Link("Explore the article knowledge graph →", href="/data"),
+        ])
+    elif kind in {"record", "sources"}:
+        record = data.get("record") or {}
+        sections.append(html.H3("Article text" if kind == "record" else "Sources for this record"))
+        if record.get("record_id"):
+            sections.extend(record_cards([record], links_enabled))
+        if kind == "record":
+            body = data.get("body") or {}
+            sections.extend([
+                html.P(f"Characters {body.get('start', 0):,}–{body.get('end', 0):,} of {body.get('total_characters', 0):,} · stored text completeness has not been established.", className="scope-note"),
+                html.Pre(body.get("text") or "No stored article text is available.", className="tool-article-text"),
+            ])
+        else:
+            artifacts = data.get("source_artifacts") or []
+            sources = []
+            for artifact in artifacts:
+                properties = artifact.get("properties") or {}
+                url = safe_url(properties.get("url")) if links_enabled else ""
+                sources.append(html.Li([
+                    html.A(artifact.get("label", "Source reference"), href=url, target="_blank", rel="noopener noreferrer") if url else html.Span(artifact.get("label", "Source reference")),
+                    html.Span(" · URL recorded; contents not independently verified"),
+                ]))
+            sections.append(html.Ul(sources) if sources else html.P("No public source references are available for this record."))
+            sections.append(html.P("Historical annotations are unverified. The reviewed attachment adapter is not connected to this tool yet.", className="scope-note"))
+    sections.extend([html.Ul([html.Li(note) for note in data.get("scope_notes", [])], className="scope-note"), _research_steps(result)])
+    return html.Div(sections, className="answer-card")
 
 
 def _summary(stats):
@@ -852,8 +995,17 @@ def _filter_panel(dataset, facets):
             className="filter-note",
         ),
     ]
+    controls[5].children.append(controls[6])
     return html.Aside(
-        controls,
+        [
+            html.Div([controls[1], controls[0] if native else controls[2], controls[5]], className="common-filters"),
+            html.Details([
+                html.Summary("More filters"),
+                html.Div([controls[3], controls[4], controls[2] if native else controls[0]], className="advanced-filter-fields"),
+                controls[7],
+            ], className="advanced-filters"),
+            html.Button("Clear filters", id=f"{dataset}-clear-filters", n_clicks=0, className="button button-quiet clear-filters"),
+        ],
         id=f"{dataset}-filter-panel",
         className="filters-panel",
         style={} if native else {"display": "none"},
@@ -866,242 +1018,8 @@ def _filter_panel(dataset, facets):
 
 
 def _panel(dataset, links_enabled):
-    native = dataset == "native"
-    fields = NATIVE_COLUMNS if native else SOCIAL_COLUMNS
-    headers = {
-        "url": "Original source",
-        "publisher": "News outlet",
-        "title": "Title",
-        "date": "Publication date",
-        "sponsor": "Sponsor / advertiser",
-        "keyword": "Collection search term",
-        "platform": "Platform",
-        "account": "Account",
-    }
-    columns = [
-        {
-            "field": "record_id",
-            "headerName": "Record details",
-            "cellRenderer": "RecordLink",
-            "minWidth": 145,
-            "width": 145,
-        }
-    ]
-    for field in fields:
-        column = {
-            "field": field,
-            "headerName": headers[field],
-            "minWidth": 145,
-            "flex": 1,
-        }
-        if field == "title":
-            column.update(minWidth=260, flex=2, tooltipField="title")
-        if field == "url":
-            column.update(
-                cellRenderer="SourceLink",
-                cellRendererParams={"enabled": links_enabled},
-                minWidth=145,
-            )
-        if field == "keyword":
-            column["headerTooltip"] = (
-                "Search term used during collection. It does not identify the sponsor or establish an article theme."
-            )
-        if field == "sponsor":
-            column["headerTooltip"] = (
-                "Sponsor values can include companies, trade groups and events. CERAWeek is an event; entity scope awaits client review."
-            )
-        columns.append(column)
-    columns.append(
-        {
-            "field": "archive_status",
-            "headerName": "Archived materials",
-            "cellRenderer": "ArchiveLink",
-            "cellRendererParams": {"enabled": links_enabled},
-            "minWidth": 180,
-            "flex": 1,
-        }
-    )
-    graph_config = {"displayModeBar": False, "responsive": True}
-
-    def chart(key, title, note="", wide=False):
-        return html.Section(
-            [
-                html.H3(title),
-                html.P(note, className="chart-note", id=f"{dataset}-{key}-note"),
-                html.Div(
-                    dcc.Graph(
-                        id=f"{dataset}-{key}",
-                        figure=_figure("Choose a collection to explore"),
-                        config=graph_config,
-                        style={"width": "100%"},
-                    ),
-                    className="chart-scroll" if wide else "",
-                ),
-            ],
-            className="chart-card chart-wide" if wide else "chart-card",
-        )
-
-    return html.Section(
-        [
-            html.Div(id=f"{dataset}-status", className="collection-status"),
-            html.Div(
-                [
-                    html.Div(id=f"{dataset}-summary", className="stats-grid"),
-                    html.Div(
-                        [
-                            html.P(
-                                "Counts reflect eligible records in the current filtered selection.",
-                                className="selection-note",
-                            ),
-                            dcc.RadioItems(
-                                id=f"{dataset}-metric",
-                                options=[
-                                    {"label": "Count", "value": "count"},
-                                    {"label": "Percent", "value": "percent"},
-                                ],
-                                value="count",
-                                inline=True,
-                                className="metric-toggle",
-                            ),
-                        ],
-                        className="chart-toolbar",
-                    ),
-                    html.P(
-                        "Sponsors include companies, trade groups and events. CERAWeek (stored as cera) is a conference/event, not an energy company. This classification and company aggregation require client confirmation.",
-                        className="scope-note",
-                    )
-                    if native
-                    else None,
-                    html.Div(
-                        [
-                            chart(
-                                "primary-chart",
-                                "By news outlet" if native else "By platform",
-                                "Top 10 in this selection",
-                            ),
-                            chart(
-                                "sponsors-chart",
-                                "By sponsor / advertiser",
-                                "Top 10 in this selection; see the complete cross-tab below",
-                            ),
-                            chart(
-                                "timeline-chart",
-                                "Publication history",
-                                "Annual record counts; unknown dates appear as a separate bar.",
-                            ),
-                            chart(
-                                "labels-chart",
-                                "Historical theme labels",
-                                "Earlier automated classifications; not newly inferred or verified themes.",
-                            ),
-                            html.Div(
-                                chart(
-                                    "relationships-chart",
-                                    "Sponsor × news outlet",
-                                    "All sponsors and outlets in this selection. Every cell is a record count.",
-                                    wide=True,
-                                ),
-                                className="chart-wide",
-                                style={} if native else {"display": "none"},
-                            ),
-                        ],
-                        className="charts-grid",
-                    ),
-                    html.Section(
-                        [
-                            html.Div(
-                                [
-                                    html.H3("Sponsor × news outlet: full cross-tab"),
-                                    html.Button(
-                                        "Download cross-tab ↓",
-                                        id=f"{dataset}-matrix-export",
-                                        n_clicks=0,
-                                        className="button button-quiet",
-                                    ),
-                                ],
-                                className="section-heading",
-                            ),
-                            html.P(
-                                "All selected sponsors and outlets, including zero cells and totals. Counts use the same selection as the record table.",
-                                className="muted",
-                            ),
-                            dag.AgGrid(
-                                id=f"{dataset}-matrix",
-                                rowData=[],
-                                columnDefs=[],
-                                defaultColDef={
-                                    "sortable": False,
-                                    "resizable": True,
-                                    "minWidth": 125,
-                                },
-                                dashGridOptions={"rowHeight": 40, "animateRows": False},
-                                className="ag-theme-quartz observatory-grid",
-                                style={"height": "440px"},
-                            ),
-                            dcc.Download(id=f"{dataset}-matrix-download"),
-                            html.Div(
-                                id=f"{dataset}-matrix-export-status", role="status"
-                            ),
-                        ],
-                        className="records-panel",
-                        style={} if native else {"display": "none"},
-                    ),
-                    html.Section(
-                        [
-                            html.Div(
-                                [
-                                    html.Div(
-                                        [
-                                            html.H3("Source collection"),
-                                        ]
-                                    ),
-                                    html.Button(
-                                        "Download selected records ↓",
-                                        id=f"{dataset}-export",
-                                        n_clicks=0,
-                                        className="button button-quiet",
-                                    ),
-                                ],
-                                className="section-heading",
-                            ),
-                            html.P(id=f"{dataset}-record-count", className="muted"),
-                            html.P(
-                                "Open View record for the stored article text, source links and verified local PDF/image attachments. Missing archives are shown explicitly; title-only matches are not linked.",
-                                className="muted",
-                            ),
-                            dag.AgGrid(
-                                id=f"{dataset}-grid",
-                                columnDefs=columns,
-                                rowData=[],
-                                defaultColDef={
-                                    "sortable": True,
-                                    "resizable": True,
-                                    "filter": False,
-                                },
-                                dashGridOptions={
-                                    "pagination": True,
-                                    "paginationPageSize": 20,
-                                    "paginationPageSizeSelector": [20, 50, 100],
-                                    "rowHeight": 58,
-                                    "animateRows": False,
-                                    "suppressCellFocus": False,
-                                },
-                                className="ag-theme-quartz observatory-grid",
-                                style={"height": "510px"},
-                            ),
-                            dcc.Download(id=f"{dataset}-download"),
-                            html.Div(id=f"{dataset}-export-status", role="status"),
-                        ],
-                        className="records-panel",
-                    ),
-                ],
-                id=f"{dataset}-content",
-                className="collection-content",
-            ),
-        ],
-        id=f"{dataset}-panel",
-        style={} if native else {"display": "none"},
-    )
+    from observatory.data_layout import data_panel
+    return data_panel(dataset, links_enabled, _figure)
 
 
 def create_app(service, settings, record_details=None) -> Dash:
@@ -1111,6 +1029,7 @@ def create_app(service, settings, record_details=None) -> Dash:
 
         record_details = RecordDetails(service.db, settings)
     enabled = bool(settings.show_source_links)
+    agent_enabled = bool(getattr(settings, "research_agent_enabled", False))
     app = Dash(
         __name__,
         assets_folder=str(Path(__file__).parent / "assets"),
@@ -1130,6 +1049,9 @@ def create_app(service, settings, record_details=None) -> Dash:
     from observatory.record_view import register_record_page
 
     register_record_page(app.server, record_details)
+    from observatory.knowledge_routes import register_knowledge_routes
+
+    register_knowledge_routes(app.server, service, record_details)
     if record_details is not None:
         from observatory.records import register_record_routes
 
@@ -1138,7 +1060,29 @@ def create_app(service, settings, record_details=None) -> Dash:
     @app.server.get("/healthz")
     def health_endpoint():
         state = service.health()
-        return state, (200 if state.get("status") == "ok" else 503)
+        try:
+            app_version = version("ciss-observatory")
+        except PackageNotFoundError:
+            app_version = "uninstalled"
+        commit = os.getenv("RAILWAY_GIT_COMMIT_SHA", "")
+        release = {
+            "version": app_version,
+            "commit": commit if re.fullmatch(r"[0-9a-fA-F]{40}", commit) else None,
+            "features": {
+                "collection_graph": True,
+                "graph_breakdowns": True,
+                "research_agent": agent_enabled,
+            },
+        }
+        public_state = {
+            key: state[key]
+            for key in (
+                "status", "record_counts", "chunks", "active_profile",
+                "source_data_version", "index_version", "data_version",
+            )
+            if key in state
+        }
+        return {**public_state, "application": release}, (200 if state.get("status") == "ok" else 503)
 
     def layout():
         try:
@@ -1198,7 +1142,8 @@ def create_app(service, settings, record_details=None) -> Dash:
                             id="answer-paid",
                             n_clicks=0,
                             className="button button-primary",
-                            title="Generate an answer using the project's API budget",
+                            title="Understand your question, use read-only data tools, and return a source-linked answer" if agent_enabled else
+                                  "Get database counts or a source-linked answer; semantic answers use the project's API budget",
                             **{"aria-describedby": "query-cost"},
                         ),
                     ],
@@ -1261,17 +1206,10 @@ def create_app(service, settings, record_details=None) -> Dash:
                             className="toolbox-heading",
                         ),
                         query_options,
-                        html.Div(
-                            [
-                                html.H3("Filters"),
-                                _filter_panel("native", facets["native"]),
-                                _filter_panel("social", facets["social"]),
-                            ],
-                            id="shared-filters",
-                            className="shared-filters",
-                        ),
+                        html.A("Collection filters", href="#collection-filters", className="toolbox-link", id="open-collection-filters"),
                         html.P(
-                            "Generated answers use the project's API budget. Keyword search is free. Questions can contain up to 2,000 characters.",
+                            "Question understanding uses the project's API budget, including counting questions. Database calculations, source reads and keyword search are free. Questions can contain up to 2,000 characters." if agent_enabled else
+                            "Record counts and sponsor / outlet lists are free database queries. Evidence summaries use the project's API budget. Keyword search is free. Questions can contain up to 2,000 characters.",
                             id="query-cost",
                             className="search-help",
                         ),
@@ -1353,6 +1291,13 @@ def create_app(service, settings, record_details=None) -> Dash:
                         html.Div(
                             [
                                 collection_toolbar,
+                                html.Details([
+                                    html.Summary("Collection filters"),
+                                    html.Div([
+                                        _filter_panel("native", facets["native"]),
+                                        _filter_panel("social", facets["social"]),
+                                    ], id="shared-filters", className="shared-filters"),
+                                ], id="collection-filters", className="collection-filters"),
                                 html.Div(
                                     id="current-scope",
                                     className="current-scope",
@@ -1364,6 +1309,14 @@ def create_app(service, settings, record_details=None) -> Dash:
                                             [
                                                 html.Section(
                                                     [
+                                                        html.Div([
+                                                            html.Span("Try a question"),
+                                                            *[html.Button(label, id=identifier, n_clicks=0,
+                                                                          title=question, className="query-example")
+                                                              for identifier, label, question in QUERY_EXAMPLES],
+                                                            html.Small("Choose an example, then select Generate answer. The model interprets your question; data tools calculate counts and retrieve sources." if agent_enabled else
+                                                                       "Choose an example, then select Generate answer. Counts and lists use the database at no model charge."),
+                                                        ], className="query-examples"),
                                                         html.Div(
                                                             id="research-stale",
                                                             role="status",
@@ -1446,6 +1399,7 @@ def create_app(service, settings, record_details=None) -> Dash:
         Output("query-composer", "hidden"),
         Output("query-options", "hidden"),
         Output("query-cost", "hidden"),
+        Output("collection-filters", "open"),
         Input("page-location", "pathname"),
     )
     def change_page(pathname):
@@ -1486,6 +1440,7 @@ def create_app(service, settings, record_details=None) -> Dash:
             page != "query",
             page != "query",
             page != "query",
+            page == "data",
         )
 
     @app.callback(
@@ -1532,6 +1487,10 @@ def create_app(service, settings, record_details=None) -> Dash:
                 html.Strong("Both collections"),
                 html.Span(" · Collection filters are bypassed for this query."),
             ]
+        if not message and _page(pathname) == "data":
+            message = "All sponsors and outlets · All publication dates · Unknown dates included"
+        elif _page(pathname) == "data" and filters.include_unknown_dates:
+            message += " · Unknown dates included"
         if not message:
             return None
         return [
@@ -1588,6 +1547,17 @@ def create_app(service, settings, record_details=None) -> Dash:
 
     def register_collection(dataset):
         @app.callback(
+            *[Output(f"{dataset}-{name}", "value") for name in FILTER_NAMES],
+            Output(f"{dataset}-dates", "start_date"), Output(f"{dataset}-dates", "end_date"),
+            Output(f"{dataset}-unknown-dates", "value"),
+            Input(f"{dataset}-clear-filters", "n_clicks"), prevent_initial_call=True,
+        )
+        def clear_filters(clicks):
+            if not clicks:
+                raise PreventUpdate
+            return [], [], [], [], [], None, None, ["include"]
+
+        @app.callback(
             Output(f"{dataset}-grid", "rowData"),
             Output(f"{dataset}-summary", "children"),
             Output(f"{dataset}-primary-chart", "figure"),
@@ -1603,14 +1573,38 @@ def create_app(service, settings, record_details=None) -> Dash:
             Output(f"{dataset}-content", "style"),
             Output(f"{dataset}-relationships-chart", "style"),
             Output(f"{dataset}-labels-chart", "style"),
+            Output(f"{dataset}-page-prev", "disabled"),
+            Output(f"{dataset}-page-next", "disabled"),
+            Output(f"{dataset}-page-label", "children"),
+            Output(f"{dataset}-page-offset", "data"),
+            Output(f"{dataset}-network-data", "data"),
             *_filter_inputs(dataset),
             Input(f"{dataset}-metric", "value"),
+            Input(f"{dataset}-page-prev", "n_clicks"),
+            Input(f"{dataset}-page-next", "n_clicks"),
+            Input(f"{dataset}-page-size", "value"),
+            Input(f"{dataset}-sort", "value"),
+            State(f"{dataset}-page-offset", "data"),
+            State(f"{dataset}-network-data", "data"),
         )
         def update_collection(*values):
             try:
                 filters = _filters(dataset, *values[:8])
-                source_rows = service.browse(filters)
-                stats = summarize(source_rows)
+                size = values[11] if values[11] in (20, 50, 100) else 20
+                offset = max(0, int(values[13] or 0))
+                if ctx.triggered_id == f"{dataset}-page-next":
+                    offset += size
+                elif ctx.triggered_id == f"{dataset}-page-prev":
+                    offset = max(0, offset - size)
+                else:
+                    offset = 0
+                sort_value = values[12] if values[12] in ("date:desc", "date:asc", "title:asc", "sponsor:asc") else "date:desc"
+                sort_by, direction = sort_value.split(":")
+                dashboard = service.dashboard(filters, offset=offset, limit=size, sort_by=sort_by, descending=direction == "desc")
+                stats, page = dashboard["stats"], dashboard["page"]
+                network_payload = {"relationships": stats.get("relationships", []), "filters": filters.model_dump(mode="json")}
+                source_rows = page["rows"]
+                offset = page["offset"]
                 rows = _public_rows(source_rows, enabled)
                 for row in rows:
                     row["archive_status"] = (
@@ -1622,8 +1616,8 @@ def create_app(service, settings, record_details=None) -> Dash:
                     summaries = record_details.summaries(source_rows)
                     for row in rows:
                         row.update(summaries.get(row["record_id"], {}))
-                matrix = sponsor_publisher_matrix(source_rows)
-                labels = historical_label_distribution(source_rows)
+                matrix = dashboard["matrix"]
+                labels = dashboard["labels"]
                 health = service.health()
                 empty_social = (
                     dataset == "social"
@@ -1637,7 +1631,7 @@ def create_app(service, settings, record_details=None) -> Dash:
                     if empty_social
                     else None
                 )
-                if not rows and not empty_social:
+                if not stats["total"] and not empty_social:
                     notice = _notice(
                         "No matching records",
                         "Try widening the dates or clearing a filter.",
@@ -1657,23 +1651,28 @@ def create_app(service, settings, record_details=None) -> Dash:
                         ],
                         metric,
                     ),
-                    _timeline(yearly_timeline(source_rows)),
+                    _timeline(dashboard["timeline"]),
                     _relationships(stats.get("relationships")),
                     notice,
-                    f"{len(rows):,} eligible records in the current selection. Download uses the same selection.",
-                    _label_chart(source_rows),
+                    f"{stats['total']:,} eligible records in the current selection. Charts and downloads use the full selection.",
+                    _label_chart(distribution=labels),
                     f"Historical automated labels; a record can have several. {labels['unlabeled_records']:,} of {labels['total']:,} selected records have no historical label. These are not verified themes.",
                     matrix["table_rows"],
                     matrix["table_columns"],
                     {"display": "none"} if empty_social else {},
                     {
-                        "height": f"{max(340, 30 * len(matrix['sponsors']) + 140)}px",
+                        "height": f"{max(380, 38 * len(matrix['sponsors']) + 150)}px",
                         "width": "100%",
                     },
                     {
-                        "height": f"{max(300, 28 * len(labels['items']) + 60)}px",
+                        "height": f"{max(340, 38 * len(labels['items']) + 70)}px",
                         "width": "100%",
                     },
+                    offset == 0,
+                    offset + size >= page["total"],
+                    f"{offset + 1 if rows else 0:,}–{offset + len(rows):,} of {page['total']:,}",
+                    offset,
+                    no_update if network_payload == values[14] else network_payload,
                 )
             except ValueError:
                 message = _notice(
@@ -1703,6 +1702,7 @@ def create_app(service, settings, record_details=None) -> Dash:
                 {"display": "none"},
                 {"height": "340px", "width": "100%"},
                 {"height": "300px", "width": "100%"},
+                True, True, "Unavailable", 0, {"relationships": [], "filters": {}},
             )
 
         @app.callback(
@@ -1775,6 +1775,34 @@ def create_app(service, settings, record_details=None) -> Dash:
 
     register_collection("native")
     register_collection("social")
+
+    from observatory.knowledge_ui import register_knowledge_graph
+
+    register_knowledge_graph(app, service, enabled, record_details=record_details, require_open=True)
+    from observatory.collection_graph_ui import register_collection_graph
+
+    register_collection_graph(app, service, enabled)
+    from observatory.data_ui import register_data_views
+
+    register_data_views(app, service, enabled)
+
+    from observatory.research_explorer import register_research_explorer
+
+    register_research_explorer(app, service, enabled)
+    from observatory.historical_theme_ui import register_historical_themes
+
+    register_historical_themes(app, service, enabled)
+
+    @app.callback(
+        Output("research-question", "value"),
+        *[Input(identifier, "n_clicks") for identifier, _, _ in QUERY_EXAMPLES],
+        prevent_initial_call=True,
+    )
+    def choose_example(*clicks):
+        for (identifier, _, question), clicked in zip(QUERY_EXAMPLES, clicks):
+            if ctx.triggered_id == identifier and isinstance(clicked, int) and clicked > 0:
+                return question
+        raise PreventUpdate
 
     @app.callback(
         Output("research-results", "children"),
@@ -1879,6 +1907,12 @@ def create_app(service, settings, record_details=None) -> Dash:
             result = _mapping(
                 service.answer(question, filters, visitor=session["visitor_id"])
             )
+            if result.get("answer_mode") == "statistics" and result.get("structured_result"):
+                effective = Filters.model_validate(result["structured_result"]["filters"])
+                return [_search_context(question, effective), _statistics_card(result, enabled)]
+            if result.get("answer_mode") == "tools" and result.get("structured_result"):
+                effective = Filters.model_validate(result["structured_result"].get("filters") or filters.model_dump())
+                return [_search_context(question, effective), _tools_card(result, enabled)]
             status = result.get("status", "service_unavailable")
             labels = {
                 "answered": "Answer with supporting evidence",
@@ -1902,9 +1936,19 @@ def create_app(service, settings, record_details=None) -> Dash:
                 context,
                 html.Div(
                     [
-                        html.Span("Generated answer", className="eyebrow"),
-                        html.H3(labels.get(status, labels["service_unavailable"])),
+                        html.Span("Question needs clarification · model-assisted query"
+                                  if result.get("answer_mode") == "clarification" and result.get("research_trace") else
+                                  "Question needs clarification · no model charge"
+                                  if result.get("answer_mode") == "clarification" else
+                                  "Read-only data tools"
+                                  if result.get("answer_mode") == "tools" else
+                                  "Collection statistics · no model charge"
+                                  if result.get("answer_mode") == "statistics" else
+                                  "Generated answer", className="eyebrow"),
+                        html.H3("Clarify this question" if result.get("answer_mode") == "clarification"
+                                else labels.get(status, labels["service_unavailable"])),
                         html.P(message, className="answer-text"),
+                        _research_steps(result),
                     ],
                     className="answer-card",
                 ),

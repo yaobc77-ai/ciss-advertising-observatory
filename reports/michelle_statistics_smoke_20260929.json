@@ -1,0 +1,239 @@
+{
+  "status": "passed",
+  "no_model_calls": true,
+  "data_version": "f19d4d697f4e6d2699d2c58b3ce80620b03e02c7e9447f24e012123adcb00f53",
+  "results": [
+    {
+      "question": "How many native ads are from the New York Times?",
+      "status": "answered",
+      "mode": "statistics",
+      "answer": "19 eligible native ad records match this question and the active filters.",
+      "cost_usd": 0.0,
+      "filters": {
+        "dataset": "native",
+        "publishers": [
+          "The New York Times"
+        ],
+        "sponsors": [],
+        "platforms": [],
+        "keywords": [],
+        "labels": [],
+        "record_ids": [],
+        "date_from": null,
+        "date_to": null,
+        "include_unknown_dates": true
+      },
+      "collections": [
+        {
+          "dataset": "native",
+          "total": 19,
+          "retrievable": 15,
+          "unknown_dates": 1
+        }
+      ],
+      "groups": [],
+      "shown_record_count": 10
+    },
+    {
+      "question": "Which publishers is ExxonMobil working with?",
+      "status": "answered",
+      "mode": "statistics",
+      "answer": "4 publishers appear in 15 eligible native ad records within this selection. Every category and its count is listed below.",
+      "cost_usd": 0.0,
+      "filters": {
+        "dataset": "native",
+        "publishers": [],
+        "sponsors": [
+          "exxonmobil"
+        ],
+        "platforms": [],
+        "keywords": [],
+        "labels": [],
+        "record_ids": [],
+        "date_from": null,
+        "date_to": null,
+        "include_unknown_dates": true
+      },
+      "collections": [
+        {
+          "dataset": "native",
+          "total": 15,
+          "retrievable": 13,
+          "unknown_dates": 0
+        }
+      ],
+      "groups": [
+        {
+          "dataset": "native",
+          "name": "Business Insider",
+          "count": 5,
+          "display_name": "Business Insider"
+        },
+        {
+          "dataset": "native",
+          "name": "The Washington Post",
+          "count": 5,
+          "display_name": "The Washington Post"
+        },
+        {
+          "dataset": "native",
+          "name": "The New York Times",
+          "count": 3,
+          "display_name": "The New York Times"
+        },
+        {
+          "dataset": "native",
+          "name": "The Wall Street Journal",
+          "count": 2,
+          "display_name": "The Wall Street Journal"
+        }
+      ],
+      "shown_record_count": 10
+    },
+    {
+      "question": "Which fossil fuel companies has the Washington Post worked with?",
+      "status": "answered",
+      "mode": "statistics",
+      "answer": "7 source-listed sponsors / organizations appear in 18 eligible native ad records within this selection. Every category and its count is listed below.",
+      "cost_usd": 0.0,
+      "filters": {
+        "dataset": "native",
+        "publishers": [
+          "The Washington Post"
+        ],
+        "sponsors": [],
+        "platforms": [],
+        "keywords": [],
+        "labels": [],
+        "record_ids": [],
+        "date_from": null,
+        "date_to": null,
+        "include_unknown_dates": true
+      },
+      "collections": [
+        {
+          "dataset": "native",
+          "total": 18,
+          "retrievable": 18,
+          "unknown_dates": 2
+        }
+      ],
+      "groups": [
+        {
+          "dataset": "native",
+          "name": "api",
+          "count": 6,
+          "display_name": "API"
+        },
+        {
+          "dataset": "native",
+          "name": "exxonmobil",
+          "count": 5,
+          "display_name": "ExxonMobil"
+        },
+        {
+          "dataset": "native",
+          "name": "shell",
+          "count": 2,
+          "display_name": "Shell"
+        },
+        {
+          "dataset": "native",
+          "name": "southern company",
+          "count": 2,
+          "display_name": "Southern Company"
+        },
+        {
+          "dataset": "native",
+          "name": "afpm",
+          "count": 1,
+          "display_name": "AFPM"
+        },
+        {
+          "dataset": "native",
+          "name": "chevron",
+          "count": 1,
+          "display_name": "Chevron"
+        },
+        {
+          "dataset": "native",
+          "name": "eni",
+          "count": 1,
+          "display_name": "Eni"
+        }
+      ],
+      "shown_record_count": 10
+    },
+    {
+      "question": "How many native ads are from the New York Times in 2021?",
+      "status": "answered",
+      "mode": "statistics",
+      "answer": "0 eligible native ad records match this question and the active filters. No eligible records match; this does not establish that no such advertisements exist elsewhere.",
+      "cost_usd": 0.0,
+      "filters": {
+        "dataset": "native",
+        "publishers": [
+          "The New York Times"
+        ],
+        "sponsors": [],
+        "platforms": [],
+        "keywords": [],
+        "labels": [],
+        "record_ids": [],
+        "date_from": "2021-01-01",
+        "date_to": "2021-12-31",
+        "include_unknown_dates": false
+      },
+      "collections": [
+        {
+          "dataset": "native",
+          "total": 0,
+          "retrievable": 0,
+          "unknown_dates": 0
+        }
+      ],
+      "groups": [],
+      "shown_record_count": 0
+    },
+    {
+      "question": "How many records match the current filters?",
+      "status": "answered",
+      "mode": "statistics",
+      "answer": "263 eligible native ad records match this question and the active filters.",
+      "cost_usd": 0.0,
+      "filters": {
+        "dataset": "native",
+        "publishers": [],
+        "sponsors": [],
+        "platforms": [],
+        "keywords": [],
+        "labels": [],
+        "record_ids": [],
+        "date_from": null,
+        "date_to": null,
+        "include_unknown_dates": true
+      },
+      "collections": [
+        {
+          "dataset": "native",
+          "total": 263,
+          "retrievable": 226,
+          "unknown_dates": 22
+        }
+      ],
+      "groups": [],
+      "shown_record_count": 10
+    },
+    {
+      "question": "How many native ads contain greenwashing claims?",
+      "status": "insufficient_evidence",
+      "mode": "clarification",
+      "answer": "Topic and greenwashing counts require a defined, validated annotation set. Use evidence search to inspect relevant articles.",
+      "cost_usd": 0.0,
+      "filters": null,
+      "collections": null,
+      "groups": null,
+      "shown_record_count": 0
+    }
+  ]
+}

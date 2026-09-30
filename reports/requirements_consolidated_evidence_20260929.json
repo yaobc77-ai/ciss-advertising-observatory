@@ -1,0 +1,597 @@
+{
+  "audit_date_local": "2026-09-29",
+  "receipt_prepared_at_utc": "2026-09-30T03:33:16.301404+00:00",
+  "scope": "requirements_source_and_implementation_comparison",
+  "operations": {
+    "fresh_docx_read": true,
+    "read_only_http_checks": true,
+    "read_only_public_code_checks": true,
+    "paid_model_calls": 0,
+    "database_mutations": 0,
+    "product_code_changes": 0,
+    "git_push": false,
+    "deployment": false,
+    "outbound_messages": false,
+    "tests_rerun": false
+  },
+  "documents": {
+    "fa26_user_selected_v1": {
+      "path": "C:\\Users\\yaobc\\Downloads\\[FA26] DS 549_ CISS Fossil Fuel and Animal Agriculture Advertising Observatory (1).docx",
+      "sha256": "dcf83544b3b289e789aef93741765df96c5afacafe6c85c41b2ce986dac59ef2",
+      "paragraph_count": 211,
+      "body_text_sha256": "84c7c99e4e888ea173c0255f7b4506872705a042275bae5e92bbe56f0ac3e9e0",
+      "hyperlinks": [
+        {
+          "paragraph": 61,
+          "url": "https://drive.google.com/drive/folders/1QYuGCrPctiwY03w46O_urHtrnKUgXij9?usp=sharing",
+          "text": "Google Drive"
+        },
+        {
+          "paragraph": 62,
+          "url": "https://drive.google.com/drive/folders/1zm3jVtZPedDG0bN_s7OAWxwjCwOs9cQl?usp=drive_link",
+          "text": "Google Drive"
+        },
+        {
+          "paragraph": 66,
+          "url": "https://ibes.brown.edu/news/2024-03-20/cdl-lobbying-website",
+          "text": "How Do They Lobby? — Brown University project article and video"
+        },
+        {
+          "paragraph": 68,
+          "url": "https://www.the-big-green-machine.com/",
+          "text": "The Big Green Machine"
+        },
+        {
+          "paragraph": 69,
+          "url": "https://acre.wisc.edu/big-ag-network",
+          "text": "Big Ag Network"
+        },
+        {
+          "paragraph": 70,
+          "url": "https://seahorse-app-kjzfk.ondigitalocean.app/",
+          "text": "University Of Miami Prototype"
+        },
+        {
+          "paragraph": 71,
+          "url": "https://www.junkipedia.org/posts/920047974",
+          "text": "Example Junkipedia post"
+        },
+        {
+          "paragraph": 73,
+          "url": "https://github.com/BU-Spark/ml-ciss-native-ads",
+          "text": "https://github.com/BU-Spark/ml-ciss-native-ads"
+        },
+        {
+          "paragraph": 74,
+          "url": "https://docs.google.com/presentation/d/1GZ_NKJqyrKQ4ln4CRO7Tor9ZC2W8RYGIECsRlucPKfQ/edit?usp=share_link",
+          "text": "DS549: CISS Native Ads Deliverable 5 (Final)"
+        },
+        {
+          "paragraph": 75,
+          "url": "https://docs.google.com/presentation/d/1AFpn-b3iDswCRPsehl5e-mvUMMktA-0NsxFeHLr8utA/edit?usp=share_link",
+          "text": "DS549: CISS Native Ads Final Presentation"
+        },
+        {
+          "paragraph": 76,
+          "url": "https://docs.google.com/presentation/d/12K_Iqgf22KvxFHZ_eF0z2aH9NzmQaBoA/edit?usp=share_link&ouid=101170222743202658595&rtpof=true&sd=true",
+          "text": "Poster Board CS549 DEV.pptx"
+        },
+        {
+          "paragraph": 170,
+          "url": "https://www.bu.edu/articles/2025/how-to-resist-shaping-climate-opinions/?utm_campaign=bu_today&utm_source=email_20250520&utm_medium=intrograph&utm_content=research_humanities",
+          "text": "Native Ads Are Shaping Climate Opinions. BU Researchers Say There’s a Way to Resist | The Brink | Boston University"
+        },
+        {
+          "paragraph": 171,
+          "url": "https://www.nature.com/articles/s44168-025-00209-6",
+          "text": "The “Future of Energy”? Building resilience to ExxonMobil’s disinformation through disclosures and inoculation"
+        },
+        {
+          "paragraph": 172,
+          "url": "https://www.researchgate.net/publication/342596080_Discourses_of_climate_delay",
+          "text": "https://www.researchgate.net/publication/342596080_Discourses_of_climate_delay"
+        },
+        {
+          "paragraph": 173,
+          "url": "https://ijoc.org/index.php/ijoc/article/view/17824/3614",
+          "text": "Agenda-Cutting Versus Agenda-Building: Does Sponsored Content Influence Corporate News Coverage in U.S. Media?"
+        },
+        {
+          "paragraph": 174,
+          "url": "https://www.greenpeace.org/static/planet4-netherlands-stateless/2022/09/0ded952d-threeshadesofgreenwashing.pdf",
+          "text": "Three Shades of Green(washing) Content Analysis of Social Media Discourse by European OIl, Car, and Airline Companies"
+        },
+        {
+          "paragraph": 197,
+          "url": "mailto:geolim@bu.edu",
+          "text": "geolim@bu.edu"
+        }
+      ],
+      "comments": [
+        {
+          "id": "0",
+          "author": "Bochuan Yao",
+          "date_utc": "2026-09-16T15:05:28Z",
+          "anchor_nonempty_paragraph_numbers": [
+            73
+          ],
+          "text": "404 Not Found"
+        }
+      ]
+    },
+    "fa26_alternate_v2": {
+      "path": "C:\\Users\\yaobc\\Downloads\\[FA26] DS 549_ CISS Fossil Fuel and Animal Agriculture Advertising Observatory (2).docx",
+      "sha256": "ea4e096d2b6dcfc1e008c26a8ec3becb1b35b46be4ff1bfa88e858acc44dcdd7",
+      "paragraph_count": 211,
+      "body_text_sha256": "84c7c99e4e888ea173c0255f7b4506872705a042275bae5e92bbe56f0ac3e9e0",
+      "hyperlinks": [
+        {
+          "paragraph": 61,
+          "url": "https://drive.google.com/drive/folders/1QYuGCrPctiwY03w46O_urHtrnKUgXij9?usp=sharing",
+          "text": "Google Drive"
+        },
+        {
+          "paragraph": 62,
+          "url": "https://drive.google.com/drive/folders/1zm3jVtZPedDG0bN_s7OAWxwjCwOs9cQl?usp=drive_link",
+          "text": "Google Drive"
+        },
+        {
+          "paragraph": 66,
+          "url": "https://ibes.brown.edu/news/2024-03-20/cdl-lobbying-website",
+          "text": "How Do They Lobby? — Brown University project article and video"
+        },
+        {
+          "paragraph": 68,
+          "url": "https://www.the-big-green-machine.com/",
+          "text": "The Big Green Machine"
+        },
+        {
+          "paragraph": 69,
+          "url": "https://acre.wisc.edu/big-ag-network",
+          "text": "Big Ag Network"
+        },
+        {
+          "paragraph": 70,
+          "url": "https://seahorse-app-kjzfk.ondigitalocean.app/",
+          "text": "University Of Miami Prototype"
+        },
+        {
+          "paragraph": 71,
+          "url": "https://www.junkipedia.org/posts/920047974",
+          "text": "Example Junkipedia post"
+        },
+        {
+          "paragraph": 73,
+          "url": "https://github.com/BU-Spark/ml-ciss-native-ads",
+          "text": "https://github.com/BU-Spark/ml-ciss-native-ads"
+        },
+        {
+          "paragraph": 74,
+          "url": "https://docs.google.com/presentation/d/1GZ_NKJqyrKQ4ln4CRO7Tor9ZC2W8RYGIECsRlucPKfQ/edit?usp=share_link",
+          "text": "DS549: CISS Native Ads Deliverable 5 (Final)"
+        },
+        {
+          "paragraph": 75,
+          "url": "https://docs.google.com/presentation/d/1AFpn-b3iDswCRPsehl5e-mvUMMktA-0NsxFeHLr8utA/edit?usp=share_link",
+          "text": "DS549: CISS Native Ads Final Presentation"
+        },
+        {
+          "paragraph": 76,
+          "url": "https://docs.google.com/presentation/d/12K_Iqgf22KvxFHZ_eF0z2aH9NzmQaBoA/edit?usp=share_link&ouid=101170222743202658595&rtpof=true&sd=true",
+          "text": "Poster Board CS549 DEV.pptx"
+        },
+        {
+          "paragraph": 170,
+          "url": "https://www.bu.edu/articles/2025/how-to-resist-shaping-climate-opinions/?utm_campaign=bu_today&utm_source=email_20250520&utm_medium=intrograph&utm_content=research_humanities",
+          "text": "Native Ads Are Shaping Climate Opinions. BU Researchers Say There’s a Way to Resist | The Brink | Boston University"
+        },
+        {
+          "paragraph": 171,
+          "url": "https://www.nature.com/articles/s44168-025-00209-6",
+          "text": "The “Future of Energy”? Building resilience to ExxonMobil’s disinformation through disclosures and inoculation"
+        },
+        {
+          "paragraph": 172,
+          "url": "https://www.researchgate.net/publication/342596080_Discourses_of_climate_delay",
+          "text": "https://www.researchgate.net/publication/342596080_Discourses_of_climate_delay"
+        },
+        {
+          "paragraph": 173,
+          "url": "https://ijoc.org/index.php/ijoc/article/view/17824/3614",
+          "text": "Agenda-Cutting Versus Agenda-Building: Does Sponsored Content Influence Corporate News Coverage in U.S. Media?"
+        },
+        {
+          "paragraph": 174,
+          "url": "https://www.greenpeace.org/static/planet4-netherlands-stateless/2022/09/0ded952d-threeshadesofgreenwashing.pdf",
+          "text": "Three Shades of Green(washing) Content Analysis of Social Media Discourse by European OIl, Car, and Airline Companies"
+        },
+        {
+          "paragraph": 197,
+          "url": "mailto:geolim@bu.edu",
+          "text": "geolim@bu.edu"
+        }
+      ],
+      "comments": [
+        {
+          "id": "2",
+          "author": "Bochuan Yao",
+          "date_utc": "2026-09-16T15:59:09Z",
+          "anchor_nonempty_paragraph_numbers": [
+            51
+          ],
+          "text": "we need scope"
+        },
+        {
+          "id": "7",
+          "author": "Bochuan Yao",
+          "date_utc": "2026-09-16T15:15:35Z",
+          "anchor_nonempty_paragraph_numbers": [
+            180
+          ],
+          "text": "provide API access and SCC?"
+        },
+        {
+          "id": "8",
+          "author": "Bochuan Yao",
+          "date_utc": "2026-09-16T16:19:25Z",
+          "anchor_nonempty_paragraph_numbers": [
+            180
+          ],
+          "text": "Are we allowed to use open-source models or tools for this project? Also, what budget do we have available?"
+        },
+        {
+          "id": "0",
+          "author": "Bochuan Yao",
+          "date_utc": "2026-09-17T19:50:15Z",
+          "anchor_nonempty_paragraph_numbers": [
+            1,
+            2
+          ],
+          "text": "https://ciss-advertising-observatory-production.up.railway.app/query"
+        },
+        {
+          "id": "5",
+          "author": "Bochuan Yao",
+          "date_utc": "2026-09-16T15:05:28Z",
+          "anchor_nonempty_paragraph_numbers": [
+            73
+          ],
+          "text": "404 Not Found"
+        },
+        {
+          "id": "6",
+          "author": "Geo Lim",
+          "date_utc": "2026-09-16T15:18:28Z",
+          "anchor_nonempty_paragraph_numbers": [
+            73
+          ],
+          "text": "a new repo is being made – you will have access to it some time this week1 total reactionBochuan Yao reacted with 👍 at 09/16/2026, 3:20 PM UTC"
+        },
+        {
+          "id": "4",
+          "author": "Bochuan Yao",
+          "date_utc": "2026-09-17T15:26:20Z",
+          "anchor_nonempty_paragraph_numbers": [
+            70
+          ],
+          "text": "need it."
+        },
+        {
+          "id": "1",
+          "author": "Bochuan Yao",
+          "date_utc": "2026-09-16T15:41:36Z",
+          "anchor_nonempty_paragraph_numbers": [
+            15
+          ],
+          "text": "Should we do native ad classification, with fine-tuning deferred to a later stage？"
+        },
+        {
+          "id": "3",
+          "author": "Bochuan Yao",
+          "date_utc": "2026-09-16T20:10:28Z",
+          "anchor_nonempty_paragraph_numbers": [
+            58
+          ],
+          "text": "We need realistic questions that users would actually ask."
+        }
+      ]
+    },
+    "fa26_no_suffix": {
+      "path": "C:\\Users\\yaobc\\Downloads\\[FA26] DS 549_ CISS Fossil Fuel and Animal Agriculture Advertising Observatory.docx",
+      "sha256": "8fed7d7c76eac77b5f9ed2fcc7557b844d076abde602c8b1eba510645aa07291",
+      "paragraph_count": 235,
+      "body_text_sha256": "db6de326723a4daf48c8d0cbcb195ed68036eb1c4f4386d12b25765400f7cde7",
+      "hyperlinks": [
+        {
+          "paragraph": 62,
+          "url": "https://drive.google.com/drive/folders/1QYuGCrPctiwY03w46O_urHtrnKUgXij9?usp=sharing",
+          "text": "Google Drive"
+        },
+        {
+          "paragraph": 63,
+          "url": "https://drive.google.com/drive/folders/1zm3jVtZPedDG0bN_s7OAWxwjCwOs9cQl?usp=drive_link",
+          "text": "Google Drive"
+        },
+        {
+          "paragraph": 67,
+          "url": "https://ibes.brown.edu/news/2024-03-20/cdl-lobbying-website",
+          "text": "How Do They Lobby? — Brown University project article and video"
+        },
+        {
+          "paragraph": 69,
+          "url": "https://www.the-big-green-machine.com/",
+          "text": "The Big Green Machine"
+        },
+        {
+          "paragraph": 70,
+          "url": "https://acre.wisc.edu/big-ag-network",
+          "text": "Big Ag Network"
+        },
+        {
+          "paragraph": 71,
+          "url": "https://seahorse-app-kjzfk.ondigitalocean.app/",
+          "text": "University Of Miami Prototype"
+        },
+        {
+          "paragraph": 72,
+          "url": "https://www.junkipedia.org/posts/920047974",
+          "text": "Example Junkipedia post"
+        },
+        {
+          "paragraph": 74,
+          "url": "https://github.com/BU-Spark/ml-ciss-native-ads",
+          "text": "https://github.com/BU-Spark/ml-ciss-native-ads"
+        },
+        {
+          "paragraph": 75,
+          "url": "https://docs.google.com/presentation/d/1GZ_NKJqyrKQ4ln4CRO7Tor9ZC2W8RYGIECsRlucPKfQ/edit?usp=share_link",
+          "text": "DS549: CISS Native Ads Deliverable 5 (Final)"
+        },
+        {
+          "paragraph": 76,
+          "url": "https://docs.google.com/presentation/d/1AFpn-b3iDswCRPsehl5e-mvUMMktA-0NsxFeHLr8utA/edit?usp=share_link",
+          "text": "DS549: CISS Native Ads Final Presentation"
+        },
+        {
+          "paragraph": 77,
+          "url": "https://docs.google.com/presentation/d/12K_Iqgf22KvxFHZ_eF0z2aH9NzmQaBoA/edit?usp=share_link&ouid=101170222743202658595&rtpof=true&sd=true",
+          "text": "Poster Board CS549 DEV.pptx"
+        },
+        {
+          "paragraph": 171,
+          "url": "https://www.bu.edu/articles/2025/how-to-resist-shaping-climate-opinions/?utm_campaign=bu_today&utm_source=email_20250520&utm_medium=intrograph&utm_content=research_humanities",
+          "text": "Native Ads Are Shaping Climate Opinions. BU Researchers Say There’s a Way to Resist | The Brink | Boston University"
+        },
+        {
+          "paragraph": 172,
+          "url": "https://www.nature.com/articles/s44168-025-00209-6",
+          "text": "The “Future of Energy”? Building resilience to ExxonMobil’s disinformation through disclosures and inoculation"
+        },
+        {
+          "paragraph": 173,
+          "url": "https://www.researchgate.net/publication/342596080_Discourses_of_climate_delay",
+          "text": "https://www.researchgate.net/publication/342596080_Discourses_of_climate_delay"
+        },
+        {
+          "paragraph": 174,
+          "url": "https://ijoc.org/index.php/ijoc/article/view/17824/3614",
+          "text": "Agenda-Cutting Versus Agenda-Building: Does Sponsored Content Influence Corporate News Coverage in U.S. Media?"
+        },
+        {
+          "paragraph": 175,
+          "url": "https://www.greenpeace.org/static/planet4-netherlands-stateless/2022/09/0ded952d-threeshadesofgreenwashing.pdf",
+          "text": "Three Shades of Green(washing) Content Analysis of Social Media Discourse by European OIl, Car, and Airline Companies"
+        },
+        {
+          "paragraph": 198,
+          "url": "mailto:geolim@bu.edu",
+          "text": "geolim@bu.edu"
+        },
+        {
+          "paragraph": 215,
+          "url": "https://docs.google.com/document/d/1yPUWweWHA-tB_1stEvVUDmdGyptaar7dnsPtOvhQ1oc/edit",
+          "text": "weekly notes template"
+        },
+        {
+          "paragraph": 223,
+          "url": "https://docs.google.com/presentation/d/1hfrk0F7PQD1uRJwUZDGWFUf1wV0jtYFZSmKnIJMCqws/edit?usp=sharing",
+          "text": "[TEMPLATE] Client Meeting Presentation "
+        }
+      ],
+      "comments": []
+    },
+    "meeting_20260925": {
+      "path": "C:\\Users\\yaobc\\Downloads\\DS549 9_25 Meeting Notes.docx",
+      "sha256": "78b507a529f0e7f79f13804c6072688df727b921410a13c2f63d990b5e07d2b0",
+      "paragraph_count": 57,
+      "body_text_sha256": "8fcde8451091751c33b3147f10e0ee7c644a5a46d13586937562db68b8d56557",
+      "hyperlinks": [
+        {
+          "paragraph": 24,
+          "url": "https://ciss-advertising-observatory-production.up.railway.app/query",
+          "text": "existing demo table"
+        },
+        {
+          "paragraph": 29,
+          "url": "https://indra.stanford.edu/",
+          "text": "INDRA"
+        },
+        {
+          "paragraph": 36,
+          "url": "https://howdotheylobby.org/",
+          "text": "HowDoTheyLobby Website"
+        }
+      ],
+      "comments": []
+    }
+  },
+  "source_comparison": {
+    "v1_v2_body_equal": true,
+    "v1_v2_hyperlinks_equal": true,
+    "no_suffix_core_body_equal": true,
+    "no_suffix_extra_leading_paragraphs": 1,
+    "no_suffix_extra_trailing_paragraphs": 23,
+    "canonical": "fa26_user_selected_v1",
+    "comment_questions_are_not_approved_scope_changes": true
+  },
+  "email": {
+    "source": "user_pasted_english_email",
+    "sender_as_supplied": "Michelle Amazeen",
+    "sent_at": null,
+    "original_headers_available": false,
+    "excerpt": "analysis/MICHELLE_FEEDBACK_EMAIL_EXCERPT_UNDATED.txt"
+  },
+  "technical_reference": {
+    "purpose": "Methodological reference, not an approved client scope change.",
+    "supplied_text_path": "C:\\Users\\yaobc\\.codex\\attachments\\b10af187-caf6-47e0-a3d8-750ea6868529\\已粘贴的文本.txt",
+    "supplied_text_sha256": "c657b25a7ee4358dd3535ec30ed645d12e4a83c79905dcfbd6419a66d0e84161",
+    "code_repository": "https://github.com/galenphall/chorus_data",
+    "verified_commit": "902b641dc601ffb46f212054da679638670df780",
+    "primary_sources": [
+      "https://github.com/galenphall/chorus_data/blob/902b641dc601ffb46f212054da679638670df780/README.md",
+      "https://github.com/galenphall/chorus_data/blob/902b641dc601ffb46f212054da679638670df780/LICENSE.md",
+      "https://github.com/galenphall/chorus_data/blob/902b641dc601ffb46f212054da679638670df780/CODEBOOK.md",
+      "https://github.com/galenphall/chorus_data/blob/902b641dc601ffb46f212054da679638670df780/replication_code/hbsbm.py",
+      "https://github.com/galenphall/chorus_data/blob/902b641dc601ffb46f212054da679638670df780/replication_code/utils.py",
+      "https://howdotheylobby.org/about"
+    ],
+    "verified_limits": [
+      "Research replication repository; no full website source identified in this repository.",
+      "README code paths differ from current replication_code directory.",
+      "Research bipartite pruning (5,5) differs from website relationship preprocessing (5,2).",
+      "Policy support/opposition and inferred coalitions are not native advertising sponsor facts.",
+      "Three-layer naming and normalized score in supplied text are engineering suggestions."
+    ],
+    "clone": false,
+    "data_download": false,
+    "dependency_install": false,
+    "analysis_run": false
+  },
+  "http_snapshot": {
+    "local": {
+      "/healthz": {
+        "http_status": 200,
+        "content_type": "application/json",
+        "health": {
+          "status": "ok",
+          "record_counts": {
+            "native": 275
+          },
+          "active_profile": "sentence600-v1",
+          "chunks": 556,
+          "source_data_version": "5114ebc1cf9afe59cdaa715e3ea45166",
+          "index_version": "d580c5962a6222e595db2ed8681f9787cef648dad653b055120b6bed10e3af75",
+          "data_version": "f19d4d697f4e6d2699d2c58b3ce80620b03e02c7e9447f24e012123adcb00f53"
+        }
+      },
+      "/_dash-layout": {
+        "http_status": 200,
+        "content_type": "application/json",
+        "components": {
+          "native-view": true,
+          "collection-graph-canvas": true,
+          "collection-graph-breakdown": true,
+          "historical-theme-label": true
+        },
+        "component_ids_count": 202
+      }
+    },
+    "railway": {
+      "/healthz": {
+        "http_status": 200,
+        "content_type": "application/json",
+        "health": {
+          "status": "ok",
+          "record_counts": {
+            "native": 275
+          },
+          "active_profile": "sentence600-v1",
+          "chunks": 556,
+          "source_data_version": "5114ebc1cf9afe59cdaa715e3ea45166",
+          "index_version": "d580c5962a6222e595db2ed8681f9787cef648dad653b055120b6bed10e3af75",
+          "data_version": "f19d4d697f4e6d2699d2c58b3ce80620b03e02c7e9447f24e012123adcb00f53"
+        }
+      },
+      "/_dash-layout": {
+        "http_status": 200,
+        "content_type": "application/json",
+        "components": {
+          "native-view": false,
+          "collection-graph-canvas": false,
+          "collection-graph-breakdown": false,
+          "historical-theme-label": false
+        },
+        "component_ids_count": 92
+      }
+    }
+  },
+  "http_snapshot_file_recorded_at_utc": "2026-09-30T03:03:37.628585+00:00",
+  "http_limits": [
+    "Health metadata equality does not establish complete database or vector equality.",
+    "Four new UI component identifiers exist locally and are absent in the public layout.",
+    "No complete public user flow, paid answer, or client acceptance was checked."
+  ],
+  "git": {
+    "head": "2fc6588",
+    "branch": "codex/fa26-observatory",
+    "working_tree_clean": false,
+    "status_entry_count": 125,
+    "new_features_committed_or_published": false
+  },
+  "prior_engineering_evidence_not_rerun": {
+    "report": "reports/graph_details_v2_validation_20260929.json",
+    "sha256": "4f360658e1891bca5423ad5eec5e1179526ffff20145c9dc7f85cb202b5c807a",
+    "status": "local_engineering_counts_browser_passed_client_acceptance_pending",
+    "tests": {
+      "full_non_integration_non_live_passed": 926,
+      "full_deselected": 62,
+      "full_duration_seconds": 33.34,
+      "final_related_passed": 118,
+      "final_related_stage": "after positive-size resize repair",
+      "ruff": "passed",
+      "ruff_scope": [
+        "src",
+        "tests",
+        "scripts"
+      ],
+      "javascript_syntax": {
+        "command": "node --check src/observatory/assets/collection_graph.js",
+        "status": "passed",
+        "exit_code": 0
+      },
+      "historical_stages": [
+        {
+          "full_non_integration_non_live_passed": 920,
+          "full_deselected": 62,
+          "related_passed": 143,
+          "isolated_database_integration_included": true,
+          "scope": "earlier detail-layout and historical label-name stage; not latest full total"
+        }
+      ],
+      "source": "root observed completed pytest, Ruff and Node checks",
+      "full_seconds": 33.34,
+      "isolated_database_integration_included": false,
+      "node_javascript_syntax": "passed",
+      "historical_checks": [
+        {
+          "stage": "before_resize_fix",
+          "full_passed": 920,
+          "full_deselected": 62
+        },
+        {
+          "stage": "details_layout_and_label_display",
+          "related_passed": 143,
+          "isolated_database_integration_included": true
+        }
+      ]
+    },
+    "limits": "Engineering and limited browser/SQL checks are not independent semantic or client acceptance."
+  },
+  "acceptance": {
+    "client": "pending",
+    "social_real_data": "not_connected",
+    "formal_claims": "future_scope_not_integrated",
+    "large_scale_performance": "not_validated",
+    "latest_local_ui_on_railway": false
+  }
+}

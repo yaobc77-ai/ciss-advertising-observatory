@@ -107,6 +107,22 @@ def sponsor_publisher_matrix(rows):
     counts = Counter(
         (_value(row.get("sponsor")), _value(row.get("publisher"))) for row in rows
     )
+    return sponsor_publisher_matrix_from_counts(
+        {"sponsor": sponsor, "publisher": publisher, "count": count}
+        for (sponsor, publisher), count in counts.items()
+    )
+
+
+def sponsor_publisher_matrix_from_counts(relationships):
+    """Build the same matrix from SQL aggregates without expanding record rows."""
+    counts = Counter()
+    for row in relationships:
+        count = row["count"]
+        if isinstance(count, bool) or not isinstance(count, int) or count < 0:
+            raise ValueError("Relationship counts must be nonnegative integers")
+        if count:
+            counts[(_value(row.get("sponsor")), _value(row.get("publisher")))] += count
+    total = sum(counts.values())
     sponsor_totals = Counter()
     publisher_totals = Counter()
     for (sponsor, publisher), count in counts.items():
@@ -164,7 +180,7 @@ def sponsor_publisher_matrix(rows):
                     strict=True,
                 )
             ),
-            "total": len(rows),
+            "total": total,
             "is_total": True,
         }
     )
@@ -174,7 +190,7 @@ def sponsor_publisher_matrix(rows):
         "matrix": matrix,
         "row_totals": [sponsor_totals[value] for value in sponsor_values],
         "column_totals": [publisher_totals[value] for value in publishers],
-        "total": len(rows),
+        "total": total,
         "table_columns": columns,
         "table_rows": table,
         "notes": [CERA_NOTE]

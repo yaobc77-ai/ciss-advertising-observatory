@@ -22,16 +22,28 @@ def main():
     )
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("init-db")
+    sub.add_parser("migrate", help="Apply ordered database migrations and initialize retrieval state")
+    sub.add_parser("migration-status", help="Inspect applied and pending migrations without changing data")
     sub.add_parser("health")
     sub.add_parser("serve")
     sub.add_parser("budget")
     imp = sub.add_parser("import-native")
     imp.add_argument("--root", type=Path, default=Path.cwd())
     imp.add_argument("--out", default="outputs/native_import.json")
+    imp.add_argument("--mode", choices=["upsert", "snapshot"], default="upsert",
+                     help="Upsert preserves other records; snapshot retires missing native records")
     social = sub.add_parser("import-social")
     social.add_argument("path", type=Path)
     social.add_argument("--mapping", type=Path, required=True)
     social.add_argument("--out", default="outputs/social_import.json")
+    social.add_argument("--mode", choices=["upsert", "snapshot"], default="upsert")
+    records = sub.add_parser("import-records", help="Import validated canonical RecordInput JSONL")
+    records.add_argument("path", type=Path)
+    records.add_argument("--dataset", choices=["native", "social"],
+                         help="Validate the dataset; required for snapshot mode")
+    records.add_argument("--mode", choices=["upsert", "snapshot"], default="upsert")
+    records.add_argument("--dry-run", action="store_true", help="Validate every row without opening the database")
+    records.add_argument("--out", default="outputs/records_import.json")
     sub.add_parser("index")
     for command in ("index-prepare", "index-status", "index-activate"):
         p = sub.add_parser(command)
@@ -49,9 +61,17 @@ def main():
     args = parser.parse_args()
     settings = Settings.from_env()
     db = Database(settings.database_url)
-    if args.command == "init-db":
+    if args.command in ("init-db", "migrate"):
         db.initialize()
-        emit({"initialized": True})
+        from .migrations import migration_status
+
+        with db.connect() as conn:
+            emit({"initialized": True, **migration_status(conn)})
+    elif args.command == "migration-status":
+        from .migrations import migration_status
+
+        with db.connect() as conn:
+            emit(migration_status(conn))
     elif args.command == "health":
         emit(db.health())
     elif args.command == "budget":
@@ -67,7 +87,7 @@ def main():
                     args.root, require_admissions=True, require_body_reviews=True,
                     require_body_recoveries=True,
                 ),
-                snapshot_dataset="native",
+                snapshot_dataset="native" if args.mode == "snapshot" else None,
             ),
             args.out,
         )
@@ -76,7 +96,26 @@ def main():
 
         mapping = json.loads(args.mapping.read_text(encoding="utf-8"))
         batch = load_social(args.path, mapping)
-        emit(db.import_batch(batch), args.out)
+        emit(db.import_batch(
+            batch, snapshot_dataset="social" if args.mode == "snapshot" else None,
+        ), args.out)
+    elif args.command == "import-records":
+        from .import_records import load_records
+
+        if args.mode == "snapshot" and args.dataset is None:
+            parser.error("import-records --mode snapshot requires --dataset native or social")
+        batch = load_records(args.path, dataset=args.dataset)
+        if args.dry_run:
+            emit({
+                "validated": True, "dry_run": True,
+                "input_records": len(batch.records), "mode": args.mode,
+                "datasets": sorted({record.dataset for record in batch.records}),
+                "source_hashes": batch.source_hashes,
+            }, args.out)
+        else:
+            emit(db.import_batch(
+                batch, snapshot_dataset=args.dataset if args.mode == "snapshot" else None,
+            ), args.out)
     elif args.command == "index":
         from .rag import Rag
 

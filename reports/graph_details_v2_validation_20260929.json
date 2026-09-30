@@ -1,0 +1,380 @@
+{
+  "date": "2026-09-29",
+  "checked_at_utc": "2026-09-30T02:54:27.751428+00:00",
+  "scope": "local_graph_details_v2",
+  "status": "local_engineering_counts_browser_passed_client_acceptance_pending",
+  "tests": {
+    "full_non_integration_non_live_passed": 926,
+    "full_deselected": 62,
+    "full_duration_seconds": 33.34,
+    "final_related_passed": 118,
+    "final_related_stage": "after positive-size resize repair",
+    "ruff": "passed",
+    "ruff_scope": [
+      "src",
+      "tests",
+      "scripts"
+    ],
+    "javascript_syntax": {
+      "command": "node --check src/observatory/assets/collection_graph.js",
+      "status": "passed",
+      "exit_code": 0
+    },
+    "historical_stages": [
+      {
+        "full_non_integration_non_live_passed": 920,
+        "full_deselected": 62,
+        "related_passed": 143,
+        "isolated_database_integration_included": true,
+        "scope": "earlier detail-layout and historical label-name stage; not latest full total"
+      }
+    ],
+    "source": "root observed completed pytest, Ruff and Node checks",
+    "full_seconds": 33.34,
+    "isolated_database_integration_included": false,
+    "node_javascript_syntax": "passed",
+    "historical_checks": [
+      {
+        "stage": "before_resize_fix",
+        "full_passed": 920,
+        "full_deselected": 62
+      },
+      {
+        "stage": "details_layout_and_label_display",
+        "related_passed": 143,
+        "isolated_database_integration_included": true
+      }
+    ]
+  },
+  "corpus": {
+    "smoke_report": "reports/graph_breakdowns_smoke_20260929.json",
+    "smoke_status": "passed",
+    "scopes_checked": 8,
+    "entity_partitions_checked": 88,
+    "relation_breakdowns_checked": 1314,
+    "all_matrix_counts_match": true,
+    "source_data_and_index_health_unchanged": true,
+    "health_before": {
+      "status": "ok",
+      "record_counts": {
+        "native": 275
+      },
+      "source_data_version": "5114ebc1cf9afe59cdaa715e3ea45166",
+      "active_profile": "sentence600-v1",
+      "index_version": "d580c5962a6222e595db2ed8681f9787cef648dad653b055120b6bed10e3af75",
+      "data_version": "f19d4d697f4e6d2699d2c58b3ce80620b03e02c7e9447f24e012123adcb00f53",
+      "chunks": 556
+    },
+    "health_after": {
+      "status": "ok",
+      "record_counts": {
+        "native": 275
+      },
+      "source_data_version": "5114ebc1cf9afe59cdaa715e3ea45166",
+      "active_profile": "sentence600-v1",
+      "index_version": "d580c5962a6222e595db2ed8681f9787cef648dad653b055120b6bed10e3af75",
+      "data_version": "f19d4d697f4e6d2699d2c58b3ce80620b03e02c7e9447f24e012123adcb00f53",
+      "chunks": 556
+    },
+    "paid_model_calls": 0,
+    "customer_examples": {
+      "new_york_times_native_ads": {
+        "available": true,
+        "count": 19,
+        "related_categories": [
+          {
+            "label": "BP",
+            "count": 8,
+            "percent": 42.10526315789473
+          },
+          {
+            "label": "Shell",
+            "count": 4,
+            "percent": 21.052631578947366
+          },
+          {
+            "label": "Chevron",
+            "count": 3,
+            "percent": 15.789473684210526
+          },
+          {
+            "label": "ExxonMobil",
+            "count": 3,
+            "percent": 15.789473684210526
+          },
+          {
+            "label": "PTT",
+            "count": 1,
+            "percent": 5.263157894736842
+          }
+        ]
+      },
+      "exxonmobil_publishers": {
+        "available": true,
+        "count": 15,
+        "related_categories": [
+          {
+            "label": "Business Insider",
+            "count": 5,
+            "percent": 33.33333333333333
+          },
+          {
+            "label": "The Washington Post",
+            "count": 5,
+            "percent": 33.33333333333333
+          },
+          {
+            "label": "The New York Times",
+            "count": 3,
+            "percent": 20.0
+          },
+          {
+            "label": "The Wall Street Journal",
+            "count": 2,
+            "percent": 13.333333333333334
+          }
+        ]
+      },
+      "washington_post_sponsors": {
+        "available": true,
+        "count": 18,
+        "related_categories": [
+          {
+            "label": "API",
+            "count": 6,
+            "percent": 33.33333333333333
+          },
+          {
+            "label": "ExxonMobil",
+            "count": 5,
+            "percent": 27.77777777777778
+          },
+          {
+            "label": "Shell",
+            "count": 2,
+            "percent": 11.11111111111111
+          },
+          {
+            "label": "Southern Company",
+            "count": 2,
+            "percent": 11.11111111111111
+          },
+          {
+            "label": "AFPM",
+            "count": 1,
+            "percent": 5.555555555555555
+          },
+          {
+            "label": "Chevron",
+            "count": 1,
+            "percent": 5.555555555555555
+          },
+          {
+            "label": "Eni",
+            "count": 1,
+            "percent": 5.555555555555555
+          }
+        ]
+      }
+    },
+    "read_evidence_only": true,
+    "database_access_by_documentation_auditor": false
+  },
+  "browser": {
+    "status": "passed_local",
+    "expanded_canvas": "passed_after_positive_size_resize_fix",
+    "node_click": {
+      "status": "passed",
+      "outlet": "The Washington Post",
+      "records": 18,
+      "source_sponsor_categories": 7
+    },
+    "donut_slice_click": "passed_exact_record_subset",
+    "counterpart_list_and_keyboard": {
+      "status": "passed",
+      "keyboard": "native button Enter",
+      "source_sponsor": "ExxonMobil",
+      "records_at_washington_post": 5
+    },
+    "article_subsets": {
+      "records": 5,
+      "nodes": 7,
+      "source_edges": 10
+    },
+    "new_york_times_example": {
+      "records": 19,
+      "status": "passed"
+    },
+    "historical_label_bar_and_dropdown": {
+      "status": "passed",
+      "Decreasing emissions": 84,
+      "Petrochemical product": 40
+    },
+    "record_detail_links": "passed_new_tab_stored_text_original_link_unverified_material_notice",
+    "export_callback": "passed_engineering_and_browser_preparation",
+    "export_status_text": "Prepared 5 categories for 19 supporting records.",
+    "browser_download_bytes": "not_captured",
+    "mobile_layout": {
+      "status": "passed",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "document_client_width": 375,
+      "document_scroll_width": 375,
+      "readable_donut_and_four_category_rows": true
+    },
+    "desktop_responsive_viewport": {
+      "width": 1600,
+      "height": 1000
+    },
+    "viewport_overrides_reset": true,
+    "error_logs": [],
+    "main_tab_left_as_deliverable": true,
+    "temporary_record_tab_closed": true
+  },
+  "documentation": {
+    "status": "passed",
+    "documents_checked": [
+      "README.md",
+      "docs/DOCUMENT_INDEX.zh-CN.md",
+      "docs/user_guide.md",
+      "docs/acceptance_status.md",
+      "docs/COLLECTION_KNOWLEDGE_GRAPH.zh-CN.md",
+      "reports/GRAPH_DETAILS_V2_20260929.zh-CN.md",
+      "reports/CLIENT_REQUIREMENTS_GRAPH_V2_20260929.zh-CN.md"
+    ],
+    "local_links_checked": 245,
+    "missing_local_links": [],
+    "link_check_scope": "local target existence; remote URLs and Markdown anchor correctness not checked",
+    "catalog_rows_before": 130,
+    "catalog_rows_after": 134,
+    "catalog_new_entries": [
+      "reports/GRAPH_DETAILS_V2_20260929.zh-CN.md",
+      "reports/CLIENT_REQUIREMENTS_GRAPH_V2_20260929.zh-CN.md",
+      "reports/graph_breakdowns_smoke_20260929.json",
+      "reports/graph_details_v2_validation_20260929.json"
+    ],
+    "catalog_refreshed_paths": [
+      "README.md",
+      "docs/COLLECTION_KNOWLEDGE_GRAPH.zh-CN.md",
+      "docs/DOCUMENT_INDEX.zh-CN.md",
+      "docs/acceptance_status.md",
+      "docs/user_guide.md",
+      "reports/CLIENT_REQUIREMENTS_GRAPH_V2_20260929.zh-CN.md",
+      "reports/GRAPH_DETAILS_V2_20260929.zh-CN.md",
+      "reports/graph_breakdowns_smoke_20260929.json",
+      "reports/graph_details_v2_validation_20260929.json"
+    ],
+    "historical_entries_preserved": true,
+    "missing_catalog_targets": []
+  },
+  "document_manifest": [
+    {
+      "path": "README.md",
+      "bytes": 15680,
+      "sha256": "95d866056e234246884ec35ff291a1cc2d1c45866e6be784fc4d0d2ec6e961a4"
+    },
+    {
+      "path": "docs/DOCUMENT_INDEX.zh-CN.md",
+      "bytes": 27883,
+      "sha256": "aa191a283c49ef24856ff1d220876ebb0bdccdb1dcf8b30fe659006fca6a391c"
+    },
+    {
+      "path": "docs/user_guide.md",
+      "bytes": 22322,
+      "sha256": "6948a1a77c1d1d54d9a4ca994dff5ecc0c79445c7b8f0da11f6e56183bab1418"
+    },
+    {
+      "path": "docs/acceptance_status.md",
+      "bytes": 13609,
+      "sha256": "53faf8a118a43db1958c1e3cda848d2d30e693bb60363934f5d3c7b619915aeb"
+    },
+    {
+      "path": "docs/COLLECTION_KNOWLEDGE_GRAPH.zh-CN.md",
+      "bytes": 12950,
+      "sha256": "4183a0a3a194f00710eefe77c0ca8a98aa2b052b2df864425f5a6222fcf333d3"
+    },
+    {
+      "path": "reports/GRAPH_DETAILS_V2_20260929.zh-CN.md",
+      "bytes": 9390,
+      "sha256": "06df685ce1387fbf5863a071ba26886236a029ad0ad754dd7c4e950970bd4357"
+    },
+    {
+      "path": "reports/CLIENT_REQUIREMENTS_GRAPH_V2_20260929.zh-CN.md",
+      "bytes": 10996,
+      "sha256": "3e9017c7e78ce2d69f75969b01aa47bdc9e68c17ed6dfd7c7d925246cffd93a5"
+    },
+    {
+      "path": "reports/graph_breakdowns_smoke_20260929.json",
+      "bytes": 206405,
+      "sha256": "60f6cff77fce2281d408993f2792ec5836e2f57ef79201d67025858c7a328e77"
+    }
+  ],
+  "screenshots": [
+    {
+      "path": "reports/screenshots/graph_details_v2_washington_post_20260929.jpg",
+      "bytes": 107928,
+      "sha256": "5e1c8e5bf2ca903128f2be4d64d470bdf0f87001dc74ec9409521285e330ba12"
+    },
+    {
+      "path": "reports/screenshots/graph_details_v2_mobile_20260929.jpg",
+      "bytes": 21406,
+      "sha256": "f88783acae94b3383fbde2525c1c489e829a9a3aaf0c4e07090c750e3809998e"
+    },
+    {
+      "path": "reports/screenshots/graph_details_v2_record_20260929.jpg",
+      "bytes": 46713,
+      "sha256": "43a16a77f705f7480f967de9f8ebcfc86c88262c23fffd302add10dcef9e7eb7"
+    },
+    {
+      "path": "reports/screenshots/graph_details_v2_historical_theme_20260929.jpg",
+      "bytes": 89140,
+      "sha256": "cc41c75e413e125d6f3910ad75facd916a18174743afb8195ddb3dbb8c7903f4"
+    },
+    {
+      "path": "reports/screenshots/graph_details_v2_final_20260929.jpg",
+      "bytes": 52012,
+      "sha256": "7dc04f647945a63eb939919590f3da8c7de2ede5ed1621ae68ee26624c84aea9"
+    }
+  ],
+  "documentation_audit_model_calls": 0,
+  "github_push": false,
+  "railway_deployment": false,
+  "client_acceptance": "pending",
+  "limitations": [
+    "Engineering, browser and source-count checks do not establish semantic answer accuracy or client acceptance.",
+    "Browser export preparation was observed; downloaded file bytes were not captured.",
+    "Metadata availability rings are not extraction-completeness or greenwashing verdicts.",
+    "Source-listed names are not independently verified business relationships.",
+    "Real social data, formal CLAIMS integration, production deployment and client acceptance remain incomplete.",
+    "Browser export preparation was observed; downloaded CSV bytes were not captured through browser automation."
+  ],
+  "screenshot_manifest": [
+    {
+      "path": "reports/screenshots/graph_details_v2_washington_post_20260929.jpg",
+      "bytes": 107928,
+      "sha256": "5e1c8e5bf2ca903128f2be4d64d470bdf0f87001dc74ec9409521285e330ba12"
+    },
+    {
+      "path": "reports/screenshots/graph_details_v2_mobile_20260929.jpg",
+      "bytes": 21406,
+      "sha256": "f88783acae94b3383fbde2525c1c489e829a9a3aaf0c4e07090c750e3809998e"
+    },
+    {
+      "path": "reports/screenshots/graph_details_v2_record_20260929.jpg",
+      "bytes": 46713,
+      "sha256": "43a16a77f705f7480f967de9f8ebcfc86c88262c23fffd302add10dcef9e7eb7"
+    },
+    {
+      "path": "reports/screenshots/graph_details_v2_historical_theme_20260929.jpg",
+      "bytes": 89140,
+      "sha256": "cc41c75e413e125d6f3910ad75facd916a18174743afb8195ddb3dbb8c7903f4"
+    },
+    {
+      "path": "reports/screenshots/graph_details_v2_final_20260929.jpg",
+      "bytes": 52012,
+      "sha256": "7dc04f647945a63eb939919590f3da8c7de2ede5ed1621ae68ee26624c84aea9"
+    }
+  ]
+}

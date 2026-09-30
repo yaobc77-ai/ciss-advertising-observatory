@@ -92,6 +92,25 @@ class FakeService:
             raise RuntimeError(SECRET)
         return self._selected(filters)
 
+    def page(self, filters, offset=0, limit=20, sort_by="date", descending=True):
+        rows = self.browse(filters)
+        offset = min(offset, max(0, (len(rows) - 1) // limit * limit))
+        return {"rows": rows[offset:offset + limit], "total": len(rows), "offset": offset}
+
+    def dashboard(self, filters, offset=0, limit=20, sort_by="date", descending=True):
+        from observatory.analytics import (
+            historical_label_distribution,
+            sponsor_publisher_matrix,
+            yearly_timeline,
+        )
+        from observatory.service import summarize
+
+        rows = self.browse(filters)
+        offset = min(offset, max(0, (len(rows) - 1) // limit * limit))
+        return {"page": {"rows": rows[offset:offset + limit], "total": len(rows), "offset": offset},
+                "stats": summarize(rows), "matrix": sponsor_publisher_matrix(rows),
+                "labels": historical_label_distribution(rows), "timeline": yearly_timeline(rows)}
+
     def statistics(self, filters):
         rows = self._selected(filters)
 
@@ -179,6 +198,32 @@ def component_tree(node):
             yield from component_tree(value)
 
 
+def test_health_reports_release_and_features_without_serializing_configuration(application, monkeypatch):
+    _app, client, _service = application
+    monkeypatch.setenv("RAILWAY_GIT_COMMIT_SHA", "a" * 40)
+    monkeypatch.setenv("OBS_DATABASE_URL", SECRET)
+    response = client.get("/healthz")
+    assert response.status_code == 200
+    assert response.json["application"]["commit"] == "a" * 40
+    assert response.json["application"]["features"] == {
+        "collection_graph": True,
+        "graph_breakdowns": True,
+        "research_agent": False,
+    }
+    assert response.json["application"]["version"]
+    assert SECRET not in response.get_data(as_text=True)
+
+
+def test_health_rejects_non_commit_environment_values_and_preserves_failure_status(application, monkeypatch):
+    _app, client, service = application
+    monkeypatch.setenv("RAILWAY_GIT_COMMIT_SHA", SECRET)
+    monkeypatch.setattr(service, "health", lambda: {"status": "unavailable"})
+    response = client.get("/healthz")
+    assert response.status_code == 503
+    assert response.json["application"]["commit"] is None
+    assert SECRET not in response.get_data(as_text=True)
+
+
 def defaults(dataset):
     values = {
         f"{dataset}-{name}.value": []
@@ -261,15 +306,14 @@ def test_layout_has_both_panels_original_fields_and_record_archive_access(applic
         components
     )
     assert [col["field"] for col in components["native-grid"]["columnDefs"]] == [
-        "record_id",
-        "url",
-        "publisher",
         "title",
-        "date",
         "sponsor",
-        "keyword",
+        "publisher",
+        "date",
+        "url",
         "archive_status",
     ]
+    assert components["native-grid"]["columnDefs"][0]["cellRenderer"] == "RecordTitle"
     assert components["research-question"]["maxLength"] == 2000
     assert SECRET not in response.get_data(as_text=True)
     assert client.get("/assets/observatory.css").status_code == 200

@@ -1,16 +1,38 @@
 # 项目文档阅读索引
 
-更新：2026-09-17。按阅读目的查找文档；不移动、覆盖或删除历史材料。需要按路径或性质排序时，使用[文档清单](document_catalog.csv)。
+更新：2026-09-30。按阅读目的查找文档，历史回执保留原日期与范围。按路径／性质排序时使用[文档清单](document_catalog.csv)。
 
-**当前入口是 0.3.1 的原生广告研究预览。** 主导航为 Query / Data，线框图移到页脚；新增全量交叉表、记录详情、归档状态与词覆盖诊断，436 项非 live 测试通过。556 块句界索引沿用 0.3.0；两次真实 API 连通检查属于上一版，本轮没有付费调用。真实社交、公众部署、指定 GitHub 和独立人工验收仍未完成，具体状态以[本次界面修订](../reports/research_ui_v0_3_1_20260917.zh-CN.md)、[实施与验收状态](acceptance_status.md)及[原文要求核对](../reports/FA26_REQUIREMENTS_AUDIT.zh-CN.md)为准。
+最新版本 **0.4.0**：[发布与线上验证](../reports/RELEASE_V0_4_0_20260930.zh-CN.md) · [当前版本复现](CURRENT_RELEASE_REPRODUCTION.md) · [实际数据库回执](../reports/current_release_database_reproduction_20260930.json) · [37,000 条合成数据性能基线](PERFORMANCE_BASELINE.md)。发布进度以新发布记录为准。
 
-文档性质：**当前**用于日常使用或说明现有契约；**证据**只证明记载的版本、运行和检查范围；**历史**保留当时认识，不能覆盖较新实现；**草案**尚未确认或验收。AI 阅读、字符定位、工程测试和人工语义验收是不同证据。
+要求来源：[FA26／9/25 会议／Michelle 邮件合并核对](../reports/REQUIREMENTS_CONSOLIDATED_AUDIT_20260929.zh-CN.md)。该审计是发布前状态；本轮推进不改写原客户要求、历史测试或未来 CLAIMS／动物农业的边界。
+
+文档性质：**当前**说明现有运行契约；**证据**只证明记载的版本、运行和检查范围；**历史**保留当时认识；**草案**尚未确认或验收。工程通过、字符定位和人工语义验收是不同证据。
 
 ## 一、当前入口
 
 | 想做什么 | 读哪份 | 性质及用途 |
 |---|---|---|
-| 核对研究界面审查修订 | [0.3.1 研究任务修订](../reports/research_ui_v0_3_1_20260917.zh-CN.md) | **当前本机发布证据**。全量交叉表、标签与年度图、记录详情、归档缺口、词覆盖诊断和英文界面。 |
+| 核对 0.4.0 发布、CI 与线上验证 | [发布记录](../reports/RELEASE_V0_4_0_20260930.zh-CN.md) | **当前发布状态**。最新代码、配置、实际验证与仍需客户的材料。 |
+| 在干净环境验证当前安装包与迁移 | [复现方法](CURRENT_RELEASE_REPRODUCTION.md) · [离线回执](../reports/current_release_offline_reproduction_20260929.json) · [数据库回执](../reports/current_release_database_reproduction_20260930.json) | **实际安装包与合成数据库验证**。不等于真实生产语料／向量／历史恢复。 |
+| 了解大规模性能与限制 | [规模基线](PERFORMANCE_BASELINE.md) · [37,000 行测量回执](../reports/dashboard_performance_baseline_20260930.json) | **合成工程诊断**。数据库方法耗时和输出大小；未测浏览器／并发／云端或客户 SLA。 |
+| 核对原文、会议、邮件与当前实现 | [合并核对](../reports/REQUIREMENTS_CONSOLIDATED_AUDIT_20260929.zh-CN.md) · [原件与 HTTP 证据](../reports/requirements_consolidated_evidence_20260929.json) · [文档链接核对](../reports/documentation_requirements_validation_20260929.json) | **9/29 发布前只读审计**。版本／批注、六问、必交与未来边界、本机与线上、材料责任；第十节另核验 CHORUS 技术参考。不是本轮重新测试或客户验收。 |
+| 试用点击对象后的环图与记录联动 | [图谱详情第二版](../reports/GRAPH_DETAILS_V2_20260929.zh-CN.md) | **当前本机完成回执**。关系标注、真实点阵、完整分母、扇区／名单下钻、对象计数 CSV 与历史标签文章探索。 |
+| 核对本轮与客户六问的差异 | [实施前复核](../reports/CLIENT_REQUIREMENTS_GRAPH_V2_20260929.zh-CN.md) · [当前实施报告](../reports/GRAPH_DETAILS_V2_20260929.zh-CN.md) | **需求审计与实施证据分别阅读**。当前能做的原生统计、材料缺口、历史标签与正式 CLAIMS 的边界。 |
+| 查对象占比分母与实际网页验证 | [真实库核对](../reports/graph_breakdowns_smoke_20260929.json) · [验证汇总](../reports/graph_details_v2_validation_20260929.json) | **当前工程证据**。8 个范围、分类／源路径与 SQL 对账、浏览器及测试，不代替客户或线上验收。 |
+| 使用与维护完整范围的大幅知识图谱 | [图谱使用与技术契约](COLLECTION_KNOWLEDGE_GRAPH.zh-CN.md) | **当前本机契约**。双模式、稳定身份、源字段见证、完整 JSON 和可见 PNG、按需详细来源检查器与未来扩展边界。 |
+| 核对大图实现和实际验证 | [实现报告](../reports/COLLECTION_KNOWLEDGE_GRAPH_20260929.zh-CN.md) · [真实库核对](../reports/collection_graph_smoke_20260929.json) | **当前本机工程证据**。完整图计数与交叉表一致；浏览器检查与测试分母，不代替线上或客户验收。 |
+| 看 How Do They Lobby 借鉴依据 | [参考站点实际交互研究](../reports/LOBBY_GRAPH_REFERENCE_20260929.zh-CN.md) | **只读参考研究**。大网络、对象详情、名称变体与支持记录的实际核对；不移植游说关系语义或导入其数据。 |
+| 使用模型理解与 MCP 数据工具 | [MCP 技术路线与接口](MCP_RESEARCH_TOOLS.zh-CN.md) | **当前本机契约**。七个只读工具、模型调用与真正 MCP 的区别、来源及图谱扩展、费用和缺口。 |
+| 核对本次模型与 MCP 实测 | [实施验证](../reports/MCP_RESEARCH_IMPLEMENTATION_20260929.zh-CN.md) | **当前工程与有限真实模型证据**。三个付费问题、独立进程协议、真实库来源读取及未完成项。 |
+| 回查公司、媒体与计数问题的第一版修正 | [本机修正与试用说明](../reports/MICHELLE_IMPLEMENTATION_20260929.zh-CN.md) | **同日基础版证据**。免费固定句式统计与双向探索；当前默认 Query 由模型理解后调用工具，理解步骤收费，见上方 MCP 入口。不是线上或客户验收。 |
+| 核对 Michelle 的六项研究要求 | [六项反馈审计](../reports/MICHELLE_FEEDBACK_AUDIT_20260929.zh-CN.md) | **2026-09-29 审计与沟通草稿**。修正前根因、当日记录统计、部署差异及剩余材料；英文回复未发送。 |
+| 试用 9 月 25 日新要求雏形 | [雏形交付与试用说明](../reports/MEETING_PROTOTYPE_20260925.zh-CN.md) | **9/25 阶段实现证据**。关系网络、后端分页、迁移和新增导入；保留社交、规模及语义验收缺口。 |
+| 接入新年份与升级数据库 | [数据管道雏形](PROTOTYPE_DATA_PIPELINE.md) | **当前契约**。有序迁移、upsert 与显式 snapshot、canonical JSONL 和 dry-run。 |
+| 准备独立客户评价 | [评价准备说明](PROTOTYPE_EVALUATION.md) · [空白材料模板](../eval/client_review_20260925/README.md) | **待客户材料**。检查、源版本核对和冻结；没有独立问题／金标准时保持 pending。 |
+| 接入离线 CLAIMS，保留实时 RAG | [离线分析与实时问答接入方案](CLAIMS_OFFLINE_RAG_ONLINE_20260925.zh-CN.md) | **按用户确认的技术分工写成的后续方案**。分类批次、原文关联、NC／SC 结果与验收；不表示客户批准本期新增范围，或 CLAIMS 2 已接通／重新分析。 |
+| 安排测试并向客户索要材料 | [客户测试与材料计划](CLIENT_TESTING_AND_MATERIALS_20260924.zh-CN.md) · [英文邮件草稿](../deliverables/client_review_request_20260924.en.md) | **当前沟通草案，尚未发送或获批**。四类优先材料、统计裁决、团队／客户测试分工和冻结步骤。 |
+| 看新提供的完整历史源码能复用什么 | [历史源码阅读与复用清单](../reports/UPSTREAM_SOURCE_REVIEW_20260918.zh-CN.md) | **只读审查证据**。CLAIMS 1.0/2.0、标签规范、50 条社交研究样本、赞助方来源、版本与评价缺口；尚未导入或替换当前应用。 |
+| 核对研究界面审查修订 | [0.3.1 研究任务修订](../reports/research_ui_v0_3_1_20260917.zh-CN.md) | **0.3.1 历史发布证据**。全量交叉表、标签与年度图、记录详情、归档缺口、词覆盖诊断和英文界面。 |
 | 打开并运行项目 | [README](../README.md) | **当前**。启动、停止、安装、测试和主要交付入口。 |
 | 看已经完成与尚未完成的部分 | [实施与验收状态](acceptance_status.md) | **当前状态**。按内部模块汇总证据与依赖；M1–M8 是项目组织方式，不是原文条款编号。 |
 | 使用网页的筛选、导出和问答 | [用户指南](user_guide.md) | **当前使用说明**。解释统计对象、未知日期、检索范围、来源链接配置及故障提示。 |
@@ -27,7 +49,9 @@
 
 | 文档 | 性质 | 用途和阅读边界 |
 |---|---|---|
-| [FA26 文档要求与当前实现核对](../reports/FA26_REQUIREMENTS_AUDIT.zh-CN.md) | **当前审计证据** | 逐项对照课程原文、当前代码和验证；查双库、归档、公众部署、GitHub、客户审阅等缺口。 |
+| [原始 FA26、9/25 会议与 Michelle 邮件合并核对](../reports/REQUIREMENTS_CONSOLIDATED_AUDIT_20260929.zh-CN.md) | **当前审计证据** | 原件与版本重新核验；六问、新增图谱、本机／线上差异及未完成材料／验收。 |
+| [FA26 早期要求核对](../reports/FA26_REQUIREMENTS_AUDIT.zh-CN.md) | **历史审计证据** | 保留当时要求和差距；部署、图谱、分页、迁移和当前索引以新合并核对为准。 |
+| [FA26 (1) 编号全文](../analysis/FA26_project_brief_v1_numbered_20260929.txt) · [9/25 会议编号全文](../analysis/DS549_meeting_20260925_numbered_20260929.txt) · [Michelle 邮件摘录](../analysis/MICHELLE_FEEDBACK_EMAIL_EXCERPT_UNDATED.txt) | **本地原文核对副本** | F／M 为非空 XML 段落编号，不是页码；E 为用户提供邮件的相关英文摘录，无原邮件头／发送日期。`analysis/` 不自动随仓库交付。 |
 | [FA26 原文条款摘录](../reports/fa26_requirements_source_20260916.md) | **原始要求的核对副本** | 保存 DOCX 来源哈希和 P 段落编号。P 不是页码，摘录中的行动要求不代表已执行。 |
 | [FA26 文件与资料用途附录](../FA26_RESOURCE_APPENDIX.zh-CN.md) | **资料索引＋历史计划快照** | 最新附件实际引用的 16 个网页入口、未链接资料和旧模板区别；其中“待建”按当时状态保留。 |
 | [FA26 项目交付计划](../FA26_DELIVERY_PLAN.zh-CN.md) | **历史计划，仍可作范围导航** | 模块工作、依赖及交付组织。看当前完成情况时回到实施状态，不能逐字沿用旧“待建”。 |
@@ -45,7 +69,7 @@
 | [本机 PostgreSQL＋pgvector](local_postgres.md) | **当前本机环境说明** | 项目隔离的数据库、端口、运行目录及初始化；不是托管数据库的安装指南。 |
 | [架构与数据流](architecture.md) | **实现说明，标题保留 0.2.3** | 看应用、数据库、导入、检索和来源版本如何关联；较新的具体修复同时查版本报告。 |
 | [C 盘迁到 D 盘的记录](../reports/project_migration_20260916.zh-CN.md) | **迁移证据** | 找当前工作目录和迁移检查；旧报告中的 C 盘绝对链接可能只在原环境可用。 |
-| [当前快照备份恢复](../reports/backup_restore_v0_2_4.md) | **对应快照的恢复证据** | 查看 275 条当前快照、旧版本引用、账本和表结构的本机恢复核对；不是另一机器或云端灾备验收。 |
+| [0.2.4 快照备份恢复](../reports/backup_restore_v0_2_4.md) | **对应历史快照的恢复证据** | 查看当时 275 条快照、旧版本引用、账本和表结构恢复；不覆盖新增 profile／migrations 或云端灾备验收。 |
 | [早期备份恢复](../reports/backup_restore.md) | **历史恢复证据** | 对应早期数据和运行；不能替代较新的当前快照恢复报告。 |
 | [故障降级与费用账本检查](../reports/failure_path_checks.md) | **保存的工程证据** | 网络/模型失败、费用预留、降级等测试范围；测试数字只属于该报告记录的运行。 |
 | [首版源码包隔离复现](../reports/handoff_validation.md) | **历史交接证据** | 首版包安装、离线测试及当时发现的可携带性缺口。 |
@@ -105,8 +129,8 @@ JSON 哈希清单、CSV 对账和原始运行输出由相应审计报告链接�
 |---|---|---|
 | [开发评估与验收协议](evaluation_protocol.md) | **当前协议＋验收草案边界** | 20 开发题与 20 验收草案、ready/pending、人工冻结和评分口径；这些题数是项目方案，不是课程原文阈值。 |
 | [0.2.5 Dashboard 一致性](../reports/dashboard_consistency_v0_2_5.md) | **当前应用修复证据** | 明细和图表共用一次查询、未知日期处理与相应工程验证；未重跑付费生成。 |
-| [0.2.4 引文上下文与干净导入](../reports/quote_context_v0_2_4.md) | **最近付费 RAG／复现证据** | PDF 换行分句、开发集与独立两题 smoke、源码和 wheel 复现；定向 smoke 不替代验收题库。 |
-| [0.2.4 AI 内容与引文审阅](../reports/assisted_semantic_review_v0_2_4.md) | **最近 AI 语义意见** | 21 条引用的归因、数量、完整性和聚焦问题；链接人工列全空的逐条 CSV，不提供人工通过率。 |
+| [0.2.4 引文上下文与干净导入](../reports/quote_context_v0_2_4.md) | **对应版本的付费 RAG／复现证据** | PDF 换行分句、开发集与独立两题 smoke、源码和 wheel 复现；不覆盖当前 profile／migrations，定向 smoke 不替代验收题库。 |
+| [0.2.4 AI 内容与引文审阅](../reports/assisted_semantic_review_v0_2_4.md) | **对应版本的 AI 语义意见** | 21 条引用的归因、数量、完整性和聚焦问题；链接人工列全空的逐条 CSV，不提供人工通过率，也不是当前模型重测。 |
 
 ### 回看修复前后的运行
 

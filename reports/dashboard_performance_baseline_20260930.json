@@ -1,0 +1,884 @@
+{
+  "status": "completed",
+  "synthetic": true,
+  "customer_acceptance": "not_tested",
+  "started_at_utc": "2026-09-30T04:06:02.777315+00:00",
+  "database": "obs_test",
+  "schema": "obs_benchmark_1f49902bdd244cd8bbc7ec73c1733452",
+  "requested_rows": 37000,
+  "host": "127.0.0.1",
+  "python_version": "3.12.14",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "application_version": "0.4.0",
+  "measurements": [
+    {
+      "operation": "dashboard_all",
+      "repeats": 15,
+      "warmups_excluded": 1,
+      "result_shape": {
+        "returned_rows": 50,
+        "total": 37000,
+        "relationships": 4020
+      },
+      "latency_ms": {
+        "read_ms": {
+          "p50": 888.122,
+          "p95": 918.192
+        },
+        "serialize_ms": {
+          "p50": 2.629,
+          "p95": 3.25
+        },
+        "total_ms": {
+          "p50": 890.975,
+          "p95": 920.96
+        }
+      },
+      "payload_bytes": {
+        "min": 482747,
+        "max": 482747
+      },
+      "samples": [
+        {
+          "read_ms": 885.8051999995951,
+          "serialize_ms": 2.648300025612116,
+          "total_ms": 888.4535000252072,
+          "payload_bytes": 482747
+        },
+        {
+          "read_ms": 883.9742000272963,
+          "serialize_ms": 2.4483999877702445,
+          "total_ms": 886.4226000150666,
+          "payload_bytes": 482747
+        },
+        {
+          "read_ms": 887.185400002636,
+          "serialize_ms": 2.648499998031184,
+          "total_ms": 889.8339000006672,
+          "payload_bytes": 482747
+        },
+        {
+          "read_ms": 894.5337000186555,
+          "serialize_ms": 2.6294999988749623,
+          "total_ms": 897.1632000175305,
+          "payload_bytes": 482747
+        },
+        {
+          "read_ms": 908.692199998768,
+          "serialize_ms": 2.5997000047937036,
+          "total_ms": 911.2919000035618,
+          "payload_bytes": 482747
+        },
+        {
+          "read_ms": 900.2368999936152,
+          "serialize_ms": 3.0683999939356,
+          "total_ms": 903.3052999875508,
+          "payload_bytes": 482747
+        },
+        {
+          "read_ms": 880.5540000030305,
+          "serialize_ms": 3.6731000000145286,
+          "total_ms": 884.227100003045,
+          "payload_bytes": 482747
+        },
+        {
+          "read_ms": 900.8357999846339,
+          "serialize_ms": 2.4688999983482063,
+          "total_ms": 903.3046999829821,
+          "payload_bytes": 482747
+        },
+        {
+          "read_ms": 883.5346999985632,
+          "serialize_ms": 2.5787999911699444,
+          "total_ms": 886.1134999897331,
+          "payload_bytes": 482747
+        },
+        {
+          "read_ms": 884.214100020472,
+          "serialize_ms": 2.6336000009905547,
+          "total_ms": 886.8477000214625,
+          "payload_bytes": 482747
+        },
+        {
+          "read_ms": 888.1218000024091,
+          "serialize_ms": 2.8535999881569296,
+          "total_ms": 890.9753999905661,
+          "payload_bytes": 482747
+        },
+        {
+          "read_ms": 913.1080000079237,
+          "serialize_ms": 2.944199979538098,
+          "total_ms": 916.0521999874618,
+          "payload_bytes": 482747
+        },
+        {
+          "read_ms": 930.0539999967441,
+          "serialize_ms": 2.3563999857287854,
+          "total_ms": 932.4103999824729,
+          "payload_bytes": 482747
+        },
+        {
+          "read_ms": 897.5605999876279,
+          "serialize_ms": 2.33499999740161,
+          "total_ms": 899.8955999850295,
+          "payload_bytes": 482747
+        },
+        {
+          "read_ms": 886.7394000117201,
+          "serialize_ms": 2.433499990729615,
+          "total_ms": 889.1729000024498,
+          "payload_bytes": 482747
+        }
+      ]
+    },
+    {
+      "operation": "dashboard_company",
+      "repeats": 15,
+      "warmups_excluded": 1,
+      "result_shape": {
+        "returned_rows": 50,
+        "total": 199,
+        "relationships": 20
+      },
+      "latency_ms": {
+        "read_ms": {
+          "p50": 279.059,
+          "p95": 304.96
+        },
+        "serialize_ms": {
+          "p50": 0.184,
+          "p95": 0.216
+        },
+        "total_ms": {
+          "p50": 279.253,
+          "p95": 305.168
+        }
+      },
+      "payload_bytes": {
+        "min": 31203,
+        "max": 31203
+      },
+      "samples": [
+        {
+          "read_ms": 274.5404999877792,
+          "serialize_ms": 0.21370002650655806,
+          "total_ms": 274.75420001428574,
+          "payload_bytes": 31203
+        },
+        {
+          "read_ms": 281.6267999878619,
+          "serialize_ms": 0.18370000179857016,
+          "total_ms": 281.81049998966046,
+          "payload_bytes": 31203
+        },
+        {
+          "read_ms": 276.2599000125192,
+          "serialize_ms": 0.17829998978413641,
+          "total_ms": 276.43820000230335,
+          "payload_bytes": 31203
+        },
+        {
+          "read_ms": 302.7721000253223,
+          "serialize_ms": 0.17619997379370034,
+          "total_ms": 302.948299999116,
+          "payload_bytes": 31203
+        },
+        {
+          "read_ms": 308.0961999949068,
+          "serialize_ms": 0.17919999663718045,
+          "total_ms": 308.27539999154396,
+          "payload_bytes": 31203
+        },
+        {
+          "read_ms": 298.2698999985587,
+          "serialize_ms": 0.18430000636726618,
+          "total_ms": 298.45420000492595,
+          "payload_bytes": 31203
+        },
+        {
+          "read_ms": 275.6486000143923,
+          "serialize_ms": 0.19880000036209822,
+          "total_ms": 275.8474000147544,
+          "payload_bytes": 31203
+        },
+        {
+          "read_ms": 275.16230000765063,
+          "serialize_ms": 0.17899999511428177,
+          "total_ms": 275.3413000027649,
+          "payload_bytes": 31203
+        },
+        {
+          "read_ms": 278.29290000954643,
+          "serialize_ms": 0.1852999848779291,
+          "total_ms": 278.47819999442436,
+          "payload_bytes": 31203
+        },
+        {
+          "read_ms": 278.21059999405406,
+          "serialize_ms": 0.18730000010691583,
+          "total_ms": 278.397899994161,
+          "payload_bytes": 31203
+        },
+        {
+          "read_ms": 279.8361999739427,
+          "serialize_ms": 0.19790002261288464,
+          "total_ms": 280.0340999965556,
+          "payload_bytes": 31203
+        },
+        {
+          "read_ms": 303.6165999947116,
+          "serialize_ms": 0.22010001703165472,
+          "total_ms": 303.83670001174323,
+          "payload_bytes": 31203
+        },
+        {
+          "read_ms": 280.02989999367855,
+          "serialize_ms": 0.17530002514831722,
+          "total_ms": 280.2052000188269,
+          "payload_bytes": 31203
+        },
+        {
+          "read_ms": 279.0506000164896,
+          "serialize_ms": 0.17709998064674437,
+          "total_ms": 279.22769999713637,
+          "payload_bytes": 31203
+        },
+        {
+          "read_ms": 279.0585999900941,
+          "serialize_ms": 0.19459999748505652,
+          "total_ms": 279.25319998757914,
+          "payload_bytes": 31203
+        }
+      ]
+    },
+    {
+      "operation": "page_first_50",
+      "repeats": 15,
+      "warmups_excluded": 1,
+      "result_shape": {
+        "returned_rows": 50,
+        "total": 37000
+      },
+      "latency_ms": {
+        "read_ms": {
+          "p50": 313.071,
+          "p95": 318.932
+        },
+        "serialize_ms": {
+          "p50": 0.116,
+          "p95": 0.126
+        },
+        "total_ms": {
+          "p50": 313.211,
+          "p95": 319.047
+        }
+      },
+      "payload_bytes": {
+        "min": 22719,
+        "max": 22719
+      },
+      "samples": [
+        {
+          "read_ms": 308.200899977237,
+          "serialize_ms": 0.1162000116892159,
+          "total_ms": 308.3170999889262,
+          "payload_bytes": 22719
+        },
+        {
+          "read_ms": 317.0220999745652,
+          "serialize_ms": 0.11830002767965198,
+          "total_ms": 317.14040000224486,
+          "payload_bytes": 22719
+        },
+        {
+          "read_ms": 318.86719999602064,
+          "serialize_ms": 0.11449999874457717,
+          "total_ms": 318.9816999947652,
+          "payload_bytes": 22719
+        },
+        {
+          "read_ms": 315.48839999595657,
+          "serialize_ms": 0.11629998334683478,
+          "total_ms": 315.6046999793034,
+          "payload_bytes": 22719
+        },
+        {
+          "read_ms": 311.63609999930486,
+          "serialize_ms": 0.11920000542886555,
+          "total_ms": 311.7553000047337,
+          "payload_bytes": 22719
+        },
+        {
+          "read_ms": 311.2066000176128,
+          "serialize_ms": 0.12009998317807913,
+          "total_ms": 311.3267000007909,
+          "payload_bytes": 22719
+        },
+        {
+          "read_ms": 316.02549998206086,
+          "serialize_ms": 0.11400002404116094,
+          "total_ms": 316.139500006102,
+          "payload_bytes": 22719
+        },
+        {
+          "read_ms": 309.0506000153255,
+          "serialize_ms": 0.11639998410828412,
+          "total_ms": 309.16699999943376,
+          "payload_bytes": 22719
+        },
+        {
+          "read_ms": 315.7356999872718,
+          "serialize_ms": 0.11510000331327319,
+          "total_ms": 315.8507999905851,
+          "payload_bytes": 22719
+        },
+        {
+          "read_ms": 309.22429999918677,
+          "serialize_ms": 0.11490000179037452,
+          "total_ms": 309.33920000097714,
+          "payload_bytes": 22719
+        },
+        {
+          "read_ms": 313.45580000197515,
+          "serialize_ms": 0.11510000331327319,
+          "total_ms": 313.5709000052884,
+          "payload_bytes": 22719
+        },
+        {
+          "read_ms": 319.0822000033222,
+          "serialize_ms": 0.11739999172277749,
+          "total_ms": 319.199599995045,
+          "payload_bytes": 22719
+        },
+        {
+          "read_ms": 308.89260000549257,
+          "serialize_ms": 0.1142999972216785,
+          "total_ms": 309.00690000271425,
+          "payload_bytes": 22719
+        },
+        {
+          "read_ms": 311.50630000047386,
+          "serialize_ms": 0.11809999705292284,
+          "total_ms": 311.6243999975268,
+          "payload_bytes": 22719
+        },
+        {
+          "read_ms": 313.0709000106435,
+          "serialize_ms": 0.14029999147169292,
+          "total_ms": 313.2112000021152,
+          "payload_bytes": 22719
+        }
+      ]
+    },
+    {
+      "operation": "page_middle_50",
+      "repeats": 15,
+      "warmups_excluded": 1,
+      "result_shape": {
+        "returned_rows": 50,
+        "total": 37000
+      },
+      "latency_ms": {
+        "read_ms": {
+          "p50": 246.597,
+          "p95": 283.68
+        },
+        "serialize_ms": {
+          "p50": 0.138,
+          "p95": 0.155
+        },
+        "total_ms": {
+          "p50": 246.734,
+          "p95": 283.822
+        }
+      },
+      "payload_bytes": {
+        "min": 22702,
+        "max": 22702
+      },
+      "samples": [
+        {
+          "read_ms": 238.74269999214448,
+          "serialize_ms": 0.1571000029798597,
+          "total_ms": 238.89979999512434,
+          "payload_bytes": 22702
+        },
+        {
+          "read_ms": 245.8516999904532,
+          "serialize_ms": 0.1407999952789396,
+          "total_ms": 245.99249998573214,
+          "payload_bytes": 22702
+        },
+        {
+          "read_ms": 256.89049999346025,
+          "serialize_ms": 0.15479998546652496,
+          "total_ms": 257.0452999789268,
+          "payload_bytes": 22702
+        },
+        {
+          "read_ms": 282.05169999273494,
+          "serialize_ms": 0.14369998825713992,
+          "total_ms": 282.1953999809921,
+          "payload_bytes": 22702
+        },
+        {
+          "read_ms": 287.47899999143556,
+          "serialize_ms": 0.13989998842589557,
+          "total_ms": 287.61889997986145,
+          "payload_bytes": 22702
+        },
+        {
+          "read_ms": 273.5271999845281,
+          "serialize_ms": 0.13580001541413367,
+          "total_ms": 273.66299999994226,
+          "payload_bytes": 22702
+        },
+        {
+          "read_ms": 250.96860001212917,
+          "serialize_ms": 0.1446999958716333,
+          "total_ms": 251.1133000080008,
+          "payload_bytes": 22702
+        },
+        {
+          "read_ms": 243.71310000424273,
+          "serialize_ms": 0.13219998800195754,
+          "total_ms": 243.8452999922447,
+          "payload_bytes": 22702
+        },
+        {
+          "read_ms": 240.56949999067,
+          "serialize_ms": 0.1348000077996403,
+          "total_ms": 240.70429999846965,
+          "payload_bytes": 22702
+        },
+        {
+          "read_ms": 249.98329998925328,
+          "serialize_ms": 0.1382000045850873,
+          "total_ms": 250.12149999383837,
+          "payload_bytes": 22702
+        },
+        {
+          "read_ms": 245.0245999789331,
+          "serialize_ms": 0.1522000238765031,
+          "total_ms": 245.1768000028096,
+          "payload_bytes": 22702
+        },
+        {
+          "read_ms": 248.80619999021292,
+          "serialize_ms": 0.13460000627674162,
+          "total_ms": 248.94079999648966,
+          "payload_bytes": 22702
+        },
+        {
+          "read_ms": 246.59679998876527,
+          "serialize_ms": 0.1373999984934926,
+          "total_ms": 246.73419998725876,
+          "payload_bytes": 22702
+        },
+        {
+          "read_ms": 242.4378000141587,
+          "serialize_ms": 0.13639999087899923,
+          "total_ms": 242.5742000050377,
+          "payload_bytes": 22702
+        },
+        {
+          "read_ms": 240.25769997388124,
+          "serialize_ms": 0.1317000132985413,
+          "total_ms": 240.3893999871798,
+          "payload_bytes": 22702
+        }
+      ]
+    },
+    {
+      "operation": "field_facets",
+      "repeats": 15,
+      "warmups_excluded": 1,
+      "result_shape": {
+        "publishers": 20,
+        "sponsors": 201,
+        "platforms": 1,
+        "keywords": 5,
+        "labels": 10
+      },
+      "latency_ms": {
+        "read_ms": {
+          "p50": 465.372,
+          "p95": 482.961
+        },
+        "serialize_ms": {
+          "p50": 0.052,
+          "p95": 0.053
+        },
+        "total_ms": {
+          "p50": 465.422,
+          "p95": 483.012
+        }
+      },
+      "payload_bytes": {
+        "min": 5691,
+        "max": 5691
+      },
+      "samples": [
+        {
+          "read_ms": 463.11749998130836,
+          "serialize_ms": 0.051700015319511294,
+          "total_ms": 463.16919999662787,
+          "payload_bytes": 5691
+        },
+        {
+          "read_ms": 464.6651000075508,
+          "serialize_ms": 0.05420000525191426,
+          "total_ms": 464.7193000128027,
+          "payload_bytes": 5691
+        },
+        {
+          "read_ms": 462.75999999488704,
+          "serialize_ms": 0.05210001836530864,
+          "total_ms": 462.81210001325235,
+          "payload_bytes": 5691
+        },
+        {
+          "read_ms": 462.67680000164546,
+          "serialize_ms": 0.05289999535307288,
+          "total_ms": 462.72969999699853,
+          "payload_bytes": 5691
+        },
+        {
+          "read_ms": 459.9238999944646,
+          "serialize_ms": 0.051799986977130175,
+          "total_ms": 459.9756999814417,
+          "payload_bytes": 5691
+        },
+        {
+          "read_ms": 474.93879997637123,
+          "serialize_ms": 0.052000017603859305,
+          "total_ms": 474.9907999939751,
+          "payload_bytes": 5691
+        },
+        {
+          "read_ms": 466.4123000111431,
+          "serialize_ms": 0.05020000389777124,
+          "total_ms": 466.46250001504086,
+          "payload_bytes": 5691
+        },
+        {
+          "read_ms": 464.095700008329,
+          "serialize_ms": 0.051300012273713946,
+          "total_ms": 464.1470000206027,
+          "payload_bytes": 5691
+        },
+        {
+          "read_ms": 471.471400000155,
+          "serialize_ms": 0.04909999552182853,
+          "total_ms": 471.5204999956768,
+          "payload_bytes": 5691
+        },
+        {
+          "read_ms": 469.8680999863427,
+          "serialize_ms": 0.04919999628327787,
+          "total_ms": 469.917299982626,
+          "payload_bytes": 5691
+        },
+        {
+          "read_ms": 468.87989999959245,
+          "serialize_ms": 0.05199998850002885,
+          "total_ms": 468.9318999880925,
+          "payload_bytes": 5691
+        },
+        {
+          "read_ms": 462.84989998093806,
+          "serialize_ms": 0.051300012273713946,
+          "total_ms": 462.9011999932118,
+          "payload_bytes": 5691
+        },
+        {
+          "read_ms": 465.3722000075504,
+          "serialize_ms": 0.04980000085197389,
+          "total_ms": 465.4220000084024,
+          "payload_bytes": 5691
+        },
+        {
+          "read_ms": 499.59050002507865,
+          "serialize_ms": 0.0515999854542315,
+          "total_ms": 499.6421000105329,
+          "payload_bytes": 5691
+        },
+        {
+          "read_ms": 475.8342000131961,
+          "serialize_ms": 0.0509000092279166,
+          "total_ms": 475.885100022424,
+          "payload_bytes": 5691
+        }
+      ]
+    },
+    {
+      "operation": "bounded_company_outlet_relationships_100",
+      "repeats": 15,
+      "warmups_excluded": 1,
+      "result_shape": {
+        "total_relationships": 4020,
+        "total_records": 37000,
+        "truncated": true,
+        "returned_relationships": 100
+      },
+      "latency_ms": {
+        "read_ms": {
+          "p50": 203.762,
+          "p95": 212.996
+        },
+        "serialize_ms": {
+          "p50": 0.069,
+          "p95": 0.078
+        },
+        "total_ms": {
+          "p50": 203.83,
+          "p95": 213.063
+        }
+      },
+      "payload_bytes": {
+        "min": 8185,
+        "max": 8185
+      },
+      "samples": [
+        {
+          "read_ms": 203.7623999931384,
+          "serialize_ms": 0.06749999010935426,
+          "total_ms": 203.82989998324774,
+          "payload_bytes": 8185
+        },
+        {
+          "read_ms": 200.8917999919504,
+          "serialize_ms": 0.06769999163225293,
+          "total_ms": 200.95949998358265,
+          "payload_bytes": 8185
+        },
+        {
+          "read_ms": 207.3992000077851,
+          "serialize_ms": 0.07219999679364264,
+          "total_ms": 207.47140000457875,
+          "payload_bytes": 8185
+        },
+        {
+          "read_ms": 199.3957000086084,
+          "serialize_ms": 0.06880000000819564,
+          "total_ms": 199.4645000086166,
+          "payload_bytes": 8185
+        },
+        {
+          "read_ms": 200.75480002560653,
+          "serialize_ms": 0.0675999908708036,
+          "total_ms": 200.82240001647733,
+          "payload_bytes": 8185
+        },
+        {
+          "read_ms": 200.64340002136305,
+          "serialize_ms": 0.07909999112598598,
+          "total_ms": 200.72250001248904,
+          "payload_bytes": 8185
+        },
+        {
+          "read_ms": 199.4062000012491,
+          "serialize_ms": 0.0703000114299357,
+          "total_ms": 199.47650001267903,
+          "payload_bytes": 8185
+        },
+        {
+          "read_ms": 204.77609999943525,
+          "serialize_ms": 0.06849999772384763,
+          "total_ms": 204.8445999971591,
+          "payload_bytes": 8185
+        },
+        {
+          "read_ms": 214.39040001132526,
+          "serialize_ms": 0.06880000000819564,
+          "total_ms": 214.45920001133345,
+          "payload_bytes": 8185
+        },
+        {
+          "read_ms": 203.22399999713525,
+          "serialize_ms": 0.07559999357908964,
+          "total_ms": 203.29959999071434,
+          "payload_bytes": 8185
+        },
+        {
+          "read_ms": 204.99569998355582,
+          "serialize_ms": 0.07249999907799065,
+          "total_ms": 205.06819998263381,
+          "payload_bytes": 8185
+        },
+        {
+          "read_ms": 212.39800000330433,
+          "serialize_ms": 0.06729998858645558,
+          "total_ms": 212.4652999918908,
+          "payload_bytes": 8185
+        },
+        {
+          "read_ms": 208.07999998214655,
+          "serialize_ms": 0.07020001066848636,
+          "total_ms": 208.15019999281503,
+          "payload_bytes": 8185
+        },
+        {
+          "read_ms": 201.8847999861464,
+          "serialize_ms": 0.06779999239370227,
+          "total_ms": 201.9525999785401,
+          "payload_bytes": 8185
+        },
+        {
+          "read_ms": 204.03289998648688,
+          "serialize_ms": 0.07740000728517771,
+          "total_ms": 204.11029999377206,
+          "payload_bytes": 8185
+        }
+      ]
+    },
+    {
+      "operation": "collection_metadata_all",
+      "repeats": 15,
+      "warmups_excluded": 1,
+      "result_shape": {
+        "returned_rows": 37000
+      },
+      "latency_ms": {
+        "read_ms": {
+          "p50": 619.557,
+          "p95": 646.409
+        },
+        "serialize_ms": {
+          "p50": 74.623,
+          "p95": 77.823
+        },
+        "total_ms": {
+          "p50": 693.732,
+          "p95": 721.864
+        }
+      },
+      "payload_bytes": {
+        "min": 19673048,
+        "max": 19673048
+      },
+      "samples": [
+        {
+          "read_ms": 593.0290999822319,
+          "serialize_ms": 73.8429999910295,
+          "total_ms": 666.8720999732614,
+          "payload_bytes": 19673048
+        },
+        {
+          "read_ms": 624.8162999982014,
+          "serialize_ms": 74.78990001254715,
+          "total_ms": 699.6062000107486,
+          "payload_bytes": 19673048
+        },
+        {
+          "read_ms": 629.5756000035908,
+          "serialize_ms": 74.59500001277775,
+          "total_ms": 704.1706000163686,
+          "payload_bytes": 19673048
+        },
+        {
+          "read_ms": 598.0137000151444,
+          "serialize_ms": 74.19129999470897,
+          "total_ms": 672.2050000098534,
+          "payload_bytes": 19673048
+        },
+        {
+          "read_ms": 619.5569999981672,
+          "serialize_ms": 74.17460001306608,
+          "total_ms": 693.7316000112332,
+          "payload_bytes": 19673048
+        },
+        {
+          "read_ms": 627.9712000105064,
+          "serialize_ms": 77.20189998508431,
+          "total_ms": 705.1730999955907,
+          "payload_bytes": 19673048
+        },
+        {
+          "read_ms": 620.5632999772206,
+          "serialize_ms": 75.21380000980571,
+          "total_ms": 695.7770999870263,
+          "payload_bytes": 19673048
+        },
+        {
+          "read_ms": 592.0881000056397,
+          "serialize_ms": 75.90019999770448,
+          "total_ms": 667.9883000033442,
+          "payload_bytes": 19673048
+        },
+        {
+          "read_ms": 609.1090000118129,
+          "serialize_ms": 74.94359998963773,
+          "total_ms": 684.0526000014506,
+          "payload_bytes": 19673048
+        },
+        {
+          "read_ms": 618.1300999887753,
+          "serialize_ms": 74.74209999782033,
+          "total_ms": 692.8721999865957,
+          "payload_bytes": 19673048
+        },
+        {
+          "read_ms": 658.6785999825224,
+          "serialize_ms": 79.2731000110507,
+          "total_ms": 737.9516999935731,
+          "payload_bytes": 19673048
+        },
+        {
+          "read_ms": 641.1510999896564,
+          "serialize_ms": 73.81810000515543,
+          "total_ms": 714.9691999948118,
+          "payload_bytes": 19673048
+        },
+        {
+          "read_ms": 594.5089999877382,
+          "serialize_ms": 74.42009999067523,
+          "total_ms": 668.9290999784134,
+          "payload_bytes": 19673048
+        },
+        {
+          "read_ms": 609.5870999852195,
+          "serialize_ms": 74.22400001087226,
+          "total_ms": 683.8110999960918,
+          "payload_bytes": 19673048
+        },
+        {
+          "read_ms": 630.8053999964613,
+          "serialize_ms": 74.62280002073385,
+          "total_ms": 705.4282000171952,
+          "payload_bytes": 19673048
+        }
+      ]
+    }
+  ],
+  "script_sha256": "04666c4525be043db44f13cb16cbdeb846bd0ca3b78b8556cfeb0d729ce972cc",
+  "scope": "existing repository SQL and JSON encoding; synthetic native rows; warmed serial local workload",
+  "not_measured": [
+    "production",
+    "concurrent_users",
+    "browser_rendering",
+    "graph_assembly",
+    "real_social_data",
+    "full_import_pipeline",
+    "rag",
+    "embeddings"
+  ],
+  "customer_latency_threshold": null,
+  "postgresql_version": "16.15",
+  "postgresql_port": 55432,
+  "actual_scale": {
+    "records": 37000,
+    "unknown_dates": 3364,
+    "retrievable": 31714,
+    "publishers": 20,
+    "sponsors": 200,
+    "versions": 37000,
+    "annotations": 37000,
+    "seed_seconds": 2.876,
+    "body_characters_per_record": 1788,
+    "method": "validated synthetic RecordInput + COPY + SQL inserts"
+  },
+  "verified_query_connections": 114,
+  "schema_dropped": true,
+  "finished_at_utc": "2026-09-30T04:06:55.800766+00:00"
+}
