@@ -2,7 +2,7 @@
 
 更新：2026-09-30。按阅读目的查找文档，历史回执保留原日期与范围。按路径／性质排序时使用[文档清单](document_catalog.csv)。
 
-英文入口：[README](../README.md) · [简明设置与用户指南](guide.md) · [英文仓库](https://github.com/yaobc77-ai/ciss-advertising-observatory-en) · [静态项目页](https://yaobc77-ai.github.io/ciss-advertising-observatory-en/)。
+英文入口：[README](../README.md) · [简明设置与用户指南](guide.md) · [英文仓库](https://github.com/yaobc77-ai/ciss-advertising-observatory-549) · [静态项目页](https://yaobc77-ai.github.io/ciss-advertising-observatory-549/)。
 
 最新版本 **0.4.2**：[选取关系与线上验证](../reports/GRAPH_SELECTION_V0_4_2_20260930.zh-CN.md) · [提交绑定的发布回执](../reports/graph_selection_publication_v0_4_2_20260930.json)。旧版证据保留：[0.4.0／0.4.1 发布记录](../reports/RELEASE_V0_4_0_20260930.zh-CN.md) · [既有数据库复现说明](CURRENT_RELEASE_REPRODUCTION.md) · [既有实际数据库回执](../reports/current_release_database_reproduction_20260930.json) · [0.4.1 制品回执](../reports/current_release_database_reproduction_v0_4_1_20260930.json) · [37,000 条合成数据性能基线](PERFORMANCE_BASELINE.md)。各回执只证明其中记载的版本与范围。
 
