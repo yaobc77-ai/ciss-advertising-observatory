@@ -2,6 +2,8 @@
 
 更新：2026-09-30。按阅读目的查找文档，历史回执保留原日期与范围。按路径／性质排序时使用[文档清单](document_catalog.csv)。
 
+**CLAIMS 当前推进：** 0.4.4 维护工具已完成[来源审计与结果适配](../reports/CLAIMS_SOURCE_LINKAGE_20260930.zh-CN.md)，可运行 [claims-audit](claims_source_audit.md)。两次审计使用相同正文快照，零数据库写入、零模型调用、零标签发布；[数字和文件哈希](../reports/claims_source_linkage_20260930.json)与[独立安装包核对](../reports/current_release_offline_reproduction_v0_4_4_20260930.json)分别记录证据。网页接入、权威分类批次和人工语义审查仍待完成。
+
 英文入口：[README](../README.md) · [简明设置与用户指南](guide.md) · [英文仓库](https://github.com/yaobc77-ai/ciss-advertising-observatory-549) · [静态项目页](https://yaobc77-ai.github.io/ciss-advertising-observatory-549/)。
 
 最新维护版本 **0.4.3**：[交付推进与 CLAIMS 安排](../reports/DELIVERY_PROGRESS_20260930.zh-CN.md) · [当前发布回执](../reports/release_v0_4_3_publication_20260930.json) · [安装包核对](../reports/current_release_offline_reproduction_v0_4_3_20260930.json)。图谱交互的既有生产证据：[0.4.2 选取关系与线上验证](../reports/GRAPH_SELECTION_V0_4_2_20260930.zh-CN.md) · [提交绑定的回执](../reports/graph_selection_publication_v0_4_2_20260930.json)。旧版证据保留：[0.4.0／0.4.1 发布记录](../reports/RELEASE_V0_4_0_20260930.zh-CN.md) · [既有数据库复现说明](CURRENT_RELEASE_REPRODUCTION.md) · [既有实际数据库回执](../reports/current_release_database_reproduction_20260930.json) · [0.4.1 制品回执](../reports/current_release_database_reproduction_v0_4_1_20260930.json) · [37,000 条合成数据性能基线](PERFORMANCE_BASELINE.md)。各回执只证明其中记载的版本与范围。
