@@ -1,0 +1,180 @@
+{
+  "checked_at_utc": "2026-09-30T06:18:23.829754+00:00",
+  "scope": "graph_selection_source_scope_and_production_browser_verification",
+  "application_version": "0.4.2",
+  "source_commit": "055462979e101b73a02f872dfd2225f4486bf257",
+  "production_url": "https://ciss-advertising-observatory-production.up.railway.app/data",
+  "ci": {
+    "run_id": 36676562336,
+    "url": "https://github.com/yaobc77-ai/ciss-advertising-observatory/actions/runs/36676562336",
+    "conclusion": "success",
+    "installed_artifact_tests": {
+      "passed": 982,
+      "deselected": 62,
+      "warnings": 3,
+      "seconds": 80.44
+    }
+  },
+  "local_installed_artifact_tests": {
+    "passed": 982,
+    "deselected": 62,
+    "python": "3.13.3",
+    "seconds": 46.76
+  },
+  "new_selection_regressions": 26,
+  "railway": {
+    "deployment_id": "5975060a-f6eb-400c-b27b-e26cc845da7a",
+    "observed_state": "ACTIVE"
+  },
+  "health": {
+    "before": {
+      "active_profile": "sentence600-v1",
+      "application": {
+        "commit": "d18368c19f6acfaf431cdcda7c976000b22ed63a",
+        "features": {
+          "collection_graph": true,
+          "graph_breakdowns": true,
+          "research_agent": true
+        },
+        "version": "0.4.1"
+      },
+      "chunks": 556,
+      "data_version": "f19d4d697f4e6d2699d2c58b3ce80620b03e02c7e9447f24e012123adcb00f53",
+      "index_version": "d580c5962a6222e595db2ed8681f9787cef648dad653b055120b6bed10e3af75",
+      "record_counts": {
+        "native": 275
+      },
+      "source_data_version": "5114ebc1cf9afe59cdaa715e3ea45166",
+      "status": "ok"
+    },
+    "production": {
+      "active_profile": "sentence600-v1",
+      "application": {
+        "commit": "055462979e101b73a02f872dfd2225f4486bf257",
+        "features": {
+          "collection_graph": true,
+          "graph_breakdowns": true,
+          "research_agent": true
+        },
+        "version": "0.4.2"
+      },
+      "chunks": 556,
+      "data_version": "f19d4d697f4e6d2699d2c58b3ce80620b03e02c7e9447f24e012123adcb00f53",
+      "index_version": "d580c5962a6222e595db2ed8681f9787cef648dad653b055120b6bed10e3af75",
+      "record_counts": {
+        "native": 275
+      },
+      "source_data_version": "5114ebc1cf9afe59cdaa715e3ea45166",
+      "status": "ok"
+    },
+    "unchanged_keys": [
+      "active_profile",
+      "chunks",
+      "record_counts",
+      "source_data_version",
+      "index_version",
+      "data_version"
+    ]
+  },
+  "browser": {
+    "checked_at_utc": "2026-09-30T06:16:27.785Z",
+    "production_source_commit": "055462979e101b73a02f872dfd2225f4486bf257",
+    "checks": [
+      {
+        "case": "company_lists_named_outlets",
+        "text": "SOURCE-LISTED SPONSOR\n\nExxonMobil\n\n15 supporting records\n\nExxonMobil is co-listed with 4 named news outlets in these records. Select a connection below to inspect its articles.\n\nConnected outlets\n\nDistribution for ExxonMobil · all 15 supporting records\n\nNews outlets\nSource name\tRecords\tShare\n\nBusiness Insider\n\t5\t33.3%\n\nThe Washington Post\n\t5\t33.3%\n\nThe New York Times\n\t3\t20.0%\n\nThe Wall Street Journal\n\t2\t13.3%\nAll supporting records\t15\t100%\n33%\n33%\n20%\n13%\n15\nrecords\n\nNews outlets · denominator: all 15 supporting records in the current filters. Select a slice or a row to read its articles.\n\nShow supporting records for\nAll supporting records (15)\nDownload selected counts ↓\nPrevious records\nNext records\nSupporting articles\n\n15 matching records · 0 unknown dates\n\nShowing 1–10 of 15\n\nLet's deliver American industry with low emissions\n2023-09-15\n\nExxonMobil · The Washington Post\n\nOriginal source ↗\nTechnical reference\nRenewable Diesel for Our Changing World\n2022-07-18\n\nExxonMobil · The Wall Street Journal\n\nOriginal source ↗\nTechnical reference\nRenewable diesel for our changing world\n2022-07-14\n\nExxonMobil · The Washington Post\n\nOriginal source ↗\nTechnical reference\nThe future of lower-emission transportation fuels\n2022-06-21\n\nExxonMobil · Business Insider\n\nOriginal source ↗\nTechnical reference\nHydrogen: Another Chapter in ExxonMobil's Lower-Emissions Ambitions\n2022-05-16\n\nExxonMobil · The Wall Street Journal\n\nOriginal source ↗\nTechnical reference\nContent from Hydrogen: Another chapter in ExxonMobil's lower-emissions ambitions\n2022-05-03\n\nExxonMobil · The Washington Post\n\nOriginal source ↗\nTechnical reference\nContent from Supporting policies that can reduce emissions\n2022-04-28\n\nExxonMobil · The Washington Post\n\nOriginal source ↗\nTechnical reference\nHow lower-emission fuels can help power the future of transportation\n2022-04-25\n\nExxonMobil · Business Insider\n\nOriginal source ↗\nTechnical reference\nA top engineer talks carbon storage safety\n2022-02-09\n\nExxonMobil · Business Insider\n\nOriginal source ↗\nTechnical reference\nCapturing carbon around the world\n2021-12-08\n\nExxonMobil · The Washington Post\n\nOriginal source ↗\nTechnical reference\nGraph reference"
+      },
+      {
+        "case": "outlet_bucket_has_scoped_pair_and_articles",
+        "text": "SELECTED SOURCE-RECORD RELATIONSHIP\n\nExxonMobil → The Washington Post\n\n5 supporting records\n\nSelected relationship\nExxonMobil\n→ Co-listed in source records →\nThe Washington Post\n\n5 supporting records\n\nExxonMobil: 5 of 15 records (33.3%)\n\nThe Washington Post: 5 of 18 records (27.8%)\n\nConnected outlets\n\nDistribution for ExxonMobil · all 15 supporting records\n\nNews outlets\nSource name\tRecords\tShare\n\nBusiness Insider\n\t5\t33.3%\n\nThe Washington Post\n\t5\t33.3%\n\nThe New York Times\n\t3\t20.0%\n\nThe Wall Street Journal\n\t2\t13.3%\nAll supporting records\t15\t100%\n33%\n33%\n20%\n13%\n15\nrecords\n\nThe chart and table retain the full distribution for ExxonMobil (15 records). The selected relationship and article list contain 5 records. News outlets · denominator: all 15 supporting records in the current filters. Select a slice or a row to read its articles.\n\nShow supporting records for\nThe Washington Post · 5 (33.3%)\nDownload selected counts ↓\nPrevious records\nNext records\nArticles: The Washington Post\n\n5 matching records · 0 unknown dates\n\nShowing 1–5 of 5\n\nLet's deliver American industry with low emissions\n2023-09-15\n\nExxonMobil · The Washington Post\n\nOriginal source ↗\nTechnical reference\nRenewable diesel for our changing world\n2022-07-14\n\nExxonMobil · The Washington Post\n\nOriginal source ↗\nTechnical reference\nContent from Hydrogen: Another chapter in ExxonMobil's lower-emissions ambitions\n2022-05-03\n\nExxonMobil · The Washington Post\n\nOriginal source ↗\nTechnical reference\nContent from Supporting policies that can reduce emissions\n2022-04-28\n\nExxonMobil · The Washington Post\n\nOriginal source ↗\nTechnical reference\nCapturing carbon around the world\n2021-12-08\n\nExxonMobil · The Washington Post\n\nOriginal source ↗\nTechnical reference\nGraph reference"
+      },
+      {
+        "case": "native_canvas_outlet_retargets_article_expansion",
+        "coverage": "18 of 263 records expanded · 26 nodes / 36 lines\nScope & missing fields",
+        "heading": "The Washington Post",
+        "counts": "Connected sponsors / organizations\n\nDistribution for The Washington Post · all 18 supporting records\n\nSource-listed sponsors\nSource name\tRecords\tShare\n\nAPI\n\t6\t33.3%\n\nExxonMobil\n\t5\t27.8%\n\nShell\n\t2\t11.1%\n\nSouthern Company\n\t2\t11.1%\n\nAFPM\n\t1\t5.6%\n\nChevron\n\t1\t5.6%\n\nEni\n\t1\t5.6%\nAll supporting records\t18\t100%",
+        "aside_scroll_top": 0
+      },
+      {
+        "case": "article_has_both_typed_source_relations",
+        "coverage": "1 of 263 records expanded · 3 nodes / 2 lines\nScope & missing fields",
+        "relations": "Article source relationships\nCapturing carbon around the world\n→ Source lists sponsor →\nExxonMobil\n\n1 supporting records\n\nExxonMobil: 1 of 15 records (6.7%)\n\nCapturing carbon around the world\n→ Published in →\nThe Washington Post\n\n1 supporting records\n\nThe Washington Post: 1 of 18 records (5.6%)"
+      },
+      {
+        "case": "source_edge_to_entities_then_fit_preserves_focus",
+        "heading": "Capturing carbon around the world → ExxonMobil",
+        "find_visible": "Relation: Capturing carbon around the world → ExxonMobil",
+        "relations": "Article source relationships\nCapturing carbon around the world\n→ Source lists sponsor →\nExxonMobil\n\n1 supporting records\n\nExxonMobil: 1 of 15 records (6.7%)\n\nCapturing carbon around the world\n→ Published in →\nThe Washington Post\n\n1 supporting records\n\nThe Washington Post: 1 of 18 records (5.6%)",
+        "selected_predicate": "source_lists_sponsor"
+      },
+      {
+        "case": "summary_edge_to_articles_then_fit_preserves_focus",
+        "heading": "ExxonMobil → The Washington Post",
+        "find_visible": "Relation: ExxonMobil → The Washington Post",
+        "coverage": "5 of 263 records expanded · 7 nodes / 10 lines\nScope & missing fields",
+        "relations": "Selected relationship\nExxonMobil\n→ Co-listed in source records →\nThe Washington Post\n\n5 supporting records\n\nExxonMobil: 5 of 15 records (33.3%)\n\nThe Washington Post: 5 of 18 records (27.8%)"
+      },
+      {
+        "case": "article_to_entities_then_fit_preserves_focus",
+        "heading": "Capturing carbon around the world",
+        "find_visible": "Article: Capturing carbon around the world",
+        "relations": "Article source relationships\nCapturing carbon around the world\n→ Source lists sponsor →\nExxonMobil\n\n1 supporting records\n\nExxonMobil: 1 of 15 records (6.7%)\n\nCapturing carbon around the world\n→ Published in →\nThe Washington Post\n\n1 supporting records\n\nThe Washington Post: 1 of 18 records (5.6%)"
+      },
+      {
+        "case": "selected_count_download",
+        "status": "Prepared 1 categories for 5 supporting records. Shares use the parent denominator of 15."
+      }
+    ]
+  },
+  "actual_csv_download": {
+    "browser_filename": "advertising-selection-counts (2).csv",
+    "producer_commit": "055462979e101b73a02f872dfd2225f4486bf257",
+    "bytes": 225,
+    "download_sha256": "be814013d0198c5b163d40b2cddb4cd8e004b6926c8d81d5c5e536a0e88fef90",
+    "repository_path": "reports/graph_selection_v0_4_2_selected_counts_20260930.csv",
+    "repository_sha256": "1fa3c4bdb1ef0a739833f17a749eb4541a6fcb08fd832f289a36ed9c7c906089",
+    "normalization": "CRLF to LF only",
+    "rows": [
+      {
+        "Selection": "ExxonMobil → The Washington Post",
+        "Dimension": "News outlets",
+        "Source category": "The Washington Post",
+        "Exact source value": "The Washington Post",
+        "Records": "5",
+        "Share": "0.3333333333333333",
+        "Denominator": "15",
+        "Missing source field": "False"
+      }
+    ]
+  },
+  "artifacts": [
+    {
+      "path": "reports/screenshots/graph-selection-v0-4-2-local-20260930.png",
+      "bytes": 113485,
+      "sha256": "58665d6e281df1b2a9b9936955740f12a7a7ce046d947fd84c2f5dbdfb2379ca"
+    },
+    {
+      "path": "reports/screenshots/graph-selection-v0-4-2-production-20260930.png",
+      "bytes": 104804,
+      "sha256": "91183ba2029444abee3c33dab17be8f4fd08f10796cb428d006b71410a55201f"
+    },
+    {
+      "path": "reports/graph_selection_v0_4_2_selected_counts_20260930.csv",
+      "bytes": 223,
+      "sha256": "1fa3c4bdb1ef0a739833f17a749eb4541a6fcb08fd832f289a36ed9c7c906089"
+    },
+    {
+      "path": "reports/graph_selection_consistency_v0_4_2_20260930.json",
+      "bytes": 22176,
+      "sha256": "5777f8bfcb2d0a1882c5073131e9f0f3325a86a206e443868dd4b2dcbad54df1"
+    }
+  ],
+  "paid_model_calls": 0,
+  "limitations": [
+    "Browser checks cover the recorded paths, not every possible interaction or customer acceptance.",
+    "Source-listed relationships are grounded in stored record fields and do not independently verify payment or commercial cooperation.",
+    "Unchanged health signatures are bounded evidence of source and index stability, not a full database snapshot comparison.",
+    "The local helper receipt covers stored-corpus scope consistency and is separate from production browser evidence.",
+    "This receipt is bound to the implementation commit; later documentation-only publication commits may change application.commit."
+  ]
+}

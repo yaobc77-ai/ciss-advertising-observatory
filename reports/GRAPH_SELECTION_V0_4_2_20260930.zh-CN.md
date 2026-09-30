@@ -1,6 +1,6 @@
 # 图谱选取与关系范围一致性：0.4.2
 
-日期：2026-09-30。当前状态：本机已更新，GitHub／Railway 发布验证进行中。
+日期：2026-09-30。当前状态：本机、GitHub 与 Railway 已更新，最终实现提交 `055462979e101b73a02f872dfd2225f4486bf257` 的 CI 和生产浏览器核对完成。具体证据见[发布回执](graph_selection_publication_v0_4_2_20260930.json)。
 
 ## 修复的问题
 
@@ -29,7 +29,11 @@ Articles 模式此前点击另一个节点或边，仅更新侧栏选取，却�
 
 首轮新增 22 项连续选取回归通过；实际安装 wheel 完整离线回归为 978 passed、62 deselected（Python 3.13.3，47.50 秒）。GitHub [CI 36675444975](https://github.com/yaobc77-ai/ciss-advertising-observatory/actions/runs/36675444975) 同为 978 passed、62 deselected。首个实现提交 `bdb4c03b1e2884b2ae97343e1a422396cd22bae0` 已上线 0.4.2，本机及生产浏览器都检查了 5 条分项→媒体 18 条→单篇文章 1 条的转换、具名关系、分母及 1 行数量 CSV。
 
-随后在实际生产连续测试中发现受控下拉框的问题：Article 或来源边切回 Entities 后，当前 `find.value` 不在新选项中，控件会清空它，再次触发回调擦掉关系；摘要边切换 Articles 同样有此风险。修正为将服务端有效选取保留在搜索选项中，无论当前画布使用哪一种表示。新增 4 项保留选项并执行后续回调的回归，本轮共 26 项新测试通过；最终 wheel 完整离线回归为 **982 passed、62 deselected**（Python 3.13.3，46.76 秒）。本机实际浏览器的 Article → Entities → Fit 及后续检查持续保留该文章与关系；修复后的生产回执待补。
+随后在实际生产连续测试中发现受控下拉框的问题：Article 或来源边切回 Entities 后，当前 `find.value` 不在新选项中，控件会清空它，再次触发回调擦掉关系；摘要边切换 Articles 同样有此风险。修正为将服务端有效选取保留在搜索选项中，无论当前画布使用哪一种表示。新增 4 项保留选项并执行后续回调的回归，本轮共 26 项新测试通过；最终 wheel 完整离线回归为 **982 passed、62 deselected**（Python 3.13.3，46.76 秒）。本机实际浏览器的 Article → Entities → Fit 及后续检查持续保留该文章与关系。
+
+最终提交的 [CI 36676562336](https://github.com/yaobc77-ai/ciss-advertising-observatory/actions/runs/36676562336) 为 **982 passed、62 deselected、3 warnings，80.44 秒**。Railway 部署 `5975060a-f6eb-400c-b27b-e26cc845da7a` 实际显示 ACTIVE，生产健康接口返回 0.4.2 与完整提交号；语料、索引、分块及数量签名与部署前一致。
+
+最终生产浏览器记录 8 条检查路径：公司具名媒体名单、媒体分项 5 条、画布选中媒体后扩展 18 条、单篇文章 1 条及两种来源关系、来源边切回 Entities 后 Fit、摘要边切换 Articles 后 Fit、文章切回 Entities 后 Fit，以及当前分项数量导出。三条跨视图路径都保留搜索下拉框和关系内容。实际下载 [CSV](graph_selection_v0_4_2_selected_counts_20260930.csv) 仅 1 行／5 条，父分母 15；仓库副本仅将 CRLF 转为 LF，原下载与副本哈希分别保存。实际页面见[生产截图](screenshots/graph-selection-v0-4-2-production-20260930.png)。截图和浏览器证据绑定此实现提交，后续文档发布提交可改变健康接口的提交号。
 
 Ruff、浏览器 JavaScript 语法与差异格式检查通过。测试包含精确文章 ID、关系名和受控下拉框闭环，并不是只比较总数；未调用模型。
 
