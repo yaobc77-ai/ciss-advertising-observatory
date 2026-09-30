@@ -17,7 +17,7 @@
 | 当前英文交接和试用 | [交接](../docs/current_handoff.md)、[客户审查草案](../docs/CLIENT_REVIEW_V0_4_2.md)、[原生演示](../deliverables/native_demo_v0_4_2.en.md)、[材料请求草案](../deliverables/client_materials_request_v0_4_2.en.md) | 未发送邮件，未获得客户签收；原生演示不冒充双集合最终展示 |
 | CLAIMS 源码审查与顺序 | [接入计划](../docs/claims_integration_plan.md)：ZIP 与 61 个相关文件核对；分开分类管线、后端评分、浏览器启发式和不同 taxonomy 批次 | 未执行附件中的代码、修改 taxonomy、调用上游模型或导入新分类 |
 
-维护代码准备为 0.4.3。安装的最终 wheel 回归 1,056 项通过、1 项 Windows 符号链接测试跳过、62 项 integration／live 未运行；Ruff 和锁文件检查通过。[独立安装包核对](current_release_offline_reproduction_v0_4_3_20260930.json)另通过。实际 CI、发布提交、线上版本和英文仓库同步须以新的发布回执为准。此前 0.4.2 线上关系选择回执仍属于其明确版本。
+维护代码 0.4.3 已同步两个 GitHub 仓库并部署到 Railway。安装的最终 wheel 回归 1,056 项通过、1 项 Windows 符号链接测试跳过、62 项 integration／live 未运行；两个仓库 Linux CI 各 1,057 项通过、62 项未运行。Ruff、锁文件检查和[独立安装包核对](current_release_offline_reproduction_v0_4_3_20260930.json)通过。[发布回执](release_v0_4_3_publication_20260930.json)绑定实际提交、CI、健康端点和静态页；本机 Query／Data 也恢复可访问。此前 0.4.2 线上关系选择回执仍属于其明确版本，未把它改写为 0.4.3 浏览器验收。
 
 ## CLAIMS 的实施顺序
 
