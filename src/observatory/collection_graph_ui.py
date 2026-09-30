@@ -148,8 +148,17 @@ def _from_json(value):
         return None
 
 
-def _options(graph, mode, anchor, record_ids=None):
+def _options(graph, mode, anchor, record_ids=None, selected=None):
     nodes, edges = visible_map(graph, mode, anchor, record_ids=record_ids)
+    selection, item = selection_item(graph, selected)
+    # A valid Article/source-edge focus can outlive a switch to Entities; a
+    # summary-edge focus can be expanded as Articles. Keep that canonical
+    # option so the controlled dropdown does not clear its value and trigger
+    # a second callback that erases the relationship being inspected.
+    if item and selection["kind"] == "node" and all(node["id"] != item["id"] for node in nodes):
+        nodes = [*nodes, item]
+    elif item and selection["kind"] == "edge" and all(edge["id"] != item["id"] for edge in edges):
+        edges = [*edges, item]
     lookup = {node["id"]: node for node in graph["nodes"]}
     options = [{"label": f"{TYPE_NAMES[node['type']]}: {node['label']}",
                 "value": json.dumps({"kind": "node", "id": node["id"]}, sort_keys=True)} for node in nodes]
@@ -440,7 +449,7 @@ def register_collection_graph(app, service, links_enabled):
             return (map_elements(graph, mode, anchor, record_ids=record_ids) if rebuild else no_update,
                     map_stylesheet(graph, mode, effective_selection, anchor, record_ids=record_ids), out_layout, out_zoom, out_pan,
                     _coverage(graph, mode, anchor, record_ids), inspector, selected, offset, prev_disabled, next_disabled,
-                    _options(graph, mode, anchor, record_ids), json.dumps(selected, sort_keys=True) if selected else None, anchor,
+                    _options(graph, mode, anchor, record_ids, selected), json.dumps(selected, sort_keys=True) if selected else None, anchor,
                     heading, breakdown_figure(detail, bucket), {"height": "290px"} if detail and detail["categories"] else {"display": "none", "height": "290px"},
                     note, _bucket_options(detail), bucket, not bool(detail and detail["categories"]), bucket,
                     _counts(detail, bucket), _relations(graph, selected, category))

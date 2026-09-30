@@ -1,0 +1,690 @@
+{
+  "status": "passed",
+  "checked_at_utc": "2026-09-30T05:52:18.978692+00:00",
+  "checked_at_america_new_york": "2026-09-30T01:52:18.978692-04:00",
+  "source_project_version": "0.4.2",
+  "installed_package_metadata_version": "0.4.2",
+  "executed_source_modules": {
+    "service": "D:\\Projects\\549 native ads\\src\\observatory\\service.py"
+  },
+  "local_database_host_guard": "loopback only",
+  "read_only_database_method_allowlist": [
+    "health",
+    "knowledge_map_rows",
+    "dashboard"
+  ],
+  "no_model_calls": true,
+  "attempted_model_component_calls": [],
+  "health_before": {
+    "status": "ok",
+    "record_counts": {
+      "native": 275
+    },
+    "source_data_version": "5114ebc1cf9afe59cdaa715e3ea45166",
+    "active_profile": "sentence600-v1",
+    "index_version": "d580c5962a6222e595db2ed8681f9787cef648dad653b055120b6bed10e3af75",
+    "data_version": "f19d4d697f4e6d2699d2c58b3ce80620b03e02c7e9447f24e012123adcb00f53",
+    "chunks": 556
+  },
+  "health_after": {
+    "status": "ok",
+    "record_counts": {
+      "native": 275
+    },
+    "source_data_version": "5114ebc1cf9afe59cdaa715e3ea45166",
+    "active_profile": "sentence600-v1",
+    "index_version": "d580c5962a6222e595db2ed8681f9787cef648dad653b055120b6bed10e3af75",
+    "data_version": "f19d4d697f4e6d2699d2c58b3ce80620b03e02c7e9447f24e012123adcb00f53",
+    "chunks": 556
+  },
+  "source_data_and_index_health_unchanged": true,
+  "checked_source_sha256": {
+    "scripts/check_graph_selection.py": "ede49c1b3989c94f3f09206f12e1b18a417996188eb19a720b86106bb67e0630",
+    "src/observatory/collection_graph_breakdown.py": "5ec92fe3447167c3ee05aec5ff3b581682adb8bb77b673667793a875c0021167",
+    "src/observatory/collection_graph_visual.py": "7d091c9c8aa9e94a05d2794709119de5e43fde45534afbf330eb9b7ea15dd1c9",
+    "src/observatory/knowledge_map.py": "c1c75260c82bf95fef54631f8c73d4cf5530aee2e2afb4a8e84dbf4215a36b4f",
+    "src/observatory/knowledge_graph.py": "d9eb64213dbfe29d593ccff9c2c4cdd91680895fcb2445bc9347b1d90e9946ac",
+    "src/observatory/service.py": "bbf98bc51733a7b57e49d39f7787b10191ad5b685b2f97d1c66fd063ed6c1fef",
+    "src/observatory/db.py": "fad36ad52b68c6a76ac727c0cc598ff784e7ab16791899897a07a57bfa2d8aa5",
+    "src/observatory/models.py": "c52bd5c6e1de0c511ea6f55ff5178fb4bd3a18bb0d30554b0cb6a17c4725e5a0"
+  },
+  "checked_sources_unchanged": true,
+  "scopes_checked": 7,
+  "totals": {
+    "Article_selections_checked": 591,
+    "Outlet_selections_checked": 28,
+    "SponsorCandidate_selections_checked": 54,
+    "article_expansions_checked": 6008,
+    "breakdown_categories_checked": 2120,
+    "derived_source_association_selections_checked": 91,
+    "empty_subsets_checked": 1944,
+    "focuses_with_missing_source_fields": 12,
+    "predicate_derived_source_association_rows_checked": 620,
+    "predicate_published_in_rows_checked": 3542,
+    "predicate_source_lists_sponsor_rows_checked": 3534,
+    "published_in_selections_checked": 591,
+    "relationship_focuses_checked": 6008,
+    "relationship_rows_checked": 7696,
+    "source_lists_sponsor_selections_checked": 589,
+    "sql_entity_counts_checked": 82,
+    "sql_summary_counts_checked": 91
+  },
+  "entity_examples": {
+    "exxonmobil": {
+      "total_records": 15,
+      "relations": [
+        {
+          "source": "ExxonMobil",
+          "predicate": "derived_source_association",
+          "target": "Business Insider",
+          "count": 5,
+          "endpoint_shares": [
+            {
+              "label": "ExxonMobil",
+              "count": 5,
+              "total_records": 15,
+              "share": 0.3333333333333333
+            },
+            {
+              "label": "Business Insider",
+              "count": 5,
+              "total_records": 5,
+              "share": 1.0
+            }
+          ]
+        },
+        {
+          "source": "ExxonMobil",
+          "predicate": "derived_source_association",
+          "target": "The Washington Post",
+          "count": 5,
+          "endpoint_shares": [
+            {
+              "label": "ExxonMobil",
+              "count": 5,
+              "total_records": 15,
+              "share": 0.3333333333333333
+            },
+            {
+              "label": "The Washington Post",
+              "count": 5,
+              "total_records": 18,
+              "share": 0.2777777777777778
+            }
+          ]
+        },
+        {
+          "source": "ExxonMobil",
+          "predicate": "derived_source_association",
+          "target": "The New York Times",
+          "count": 3,
+          "endpoint_shares": [
+            {
+              "label": "ExxonMobil",
+              "count": 3,
+              "total_records": 15,
+              "share": 0.2
+            },
+            {
+              "label": "The New York Times",
+              "count": 3,
+              "total_records": 19,
+              "share": 0.15789473684210525
+            }
+          ]
+        },
+        {
+          "source": "ExxonMobil",
+          "predicate": "derived_source_association",
+          "target": "The Wall Street Journal",
+          "count": 2,
+          "endpoint_shares": [
+            {
+              "label": "ExxonMobil",
+              "count": 2,
+              "total_records": 15,
+              "share": 0.13333333333333333
+            },
+            {
+              "label": "The Wall Street Journal",
+              "count": 2,
+              "total_records": 33,
+              "share": 0.06060606060606061
+            }
+          ]
+        }
+      ],
+      "missing_sponsor_records": 0,
+      "missing_outlet_records": 0
+    },
+    "washington_post": {
+      "total_records": 18,
+      "relations": [
+        {
+          "source": "API",
+          "predicate": "derived_source_association",
+          "target": "The Washington Post",
+          "count": 6,
+          "endpoint_shares": [
+            {
+              "label": "API",
+              "count": 6,
+              "total_records": 8,
+              "share": 0.75
+            },
+            {
+              "label": "The Washington Post",
+              "count": 6,
+              "total_records": 18,
+              "share": 0.3333333333333333
+            }
+          ]
+        },
+        {
+          "source": "ExxonMobil",
+          "predicate": "derived_source_association",
+          "target": "The Washington Post",
+          "count": 5,
+          "endpoint_shares": [
+            {
+              "label": "ExxonMobil",
+              "count": 5,
+              "total_records": 15,
+              "share": 0.3333333333333333
+            },
+            {
+              "label": "The Washington Post",
+              "count": 5,
+              "total_records": 18,
+              "share": 0.2777777777777778
+            }
+          ]
+        },
+        {
+          "source": "Shell",
+          "predicate": "derived_source_association",
+          "target": "The Washington Post",
+          "count": 2,
+          "endpoint_shares": [
+            {
+              "label": "Shell",
+              "count": 2,
+              "total_records": 10,
+              "share": 0.2
+            },
+            {
+              "label": "The Washington Post",
+              "count": 2,
+              "total_records": 18,
+              "share": 0.1111111111111111
+            }
+          ]
+        },
+        {
+          "source": "Southern Company",
+          "predicate": "derived_source_association",
+          "target": "The Washington Post",
+          "count": 2,
+          "endpoint_shares": [
+            {
+              "label": "Southern Company",
+              "count": 2,
+              "total_records": 5,
+              "share": 0.4
+            },
+            {
+              "label": "The Washington Post",
+              "count": 2,
+              "total_records": 18,
+              "share": 0.1111111111111111
+            }
+          ]
+        },
+        {
+          "source": "AFPM",
+          "predicate": "derived_source_association",
+          "target": "The Washington Post",
+          "count": 1,
+          "endpoint_shares": [
+            {
+              "label": "AFPM",
+              "count": 1,
+              "total_records": 6,
+              "share": 0.16666666666666666
+            },
+            {
+              "label": "The Washington Post",
+              "count": 1,
+              "total_records": 18,
+              "share": 0.05555555555555555
+            }
+          ]
+        },
+        {
+          "source": "Chevron",
+          "predicate": "derived_source_association",
+          "target": "The Washington Post",
+          "count": 1,
+          "endpoint_shares": [
+            {
+              "label": "Chevron",
+              "count": 1,
+              "total_records": 8,
+              "share": 0.125
+            },
+            {
+              "label": "The Washington Post",
+              "count": 1,
+              "total_records": 18,
+              "share": 0.05555555555555555
+            }
+          ]
+        },
+        {
+          "source": "Eni",
+          "predicate": "derived_source_association",
+          "target": "The Washington Post",
+          "count": 1,
+          "endpoint_shares": [
+            {
+              "label": "Eni",
+              "count": 1,
+              "total_records": 1,
+              "share": 1.0
+            },
+            {
+              "label": "The Washington Post",
+              "count": 1,
+              "total_records": 18,
+              "share": 0.05555555555555555
+            }
+          ]
+        }
+      ],
+      "missing_sponsor_records": 0,
+      "missing_outlet_records": 0
+    }
+  },
+  "results": [
+    {
+      "scope": "complete",
+      "filters": {
+        "dataset": "native",
+        "publishers": [],
+        "sponsors": [],
+        "platforms": [],
+        "keywords": [],
+        "labels": [],
+        "record_ids": [],
+        "date_from": null,
+        "date_to": null,
+        "include_unknown_dates": true
+      },
+      "counts": {
+        "articles": 263,
+        "sponsors": 19,
+        "outlets": 8,
+        "source_edges": 525,
+        "summary_edges": 35
+      },
+      "coverage": {
+        "total_records": 263,
+        "shown_records": 263,
+        "truncated": false,
+        "associated_records": 262,
+        "missing_sponsor_records": 1,
+        "missing_outlet_records": 0,
+        "known_sponsor_records": 262,
+        "known_outlet_records": 263,
+        "retrievable_records": 226,
+        "scope": "complete_supplied_selection",
+        "counting_unit": "eligible_native_record"
+      },
+      "checks": {
+        "Article_selections_checked": 263,
+        "Outlet_selections_checked": 8,
+        "SponsorCandidate_selections_checked": 19,
+        "article_expansions_checked": 2627,
+        "breakdown_categories_checked": 927,
+        "derived_source_association_selections_checked": 35,
+        "empty_subsets_checked": 850,
+        "focuses_with_missing_source_fields": 6,
+        "predicate_derived_source_association_rows_checked": 243,
+        "predicate_published_in_rows_checked": 1576,
+        "predicate_source_lists_sponsor_rows_checked": 1572,
+        "published_in_selections_checked": 263,
+        "relationship_focuses_checked": 2627,
+        "relationship_rows_checked": 3391,
+        "source_lists_sponsor_selections_checked": 262,
+        "sql_entity_counts_checked": 27,
+        "sql_summary_counts_checked": 35
+      },
+      "same_filter_sql_counts_agree": true
+    },
+    {
+      "scope": "exxonmobil",
+      "filters": {
+        "dataset": "native",
+        "publishers": [],
+        "sponsors": [
+          "exxonmobil"
+        ],
+        "platforms": [],
+        "keywords": [],
+        "labels": [],
+        "record_ids": [],
+        "date_from": null,
+        "date_to": null,
+        "include_unknown_dates": true
+      },
+      "counts": {
+        "articles": 15,
+        "sponsors": 1,
+        "outlets": 4,
+        "source_edges": 30,
+        "summary_edges": 4
+      },
+      "coverage": {
+        "total_records": 15,
+        "shown_records": 15,
+        "truncated": false,
+        "associated_records": 15,
+        "missing_sponsor_records": 0,
+        "missing_outlet_records": 0,
+        "known_sponsor_records": 15,
+        "known_outlet_records": 15,
+        "retrievable_records": 13,
+        "scope": "complete_supplied_selection",
+        "counting_unit": "eligible_native_record"
+      },
+      "checks": {
+        "Article_selections_checked": 15,
+        "Outlet_selections_checked": 4,
+        "SponsorCandidate_selections_checked": 1,
+        "article_expansions_checked": 169,
+        "breakdown_categories_checked": 61,
+        "derived_source_association_selections_checked": 4,
+        "empty_subsets_checked": 54,
+        "predicate_derived_source_association_rows_checked": 28,
+        "predicate_published_in_rows_checked": 90,
+        "predicate_source_lists_sponsor_rows_checked": 90,
+        "published_in_selections_checked": 15,
+        "relationship_focuses_checked": 169,
+        "relationship_rows_checked": 208,
+        "source_lists_sponsor_selections_checked": 15,
+        "sql_entity_counts_checked": 5,
+        "sql_summary_counts_checked": 4
+      },
+      "same_filter_sql_counts_agree": true
+    },
+    {
+      "scope": "washington_post",
+      "filters": {
+        "dataset": "native",
+        "publishers": [
+          "The Washington Post"
+        ],
+        "sponsors": [],
+        "platforms": [],
+        "keywords": [],
+        "labels": [],
+        "record_ids": [],
+        "date_from": null,
+        "date_to": null,
+        "include_unknown_dates": true
+      },
+      "counts": {
+        "articles": 18,
+        "sponsors": 7,
+        "outlets": 1,
+        "source_edges": 36,
+        "summary_edges": 7
+      },
+      "coverage": {
+        "total_records": 18,
+        "shown_records": 18,
+        "truncated": false,
+        "associated_records": 18,
+        "missing_sponsor_records": 0,
+        "missing_outlet_records": 0,
+        "known_sponsor_records": 18,
+        "known_outlet_records": 18,
+        "retrievable_records": 18,
+        "scope": "complete_supplied_selection",
+        "counting_unit": "eligible_native_record"
+      },
+      "checks": {
+        "Article_selections_checked": 18,
+        "Outlet_selections_checked": 1,
+        "SponsorCandidate_selections_checked": 7,
+        "article_expansions_checked": 218,
+        "breakdown_categories_checked": 80,
+        "derived_source_association_selections_checked": 7,
+        "empty_subsets_checked": 69,
+        "predicate_derived_source_association_rows_checked": 47,
+        "predicate_published_in_rows_checked": 108,
+        "predicate_source_lists_sponsor_rows_checked": 108,
+        "published_in_selections_checked": 18,
+        "relationship_focuses_checked": 218,
+        "relationship_rows_checked": 263,
+        "source_lists_sponsor_selections_checked": 18,
+        "sql_entity_counts_checked": 8,
+        "sql_summary_counts_checked": 7
+      },
+      "same_filter_sql_counts_agree": true
+    },
+    {
+      "scope": "exxonmobil_at_washington_post",
+      "filters": {
+        "dataset": "native",
+        "publishers": [
+          "The Washington Post"
+        ],
+        "sponsors": [
+          "exxonmobil"
+        ],
+        "platforms": [],
+        "keywords": [],
+        "labels": [],
+        "record_ids": [],
+        "date_from": null,
+        "date_to": null,
+        "include_unknown_dates": true
+      },
+      "counts": {
+        "articles": 5,
+        "sponsors": 1,
+        "outlets": 1,
+        "source_edges": 10,
+        "summary_edges": 1
+      },
+      "coverage": {
+        "total_records": 5,
+        "shown_records": 5,
+        "truncated": false,
+        "associated_records": 5,
+        "missing_sponsor_records": 0,
+        "missing_outlet_records": 0,
+        "known_sponsor_records": 5,
+        "known_outlet_records": 5,
+        "retrievable_records": 5,
+        "scope": "complete_supplied_selection",
+        "counting_unit": "eligible_native_record"
+      },
+      "checks": {
+        "Article_selections_checked": 5,
+        "Outlet_selections_checked": 1,
+        "SponsorCandidate_selections_checked": 1,
+        "article_expansions_checked": 56,
+        "breakdown_categories_checked": 20,
+        "derived_source_association_selections_checked": 1,
+        "empty_subsets_checked": 18,
+        "predicate_derived_source_association_rows_checked": 8,
+        "predicate_published_in_rows_checked": 30,
+        "predicate_source_lists_sponsor_rows_checked": 30,
+        "published_in_selections_checked": 5,
+        "relationship_focuses_checked": 56,
+        "relationship_rows_checked": 68,
+        "source_lists_sponsor_selections_checked": 5,
+        "sql_entity_counts_checked": 2,
+        "sql_summary_counts_checked": 1
+      },
+      "same_filter_sql_counts_agree": true
+    },
+    {
+      "scope": "known_dates",
+      "filters": {
+        "dataset": "native",
+        "publishers": [],
+        "sponsors": [],
+        "platforms": [],
+        "keywords": [],
+        "labels": [],
+        "record_ids": [],
+        "date_from": null,
+        "date_to": null,
+        "include_unknown_dates": false
+      },
+      "counts": {
+        "articles": 241,
+        "sponsors": 19,
+        "outlets": 8,
+        "source_edges": 481,
+        "summary_edges": 34
+      },
+      "coverage": {
+        "total_records": 241,
+        "shown_records": 241,
+        "truncated": false,
+        "associated_records": 240,
+        "missing_sponsor_records": 1,
+        "missing_outlet_records": 0,
+        "known_sponsor_records": 240,
+        "known_outlet_records": 241,
+        "retrievable_records": 204,
+        "scope": "complete_supplied_selection",
+        "counting_unit": "eligible_native_record"
+      },
+      "checks": {
+        "Article_selections_checked": 241,
+        "Outlet_selections_checked": 8,
+        "SponsorCandidate_selections_checked": 19,
+        "article_expansions_checked": 2421,
+        "breakdown_categories_checked": 855,
+        "derived_source_association_selections_checked": 34,
+        "empty_subsets_checked": 783,
+        "focuses_with_missing_source_fields": 6,
+        "predicate_derived_source_association_rows_checked": 234,
+        "predicate_published_in_rows_checked": 1444,
+        "predicate_source_lists_sponsor_rows_checked": 1440,
+        "published_in_selections_checked": 241,
+        "relationship_focuses_checked": 2421,
+        "relationship_rows_checked": 3118,
+        "source_lists_sponsor_selections_checked": 240,
+        "sql_entity_counts_checked": 27,
+        "sql_summary_counts_checked": 34
+      },
+      "same_filter_sql_counts_agree": true
+    },
+    {
+      "scope": "filtered_year",
+      "filters": {
+        "dataset": "native",
+        "publishers": [],
+        "sponsors": [],
+        "platforms": [],
+        "keywords": [],
+        "labels": [],
+        "record_ids": [],
+        "date_from": "2018-01-01",
+        "date_to": "2018-12-31",
+        "include_unknown_dates": false
+      },
+      "counts": {
+        "articles": 49,
+        "sponsors": 7,
+        "outlets": 6,
+        "source_edges": 98,
+        "summary_edges": 10
+      },
+      "coverage": {
+        "total_records": 49,
+        "shown_records": 49,
+        "truncated": false,
+        "associated_records": 49,
+        "missing_sponsor_records": 0,
+        "missing_outlet_records": 0,
+        "known_sponsor_records": 49,
+        "known_outlet_records": 49,
+        "retrievable_records": 37,
+        "scope": "complete_supplied_selection",
+        "counting_unit": "eligible_native_record"
+      },
+      "checks": {
+        "Article_selections_checked": 49,
+        "Outlet_selections_checked": 6,
+        "SponsorCandidate_selections_checked": 7,
+        "article_expansions_checked": 517,
+        "breakdown_categories_checked": 177,
+        "derived_source_association_selections_checked": 10,
+        "empty_subsets_checked": 170,
+        "predicate_derived_source_association_rows_checked": 60,
+        "predicate_published_in_rows_checked": 294,
+        "predicate_source_lists_sponsor_rows_checked": 294,
+        "published_in_selections_checked": 49,
+        "relationship_focuses_checked": 517,
+        "relationship_rows_checked": 648,
+        "source_lists_sponsor_selections_checked": 49,
+        "sql_entity_counts_checked": 13,
+        "sql_summary_counts_checked": 10
+      },
+      "same_filter_sql_counts_agree": true
+    },
+    {
+      "scope": "empty",
+      "filters": {
+        "dataset": "native",
+        "publishers": [
+          "unavailable-outlet"
+        ],
+        "sponsors": [],
+        "platforms": [],
+        "keywords": [],
+        "labels": [],
+        "record_ids": [],
+        "date_from": null,
+        "date_to": null,
+        "include_unknown_dates": true
+      },
+      "counts": {
+        "articles": 0,
+        "sponsors": 0,
+        "outlets": 0,
+        "source_edges": 0,
+        "summary_edges": 0
+      },
+      "coverage": {
+        "total_records": 0,
+        "shown_records": 0,
+        "truncated": false,
+        "associated_records": 0,
+        "missing_sponsor_records": 0,
+        "missing_outlet_records": 0,
+        "known_sponsor_records": 0,
+        "known_outlet_records": 0,
+        "retrievable_records": 0,
+        "scope": "complete_supplied_selection",
+        "counting_unit": "eligible_native_record"
+      },
+      "checks": {},
+      "same_filter_sql_counts_agree": true
+    }
+  ],
+  "limitations": [
+    "These are local stored-corpus engineering checks, not customer acceptance, semantic answer accuracy, or confirmation of an online deployment.",
+    "The checker verifies relationship helpers and graph elements; sequential browser state transitions are covered separately by UI regressions and browser checks.",
+    "Graph witnesses and SQL counts come from separate read-only transactions with identical filters and unchanged health before/after, not one cross-query atomic snapshot.",
+    "Exact source values identify candidates; co-listing does not independently verify payment, corporate identity, endorsement, or a business relationship.",
+    "No article body, vector, embedding, generated answer, migration, import, or paid model operation is read or created by the checker."
+  ]
+}

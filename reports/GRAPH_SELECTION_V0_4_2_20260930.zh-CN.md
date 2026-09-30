@@ -27,7 +27,13 @@ Articles 模式此前点击另一个节点或边，仅更新侧栏选取，却�
 
 ## 工程与实际页面验证
 
-新增 22 项连续选取回归通过；实际安装 wheel 的完整离线回归为 978 passed、62 deselected（Python 3.13.3，47.50 秒）。Ruff、浏览器 JavaScript 语法与差异格式检查通过。测试包含精确文章 ID 和关系名，并不是只比较总数；未调用模型。真实语料只读检查、CI 与部署回执将在完成后补入本节。已有本地实际浏览器检查：ExxonMobil 的 Washington Post 分项为 5 条；点击媒体节点后展开改为 18 条；选择 Capturing carbon around the world 后改为 1 条、3 个节点及两条来源关系。
+首轮新增 22 项连续选取回归通过；实际安装 wheel 完整离线回归为 978 passed、62 deselected（Python 3.13.3，47.50 秒）。GitHub [CI 36675444975](https://github.com/yaobc77-ai/ciss-advertising-observatory/actions/runs/36675444975) 同为 978 passed、62 deselected。首个实现提交 `bdb4c03b1e2884b2ae97343e1a422396cd22bae0` 已上线 0.4.2，本机及生产浏览器都检查了 5 条分项→媒体 18 条→单篇文章 1 条的转换、具名关系、分母及 1 行数量 CSV。
+
+随后在实际生产连续测试中发现受控下拉框的问题：Article 或来源边切回 Entities 后，当前 `find.value` 不在新选项中，控件会清空它，再次触发回调擦掉关系；摘要边切换 Articles 同样有此风险。修正为将服务端有效选取保留在搜索选项中，无论当前画布使用哪一种表示。新增 4 项保留选项并执行后续回调的回归，本轮共 26 项新测试通过；最终 wheel 完整离线回归为 **982 passed、62 deselected**（Python 3.13.3，46.76 秒）。本机实际浏览器的 Article → Entities → Fit 及后续检查持续保留该文章与关系；修复后的生产回执待补。
+
+Ruff、浏览器 JavaScript 语法与差异格式检查通过。测试包含精确文章 ID、关系名和受控下拉框闭环，并不是只比较总数；未调用模型。
+
+[实际语料只读检查](graph_selection_consistency_v0_4_2_20260930.json)覆盖 7 组筛选：263／15／18／5／241／49／0 条记录。跨这些重叠范围累计检查 1,944 个节点及边选取、2,120 个分项与 6,008 次关系／展开集合，SQL 另核对 82 个实体与 91 个摘要边计数。源／索引健康状态和受检源码哈希前后一致，模型访问为 0。它是本机 helper 与集合一致性证据，不证明浏览器闭环或线上自动通过；相关脚本可用 `python scripts/check_graph_selection.py --report <new-path.json>` 重新只读检查，默认回执拒绝覆盖。
 
 ## 解释边界
 

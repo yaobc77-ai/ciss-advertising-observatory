@@ -429,3 +429,58 @@ def test_article_selection_survives_entities_view_and_highlights_only_its_witnes
         rows = _relation_rows(response, predicate)
         assert len(rows) == 1 and "1 supporting records" in _text(rows)
 
+
+@pytest.mark.parametrize("target", ["article", "source_lists_sponsor", "published_in"])
+def test_article_focus_remains_a_valid_dropdown_option_after_entities_switch_and_next_find_callback(map_app, target):
+    graph = map_app[2].graph
+    article = next(item for item in graph["nodes"]
+                   if item["type"] == "Article" and item["properties"]["record_id"] == "record-0")
+    browser = values(**{"collection-graph-view.value": "articles"})
+    if target == "article":
+        selected_item, kind = article, "node"
+    else:
+        selected_item = next(item for item in graph["article_edges"]
+                             if item["source"] == article["id"] and item["predicate"] == target)
+        kind = "edge"
+    _choose(map_app, browser, selected_item, kind)
+
+    switched = _advance(map_app, browser, "collection-graph-view.value", "entities")
+    find_value = switched["collection-graph-find"]["value"]
+    assert json.loads(find_value) == _selection(selected_item, kind)
+    assert find_value in {option["value"] for option in switched["collection-graph-find"]["options"]}
+    # React validates a controlled dropdown against its new options before its
+    # next value callback; retaining only the selection Store is insufficient.
+    repeated = _advance(map_app, browser, "collection-graph-find.value", find_value)
+    assert repeated["collection-graph-selection"]["data"] == _selection(selected_item, kind)
+    assert repeated["collection-graph-find"]["value"] == find_value
+    assert find_value in {option["value"] for option in repeated["collection-graph-find"]["options"]}
+    _assert_total(repeated, 1)
+    assert _all_page_record_ids(map_app, browser, repeated) == {"record-0"}
+    for predicate in ("source_lists_sponsor", "published_in"):
+        rows = _relation_rows(repeated, predicate)
+        assert len(rows) == 1 and "1 supporting records" in _text(rows)
+
+
+def test_summary_edge_remains_a_valid_dropdown_option_after_articles_switch_and_next_find_callback(map_app):
+    graph = map_app[2].graph
+    sponsor = _node(graph, "SponsorCandidate", "exxonmobil")
+    outlet = _node(graph, "Outlet", "The Washington Post")
+    edge = _summary_edge(graph, sponsor, outlet)
+    browser = values()
+    _choose(map_app, browser, edge, "edge")
+
+    switched = _advance(map_app, browser, "collection-graph-view.value", "articles")
+    find_value = switched["collection-graph-find"]["value"]
+    assert json.loads(find_value) == _selection(edge, "edge")
+    assert find_value in {option["value"] for option in switched["collection-graph-find"]["options"]}
+    expected = _expected_records(graph, sponsor="exxonmobil", outlet="The Washington Post")
+    assert len(expected) == 10 and _article_record_ids(graph, switched) == expected
+
+    repeated = _advance(map_app, browser, "collection-graph-find.value", find_value)
+    assert repeated["collection-graph-selection"]["data"] == _selection(edge, "edge")
+    assert repeated["collection-graph-anchor"]["data"] == _selection(edge, "edge")
+    assert repeated["collection-graph-find"]["value"] == find_value
+    assert find_value in {option["value"] for option in repeated["collection-graph-find"]["options"]}
+    _assert_total(repeated, 10)
+    assert _article_record_ids(graph, repeated) == expected
+    assert _all_page_record_ids(map_app, browser, repeated) == expected
