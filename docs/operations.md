@@ -1,8 +1,10 @@
 # 本机与部署运行、预算及交接
 
-更新日期：2026-09-30。当前发布运行契约为 **0.4.0**；Railway 的实际发布状态以本轮部署回执和线上 `/healthz` 为准。下面标注旧日期的测试、费用和恢复记录保留其历史范围。
+0.4.1 修复初次图谱加载可能为空的回调竞态；当前状态见[发布记录](../reports/RELEASE_V0_4_0_20260930.zh-CN.md)，独立制品回执见[0.4.1复现](../reports/current_release_database_reproduction_v0_4_1_20260930.json)。以下0.4.0测试与规模基准保持其版本范围。
 
-## 当前状态 — 0.4.0
+更新日期：2026-09-30。当前发布运行契约为 **0.4.1**；Railway 的实际发布状态以本轮部署回执和线上 `/healthz` 为准。下面标注旧日期的测试、费用和恢复记录保留其历史范围。
+
+## 当前状态 — 0.4.1
 
 查询入口为 `/query`、数据入口为 `/data`，根路径 `/` 进入查询。Data 提供当前范围的公司／来源所列赞助方与媒体统计、集合知识图谱、点击实体后的占比与来源记录，以及历史标签下钻。图谱边表达记录支持的关系，不认证商业合作；历史标签不是经过核验的 CLAIMS 判断。界面与限制见 [用户指南](user_guide.md)及[图谱详情验证](../reports/GRAPH_DETAILS_V2_20260929.zh-CN.md)。
 
@@ -10,7 +12,7 @@
 
 当前 `active_profile=sentence600-v1`，556 个片段；旧 `legacy600-v1` 的 558 个片段保留，可按下述流程回退。源数据版本 `source_data_version=5114ebc1cf9afe59cdaa715e3ea45166` 未变：275 收录、263 默认可统计、226 可检索。`health.data_version` 现在同时包含源版本和索引版本，不能再直接与旧版的源快照 MD5 比较。发布记录见 [0.3.0 报告](../reports/release_v0_3_0_20260917.zh-CN.md)。
 
-## 0.4.0 构建、迁移与健康检查
+## 当前构建、迁移与健康检查
 
 [Dockerfile](../Dockerfile)使用 Python 3.12，固定 `uv:0.12.7`，先以 `uv sync --frozen --no-dev --no-install-project` 安装锁定依赖，再以 `uv sync --frozen --no-dev --no-editable` 安装项目。运行入口为 `/app/.venv/bin/observatory serve`；包内包含浏览器资源与有序 SQL 迁移，不能依靠工作目录中的 editable 源码补齐缺失文件。容器构建不携带 `.env`、原始语料、运行目录或数据库备份；应用配置由部署平台环境变量提供。
 
@@ -26,7 +28,7 @@
 |---|---|
 | `status`、`record_counts`、`chunks`、`active_profile` | 服务状态、收录规模与当前检索索引；收录数不等于可统计或可检索数 |
 | `source_data_version`、`index_version`、`data_version` | 发布前后来源与索引是否变化 |
-| `application.version` | 实际安装包版本，应为本次 0.4.0 制品 |
+| `application.version` | 实际安装包版本，应与本轮发布记录匹配（0.4.1） |
 | `application.commit` | 平台 `RAILWAY_GIT_COMMIT_SHA` 中有效的 40 位 Git SHA；无效或缺失时返回 `null` |
 | `application.features` | `collection_graph`、`graph_breakdowns`、`research_agent` 能力／开关状态；不代表数据完整或回答准确 |
 
@@ -120,7 +122,7 @@ uv run --extra pdf python scripts/extract_pdf_text.py `
 
 ## 当前验证与历史发布基线
 
-0.4.0 当前界面、统计和工程检查见[图谱详情报告](../reports/GRAPH_DETAILS_V2_20260929.zh-CN.md)，安装与合成测试库执行见[9 月 30 日回执](../reports/current_release_database_reproduction_20260930.json)。两者均不构成客户语义验收；线上版本、提交、CI 和迁移执行结果须在本轮部署完成后单独记录。下面 0.3.x／0.2.x 的成绩不作为 0.4.0 当前运行成绩。
+0.4.1 的安装制品 956 项测试、生产首屏与互动验证见[发布记录](../reports/RELEASE_V0_4_0_20260930.zh-CN.md)及[本轮发布回执](../reports/release_v0_4_1_publication_20260930.json)；安装与合成测试库执行见[0.4.1 回执](../reports/current_release_database_reproduction_v0_4_1_20260930.json)。0.4.0 三道客户问题与 37,000 条合成记录基准保持其原版本范围。下面 0.3.x／0.2.x 的成绩不作为当前运行成绩，工程检查不构成客户语义验收。
 
 [0.3.0 发布报告](../reports/release_v0_3_0_20260917.zh-CN.md)记录 366 项工程测试通过、三页面与 sentence600-v1 的本机发布。两次付费 smoke 只支持已记录的工程定位检查；中文回答仍有选定短引文之外的地点实体、重复使用引文等待审项，不能记作人工语义验收或整体质量提升。
 
@@ -155,7 +157,7 @@ uv run --extra pdf python scripts/extract_pdf_text.py `
 
 ## Railway 0.4.0 发布配置与生效核对
 
-已存在 [Railway 预览](https://ciss-advertising-observatory-production.up.railway.app/data)。2026-09-30 本轮在 Railway UI 准备的设置如下；**staged 变更尚不能算作当前运行设置**，实际应用与发布结果由部署回执记录。
+已存在 [Railway 预览](https://ciss-advertising-observatory-production.up.railway.app/data)。2026-09-30 已应用下列 Railway UI 设置，0.4.1 生产部署与健康接口已核对。发布前日志显示迁移 current_version=2、pending=[]、两个迁移 applied。后续维护仍需检查实际设置，不能用 staged 值或仓库配置替代生效证据。
 
 | 设置 | 本轮目标值 | 生效核对 |
 |---|---|---|
@@ -166,7 +168,7 @@ uv run --extra pdf python scripts/extract_pdf_text.py `
 
 [railway.json](../railway.json)记录 Dockerfile、健康检查和迁移目标配置。本轮平台界面出现 config-as-code deprecated 提示，因此不能仅凭文件存在、Git 推送成功或 staged UI 值认定它已生效。维护者应先核对提交、待应用变更和实际已应用设置，再查看构建、部署前迁移、启动与健康检查日志。若平台没有采用仓库配置，应通过项目设置应用同一契约，并保存实际生效记录；不要同时保留两个互相冲突的启动／迁移来源。
 
-发布前保存线上健康白名单和备份；发布后核对 `/healthz` 的 `application.version=0.4.0`、`application.commit` 与部署提交一致，三个 feature 状态符合目标，且原生源版本、索引版本、活动 profile、收录数和片段数符合本次是否更新数据的预期。本轮代码发布不要求重导入语料、重算 embedding 或清空历史账本。`commit=null` 时需通过部署日志独立确认源码提交；缺少新版 `application` 字段表示尚不能由健康接口确认新版制品。
+发布前保存线上健康白名单和备份；发布后核对 `/healthz` 的 `application.version=0.4.1`、`application.commit` 与部署提交一致，三个 feature 状态符合目标，且原生源版本、索引版本、活动 profile、收录数和片段数符合本次是否更新数据的预期。本轮代码发布不要求重导入语料、重算 embedding 或清空历史账本。`commit=null` 时需通过部署日志独立确认源码提交；缺少新版 `application` 字段表示尚不能由健康接口确认新版制品。
 
 确认版本后再检查 `/query`、`/data`、节点点击／饼图／来源记录和详情。付费理解与生成需另行授权、记录用量并遵守预算，不属于免费上线连通检查；图谱和关键词浏览可独立检查。部署通过不等于客户验收，社交空库仍须显示未接入。
 

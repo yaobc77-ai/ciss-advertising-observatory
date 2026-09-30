@@ -1,0 +1,242 @@
+{
+  "checked_at_utc": "2026-09-30T04:51:41.849716+00:00",
+  "scope": "published_package_and_browser_smoke",
+  "application_version": "0.4.1",
+  "source_commit": "3ee1731d2fc6cf823840847a14ff18f078c9cd19",
+  "production_url": "https://ciss-advertising-observatory-production.up.railway.app",
+  "ci": {
+    "run_id": 36669373399,
+    "conclusion": "success",
+    "python": "3.12",
+    "installed_artifact_tests": {
+      "passed": 956,
+      "deselected": 62,
+      "warnings": 3,
+      "seconds": 55.66
+    },
+    "url": "https://github.com/yaobc77-ai/ciss-advertising-observatory/actions/runs/36669373399"
+  },
+  "local_installed_artifact_tests": {
+    "passed": 956,
+    "deselected": 62,
+    "python": "3.13.3",
+    "seconds": 45.43
+  },
+  "railway": {
+    "deployment_id": "eccd733e-c159-4fdb-a170-b33013f6a16f",
+    "observed_state": "active_and_successful",
+    "applied_settings_observed": {
+      "wait_for_ci": true,
+      "healthcheck_path": "/healthz",
+      "healthcheck_timeout_seconds": 60,
+      "pre_deploy_command": "/app/.venv/bin/observatory migrate",
+      "research_agent_enabled": true
+    },
+    "pre_deploy_logs_observed": {
+      "at_utc": "2026-09-30T04:36:01Z",
+      "initialized": true,
+      "current_version": 2,
+      "pending": [],
+      "migration_versions_applied": [
+        1,
+        2
+      ]
+    }
+  },
+  "health": {
+    "production": {
+      "active_profile": "sentence600-v1",
+      "application": {
+        "commit": "3ee1731d2fc6cf823840847a14ff18f078c9cd19",
+        "features": {
+          "collection_graph": true,
+          "graph_breakdowns": true,
+          "research_agent": true
+        },
+        "version": "0.4.1"
+      },
+      "chunks": 556,
+      "data_version": "f19d4d697f4e6d2699d2c58b3ce80620b03e02c7e9447f24e012123adcb00f53",
+      "index_version": "d580c5962a6222e595db2ed8681f9787cef648dad653b055120b6bed10e3af75",
+      "record_counts": {
+        "native": 275
+      },
+      "source_data_version": "5114ebc1cf9afe59cdaa715e3ea45166",
+      "status": "ok"
+    },
+    "local": {
+      "active_profile": "sentence600-v1",
+      "application": {
+        "commit": null,
+        "features": {
+          "collection_graph": true,
+          "graph_breakdowns": true,
+          "research_agent": true
+        },
+        "version": "0.4.1"
+      },
+      "chunks": 556,
+      "data_version": "f19d4d697f4e6d2699d2c58b3ce80620b03e02c7e9447f24e012123adcb00f53",
+      "index_version": "d580c5962a6222e595db2ed8681f9787cef648dad653b055120b6bed10e3af75",
+      "record_counts": {
+        "native": 275
+      },
+      "source_data_version": "5114ebc1cf9afe59cdaa715e3ea45166",
+      "status": "ok"
+    }
+  },
+  "unchanged_since_preflight": {
+    "record_counts": true,
+    "chunks": true,
+    "active_profile": true,
+    "source_data_version": true,
+    "index_version": true,
+    "data_version": true
+  },
+  "production_browser": {
+    "first_load": {
+      "canvas_visible_without_reset_or_fit": true,
+      "nodes": 27,
+      "lines": 35,
+      "eligible_records": 263,
+      "searchable_records": 226,
+      "unknown_dates": 22
+    },
+    "expanded_graph_visible": true,
+    "direct_node_selection": {
+      "ExxonMobil": {
+        "supporting_records": 15,
+        "outlet_categories": 4,
+        "counts": [
+          5,
+          5,
+          3,
+          2
+        ]
+      },
+      "The Washington Post": {
+        "supporting_records": 18,
+        "sponsor_categories": 7,
+        "counts": [
+          6,
+          5,
+          2,
+          2,
+          1,
+          1,
+          1
+        ],
+        "unknown_dates": 2
+      }
+    },
+    "table_drilldown": {
+      "sponsor": "ExxonMobil",
+      "outlet": "The Washington Post",
+      "matching_records": 5,
+      "unknown_dates": 0
+    },
+    "record_detail": {
+      "record_id": "49fb0b44-15e5-533f-a0de-99929c0d29c5",
+      "opened_by_title_in_new_tab": true,
+      "stored_body_visible": true,
+      "original_source_link_visible": true,
+      "verified_pdf_or_screenshot_attached": false,
+      "browser_translated_detail_page": true
+    },
+    "exports": {
+      "counts_csv": {
+        "rows": [
+          {
+            "Selection": "ExxonMobil",
+            "Dimension": "News outlets",
+            "Source category": "Business Insider",
+            "Exact source value": "Business Insider",
+            "Records": "5",
+            "Share": "0.3333333333333333",
+            "Denominator": "15",
+            "Missing source field": "False"
+          },
+          {
+            "Selection": "ExxonMobil",
+            "Dimension": "News outlets",
+            "Source category": "The Washington Post",
+            "Exact source value": "The Washington Post",
+            "Records": "5",
+            "Share": "0.3333333333333333",
+            "Denominator": "15",
+            "Missing source field": "False"
+          },
+          {
+            "Selection": "ExxonMobil",
+            "Dimension": "News outlets",
+            "Source category": "The New York Times",
+            "Exact source value": "The New York Times",
+            "Records": "3",
+            "Share": "0.2",
+            "Denominator": "15",
+            "Missing source field": "False"
+          },
+          {
+            "Selection": "ExxonMobil",
+            "Dimension": "News outlets",
+            "Source category": "The Wall Street Journal",
+            "Exact source value": "The Wall Street Journal",
+            "Records": "2",
+            "Share": "0.13333333333333333",
+            "Denominator": "15",
+            "Missing source field": "False"
+          }
+        ],
+        "path": "reports/release_v0_4_1_exxonmobil_counts_20260930.csv",
+        "bytes": 467,
+        "sha256": "f2370d471ccbae2ce7f19d9848a4902c132142fea45f6d94e897a15985b1a23c",
+        "original_download_bytes": 472,
+        "original_download_sha256": "6f96109234f831a510af923df19995d6d0dbc472d5aebef264627849e450225f",
+        "stored_line_endings": "LF, matching repository .gitattributes; cell values unchanged"
+      },
+      "graph_png": {
+        "downloaded_and_visually_inspected": true,
+        "bytes": 431019,
+        "sha256": "070f88aa277eaae7d1530093cd61065ba2dbc1ecf9da799e74a0703276b448d0",
+        "width": 1846,
+        "height": 906,
+        "note": "Graph-only transparent PNG; not a screenshot of the adjacent ring/table."
+      },
+      "download_event_capture": "Automation wait timed out for CSV, but actual browser file download was found and validated."
+    },
+    "screenshots": [
+      {
+        "path": "reports/screenshots/release_v0_4_1_graph_first_load_20260930.jpg",
+        "bytes": 125112,
+        "sha256": "34a00708484781df4f6e9b3721270f582fa064a29f8ca82ed2eba298cc4e784b"
+      },
+      {
+        "path": "reports/screenshots/release_v0_4_1_graph_exxonmobil_expanded_20260930.jpg",
+        "bytes": 104199,
+        "sha256": "c462712965fbd9c96ac2dd503a8380256286aa64df4576fd2810b37ed52455b9"
+      }
+    ]
+  },
+  "paid_question_smoke": {
+    "application_version": "0.4.0",
+    "receipt": "reports/release_v0_4_0_production_questions_20260930.json",
+    "model_interpretation_calls": 3,
+    "ui_displayed_total_usd_approx": 0.00164,
+    "production_ledger_independently_reconciled": false,
+    "new_paid_calls_after_ui_only_0_4_1_patch": 0,
+    "purpose": "Known customer examples; counts computed by SQL, not an independent semantic benchmark"
+  },
+  "isolated_database_reproduction_receipt": "reports/current_release_database_reproduction_v0_4_1_20260930.json",
+  "performance_baseline": {
+    "application_version": "0.4.0",
+    "synthetic_physical_rows": 37000,
+    "receipt": "reports/dashboard_performance_baseline_20260930.json",
+    "database_methods_only": true,
+    "cloud_browser_concurrency_sla_verified": false
+  },
+  "customer_independent_semantic_acceptance": false,
+  "formal_social_dataset_connected": false,
+  "claims_backend_rebuilt": false,
+  "full_production_database_restore_verified_this_release": false,
+  "text_proof_format": "New text receipts and current documentation stored with repository LF line endings; historical receipts retain their original bytes and scope."
+}

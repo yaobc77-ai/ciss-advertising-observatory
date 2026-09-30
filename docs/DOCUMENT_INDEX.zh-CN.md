@@ -2,7 +2,7 @@
 
 更新：2026-09-30。按阅读目的查找文档，历史回执保留原日期与范围。按路径／性质排序时使用[文档清单](document_catalog.csv)。
 
-最新版本 **0.4.0**：[发布与线上验证](../reports/RELEASE_V0_4_0_20260930.zh-CN.md) · [当前版本复现](CURRENT_RELEASE_REPRODUCTION.md) · [实际数据库回执](../reports/current_release_database_reproduction_20260930.json) · [37,000 条合成数据性能基线](PERFORMANCE_BASELINE.md)。发布进度以新发布记录为准。
+最新版本 **0.4.1**：[发布与线上验证](../reports/RELEASE_V0_4_0_20260930.zh-CN.md) · [当前版本复现](CURRENT_RELEASE_REPRODUCTION.md) · [实际数据库回执](../reports/current_release_database_reproduction_20260930.json) · [37,000 条合成数据性能基线](PERFORMANCE_BASELINE.md)。发布进度以新发布记录为准；[0.4.1制品回执](../reports/current_release_database_reproduction_v0_4_1_20260930.json)单独验证空图修复后的安装包。
 
 要求来源：[FA26／9/25 会议／Michelle 邮件合并核对](../reports/REQUIREMENTS_CONSOLIDATED_AUDIT_20260929.zh-CN.md)。该审计是发布前状态；本轮推进不改写原客户要求、历史测试或未来 CLAIMS／动物农业的边界。
 
@@ -12,7 +12,7 @@
 
 | 想做什么 | 读哪份 | 性质及用途 |
 |---|---|---|
-| 核对 0.4.0 发布、CI 与线上验证 | [发布记录](../reports/RELEASE_V0_4_0_20260930.zh-CN.md) | **当前发布状态**。最新代码、配置、实际验证与仍需客户的材料。 |
+| 核对 0.4.0／0.4.1 发布、CI 与线上验证 | [发布记录](../reports/RELEASE_V0_4_0_20260930.zh-CN.md) · [生产回执](../reports/release_v0_4_1_publication_20260930.json) | **当前发布状态**。最新代码、配置、实际验证与仍需客户的材料。 |
 | 在干净环境验证当前安装包与迁移 | [复现方法](CURRENT_RELEASE_REPRODUCTION.md) · [离线回执](../reports/current_release_offline_reproduction_20260929.json) · [数据库回执](../reports/current_release_database_reproduction_20260930.json) | **实际安装包与合成数据库验证**。不等于真实生产语料／向量／历史恢复。 |
 | 了解大规模性能与限制 | [规模基线](PERFORMANCE_BASELINE.md) · [37,000 行测量回执](../reports/dashboard_performance_baseline_20260930.json) | **合成工程诊断**。数据库方法耗时和输出大小；未测浏览器／并发／云端或客户 SLA。 |
 | 核对原文、会议、邮件与当前实现 | [合并核对](../reports/REQUIREMENTS_CONSOLIDATED_AUDIT_20260929.zh-CN.md) · [原件与 HTTP 证据](../reports/requirements_consolidated_evidence_20260929.json) · [文档链接核对](../reports/documentation_requirements_validation_20260929.json) | **9/29 发布前只读审计**。版本／批注、六问、必交与未来边界、本机与线上、材料责任；第十节另核验 CHORUS 技术参考。不是本轮重新测试或客户验收。 |
@@ -197,4 +197,4 @@ JSON 哈希清单、CSV 对账和原始运行输出由相应审计报告链接�
 - `analysis/` 中 25 份非逐件 PDF 的 Markdown／TXT／HTML 按主题列出；312 份逐 PDF 文本按目录和既有 PDF 来源索引覆盖。
 - JSON、CSV 运行日志与逐条证据表由所属报告引导；可排序文档清单用于核对文件覆盖，不把原始日志堆进主阅读路径。
 - 索引内部均用仓库相对链接。`analysis/`、原始 `sources/`、部分输出及演示材料可能不随指定源码包或 Git 提交分发；需要配套本地资料才能打开。链接存在不表示原报告里的外部网址仍可访问。
-- 文档编目本身只核对文件、用途和链接；本轮实际代码发布、模型调用与工程检查另见 0.3.0 发布记录。旧报告自身的版本和结论保留。
+- 文档编目本身只核对文件、用途和链接；本轮实际代码发布、模型调用与工程检查见[0.4.0／0.4.1 发布记录](../reports/RELEASE_V0_4_0_20260930.zh-CN.md)。旧报告自身的版本和结论保留。

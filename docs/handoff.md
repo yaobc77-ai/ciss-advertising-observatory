@@ -1,21 +1,23 @@
 # CISS Observatory 当前交接说明
 
-更新日期：**2026-09-30**。当前发布版本为 **0.4.0 / Research preview / Native corpus connected**。本机已实现集合知识图谱、实体占比与来源记录下钻、历史标签明细和语言模型选择共享只读工具；真实社交数据、正式 CLAIMS 判断与客户语义验收仍未完成。历史赞助方候选不等于已认证公司或商业合作，历史自动标签不等于已证实漂绿。
+0.4.1 修复初次图谱加载可能为空的回调竞态；当前状态见[发布记录](../reports/RELEASE_V0_4_0_20260930.zh-CN.md)，独立制品回执见[0.4.1复现](../reports/current_release_database_reproduction_v0_4_1_20260930.json)。以下0.4.0测试与规模基准保持其版本范围。
 
-启用 `OBS_RESEARCH_AGENT_ENABLED=true` 后，Generate answer 先付费理解问题，再选择工具；关闭开关保留旧固定句式的无模型统计作为对照。同一执行器提供可选官方 SDK stdio MCP 服务。请先读 [MCP 接口与扩展](MCP_RESEARCH_TOOLS.zh-CN.md)、[图谱详情验证](../reports/GRAPH_DETAILS_V2_20260929.zh-CN.md)和下节运行契约。Railway 本轮设置已在 UI 准备，最终应用、CI 与线上发布结果由 9 月 30 日部署回执记录；不能由本机功能或 staged 设置推出已上线。
+更新日期：**2026-09-30**。当前发布版本为 **0.4.1 / Research preview / Native corpus connected**。本机已实现集合知识图谱、实体占比与来源记录下钻、历史标签明细和语言模型选择共享只读工具；真实社交数据、正式 CLAIMS 判断与客户语义验收仍未完成。历史赞助方候选不等于已认证公司或商业合作，历史自动标签不等于已证实漂绿。
+
+启用 `OBS_RESEARCH_AGENT_ENABLED=true` 后，Generate answer 先付费理解问题，再选择工具；关闭开关保留旧固定句式的无模型统计作为对照。同一执行器提供可选官方 SDK stdio MCP 服务。请先读 [MCP 接口与扩展](MCP_RESEARCH_TOOLS.zh-CN.md)、[图谱详情验证](../reports/GRAPH_DETAILS_V2_20260929.zh-CN.md)和下节运行契约。Railway 本轮设置已应用，0.4.1 的 CI、部署、迁移日志、健康版本与线上图谱流程见[本轮发布回执](../reports/release_v0_4_1_publication_20260930.json)。
 
 **历史基线**：2026-09-17 的 0.3.1 界面修订记录 436 项非 live 测试通过，见[修订报告](../reports/research_ui_v0_3_1_20260917.zh-CN.md)。现有语料仍使用 556 个句界片段，旧 558 块索引保留，切换依据见[0.3.0 句界索引记录](../reports/release_v0_3_0_20260917.zh-CN.md)。此前的 [0.2.5 Dashboard 检查](../reports/dashboard_consistency_v0_2_5.md)、[0.2.4 付费生成与隔离导入](../reports/quote_context_v0_2_4.md)、[快照恢复验证](../reports/backup_restore_v0_2_4.md)均保留历史版本，不能代替 0.4.0 检查或当前全库恢复。下文旧源码包、演示、测试和费用按对应版本阅读，不视作本轮最终交付或客户验收。
 
-## 0.4.0 发布运行契约
+## 0.4.1 发布运行契约
 
 | 项目 | 接手时核对 |
 |---|---|
 | 制品与依赖 | [Dockerfile](../Dockerfile)固定 uv 0.12.7、Python 3.12，按 `uv.lock` frozen 安装，项目采用非 editable 制品；浏览器资源与 SQL 迁移均随包安装 |
 | CI | [工作流](../.github/workflows/ci.yml)构建并安装 wheel，再以 `OBS_RELEASE_WHEEL` 核对资源和 CLI，并运行非 integration／live 工程测试；核对目标提交的实际成功记录，不能只检查 YAML |
-| 已执行的独立复现 | [9 月 30 日数据库回执](../reports/current_release_database_reproduction_20260930.json)：实际 0.4.0 wheel，Python 3.12.14，本机 `obs_test` 的新随机 schema；迁移至 2、跨年 upsert、重复幂等、6 个句界片段定位与缺向量激活阻断通过，模型调用 0 |
+| 已执行的独立复现 | [0.4.1 数据库回执](../reports/current_release_database_reproduction_v0_4_1_20260930.json)：实际 0.4.1 wheel，Python 3.12.14，本机 `obs_test` 的新随机 schema；迁移至 2、跨年 upsert、重复幂等、6 个句界片段定位与缺向量激活阻断通过，模型调用 0；0.4.0 旧回执保留 |
 | 部署前迁移 | `/app/.venv/bin/observatory migrate`；先备份目标库，核对实际部署前日志和 `migration-status`，不重新导入资料、不自动计算 embedding |
-| Railway UI 目标设置 | Wait for CI 开启、健康路径 `/healthz`、超时 60 秒、上述部署前命令、`OBS_RESEARCH_AGENT_ENABLED=true`；staged 值需应用后再核对 |
-| 线上识别 | `/healthz` 的 `application.version=0.4.0`、有效的 `application.commit` 与目标提交一致、`application.features` 符合目标；同时核对来源、索引、计数和片段数 |
+| Railway UI 已应用设置 | Wait for CI 开启、健康路径 `/healthz`、超时 60 秒、上述部署前命令、`OBS_RESEARCH_AGENT_ENABLED=true`；后续更新仍需核对实际应用状态 |
+| 线上识别 | `/healthz` 的 `application.version=0.4.1`、有效的 `application.commit` 与目标提交一致、`application.features` 符合目标；同时核对来源、索引、计数和片段数 |
 
 `/healthz` 仅公开状态、收录数、片段数、活动 profile、来源／索引／组合版本，以及 application 的版本、有效 Git SHA 和三个 feature。无有效平台 SHA 时 commit 为 `null`，须从部署记录确认；接口不回传凭据、完整设置或内部路径。feature 表示功能／开关，不能证明真实数据完整或模型判断正确。
 
@@ -51,7 +53,7 @@
 
 当前机器的隔离运行环境位于 `.venv` 和 `.runtime/postgres`。重建脚本与历史安装证据见 [local_postgres.md](local_postgres.md)。
 
-0.4.0 新 wheel 在 `.runtime/current-release-venv` 的独立 Python 3.12.14 环境中安装并运行；不是从 editable 源码加载。实际迁移和默认 upsert 的新 schema 验证见上节 9 月 30 日回执。该环境与备份均不提交公开仓库；当前两份复现回执不能替代另一台新机器的完整源数据导入或生产灾备恢复。
+0.4.1 wheel 在 `.runtime/current-release-venv` 的独立 Python 3.12.14 环境中安装并运行；不是从 editable 源码加载。实际迁移和默认 upsert 的新 schema 验证见上节 9 月 30 日回执。该环境与备份均不提交公开仓库；合成复现回执不能替代另一台新机器的完整源数据导入或生产灾备恢复。
 
 此前 0.2.3 wheel 已构建并在 `.runtime/package-check` 独立安装，以隔离 Python 检查包版本 0.2.3、Lingua 2.2.0，以及 `/healthz`、`/_dash-layout`、`/assets/observatory.css` 均返回 200。本机应用重启后健康检查为 `5114…`／558 块。尚未在另一台全新 Windows 机器上完成从零重装。
 
@@ -166,7 +168,7 @@ pySBD 已接入 `src/observatory/rag.py`。最新句子组合最多 60 词，长
 
 ## 6. 历史数据与生成诊断
 
-本节保留 0.2.x 的测试、生成费用与快照检查。0.4.0 当前界面验证见[图谱详情报告](../reports/GRAPH_DETAILS_V2_20260929.zh-CN.md)，独立制品／合成数据库验证见上节；不要把本节旧 558 块结果标为当前 556 块检索或新版模型答案评价。
+本节保留 0.2.x 的测试、生成费用与快照检查。当前界面与生产验证见[0.4.1 发布报告](../reports/RELEASE_V0_4_0_20260930.zh-CN.md)，独立制品／合成数据库验证见上节；不要把本节旧 558 块结果标为当前 556 块检索或新版模型答案评价。
 
 0.2.5完整工程回归253项通过（22.07秒），包含8个新增界面一致性案例；应用已重启，独立安装的0.2.5 wheel三个路由均200。浏览器未知日期筛选实测263/226/22→241/204/0。详见[当前Dashboard报告](../reports/dashboard_consistency_v0_2_5.md)。未重跑付费生成，下面结果保留0.2.4及更早版本。
 
@@ -191,7 +193,7 @@ pySBD 已接入 `src/observatory/rag.py`。最新句子组合最多 60 词，长
 |---|---|---|
 | 社交数据 | 真实导出、字段说明、来源链接及所需原型资料 | 导入对账、真实图表、社交与跨库评价 |
 | 本轮源码发布 | 已指定的 GitHub 仓库与目标提交的 CI、版本和发布回执 | 可定位提交、依赖锁、已安装制品测试和同步文档 |
-| 现有 Railway 入口 | 应用 staged 设置，核对目标提交、部署前迁移、健康 metadata；Cloudflare 为可选方案 | 线上制品一致及另一网络上的 HTTPS、功能、预算与故障验证 |
+| 现有 Railway 入口 | 0.4.1 已上线，实际设置、迁移日志、健康 metadata 和本轮浏览器流程已核对；Cloudflare 为可选方案 | 另一网络、并发、故障、完整恢复及客户使用验收 |
 | 人工语义验收 | 审题、冻结题库、独立判读答案与引用 | 带人工判定的验收记录和未解决失败 |
 | 最终展示 | 双数据集与公众环境完成 | 最终演示和客户反馈，与当前 research preview 分开标记 |
 
@@ -216,7 +218,7 @@ CLAIMS 后端、动物农业扩展及模型训练不是本次预览的已实施�
 
 ## 9. 历史 0.2.x 从空测试库复现快照
 
-以下是旧 `verify_clean_import.py` 的固定原始数据复现方法，仍保留其清表警告与 558 块预期。0.4.0 当前独立安装／迁移验证使用 [verify_current_release.py](../scripts/verify_current_release.py) 和 [CURRENT_RELEASE_REPRODUCTION.md](CURRENT_RELEASE_REPRODUCTION.md)，在新随机 schema 中处理合成记录，不以本节旧成绩替代新版验证。
+以下是旧 `verify_clean_import.py` 的固定原始数据复现方法，仍保留其清表警告与 558 块预期。当前独立安装／迁移验证使用 [verify_current_release.py](../scripts/verify_current_release.py) 和 [CURRENT_RELEASE_REPRODUCTION.md](CURRENT_RELEASE_REPRODUCTION.md)，在新随机 schema 中处理合成记录，不以本节旧成绩替代新版验证。
 
 0.2.4 的 [源码安装结果](../outputs/clean_import_source_v0_2_4_20260916.json)与 [wheel 安装结果](../outputs/clean_import_wheel_v0_2_4_20260916.json)均通过。源码安装使用独立解包目录、CPython 3.13.3、包内 uv.lock；wheel 在独立 CPython 3.12.14 的 site-packages 中加载。两种方式以 `-I` 启动，并记录实际包路径和模块哈希。本机应用亦已重启，健康、布局和 CSS 路由通过。
 

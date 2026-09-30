@@ -1,0 +1,209 @@
+{
+  "date_local": "2026-09-30",
+  "checked_at_utc": "2026-09-30T05:07:02.681626+00:00",
+  "checked_at_local": "2026-09-30T01:07:02.681626-04:00",
+  "status": "passed",
+  "scope": "0.4.1 postpublication scoped catalog hashes and local document links",
+  "catalog_path": "docs/document_catalog.csv",
+  "catalog_rows": 159,
+  "added_catalog_paths": [
+    "reports/documentation_release_publication_validation_20260930.json"
+  ],
+  "refreshed_catalog_paths": [
+    "README.md",
+    "docs/DOCUMENT_INDEX.zh-CN.md",
+    "docs/acceptance_status.md",
+    "docs/handoff.md",
+    "docs/operations.md",
+    "docs/CURRENT_RELEASE_REPRODUCTION.md",
+    "reports/RELEASE_V0_4_0_20260930.zh-CN.md",
+    "reports/current_release_database_reproduction_v0_4_1_20260930.json",
+    "reports/release_v0_4_0_production_questions_20260930.json",
+    "reports/release_v0_4_1_publication_20260930.json",
+    "reports/screenshots/release_v0_4_1_graph_first_load_20260930.jpg",
+    "reports/screenshots/release_v0_4_1_graph_exxonmobil_expanded_20260930.jpg",
+    "reports/screenshots/release_v0_4_0_nyt_query_20260930.jpg",
+    "reports/release_v0_4_1_exxonmobil_counts_20260930.csv"
+  ],
+  "checked_catalog_files": [
+    {
+      "path": "README.md",
+      "bytes": 13447,
+      "sha256": "525c05d0c7cf9b533247f942f942fc7de0dd261b275ad6dc031929e1e023d3e6"
+    },
+    {
+      "path": "docs/DOCUMENT_INDEX.zh-CN.md",
+      "bytes": 29164,
+      "sha256": "aaf761d0a6597c53b4fad9a2bdf65bbd0a4343231d782a5fcc92659121bff947"
+    },
+    {
+      "path": "docs/acceptance_status.md",
+      "bytes": 15451,
+      "sha256": "26ae2f41fd772698329e6f1dbe6a7d023811d121d8e9102a7d7d49c320618665"
+    },
+    {
+      "path": "docs/handoff.md",
+      "bytes": 25338,
+      "sha256": "078e5566e10c1c375151e76aa41f1c2416079df7cb702639a10a62274ac3da91"
+    },
+    {
+      "path": "docs/operations.md",
+      "bytes": 21387,
+      "sha256": "ee72763c5f8501338f6c7905a2c6bdfcc04878d716750e3e2a3b5cb2ccaa1aa1"
+    },
+    {
+      "path": "docs/CURRENT_RELEASE_REPRODUCTION.md",
+      "bytes": 6110,
+      "sha256": "b1f074a80307538518420c0c0d1eff388de6a08735fd628f070f2adaf105663f"
+    },
+    {
+      "path": "reports/RELEASE_V0_4_0_20260930.zh-CN.md",
+      "bytes": 7653,
+      "sha256": "6bce5aabebc96d008b0bdc46f1c307478ecedd37c09cf0402a8739de911d6c9e"
+    },
+    {
+      "path": "reports/current_release_database_reproduction_v0_4_1_20260930.json",
+      "bytes": 11309,
+      "sha256": "fc8fe2eae209ba9d7327bf4017984c1241f3b7f85d5662b7bce6510dad3d55a6"
+    },
+    {
+      "path": "reports/release_v0_4_0_production_questions_20260930.json",
+      "bytes": 6702,
+      "sha256": "1cb607e3ab34a8f1226cc0ad3d368e74b419d085d0245bb9df36609f5ea4a4a2"
+    },
+    {
+      "path": "reports/release_v0_4_1_publication_20260930.json",
+      "bytes": 8110,
+      "sha256": "8241d196f0a4e824fb6c895e46fc4674778aae7b38f2645507328e2a03fba8f4"
+    },
+    {
+      "path": "reports/screenshots/release_v0_4_1_graph_first_load_20260930.jpg",
+      "bytes": 125112,
+      "sha256": "34a00708484781df4f6e9b3721270f582fa064a29f8ca82ed2eba298cc4e784b"
+    },
+    {
+      "path": "reports/screenshots/release_v0_4_1_graph_exxonmobil_expanded_20260930.jpg",
+      "bytes": 104199,
+      "sha256": "c462712965fbd9c96ac2dd503a8380256286aa64df4576fd2810b37ed52455b9"
+    },
+    {
+      "path": "reports/screenshots/release_v0_4_0_nyt_query_20260930.jpg",
+      "bytes": 98045,
+      "sha256": "dde59af018a70347fe1b17cef634381e8d8fcf567733aa5e799ee90a7e91ad24"
+    },
+    {
+      "path": "reports/release_v0_4_1_exxonmobil_counts_20260930.csv",
+      "bytes": 467,
+      "sha256": "f2370d471ccbae2ce7f19d9848a4902c132142fea45f6d94e897a15985b1a23c"
+    }
+  ],
+  "preserved_historical_receipts": [
+    {
+      "path": "reports/documentation_release_validation_20260930.json",
+      "bytes": 5145,
+      "sha256": "081ccee49632cb7f0adc78692c98b256595a91996666338f047e096ffe1279eb"
+    },
+    {
+      "path": "reports/current_release_offline_reproduction_20260929.json",
+      "bytes": 10757,
+      "sha256": "389606a76d886357ded2b6d911b695254891421ff63fa8e22ea8a3bf35df349f"
+    },
+    {
+      "path": "reports/current_release_offline_reproduction_20260929.stage1.json",
+      "bytes": 8092,
+      "sha256": "8b820f64a72bdfdbcd543169ff0c3666124a066e2282e3bcbc4632d1063cd7b5"
+    },
+    {
+      "path": "reports/current_release_database_reproduction_20260930.json",
+      "bytes": 11563,
+      "sha256": "d79562f1a4b1210aaa939e84ed9b40c1e136e7d4bf5643e8144e8b14cf133c62"
+    },
+    {
+      "path": "reports/release_v0_4_0_preflight_20260930.json",
+      "bytes": 1766,
+      "sha256": "f105d6697f2ebb8786ef870846495654941849716cefc22304188fd097a5d4ef"
+    },
+    {
+      "path": "reports/dashboard_performance_baseline_20260930.json",
+      "bytes": 25572,
+      "sha256": "d920d3b14ff3fef2f3e9161430d22ccec3f565ad478f513b2ef71b17917d2363"
+    }
+  ],
+  "exported_counts_csv_check": {
+    "path": "reports/release_v0_4_1_exxonmobil_counts_20260930.csv",
+    "rows": 4,
+    "records": [
+      5,
+      5,
+      3,
+      2
+    ],
+    "denominator": 15,
+    "records_sum": 15,
+    "sha256": "f2370d471ccbae2ce7f19d9848a4902c132142fea45f6d94e897a15985b1a23c"
+  },
+  "updated_text_files_line_endings": {
+    "README.md": "UTF-8 LF working-copy bytes",
+    "docs/DOCUMENT_INDEX.zh-CN.md": "UTF-8 LF working-copy bytes",
+    "docs/acceptance_status.md": "UTF-8 LF working-copy bytes",
+    "docs/handoff.md": "UTF-8 LF working-copy bytes",
+    "docs/operations.md": "UTF-8 LF working-copy bytes",
+    "docs/CURRENT_RELEASE_REPRODUCTION.md": "UTF-8 LF working-copy bytes",
+    "reports/RELEASE_V0_4_0_20260930.zh-CN.md": "UTF-8 LF working-copy bytes",
+    "reports/current_release_database_reproduction_v0_4_1_20260930.json": "UTF-8 LF working-copy bytes",
+    "reports/release_v0_4_0_production_questions_20260930.json": "UTF-8 LF working-copy bytes",
+    "reports/release_v0_4_1_publication_20260930.json": "UTF-8 LF working-copy bytes",
+    "reports/release_v0_4_1_exxonmobil_counts_20260930.csv": "UTF-8 LF working-copy bytes"
+  },
+  "catalog_encoding_and_line_endings": "UTF-8 BOM with LF; catalog self hash excluded",
+  "scoped_local_links_checked": 313,
+  "files_checked": [
+    {
+      "path": "README.md",
+      "local_link_occurrences": 51,
+      "missing": []
+    },
+    {
+      "path": "docs/DOCUMENT_INDEX.zh-CN.md",
+      "local_link_occurrences": 134,
+      "missing": []
+    },
+    {
+      "path": "docs/acceptance_status.md",
+      "local_link_occurrences": 37,
+      "missing": []
+    },
+    {
+      "path": "docs/handoff.md",
+      "local_link_occurrences": 51,
+      "missing": []
+    },
+    {
+      "path": "docs/operations.md",
+      "local_link_occurrences": 26,
+      "missing": []
+    },
+    {
+      "path": "docs/CURRENT_RELEASE_REPRODUCTION.md",
+      "local_link_occurrences": 3,
+      "missing": []
+    },
+    {
+      "path": "reports/RELEASE_V0_4_0_20260930.zh-CN.md",
+      "local_link_occurrences": 11,
+      "missing": []
+    }
+  ],
+  "missing_local_links": [],
+  "changed_catalog_hash_failures": [],
+  "catalog_self_hash": "excluded",
+  "validation_report_self_hash": "excluded_from_report_registered_in_catalog",
+  "historical_manifests_modified": false,
+  "external_urls_rechecked": false,
+  "product_tests_rerun": false,
+  "paid_api_calls": 0,
+  "database_access": false,
+  "deployment_actions_performed": false,
+  "publication_state_in_registered_receipt_only": true,
+  "limits": "Current working-copy links and scoped hashes only. Only new/updated text items checked here are guaranteed LF. Historical registrations/receipts are preserved as current working-copy bytes; this is not a guarantee that the entire historical catalog matches Git/Linux bytes. Publication state comes from its separate receipt, not this script's network check. No semantic, performance or customer acceptance."
+}

@@ -86,3 +86,5 @@ Activation with those missing embeddings was blocked. `embeddings`, `answer_runs
 script cleaned up only its random schema. The earlier offline receipt retains its
 original `database: not_requested` scope. Neither receipt establishes production
 corpus, vector or historical-answer restoration.
+
+The [0.4.1 fixture-database receipt](../reports/current_release_database_reproduction_v0_4_1_20260930.json) separately verifies the patched wheel after the empty-canvas fix. It retains the same installed-package, isolated migration/upsert, locator and missing-embedding guards. The earlier 0.4.0 receipts and 37,000-row performance baseline remain evidence of their stated version.
