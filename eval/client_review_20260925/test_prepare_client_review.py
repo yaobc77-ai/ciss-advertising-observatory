@@ -83,7 +83,8 @@ def test_freeze_requires_source_validation_and_detects_edited_packet(tmp_path):
 
 class ReadOnlyFixture:
     def health(self):
-        return {"data_version": "a" * 64}
+        return {"data_version": "a" * 64, "source_data_version": "b" * 32,
+                "index_version": "c" * 64, "active_profile": "synthetic-profile"}
 
     def public_rows(self, filters):
         return [{"record_id": "new"}]

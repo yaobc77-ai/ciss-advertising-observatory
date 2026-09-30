@@ -1,5 +1,7 @@
 # M6：开发评估与验收草案
 
+**0.4.5 冻结工程补充**：准备器已支持 native、social、cross 范围的 format-2 输入包；评估器通过显式 `--frozen-manifest` 验证逐文件哈希、人工声明、问题／文章分组隔离、完整选中记录、正文证据及来源／索引快照，然后才执行检索或付费调用。没有 manifest 的运行仍标 `draft_not_frozen`。冻结输入通过只标 `frozen_inputs_verified`，语义验收仍为 pending、`overall_pass=null`。本轮仅用合成夹具测试，没有填写真实人工批准、冻结客户题库或调用模型。用法见[英文冻结指南](frozen_evaluation.md)。下方较早“仅支持 native”的说明属于修订前状态。
+
 **2026-09-30 评价接口补充（未运行付费评价）**：默认计数题继续只核对数据库，历史开发／草案文件不改。新增显式 `--paid --answer-counts` 模式，计数题额外调用当前 `Service.answer`，保留模型／工具 trace、结构化统计、筛选、状态和账本费用；`answer_count_exact` 单独核对返回的数据库计数与原定筛选，不从生成文字解析数字，也不替代旧 `count_exact`。启用语言模型理解前须核对 `OBS_RESEARCH_AGENT_ENABLED` 与预算。失败题留在相应分母中，不能由数据库计数通过替模型路径记为通过。
 
 未来真实社交／跨集合 ready 题可显式附 `reviewed_release`：包含现有审核人的 `reviewer`、真实 `approval_record` 和审核时的 64 位 `data_version`。运行必须与该版本一致；来源必须属于 native／social／all 指定范围，跨集合支持题必须具有两套数据的必需支持记录。声明字段不能证明审核真实发生。当前 7 个 pending 题仍不执行，没有导入数据、填写 gold 或伪造审批；社交导入、人工审阅列为待办。现有冻结准备器仍只支持 native，正式双集合冻结需在真实材料准备好后另完成。当前客户 review 和演示草案见 [0.4.2 review](CLIENT_REVIEW_V0_4_2.md)。

@@ -1,5 +1,7 @@
 # CISS Observatory 当前交接说明
 
+当前交接入口已改为 [current_handoff.md](current_handoff.md)：包含 0.4.5 的 CLAIMS2 审核导入、format-2 评价输入与源码包。以下 0.4.1 及更早说明保留历史版本，不作为新版本的发布或验收依据。
+
 0.4.1 修复初次图谱加载可能为空的回调竞态；当前状态见[发布记录](../reports/RELEASE_V0_4_0_20260930.zh-CN.md)，独立制品回执见[0.4.1复现](../reports/current_release_database_reproduction_v0_4_1_20260930.json)。以下0.4.0测试与规模基准保持其版本范围。
 
 更新日期：**2026-09-30**。当前发布版本为 **0.4.1 / Research preview / Native corpus connected**。本机已实现集合知识图谱、实体占比与来源记录下钻、历史标签明细和语言模型选择共享只读工具；真实社交数据、正式 CLAIMS 判断与客户语义验收仍未完成。历史赞助方候选不等于已认证公司或商业合作，历史自动标签不等于已证实漂绿。

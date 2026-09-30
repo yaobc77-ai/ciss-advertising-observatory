@@ -2,6 +2,12 @@
 
 Updated: 25 September 2026. This is a runnable preparation path, not a claim of client acceptance.
 
+**0.4.5 update:** the [format-2 frozen input guide](frozen_evaluation.md) is the
+current freeze/runner contract for native, social and cross-collection scopes.
+It binds review files, complete selected records, original supports and the
+source/index snapshot. Missing social cases remain pending. Earlier descriptions
+below retain their dated scope; no real acceptance packet was frozen by this update.
+
 ## September 30 evaluation interface update
 
 Default count cases still measure database reconciliation without calling a model. To additionally

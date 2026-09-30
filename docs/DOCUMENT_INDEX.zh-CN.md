@@ -1,5 +1,9 @@
 # 项目文档阅读索引
 
+**0.4.5 新增工程入口**：[CLAIMS 审核结果导入与撤销](claims_result_import.md) · [冻结评价输入](frozen_evaluation.md)。实际候选尚未批准／发布；真实社交与人工／客户验收继续列为待办。下方 0.4.4 与旧版本回执保留其当时范围。
+
+工程核对：[0.4.5 实施说明](../reports/CLAIMS_IMPORT_V0_4_5_20260930.en.md) · [实际测试与迁移回执](../reports/claims_import_engineering_v0_4_5_20260930.json) · [独立安装包核对](../reports/current_release_offline_reproduction_v0_4_5_20260930.json)。1,406 项安装包离线检查和 22 项隔离测试库检查通过；新分类尚未发布，网页／MCP 读取列入下一阶段。
+
 更新：2026-09-30。按阅读目的查找文档，历史回执保留原日期与范围。按路径／性质排序时使用[文档清单](document_catalog.csv)。
 
 **CLAIMS 当前推进：** 0.4.4 维护工具已完成[来源审计与结果适配](../reports/CLAIMS_SOURCE_LINKAGE_20260930.zh-CN.md)，可运行 [claims-audit](claims_source_audit.md)。两次审计使用相同正文快照，零数据库写入、零模型调用、零标签发布；[数字和文件哈希](../reports/claims_source_linkage_20260930.json)与[独立安装包核对](../reports/current_release_offline_reproduction_v0_4_4_20260930.json)分别记录证据。网页接入、权威分类批次和人工语义审查仍待完成。

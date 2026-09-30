@@ -1,118 +1,86 @@
-"""Create a local review archive from an explicit allowlist; never bundle credentials."""
+"""Create a public source review archive with its current revision and file hashes.
+
+The Git index and the explicit public allowlist define its contents. Private
+inputs, runtime outputs, backups and credentials are transferred separately.
+Public research reports can contain advertising excerpts.
+"""
+
+from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 import os
 import posixpath
 import re
-from pathlib import Path
+import subprocess
+import tomllib
+from pathlib import Path, PurePosixPath
 from zipfile import ZIP_DEFLATED, ZipFile
 
 ROOT = Path(__file__).resolve().parents[1]
-FOLDERS = (
-    "src",
-    "tests",
-    "scripts",
-    "config",
-    "docs",
-    "eval",
-    "reports",
-    "deliverables",
-)
-EXTENSIONS = {
-    ".py",
-    ".ps1",
-    ".sql",
-    ".css",
-    ".js",
-    ".md",
-    ".json",
-    ".jsonl",
-    ".csv",
-    ".txt",
-    ".yml",
-    ".pptx",
-}
-RUNS = (
-    "native_import_final.json",
-    "native_import_repeat.json",
-    "development_lexical_20260916.json",
-    "development_paid_20260916.json",
-    "development_paid_quotes_20260916.json",
-    "development_paid_context_20260916.json",
-    "development_paid_citation_first_20260916.json",
-    "live_biogas.json",
-    "live_ccs_scoped.json",
-    "live_no_evidence.json",
-    "native_import_reviewed_20260916.json",
-    "native_import_reviewed_repeat_20260916.json",
-    "native_import_v0_2_20260916.json",
-    "native_import_v0_2_repeat_final_20260916.json",
-    "source_revision_validation_final_20260916.json",
-    "development_reviewed_paid_20260916.json",
-    "development_reviewed_paid_final_20260916.json",
-    "development_v0_2_lexical_20260916.json",
-    "native_import_v0_2_published_20260916.json",
-    "native_import_v0_2_published_repeat_20260916.json",
-    "source_revision_v0_2_20260916.json",
-    "development_v0_2_current_lexical_20260916.json",
-    "native_import_v0_2_final_20260916.json",
-    "native_import_v0_2_repeat_20260916.json",
-    "native_preflight_intervals_20260916.json",
-    "source_revision_validation_20260916.json",
-    "development_language_guard_20260916.json",
-    "development_claim_contract_20260916.json",
-    "pdf265_preflight_20260916.json",
-    "native_import_pdf265_20260916.json",
-    "native_import_pdf265_repeat_20260916.json",
-    "pdf265_publication_validation_20260916.json",
-    "pdf265_recovery_paid_smoke_20260916.json",
-    "quote_context_corpus_20260916.json",
-    "pdf265_quote_context_paid_20260916.json",
-    "development_quote_context_20260916.json",
-    "clean_import_source_v0_2_4_20260916.json",
-    "clean_import_wheel_v0_2_4_20260916.json",
-    "backup_restore_v0_2_4_20260916.json",
-)
+ROOT_FILES = frozenset({
+    "pyproject.toml", "uv.lock", ".env.example", ".gitignore", ".gitattributes",
+    "Dockerfile", ".dockerignore", "railway.json",
+})
+REQUIRED_FILES = frozenset({
+    "pyproject.toml", "uv.lock", ".env.example", "README.md", "Dockerfile",
+    ".dockerignore", "railway.json", ".github/workflows/ci.yml",
+})
+FOLDERS = frozenset({"src", "tests", "scripts", "config", "docs", "eval", "reports", "deliverables", "site"})
+EXTENSIONS = frozenset({
+    ".py", ".ps1", ".sql", ".css", ".js", ".md", ".json", ".jsonl", ".csv",
+    ".txt", ".yml", ".yaml", ".pptx", ".html", ".svg", ".png", ".jpg",
+    ".jpeg", ".gif", ".webp", ".woff", ".woff2",
+})
+PRIVATE_DIRECTORIES = frozenset({
+    ".git", ".runtime", ".venv", ".tmp", "sources", "analysis", "outputs",
+    "backups", "__pycache__", ".pytest_cache", ".ruff_cache", "private",
+    "record-assets", "record_assets", "source-bundle",
+})
+MANIFEST_NAME = "HANDOFF_MANIFEST.json"
+CHECKSUM_NAME = "CONTENTS.sha256"
 
 
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--output", type=Path, required=True)
-    args = parser.parse_args()
-    files = [
-        ROOT / n
-        for n in (
-            "pyproject.toml",
-            "uv.lock",
-            ".env.example",
-            ".gitignore",
-            ".gitattributes",
-        )
-    ]
-    files.extend(ROOT.glob("*.md"))
-    for folder in FOLDERS:
-        files.extend(
-            p
-            for p in (ROOT / folder).rglob("*")
-            if p.is_file() and p.suffix in EXTENSIONS and "__pycache__" not in p.parts
-        )
-    files.extend(ROOT / "outputs" / name for name in RUNS)
-    entries = {}
-    secret = os.environ.get("OPENAI_API_KEY", "")
-    for file in sorted(set(files)):
-        relative = file.relative_to(ROOT).as_posix()
-        data = file.read_bytes()
-        if (secret and secret.encode() in data) or re.search(
-            rb"sk-(?:proj-)?[a-zA-Z0-9_-]{30,}", data
-        ):
-            raise RuntimeError(
-                f"Credential-like content found in {relative}; archive not created"
-            )
-        entries[relative] = data
-    # Adapt links only when their exact target is included in this archive.
-    # Original workspace reports and links to private, unbundled sources stay intact.
-    local_link = re.compile(r"\]\(<" + re.escape(ROOT.as_posix()) + r"/([^>]+)>\)")
+def _git_inventory(root: Path) -> tuple[str, set[str], set[str]]:
+    """Read repository identity and index paths without changing Git state."""
+    def git(*args):
+        return subprocess.run(
+            ["git", *args], cwd=root, check=True, stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        ).stdout.decode("utf-8")
+
+    if Path(git("rev-parse", "--show-toplevel").strip()).resolve() != root:
+        raise ValueError("The handoff source must be the repository root")
+    revision = git("rev-parse", "--verify", "HEAD").strip()
+    if not re.fullmatch(r"[0-9a-f]{40}", revision):
+        raise ValueError("A canonical Git commit is required")
+    tracked = set(filter(None, git("ls-files", "--cached", "-z").split("\0")))
+    changed = set(filter(None, git("diff", "--name-only", "--no-renames", "HEAD", "-z").split("\0")))
+    return revision, tracked, changed
+
+
+def _public_path(name: str) -> bool:
+    path = PurePosixPath(name)
+    parts = path.parts
+    if not parts or path.is_absolute() or ".." in parts or "\\" in name:
+        return False
+    if any(part.casefold() in PRIVATE_DIRECTORIES for part in parts[:-1]):
+        return False
+    if any(part.startswith(".env") for part in parts) and name != ".env.example":
+        return False
+    if name in ROOT_FILES:
+        return True
+    if len(parts) == 1:
+        return path.suffix == ".md"
+    if parts[:2] == (".github", "workflows"):
+        return len(parts) == 3 and path.suffix in {".yml", ".yaml"}
+    return parts[0] in FOLDERS and path.suffix in EXTENSIONS
+
+
+def _portable_markdown(entries: dict[str, bytes], root: Path) -> None:
+    # Rewrite only an exact workspace link whose target is actually bundled.
+    local_link = re.compile(r"\]\(<" + re.escape(root.as_posix()) + r"/([^>]+)>\)")
     for name, data in list(entries.items()):
         if not name.endswith(".md"):
             continue
@@ -121,38 +89,84 @@ def main():
             target_name = match.group(1)
             if target_name not in entries:
                 return match.group(0)
-            relative_target = posixpath.relpath(
-                target_name, posixpath.dirname(name) or "."
-            )
+            relative_target = posixpath.relpath(target_name, posixpath.dirname(name) or ".")
             return f"](<{relative_target}>)"
 
-        entries[name] = local_link.sub(portable_link, data.decode("utf-8")).encode(
-            "utf-8"
-        )
-    entries["CONTENTS.sha256"] = (
-        "\n".join(
-            f"{hashlib.sha256(data).hexdigest()}  {name}"
-            for name, data in entries.items()
-        )
-        + "\n"
-    ).encode()
-    target = args.output.resolve()
+        entries[name] = local_link.sub(portable_link, data.decode("utf-8")).encode("utf-8")
+
+
+def build_archive(root: Path, output: Path) -> dict:
+    """Build a new archive; never overwrite an archive or checksum sidecar."""
+    root = root.resolve(strict=True)
+    target = output.resolve()
+    sidecar = target.with_suffix(".zip.sha256")
+    if target.exists() or sidecar.exists():
+        raise FileExistsError("The handoff archive and checksum destination must both be new")
+    revision, tracked, changed = _git_inventory(root)
+    names = sorted(name for name in tracked if _public_path(name))
+    missing = REQUIRED_FILES - set(names)
+    if missing:
+        raise ValueError("Required current delivery files are not tracked: " + ", ".join(sorted(missing)))
+    entries = {}
+    secret = os.environ.get("OPENAI_API_KEY", "")
+    for name in names:
+        file = root.joinpath(*PurePosixPath(name).parts)
+        resolved = file.resolve(strict=True)
+        if not resolved.is_relative_to(root) or file.is_symlink() or not resolved.is_file():
+            raise ValueError(f"Public archive input must be a regular workspace file: {name}")
+        data = resolved.read_bytes()
+        if (secret and secret.encode() in data) or re.search(rb"sk-(?:proj-)?[a-zA-Z0-9_-]{30,}", data):
+            raise RuntimeError(f"Credential-like content found in {name}; archive not created")
+        entries[name] = data
+    source_hashes = {name: hashlib.sha256(data).hexdigest() for name, data in entries.items()}
+    after_revision, after_tracked, after_changed = _git_inventory(root)
+    if (after_revision, after_tracked, after_changed) != (revision, tracked, changed):
+        raise RuntimeError("Repository state changed while preparing the handoff")
+    if any(hashlib.sha256((root / name).read_bytes()).hexdigest() != digest
+           for name, digest in source_hashes.items()):
+        raise RuntimeError("Public source bytes changed while preparing the handoff")
+    _portable_markdown(entries, root)
+    archived_hashes = {name: hashlib.sha256(data).hexdigest() for name, data in entries.items()}
+    public_changes = sorted(changed & set(names))
+    manifest = {
+        "schema_version": 1,
+        "kind": "public_source_handoff",
+        "git_revision": revision,
+        "revision_state": "working_tree_snapshot" if public_changes else "git_revision_snapshot",
+        "changed_public_paths": public_changes,
+        "application_version": tomllib.loads(entries["pyproject.toml"].decode("utf-8"))["project"]["version"],
+        "source_file_sha256": source_hashes,
+        "archived_file_sha256": archived_hashes,
+        "hash_scope": "File hash maps cover payload files; CONTENTS.sha256 also hashes this manifest. Neither hashes itself.",
+        "excluded_private_scope": ["source datasets", "runtime outputs", "backups", "record asset bundles", "private configuration"],
+        "contents_scope": "Public code, configuration, documentation and tracked research artifacts; reports may contain advertising excerpts.",
+        "acceptance_status": "No project, semantic, client or dual-dataset acceptance is inferred by this archive.",
+    }
+    entries[MANIFEST_NAME] = (json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n").encode("utf-8")
+    entries[CHECKSUM_NAME] = (
+        "\n".join(f"{hashlib.sha256(data).hexdigest()}  {name}" for name, data in entries.items()) + "\n"
+    ).encode("utf-8")
     target.parent.mkdir(parents=True, exist_ok=True)
-    # Exclusive creation prevents an accidental overwrite of a previous handoff.
     with ZipFile(target, "x", ZIP_DEFLATED) as archive:
         for name, data in entries.items():
             archive.writestr(name, data)
     with ZipFile(target) as archive:
-        assert archive.testzip() is None
-        assert set(archive.namelist()) == set(entries)
-        assert all(archive.read(name) == data for name, data in entries.items())
+        if archive.testzip() is not None or set(archive.namelist()) != set(entries):
+            raise RuntimeError("Handoff archive integrity check failed")
+        if any(archive.read(name) != data for name, data in entries.items()):
+            raise RuntimeError("Handoff archive bytes differ from the reviewed payload")
     sha = hashlib.sha256(target.read_bytes()).hexdigest()
-    target.with_suffix(".zip.sha256").write_text(
-        f"{sha}  {target.name}\n", encoding="utf-8"
-    )
-    print(
-        f"Created {target.name}: {len(entries)} entries, {target.stat().st_size} bytes, SHA-256 {sha}"
-    )
+    with sidecar.open("x", encoding="utf-8") as stream:
+        stream.write(f"{sha}  {target.name}\n")
+    return {"archive": str(target), "entries": len(entries), "bytes": target.stat().st_size,
+            "sha256": sha, "git_revision": revision, "revision_state": manifest["revision_state"]}
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--output", type=Path, required=True)
+    args = parser.parse_args()
+    print(json.dumps(build_archive(ROOT, args.output), indent=2))
 
 
 if __name__ == "__main__":
