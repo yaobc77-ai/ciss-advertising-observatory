@@ -1,5 +1,7 @@
 # 项目文档阅读索引
 
+**0.4.6 发布／交接核对**：[两个仓库 CI 与线上部署](../reports/release_v0_4_6_publication_20260930.json) · [原版／英文源码包](../reports/source_handoff_v0_4_6_20260930.json)。线上为 0.4.6，迁移3且正文／索引标识不变；维护搜索默认隐藏，真实候选仍待审。
+
 **0.4.6 当前入口**：[CLAIMS2 只读网页／图谱／MCP](claims_read_views.md) · [旧来源 URL 补查](claims_source_discovery.md) · [实施说明](../reports/CLAIMS_READ_V0_4_6_20260930.en.md) · [工程回执](../reports/claims_read_engineering_v0_4_6_20260930.json)。1,589 项安装包离线检查、33 项隔离数据库检查通过；一次付费来源搜索未确认原始文章，37 项候选仍待审，下方旧版本证据保留其当时范围。
 
 **0.4.5 新增工程入口**：[CLAIMS 审核结果导入与撤销](claims_result_import.md) · [冻结评价输入](frozen_evaluation.md)。实际候选尚未批准／发布；真实社交与人工／客户验收继续列为待办。下方 0.4.4 与旧版本回执保留其当时范围。

@@ -18,10 +18,14 @@ enabled. Returned URLs are candidates for review; the tool changes usage
 accounting only, not article or classification data. See [read-only views](claims_read_views.md)
 and [source discovery](claims_source_discovery.md).
 
-The 0.4.6 installed-wheel, CI, deployment and real search results must be recorded
-in their own receipts. Implementation alone does not establish those checks,
-source recovery, classification accuracy or client acceptance. Real social data
-and customer review materials remain deferred TODOs.
+The [engineering receipt](../reports/claims_read_engineering_v0_4_6_20260930.json)
+records 1,589 installed-wheel offline tests, 33 isolated database tests and one
+paid source search whose original article URL remains unresolved. Both
+repositories' CI and the 0.4.6 deployment passed the checks in the
+[publication receipt](../reports/release_v0_4_6_publication_20260930.json).
+The [source archives](../reports/source_handoff_v0_4_6_20260930.json) were verified.
+These checks do not establish source recovery, classification accuracy or client
+acceptance. Real social data and customer review materials remain deferred TODOs.
 
 ## Earlier implementation and acceptance records
 
