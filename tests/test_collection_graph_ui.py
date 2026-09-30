@@ -49,6 +49,9 @@ def values(**overrides):
             "page-location.pathname": "/data", "native-view.value": "relationships", "active-dataset.value": "native",
             "collection-graph-view.value": "entities", "collection-graph-layout.value": "cose",
             "collection-graph-offset.data": 0, "collection-graph-canvas.zoom": 1,
+            # Most interactions start with a populated canvas. The callback
+            # checks presence only and never trusts these client contents.
+            "collection-graph-canvas.elements": [{"data": {"id": "already-rendered"}}],
             **overrides}
 
 
@@ -213,6 +216,28 @@ def test_positive_resize_refits_existing_positions_without_resetting_selection(m
         assert canvas["layout"]["name"] == "preset" and canvas["layout"]["fit"] is True
         layouts.append(canvas["layout"])
     assert layouts[0] != layouts[1]
+
+
+@pytest.mark.parametrize("empty", [None, []])
+@pytest.mark.parametrize("trigger", ["collection-graph-size.data", "collection-graph-find.value"])
+def test_resize_or_selection_recovers_elements_when_initial_response_was_superseded(map_app, empty, trigger):
+    graph = map_app[2].graph
+    sponsor = next(node for node in graph["nodes"] if node["label"] == "ExxonMobil")
+    selected = {"kind": "node", "id": sponsor["id"]}
+    response = explore(map_app, values(**{
+        "collection-graph-canvas.elements": empty,
+        "collection-graph-selection.data": selected,
+        "collection-graph-find.value": json.dumps(selected),
+        "collection-graph-size.data": {"width": 1132, "height": 720, "revision": 1},
+    }), trigger)
+    canvas = response["collection-graph-canvas"]
+    nodes = [item["data"] for item in canvas["elements"] if item["data"]["kind"] == "node"]
+    expected_ids = {item["id"] for item in graph["nodes"] if item["type"] != "Article"}
+    assert {item["id"] for item in nodes} == expected_ids
+    assert len(canvas["elements"]) == len(expected_ids) + len(graph["summary_edges"])
+    assert canvas["layout"]["fit"] is True
+    assert "20 supporting records" in json.dumps(response["collection-graph-selection-heading"])
+    assert response["collection-graph-selection"]["data"] == selected
 
 
 @pytest.mark.parametrize("size", [None, {}, {"width": 0, "height": 720, "revision": 1},

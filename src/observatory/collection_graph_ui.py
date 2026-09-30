@@ -288,10 +288,11 @@ def register_collection_graph(app, service, links_enabled):
         State(f"{PREFIX}-selection", "data"), State(f"{PREFIX}-offset", "data"), State(f"{PREFIX}-anchor", "data"),
         State(f"{PREFIX}-canvas", "zoom"), State(f"{PREFIX}-canvas", "pan"),
         State(f"{PREFIX}-bucket-selection", "data"),
+        State(f"{PREFIX}-canvas", "elements"),
     )
     def explore(snapshot, pathname, view, dataset, node, edge, find, mode, layout_name, fit, reset,
                 previous, following, zoom_in, zoom_out, clicked, bucket_value, viewport_size, company_example, outlet_example,
-                count_example, selected, offset, anchor, zoom, pan, stored_bucket):
+                count_example, selected, offset, anchor, zoom, pan, stored_bucket, current_elements):
         if not _active(pathname, view, dataset):
             raise PreventUpdate
         trigger = ctx.triggered_id
@@ -303,7 +304,12 @@ def register_collection_graph(app, service, links_enabled):
             raise PreventUpdate
         mode = "articles" if mode == "articles" else "entities"
         fresh = trigger in {"native-network-data", "page-location", "native-view", "active-dataset", None}
-        rebuild = fresh or trigger in {f"{PREFIX}-view", f"{PREFIX}-layout", f"{PREFIX}-reset"}
+        # A resize/selection request can supersede an initial loading request
+        # before Dash installs its elements. Recover an empty canvas using the
+        # trusted graph; populated canvases retain their dragged positions.
+        # Client element contents are never used to construct graph data.
+        empty_canvas = not isinstance(current_elements, list) or not current_elements
+        rebuild = fresh or empty_canvas or trigger in {f"{PREFIX}-view", f"{PREFIX}-layout", f"{PREFIX}-reset"}
         try:
             graph = load(snapshot)
             selected, _ = selection_item(graph, selected)
