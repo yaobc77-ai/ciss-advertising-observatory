@@ -4,6 +4,8 @@
 
 最新版本 **0.4.1**：[发布与线上验证](../reports/RELEASE_V0_4_0_20260930.zh-CN.md) · [当前版本复现](CURRENT_RELEASE_REPRODUCTION.md) · [实际数据库回执](../reports/current_release_database_reproduction_20260930.json) · [37,000 条合成数据性能基线](PERFORMANCE_BASELINE.md)。发布进度以新发布记录为准；[0.4.1制品回执](../reports/current_release_database_reproduction_v0_4_1_20260930.json)单独验证空图修复后的安装包。
 
+**0.4.2 选取行为修订待发布核验：** [当前选取、命名关系及导出范围说明](../reports/GRAPH_SELECTION_V0_4_2_20260930.zh-CN.md)。相关使用契约见用户指南与图谱文档；实际发布、测试和浏览器验证范围由本轮报告补充，不能仅凭索引判定生产已升级。
+
 要求来源：[FA26／9/25 会议／Michelle 邮件合并核对](../reports/REQUIREMENTS_CONSOLIDATED_AUDIT_20260929.zh-CN.md)。该审计是发布前状态；本轮推进不改写原客户要求、历史测试或未来 CLAIMS／动物农业的边界。
 
 文档性质：**当前**说明现有运行契约；**证据**只证明记载的版本、运行和检查范围；**历史**保留当时认识；**草案**尚未确认或验收。工程通过、字符定位和人工语义验收是不同证据。
@@ -13,6 +15,7 @@
 | 想做什么 | 读哪份 | 性质及用途 |
 |---|---|---|
 | 核对 0.4.0／0.4.1 发布、CI 与线上验证 | [发布记录](../reports/RELEASE_V0_4_0_20260930.zh-CN.md) · [生产回执](../reports/release_v0_4_1_publication_20260930.json) | **当前发布状态**。最新代码、配置、实际验证与仍需客户的材料。 |
+| 核对 0.4.2 选取与导出范围修订 | [选取修订报告](../reports/GRAPH_SELECTION_V0_4_2_20260930.zh-CN.md) · [用户指南](user_guide.md) · [图谱使用契约](COLLECTION_KNOWLEDGE_GRAPH.zh-CN.md) | **实现说明，发布与验证待本轮回执补充**。命名关联表先于环图、当前关系与父分布、Articles 同步展开、所选分类 CSV 与完整筛选图 JSON 的区别。 |
 | 在干净环境验证当前安装包与迁移 | [复现方法](CURRENT_RELEASE_REPRODUCTION.md) · [离线回执](../reports/current_release_offline_reproduction_20260929.json) · [数据库回执](../reports/current_release_database_reproduction_20260930.json) | **实际安装包与合成数据库验证**。不等于真实生产语料／向量／历史恢复。 |
 | 了解大规模性能与限制 | [规模基线](PERFORMANCE_BASELINE.md) · [37,000 行测量回执](../reports/dashboard_performance_baseline_20260930.json) | **合成工程诊断**。数据库方法耗时和输出大小；未测浏览器／并发／云端或客户 SLA。 |
 | 核对原文、会议、邮件与当前实现 | [合并核对](../reports/REQUIREMENTS_CONSOLIDATED_AUDIT_20260929.zh-CN.md) · [原件与 HTTP 证据](../reports/requirements_consolidated_evidence_20260929.json) · [文档链接核对](../reports/documentation_requirements_validation_20260929.json) | **9/29 发布前只读审计**。版本／批注、六问、必交与未来边界、本机与线上、材料责任；第十节另核验 CHORUS 技术参考。不是本轮重新测试或客户验收。 |

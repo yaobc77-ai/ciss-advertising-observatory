@@ -213,6 +213,52 @@ def resolve_breakdown_slice(graph, selected, candidate_id):
     return next((item for item in detail["categories"] if item["id"] == candidate_id), None)
 
 
+def selection_relationships(graph, selected, *, record_ids=None):
+    """Resolve named, witnessed relations for exactly the inspected records.
+
+    An article or an article-field edge exposes both of that article's source
+    fields. Entity/summary-edge selections expose counted sponsor/outlet pairs.
+    Missing fields are reported separately; they never become invented nodes.
+    Endpoint denominators always belong to the same filtered graph snapshot.
+    """
+    selection, item = selection_item(graph, selected)
+    if item is None:
+        return None
+    nodes, records, paths = _index(graph)
+    ids = set(item["record_ids"] if record_ids is None else record_ids)
+    if not ids.issubset(item["record_ids"]):
+        raise ValueError("Relationship focus exceeds its selected record scope")
+    is_article = selection["kind"] == "node" and item["type"] == "Article"
+    is_source_edge = selection["kind"] == "edge" and item["predicate"] != SUMMARY_PREDICATE
+    if is_article or is_source_edge:
+        article_id = item["id"] if is_article else item["source"]
+        candidates = list(paths[article_id].values())
+    else:
+        candidates = [edge for edge in graph["summary_edges"]
+                      if edge["id"] == item["id"] or selection["kind"] == "node"
+                      and item["id"] in (edge["source"], edge["target"])]
+    relations = []
+    for edge in candidates:
+        members = sorted(ids.intersection(edge["record_ids"]))
+        if not members:
+            continue
+        endpoints = [nodes[edge["source"]], nodes[edge["target"]]]
+        relations.append({
+            "id": edge["id"], "source": endpoints[0]["label"], "target": endpoints[1]["label"],
+            "predicate": edge["predicate"], "record_ids": members, "count": len(members),
+            "selected": selection["kind"] == "edge" and item["id"] == edge["id"],
+            "endpoint_shares": [{"label": node["label"], "count": len(members),
+                                 "total_records": len(node["record_ids"]),
+                                 "share": len(members) / len(node["record_ids"])}
+                                for node in endpoints if node["type"] in _DIMENSIONS],
+        })
+    relations.sort(key=lambda row: (-row["count"], row["source"], row["target"], row["predicate"], row["id"]))
+    return {"record_ids": sorted(ids), "total_records": len(ids), "relations": relations,
+            "article_paths": is_article or is_source_edge,
+            "missing_sponsor_records": sum("source_lists_sponsor" not in paths[records[rid]["article_node_id"]] for rid in ids),
+            "missing_outlet_records": sum("published_in" not in paths[records[rid]["article_node_id"]] for rid in ids)}
+
+
 def breakdown_figure(detail, selected_category=None):
     """A compact donut; full category names/counts belong in the adjacent table.
 

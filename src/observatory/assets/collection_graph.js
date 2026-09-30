@@ -39,8 +39,20 @@
         });
         graphObserver.observe(canvas);
     }
-    new MutationObserver(observeGraph).observe(document.documentElement, {childList: true, subtree: true});
-    observeGraph();
+    var previousFocus;
+    function observeSelection() {
+        var heading = document.querySelector('#collection-graph-selection-heading [data-collection-focus]');
+        var focus = heading && heading.getAttribute('data-collection-focus');
+        if (focus === previousFocus) return;
+        previousFocus = focus;
+        var aside = document.querySelector('#collection-graph-stage .collection-graph-aside');
+        if (aside) aside.scrollTop = 0;
+    }
+    function observeState() { observeGraph(); observeSelection(); }
+    new MutationObserver(observeState).observe(document.documentElement, {
+        childList: true, subtree: true, attributes: true, attributeFilter: ['data-collection-focus']
+    });
+    observeState();
     // Native buttons also support Enter/Space. The server validates bucket IDs.
     document.addEventListener('click', function (event) {
         var button = event.target.closest && event.target.closest('button[data-collection-bucket]');

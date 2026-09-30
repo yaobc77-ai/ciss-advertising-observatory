@@ -15,6 +15,7 @@ from .collection_graph_breakdown import (
     breakdown_figure,
     resolve_breakdown_slice,
     selection_breakdown,
+    selection_relationships,
 )
 from .collection_graph_visual import (
     COLORS,
@@ -72,7 +73,7 @@ def collection_graph_panel():
                       button("−", "zoom-out", **{"aria-label": "Zoom out"}),
                       button("Reset", "reset", **{"aria-label": "Reset graph selection and layout"}),
                       button("PNG ↓", "png", **{"aria-label": "Download graph image"}),
-                      button("JSON ↓", "export", **{"aria-label": "Download complete selected source map"})],
+                      button("JSON ↓", "export", **{"aria-label": "Download complete filtered source map"})],
                      className="collection-graph-actions"),
         ], className="collection-graph-toolbar"),
         html.Div([html.Span([html.I(className={"Outlet": "legend-outlet", "Article": "legend-article"}.get(kind, ""),
@@ -100,14 +101,15 @@ def collection_graph_panel():
             ), className="collection-graph-canvas"),
             html.Aside([
                 html.Div(id=f"{PREFIX}-selection-heading", **{"aria-live": "polite"}),
+                html.Div(id=f"{PREFIX}-relations", **{"aria-live": "polite"}),
+                html.Div(id=f"{PREFIX}-counts"),
                 dcc.Graph(id=f"{PREFIX}-breakdown", figure=breakdown_figure(None),
                           config={"displayModeBar": False, "responsive": True}, style={"display": "none", "height": "290px"}),
-                html.Div(id=f"{PREFIX}-counts"),
                 html.P(id=f"{PREFIX}-breakdown-note", className="scope-note"),
                 html.Div([html.Label("Show supporting records for", htmlFor=f"{PREFIX}-bucket"),
                           dcc.Dropdown(id=f"{PREFIX}-bucket", options=[], value=ALL_BUCKETS,
                                        clearable=False, searchable=False, disabled=True)], className="collection-graph-bucket"),
-                html.Div([button("Download counts ↓", "counts-export"),
+                html.Div([button("Download selected counts ↓", "counts-export"),
                           html.Span(id=f"{PREFIX}-counts-status", role="status")], className="collection-graph-count-actions"),
                 html.Div([button("Previous records", "prev", disabled=True),
                           button("Next records", "next", disabled=True)], className="pager"),
@@ -156,19 +158,69 @@ def _options(graph, mode, anchor, record_ids=None):
     return options
 
 
-def _selection_heading(graph, selected):
+def _focus_title(graph, selected, category=None):
+    selection, item = selection_item(graph, selected)
+    if not item:
+        return ""
+    lookup = {node["id"]: node for node in graph["nodes"]}
+    if category and category.get("selection"):
+        return _focus_title(graph, category["selection"])
+    title = item["label"] if selection["kind"] == "node" else f"{lookup[item['source']]['label']} → {lookup[item['target']]['label']}"
+    if category:
+        if category["missing"] and item.get("type") == "Outlet":
+            return f"{category['label']} → {title}"
+        if item.get("type") == "SponsorCandidate":
+            return f"{title} → {category['label']}"
+        return f"{title} · {category['label']}"
+    return title
+
+
+def _selection_heading(graph, selected, category=None):
     selection, item = selection_item(graph, selected)
     if not item:
         return [html.H3("Explore a connection"), html.P("Select a labeled node, a line, or one of the client questions above.", className="muted")]
-    lookup = {node["id"]: node for node in graph["nodes"]}
-    title = item["label"] if selection["kind"] == "node" else f"{lookup[item['source']]['label']} → {lookup[item['target']]['label']}"
-    heading = [html.P(TYPE_NAMES[item["type"]] if selection["kind"] == "node" else "Source-record relationship", className="eyebrow"),
-               html.H3(title), html.P(f"{len(item['record_ids']):,} supporting records", className="collection-graph-total")]
+    count = category["count"] if category else len(item["record_ids"])
+    relation = selection["kind"] == "edge" or category and category.get("edge_id")
+    heading = [html.P("Selected source-record relationship" if relation else TYPE_NAMES[item["type"]], className="eyebrow"),
+               html.H3(_focus_title(graph, selected, category)),
+               html.P(f"{count:,} supporting records", className="collection-graph-total")]
     if selection["kind"] == "node" and item["type"] == "SponsorCandidate":
         metadata = sponsor_metadata(item["properties"]["source_value"])
         if metadata["entity_type"] in {"conference/event", "industry association"}:
             heading.append(html.P(f"Source category: {metadata['entity_type']}. " + metadata["note"], className="scope-note"))
-    return heading
+    # The DOM bridge resets the inspector scroll only when the focus changes,
+    # keeping paging and viewport adjustments at the user's reading position.
+    return html.Div(heading, **{"data-collection-focus": json.dumps([selection, category["id"] if category else ALL_BUCKETS], sort_keys=True)})
+
+
+def _relations(graph, selected, category=None):
+    focus = selection_relationships(graph, selected, record_ids=category["record_ids"] if category else None)
+    if not focus:
+        return None
+    selection, item = selection_item(graph, selected)
+    parts = []
+    if selection["kind"] == "node" and item["type"] != "Article" and category is None:
+        kind = "news outlets" if item["type"] == "SponsorCandidate" else "sponsor / organization names"
+        parts.append(html.P(f"{item['label']} is co-listed with {len(focus['relations']):,} named {kind} in these records. Select a connection below to inspect its articles.", className="scope-note"))
+    else:
+        labels = {"derived_source_association": "Co-listed in source records",
+                  "source_lists_sponsor": "Source lists sponsor", "published_in": "Published in"}
+        parts.append(html.H4("Article source relationships" if focus["article_paths"] else "Selected relationship"))
+        for row in focus["relations"]:
+            parts.append(html.Div([
+                html.Span(row["source"], className="collection-graph-relation-source"),
+                html.Span("→ " + labels[row["predicate"]] + " →", className="collection-graph-relation-predicate"),
+                html.Strong(row["target"]),
+                html.P(f"{row['count']:,} supporting records", className="scope-note"),
+                *[html.P(f"{share['label']}: {share['count']:,} of {share['total_records']:,} records ({share['share']:.1%})", className="scope-note")
+                  for share in row["endpoint_shares"]],
+            ], className="collection-graph-relation" + (" is-selected" if row["selected"] else ""),
+                **{"data-predicate": row["predicate"], "data-relation-id": row["id"]}))
+    for field in ("sponsor", "outlet"):
+        missing = focus[f"missing_{field}_records"]
+        if missing:
+            parts.append(html.P(f"{missing:,} selected records have no source-listed {field}. No relationship is asserted for that missing field.", className="scope-note"))
+    return parts
 
 
 def _bucket_options(detail):
@@ -200,7 +252,8 @@ def _counts(detail, bucket):
     if not detail:
         return None
     title = {"SponsorCandidate": "Connected outlets", "Outlet": "Connected sponsors / organizations"}.get(detail["kind"], "Publication years")
-    return [html.H4(title), _count_table(detail, bucket)]
+    return [html.H4(title), html.P(f"Distribution for {detail['title']} · all {detail['total_records']:,} supporting records", className="scope-note"),
+            _count_table(detail, bucket)]
 
 
 def _inspector(graph, selected, offset, links_enabled, bucket=ALL_BUCKETS):
@@ -208,7 +261,6 @@ def _inspector(graph, selected, offset, links_enabled, bucket=ALL_BUCKETS):
     if not item:
         return (html.P("Select a sponsor, outlet or relationship. You can also search by name with the keyboard.", className="muted"),
                 0, True, True)
-    detail = selection_breakdown(graph, selection)
     category = resolve_breakdown_slice(graph, selected, bucket) if bucket != ALL_BUCKETS else None
     ids = set(category["record_ids"] if category else item.get("record_ids", []))
     rows = [row for row in graph["records"] if row["record_id"] in ids]
@@ -220,8 +272,6 @@ def _inspector(graph, selected, offset, links_enabled, bucket=ALL_BUCKETS):
     parts = []
     if selection["kind"] == "edge":
         parts = [html.P(graph["predicate_definitions"][item["predicate"]]["description"], className="scope-note"),
-                 *[html.P(f"{share['label']}: {share['count']:,} / {share['total_records']:,} ({share['share']:.1%})", className="scope-note")
-                   for share in detail.get("endpoint_shares", [])],
                  html.Details([html.Summary("Relation provenance"),
                                html.Pre(json.dumps(item.get("provenance", {}), ensure_ascii=False, indent=2))])]
     parts.extend([html.H4("Supporting articles" if category is None else f"Articles: {category['label']}"),
@@ -275,6 +325,7 @@ def register_collection_graph(app, service, links_enabled):
         Output(f"{PREFIX}-bucket", "options"), Output(f"{PREFIX}-bucket", "value"),
         Output(f"{PREFIX}-bucket", "disabled"), Output(f"{PREFIX}-bucket-selection", "data"),
         Output(f"{PREFIX}-counts", "children"),
+        Output(f"{PREFIX}-relations", "children"),
         Input("native-network-data", "data"), Input("page-location", "pathname"),
         Input("native-view", "value"), Input("active-dataset", "value"),
         Input(f"{PREFIX}-canvas", "tapNodeData"), Input(f"{PREFIX}-canvas", "tapEdgeData"),
@@ -348,7 +399,12 @@ def register_collection_graph(app, service, links_enabled):
                 bucket = ALL_BUCKETS
             effective_selection = (category.get("selection") or selected) if category else selected
             record_ids = category["record_ids"] if category else None
-            if trigger == f"{PREFIX}-view" or mode == "articles" and (example or trigger == f"{PREFIX}-find"):
+            # Every explicit selection in Articles view replaces the expanded
+            # scope, including clicks on nodes/edges inside a previous subset.
+            # Otherwise the sidebar would describe B while the canvas keeps A.
+            if trigger == f"{PREFIX}-view" or mode == "articles" and (
+                example or trigger in {f"{PREFIX}-find", f"{PREFIX}-canvas"}
+            ):
                 anchor = selected if mode == "articles" else None
                 offset = 0
                 rebuild = True
@@ -373,9 +429,12 @@ def register_collection_graph(app, service, links_enabled):
                 out_pan = {"x": 0, "y": 0}
             note = (f"{detail['dimension']} · denominator: all {detail['total_records']:,} supporting records in the current filters. "
                     "Select a slice or a row to read its articles." if detail else "")
+            if detail and category:
+                note = (f"The chart and table retain the full distribution for {detail['title']} ({detail['total_records']:,} records). "
+                        f"The selected relationship and article list contain {category['count']:,} records. " + note)
             if detail and detail["unknown_date_records"]:
                 note += f" {detail['unknown_date_records']:,} records have an unknown date."
-            heading = _selection_heading(graph, selected)
+            heading = _selection_heading(graph, selected, category)
             if example and not selected:
                 heading = [html.H3(example[1]), html.P("No supporting records in the current filters. Adjust the collection filters to explore this name.", className="muted")]
             return (map_elements(graph, mode, anchor, record_ids=record_ids) if rebuild else no_update,
@@ -384,12 +443,12 @@ def register_collection_graph(app, service, links_enabled):
                     _options(graph, mode, anchor, record_ids), json.dumps(selected, sort_keys=True) if selected else None, anchor,
                     heading, breakdown_figure(detail, bucket), {"height": "290px"} if detail and detail["categories"] else {"display": "none", "height": "290px"},
                     note, _bucket_options(detail), bucket, not bool(detail and detail["categories"]), bucket,
-                    _counts(detail, bucket))
+                    _counts(detail, bucket), _relations(graph, selected, category))
         except Exception:
             message = "The source graph is temporarily unavailable. Your collection filters are preserved; try again."
             return ([], map_stylesheet(), map_layout(), no_update, no_update, message, html.P(message),
                     None, 0, True, True, [], None, None, html.H3("Selection unavailable"), breakdown_figure(None),
-                    {"display": "none"}, "", [], ALL_BUCKETS, True, ALL_BUCKETS, None)
+                    {"display": "none"}, "", [], ALL_BUCKETS, True, ALL_BUCKETS, None, None)
 
     @app.callback(Output(f"{PREFIX}-panel", "className"), Output(f"{PREFIX}-expand", "children"),
                   Input(f"{PREFIX}-expand", "n_clicks"), prevent_initial_call=True)
@@ -406,10 +465,12 @@ def register_collection_graph(app, service, links_enabled):
         return {"type": "png", "action": "download", "filename": "advertising-source-map"}
 
     @app.callback(Output(f"{PREFIX}-counts-download", "data"), Output(f"{PREFIX}-counts-status", "children"),
-                  Input(f"{PREFIX}-counts-export", "n_clicks"), State("native-network-data", "data"),
-                  State(f"{PREFIX}-selection", "data"), State("page-location", "pathname"),
+                  Input(f"{PREFIX}-counts-export", "n_clicks"), Input("native-network-data", "data"),
+                  Input(f"{PREFIX}-selection", "data"), Input(f"{PREFIX}-bucket-selection", "data"), State("page-location", "pathname"),
                   State("native-view", "value"), State("active-dataset", "value"), prevent_initial_call=True)
-    def export_counts(clicks, snapshot, selected, pathname, view, dataset):
+    def export_counts(clicks, snapshot, selected, bucket, pathname, view, dataset):
+        if ctx.triggered_id != f"{PREFIX}-counts-export":
+            return no_update, ""
         if not clicks or not _active(pathname, view, dataset):
             raise PreventUpdate
         try:
@@ -417,15 +478,18 @@ def register_collection_graph(app, service, links_enabled):
             detail = selection_breakdown(graph, selected)
             if not detail:
                 return None, "Select a node or relationship first."
+            category = resolve_breakdown_slice(graph, selected, bucket) if bucket != ALL_BUCKETS else None
+            categories = [category] if category else detail["categories"]
+            title = _focus_title(graph, selected, category)
             output = StringIO()
             writer = csv.writer(output)
             writer.writerow(["Selection", "Dimension", "Source category", "Exact source value", "Records", "Share", "Denominator", "Missing source field"])
-            for category in detail["categories"]:
-                writer.writerow([csv_safe_cell(value) for value in [detail["title"], detail["dimension"], category["label"],
-                                 category.get("source_value", ""), category["count"], category["share"],
-                                 detail["total_records"], category["missing"]]])
+            for row in categories:
+                writer.writerow([csv_safe_cell(value) for value in [title, detail["dimension"], row["label"],
+                                 row.get("source_value", ""), row["count"], row["share"],
+                                 detail["total_records"], row["missing"]]])
             return {"content": "\ufeff" + output.getvalue(), "filename": "advertising-selection-counts.csv", "type": "text/csv"}, \
-                   f"Prepared {len(detail['categories']):,} categories for {detail['total_records']:,} supporting records."
+                   f"Prepared {len(categories):,} categories for {sum(row['count'] for row in categories):,} supporting records. Shares use the parent denominator of {detail['total_records']:,}."
         except Exception:
             return None, "Count download is temporarily unavailable."
 
@@ -440,6 +504,6 @@ def register_collection_graph(app, service, links_enabled):
             graph = load(snapshot)
             return {"content": json.dumps(graph, ensure_ascii=False, indent=2),
                     "filename": "native-selected-source-map.json", "type": "application/json"}, \
-                   f"Prepared complete selected map: {graph['coverage']['total_records']:,} eligible records."
+                   f"Prepared complete filtered map: {graph['coverage']['total_records']:,} eligible records."
         except Exception:
             return None, "Source map download is temporarily unavailable."

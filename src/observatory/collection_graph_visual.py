@@ -158,8 +158,26 @@ def _focus_ids(graph, mode, anchor, selected, *, record_ids=None):
     if not item:
         return set(), set()
     nodes, edges = visible_map(graph, mode, anchor, record_ids=record_ids)
+    if record_ids is not None:
+        scope = set(record_ids)
+        edges = [edge for edge in edges if scope.intersection(edge.get("record_ids", []))]
     node_ids, edge_ids = set(), set()
-    if selection["kind"] == "node":
+    article_focus = (selection["kind"] == "node" and item["type"] == "Article"
+                     or selection["kind"] == "edge" and item["predicate"] != "derived_source_association")
+    if mode != "articles" and article_focus:
+        # Switching views keeps an article selection meaningful: highlight its
+        # witnessed entity pair (or just the known endpoint for a missing field).
+        ids = set(item["record_ids"])
+        if record_ids is not None:
+            ids.intersection_update(record_ids)
+        for edge in graph.get("article_edges", []):
+            if ids.intersection(edge.get("record_ids", [])):
+                node_ids.add(edge["target"])
+        for edge in edges:
+            if ids.intersection(edge.get("record_ids", [])):
+                edge_ids.add(edge["id"])
+                node_ids.update((edge["source"], edge["target"]))
+    elif selection["kind"] == "node":
         node_ids.add(item["id"])
         for edge in edges:
             if item["id"] in (edge["source"], edge["target"]):
