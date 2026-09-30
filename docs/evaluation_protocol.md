@@ -1,5 +1,9 @@
 # M6：开发评估与验收草案
 
+**2026-09-30 评价接口补充（未运行付费评价）**：默认计数题继续只核对数据库，历史开发／草案文件不改。新增显式 `--paid --answer-counts` 模式，计数题额外调用当前 `Service.answer`，保留模型／工具 trace、结构化统计、筛选、状态和账本费用；`answer_count_exact` 单独核对返回的数据库计数与原定筛选，不从生成文字解析数字，也不替代旧 `count_exact`。启用语言模型理解前须核对 `OBS_RESEARCH_AGENT_ENABLED` 与预算。失败题留在相应分母中，不能由数据库计数通过替模型路径记为通过。
+
+未来真实社交／跨集合 ready 题可显式附 `reviewed_release`：包含现有审核人的 `reviewer`、真实 `approval_record` 和审核时的 64 位 `data_version`。运行必须与该版本一致；来源必须属于 native／social／all 指定范围，跨集合支持题必须具有两套数据的必需支持记录。声明字段不能证明审核真实发生。当前 7 个 pending 题仍不执行，没有导入数据、填写 gold 或伪造审批；社交导入、人工审阅列为待办。现有冻结准备器仍只支持 native，正式双集合冻结需在真实材料准备好后另完成。当前客户 review 和演示草案见 [0.4.2 review](CLIENT_REVIEW_V0_4_2.md)。
+
 **2026-09-25 新入口**：独立客户评价的材料检查与冻结流程见[评价准备说明](PROTOTYPE_EVALUATION.md)。`scripts/prepare_client_review.py` 复用现有评价契约和原文定位；缺问题、金标准或审阅确认时输出 pending，不连接模型、不制造新成绩。现有 development 与 acceptance.draft 两套题仍视为已见资料。新网络／分页工程测试不证明 RAG 语义正确。
 
 **状态补充（2026-09-24）**：Railway 预览已部署；本日仅核验数据页 HTTP 200 和健康接口，当前活动索引为 `sentence600-v1` / **556** 块。下面的 0.2.4“558 块”及其付费结果保留为历史快照。尚未完成线上端到端或客户语义验收；没有因本次文档整理新增评价成绩。当前测试分工、客户材料及冻结步骤见[客户测试沟通计划](CLIENT_TESTING_AND_MATERIALS_20260924.zh-CN.md)。

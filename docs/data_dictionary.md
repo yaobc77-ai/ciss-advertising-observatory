@@ -1,5 +1,7 @@
 # Data import contract — 0.2.3
 
+**Current snapshot, 30 September 2026:** 275 active native records, 263 eligible for counts, 226 with searchable text, and 556 active passages under `sentence600-v1`. The full database retains earlier versions and profiles. The [current recovery receipt](../reports/database_restore_v0_4_2_complete_20260930.json) compares all 15 tables, embeddings, histories and retrieval state. The 0.2.3 contract and its 558-passage stage numbers below retain their historical scope. The current [handoff](current_handoff.md) explains source inputs and remaining work; new CLAIMS integration is scheduled separately.
+
 This document describes the implemented import layer. It does not certify the source articles or historical model labels.
 
 ## Inputs and priority

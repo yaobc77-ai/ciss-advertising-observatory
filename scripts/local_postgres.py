@@ -294,7 +294,7 @@ def pg_environment():
     return env
 
 
-def backup(output_file=None):
+def backup(output_file=None, *, snapshot=None):
     verify_server()
     backup_dir = RUNTIME / "backups"
     backup_dir.mkdir(exist_ok=True)
@@ -303,11 +303,17 @@ def backup(output_file=None):
         raise RuntimeError("Backup output must stay inside this project's .runtime/backups directory.")
     if destination.exists():
         raise RuntimeError("Backup destination already exists; refusing to overwrite it.")
+    if snapshot is not None and not re.fullmatch(r"[0-9A-Fa-f]+-[0-9A-Fa-f]+-\d+", snapshot):
+        raise ValueError("Invalid exported PostgreSQL snapshot identifier.")
+    command = [str(BIN / "pg_dump.exe"), "--format=custom", "--dbname", DATABASE]
+    if snapshot is not None:
+        command.extend(["--snapshot", snapshot])
     with destination.open("xb") as stream:
-        run([str(BIN / "pg_dump.exe"), "--format=custom", "--dbname", DATABASE], env=pg_environment(), stdout=stream)
+        run(command, env=pg_environment(), stdout=stream)
     digest = hashlib.sha256(destination.read_bytes()).hexdigest()
     destination.with_suffix(destination.suffix + ".sha256").write_text(digest + "\n", encoding="ascii")
     print(f"Backup created: {destination}")
+    return destination
 
 
 def restore(backup_file, database):

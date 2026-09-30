@@ -8,7 +8,7 @@
 
 **0.4.2 已发布核验：** 26 项新增状态回归、982 项安装包测试，以及生产 5 条关系→媒体 18 条→文章 1 条和跨视图保留检查。相关使用契约见用户指南与图谱文档；具体提交、CI、部署与截图由本轮回执绑定，工程结果不替代客户验收。
 
-要求来源：[FA26／9/25 会议／Michelle 邮件合并核对](../reports/REQUIREMENTS_CONSOLIDATED_AUDIT_20260929.zh-CN.md)。该审计是发布前状态；本轮推进不改写原客户要求、历史测试或未来 CLAIMS／动物农业的边界。
+要求来源：[FA26／9/25 会议／Michelle 邮件合并核对](../reports/REQUIREMENTS_CONSOLIDATED_AUDIT_20260929.zh-CN.md)。该审计是发布前状态，保留原判断。9/30 用户转述客户要求提前处理 CLAIMS，已列入当前[接入计划](claims_integration_plan.md)；动物农业仍是未来扩展。真实社交与客户审查材料列为待办。
 
 文档性质：**当前**说明现有运行契约；**证据**只证明记载的版本、运行和检查范围；**历史**保留当时认识；**草案**尚未确认或验收。工程通过、字符定位和人工语义验收是不同证据。
 
@@ -16,6 +16,10 @@
 
 | 想做什么 | 读哪份 | 性质及用途 |
 |---|---|---|
+| 接手当前代码、私有数据与运行环境 | [当前英文交接](current_handoff.md) · [私有附件 bundle](record_assets.md) | **当前实施说明**。数据库恢复、源文件、附件与模型费用；新私有 bundle 尚未部署到线上。 |
+| 核对完整当前本机数据库恢复 | [恢复报告](../reports/DATABASE_RESTORE_20260930.en.md) · [15 表与检索回执](../reports/database_restore_v0_4_2_complete_20260930.json) | **固定快照实测**。全部表内容／结构／序列／向量／历史引用和检索一致；不代表服务器或异机灾备。 |
+| 准备客户试用与当前原生演示 | [客户审查](CLIENT_REVIEW_V0_4_2.md) · [演示脚本](../deliverables/native_demo_v0_4_2.en.md) · [材料请求草案](../deliverables/client_materials_request_v0_4_2.en.md) | **英文草案**。六问、实际关系、客户判断与待办；未发送、未签收，非最终双集合演示。 |
+| 按最新客户方向安排 CLAIMS 接入 | [CLAIMS 接入计划](claims_integration_plan.md) | **已排入当前工作**。先复核用户提供 ZIP 与批次，再做可定位离线结果、网页／MCP 查询和审核；尚未导入新分类。 |
 | 核对 0.4.0／0.4.1 发布、CI 与线上验证 | [发布记录](../reports/RELEASE_V0_4_0_20260930.zh-CN.md) · [生产回执](../reports/release_v0_4_1_publication_20260930.json) | **历史版本实测**。这些版本的代码、配置、实际验证与材料边界。 |
 | 核对 0.4.2 选取与导出范围修订 | [选取修订报告](../reports/GRAPH_SELECTION_V0_4_2_20260930.zh-CN.md) · [发布回执](../reports/graph_selection_publication_v0_4_2_20260930.json) · [用户指南](user_guide.md) · [图谱使用契约](COLLECTION_KNOWLEDGE_GRAPH.zh-CN.md) | **当前实现与生产实测**。命名关系、精确支持集合、父分布、跨视图保留、所选分类 CSV 与完整筛选图 JSON 的区别。 |
 | 在干净环境验证当前安装包与迁移 | [复现方法](CURRENT_RELEASE_REPRODUCTION.md) · [离线回执](../reports/current_release_offline_reproduction_20260929.json) · [数据库回执](../reports/current_release_database_reproduction_20260930.json) | **实际安装包与合成数据库验证**。不等于真实生产语料／向量／历史恢复。 |

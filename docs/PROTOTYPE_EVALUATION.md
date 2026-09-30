@@ -2,6 +2,35 @@
 
 Updated: 25 September 2026. This is a runnable preparation path, not a claim of client acceptance.
 
+## September 30 evaluation interface update
+
+Default count cases still measure database reconciliation without calling a model. To additionally
+exercise the actual question/answer route, explicitly use both `--paid` and `--answer-counts`:
+
+```powershell
+.venv/Scripts/python.exe -m observatory.evaluate --cases <reviewed-cases.jsonl> --paid --answer-counts --expected-data-version <reviewed-data-version> --output <new-result.json>
+```
+
+This option preserves the baseline `count_exact` and reports `answer_count_exact` and
+`answer_count_scope_valid` separately. Only structured database totals with the expected filters
+can pass; a model-written matching number cannot. The answer, route/trace, status, structured
+collections, settled costs and unresolved reserves are retained. Native and social counts remain
+separate. Confirm the research-agent setting and budget before running; the flag does not enable
+that setting automatically. No paid evaluation was performed for this interface update.
+
+Future ready social/cross cases need a `reviewed_release` object recording the actual reviewer,
+approval reference, and exact reviewed `data_version`. That declaration is checked against the
+current corpus before any retrieval or model call. Gold and returned evidence must belong to the
+specified collection; cross-collection retrieval gold must include both native and social support.
+This permits a later reviewed release, not automatic approval or synthetic substitution. Existing
+pending cases and the historical question files remain unchanged. The client-packet freeze helper
+still supports native only; dual-collection freezing remains to be completed with real materials.
+
+The [current client review](CLIENT_REVIEW_V0_4_2.md) and demonstration are drafts. Real social
+import and independent customer review are explicit TODOs. The customer's latest direction now
+schedules CLAIMS integration using the supplied upstream package; it is not already connected or
+accepted. Animal agriculture remains future work.
+
 ## What can run now
 
 - Existing regression tests check software behavior.
