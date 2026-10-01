@@ -10,10 +10,13 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import threading
+import time
 from copy import deepcopy
 from datetime import date
 from types import SimpleNamespace
 from typing import Annotated, Literal
+from uuid import uuid4
 
 from pydantic import (
     BaseModel,
@@ -88,9 +91,20 @@ class StatisticsRequest(ScopedRequest):
     denominator_filters: FiltersRequest | None = Field(default=None, description="Only for measure='share' when the question names the group to compare against, e.g. 'share of ExxonMobil's ads that ran in the NYT': denominator_filters={sponsors:[exxonmobil]}, filters={publishers:[The New York Times]}. The target in filters is counted within this denominator.")
 
 
+class ComparisonSearch(ScopedRequest):
+    query: Question
+
+
 class SearchRequest(ScopedRequest):
     query: Question
     limit: Annotated[StrictInt, Field(ge=1, le=10)] | None = None
+    comparison_scopes: Annotated[list[ComparisonSearch], Field(min_length=2, max_length=3)] | None = Field(
+        default=None, description="For a comparison, search each company/outlet separately. Each scope must narrow one sponsor or publisher from the active filters. Use the same topic qualifiers in every query. Never let one company's results substitute for another's."
+    )
+
+
+class WebGapRequest(Request):
+    ticket: Annotated[str, Field(pattern=r"^[0-9a-f]{32}$")]
 
 
 class RecordRequest(ScopedRequest):
@@ -180,6 +194,8 @@ class ToolCatalog:
         self.record_details = record_details
         # Audit of aliases mapped to exact source values during this request.
         self.alias_resolutions = []
+        self._web_ticket = None
+        self._web_lock = threading.Lock()
 
     @property
     def base_filters(self):
@@ -500,7 +516,67 @@ class ToolCatalog:
         return BASIS_NOTE if inferred else ""
 
     def _search_records(self, request, filters):
-        report = self.service.search_report(request.query, filters, limit=request.limit or 5)
+        with self._web_lock:
+            self._web_ticket = None
+        if request.comparison_scopes:
+            groups, evidence, refs, rejected, seen = [], [], [], 0, set()
+            # Validate every target before performing any read. A bad second
+            # target must not yield a seemingly complete first-company answer.
+            scopes = []
+            for group in request.comparison_scopes:
+                scoped = self.narrow(group.filters, base=filters)
+                self._known_filters(scoped)
+                if not ((len(scoped.sponsors) == 1) or (len(scoped.publishers) == 1)):
+                    raise ScopeConflict("Each comparison target needs one source-listed sponsor or publisher.")
+                identity = (tuple(scoped.sponsors), tuple(scoped.publishers))
+                if identity in seen:
+                    raise ScopeConflict("Comparison targets must be distinct source selections.")
+                seen.add(identity)
+                scopes.append((group, scoped))
+            for group, scoped in scopes:
+                item = self._search_one(group.query, scoped, min(request.limit or 3, 3))
+                label = " / ".join([*(sponsor_display(s) for s in scoped.sponsors), *scoped.publishers])
+                groups.append({"label": label, "query": group.query, "filters": scoped.model_dump(mode="json"),
+                               "keyword_passages": len(item["evidence"]), "rejected_evidence": item["rejected_evidence"]})
+                evidence.extend(item["evidence"])
+                refs.extend(item["source_refs"])
+                rejected += item["rejected_evidence"]
+            return {"status": "ok", "query": request.query, "evidence": evidence,
+                    "source_refs": refs, "rejected_evidence": rejected, "retrieval_groups": groups,
+                    "coverage": "separate_target_retrieval_not_complete_corpus", "semantic_support": "not_verified"}
+        result = self._search_one(request.query, filters, request.limit or 5)
+        if (not result["evidence"] and not result["rejected_evidence"]
+                and result["diagnostics"].get("status") == "ok"
+                and getattr(self.service.settings, "web_search_enabled", False)
+                and self.service._web_scope_supported(filters)):
+            ticket = uuid4().hex
+            with self._web_lock:
+                self._web_ticket = {"ticket": ticket, "query": request.query, "filters": filters.model_copy(deep=True),
+                                    "expires": time.monotonic() + 300, "data_version": self.service.health().get("data_version")}
+            result["web_fallback_ticket"] = ticket
+            result["web_fallback_basis"] = "no_keyword_passages_not_exhaustive_semantic_absence"
+        return result
+
+    def search_external_sources(self, arguments, *, visitor="mcp-web"):
+        """Optional paid MCP read; a single-use healthy local miss is required."""
+        try:
+            request = WebGapRequest.model_validate(arguments)
+        except ValidationError:
+            return {"status": "invalid_request", "message": "Use the ticket from a prior empty search_records result."}
+        with self._web_lock:
+            gap = self._web_ticket
+            if not gap or request.ticket != gap["ticket"] or time.monotonic() > gap["expires"]:
+                return {"status": "invalid_request", "message": "An unexpired database-miss ticket is required."}
+            # Atomic consumption precedes dispatch, so concurrent retries
+            # cannot both charge this ticket.
+            self._web_ticket = None
+        health = self.service.health()
+        if health.get("status") != "ok" or health.get("data_version") != gap["data_version"]:
+            return {"status": "unavailable", "message": "The collection changed; search the database again."}
+        return self.service._search_external(gap["query"], gap["filters"], visitor)
+
+    def _search_one(self, query, filters, limit):
+        report = self.service.search_report(query, filters, limit=limit)
         evidence, refs, rejected = [], [], 0
         for item in report.get("evidence", []):
             public = item.model_dump(mode="json")
@@ -528,10 +604,10 @@ class ToolCatalog:
         diagnostics = report.get("diagnostics", {})
         allowed = {key: diagnostics[key] for key in ("status", "operator", "terms", "missing_terms", "reason")
                    if key in diagnostics}
-        return {"status": "ok", "query": request.query, "evidence": evidence,
+        return {"status": "ok", "query": query, "evidence": evidence,
                 **({"date_notice": notice} if notice else {}),
                 "source_refs": refs, "diagnostics": allowed, "rejected_evidence": rejected,
-                "retrieval_limit": request.limit or 5,
+                "retrieval_limit": limit,
                 "coverage": "retrieved_passages_only_not_complete_corpus",
                 "semantic_support": "not_verified"}
 

@@ -16,6 +16,15 @@ from .structured_queries import QuestionPlan, plan_question, validate_share_scop
 log = logging.getLogger(__name__)
 
 
+def _progress(callback, stage):
+    # A disconnected browser must never interrupt accounting or source checks.
+    if callback:
+        try:
+            callback(stage)
+        except Exception:
+            log.debug("Progress listener unavailable")
+
+
 def safe_url(value):
     try:
         p = urlsplit(value or "")
@@ -96,12 +105,13 @@ def _plain_scope(scope, base):
 
 
 class Service:
-    def __init__(self, settings, db=None, rag=None, research_agent=None, claims_store=None):
+    def __init__(self, settings, db=None, rag=None, research_agent=None, claims_store=None, web_research=None):
         self.settings = settings
         self.db = db or Database(settings.database_url)
         self.rag = rag or Rag(self.db, settings)
         self.research_agent = research_agent
         self.claims_store = claims_store
+        self.web_research = web_research
 
     def claims_matches(self, filters: Filters, *, nc_ids=None, sc_ids=None, taxonomy=None,
                        review_state=None, offset=0, limit=20):
@@ -426,12 +436,12 @@ class Service:
         trusted = getattr(plan, "trusted_filters", None) or denominator
         return self._tool_statistics_answer(data, base_filters=trusted)
 
-    def answer(self, question, filters, visitor):
+    def answer(self, question, filters, visitor, progress=None):
         if getattr(self.settings, "research_agent_enabled", False):
-            return self._answer_with_tools(question, filters, visitor)
-        return self._answer_legacy(question, filters, visitor)
+            return self._answer_with_tools(question, filters, visitor, progress=progress)
+        return self._answer_legacy(question, filters, visitor, progress=progress)
 
-    def _answer_with_tools(self, question, filters, visitor):
+    def _answer_with_tools(self, question, filters, visitor, progress=None):
         """Understand the question before accessing constrained collection tools."""
         from .research_agent import ResearchAgent
         from .research_tools import ToolCatalog
@@ -444,6 +454,7 @@ class Service:
         downstream_cost = 0.0
         version = "unavailable"
         try:
+            _progress(progress, "database")
             before = self.health()
             candidate_version = before.get("data_version")
             if before.get("status") != "ok" or not isinstance(candidate_version, str) or not candidate_version or candidate_version == "unavailable":
@@ -451,15 +462,20 @@ class Service:
             version = candidate_version
             catalog = ToolCatalog(self, filters)
             agent = self.research_agent or ResearchAgent(self.rag, catalog)
-            run = agent.run(question, filters, visitor)
+            _progress(progress, "interpreting")
+            run = agent.run(question, filters, visitor,
+                            **({"progress": lambda stage: _progress(progress, stage)} if progress else {}))
             data = run.result
             if run.route == "statistics":
                 result = self._tool_statistics_answer(data, base_filters=filters)
             elif run.route == "evidence":
                 narrowed = Filters.model_validate(data["filters"])
+                validate_share_scope(narrowed, filters)
                 # Question language and wording remain intact for the cited answer.
                 result = self._answer_evidence(question, narrowed, visitor,
-                                               search_query=data.get("search_query") or data.get("query") or question, audit=False)
+                                               search_query=data.get("search_query") or data.get("query") or question, audit=False,
+                                               **({"retrieval_groups": data["retrieval_groups"]} if data.get("retrieval_groups") else {}),
+                                               **({"progress": progress} if progress else {}))
             elif run.route in {"graph", "sources", "record"}:
                 result = Answer(
                     status="answered", answer_mode="tools",
@@ -496,6 +512,17 @@ class Service:
                 result.structured_result = {**result.structured_result, "data_version": version}
             result.cost_usd += run.cost_usd
             result.research_trace = run.audit()
+            if result.external_research:
+                external = result.external_research
+                result.research_trace["external_web"] = {key: external.get(key) for key in (
+                    "status", "source_kind", "cost_usd", "model_calls", "searched_at", "audit",
+                ) if key in external}
+                result.research_trace["tools"].append({
+                    "tool": "search_external_sources", "status": external.get("status"),
+                    "source_kind": "external_web", "cost_usd": external.get("cost_usd", 0),
+                    "data_refs": [{"source_id": s.get("source_id"), "url": s.get("url")}
+                                  for s in external.get("sources", [])],
+                })
         except Exception as exc:
             log.warning("Question understanding failed: %s", type(exc).__name__)
             result = Answer(status="service_unavailable", answer_mode="tools",
@@ -588,7 +615,7 @@ class Service:
         return Answer(status="answered", answer_mode="statistics",
                       answer=message + (" " + note if note else ""), structured_result=data)
 
-    def _answer_legacy(self, question, filters, visitor):
+    def _answer_legacy(self, question, filters, visitor, progress=None):
         start = time.monotonic()
         if not 1 <= len(question.strip()) <= 2000:
             return Answer(
@@ -611,6 +638,7 @@ class Service:
                 if current_count else plan_question(question, filters, {}))
         if plan is not None:
             try:
+                _progress(progress, "database")
                 if plan.status == "unsupported":
                     return Answer(status="insufficient_evidence", answer_mode="clarification", answer=plan.message)
                 before = self.health()
@@ -649,39 +677,60 @@ class Service:
                 answer_mode="clarification",
                 answer="Counts support named outlets, sponsors and explicit dates. Percentages compare target records with the current selected collection; select the denominator scope first. Topic counts require validated annotations. Retrieved passages cannot establish corpus totals.",
             )
-        return self._answer_evidence(question, filters, visitor)
+        return self._answer_evidence(question, filters, visitor, progress=progress)
 
-    def _answer_evidence(self, question, filters, visitor, search_query=None, audit=True):
+    def _answer_evidence(self, question, filters, visitor, search_query=None, audit=True,
+                         retrieval_groups=None, progress=None):
         start = time.monotonic()
         evidence = []
         reservation = None
         dispatched = False
         version = "unavailable"
         embedding_cost = []
+        coverage = []
         search_query = search_query or question
         try:
+            _progress(progress, "database")
             version = self.db.health()["data_version"]
+            trusted_filters = filters.model_copy(deep=True)
             filters = self._title_scope(question, filters)
+            searches = retrieval_groups or [{"query": search_query, "filters": filters.model_dump(mode="json"), "label": "Current selection"}]
+            if not 1 <= len(searches) <= 3:
+                raise ValueError("Invalid comparison scope count")
+            # Narrowing is revalidated here even for a custom research adapter.
+            scoped = []
+            for item in searches:
+                scope = Filters.model_validate(item["filters"])
+                validate_share_scope(scope, trusted_filters)
+                if filters.record_ids:
+                    selected_ids = [rid for rid in filters.record_ids if not scope.record_ids or rid in scope.record_ids]
+                    if not selected_ids:
+                        raise ValueError("Comparison titles do not intersect the requested records")
+                    scope.record_ids = selected_ids
+                validate_share_scope(scope, filters)
+                scoped.append((item, scope))
             # Keyword search always runs first so failures can return usable evidence.
-            evidence = self.search(search_query, filters)
+            for item, scope in scoped:
+                evidence.extend(self.search(item["query"], scope, limit=3 if retrieval_groups else 5))
             price(self.settings.generation_model, 1, 1)
             # Admission covers the whole paid question, before query embedding.
             # This exceeds the maximum generation cost under the 100k-byte prompt cap.
             reservation = self.rag.budget.reserve(
                 "0.04", visitor, "generation", self.settings.generation_model
             )
-            vector = self.rag.embed(
-                [search_query], visitor=visitor, cost_sink=embedding_cost
-            )[0]
-            evidence = self._public_evidence(
-                self.db.search(
-                    search_query,
-                    filters,
-                    vector=vector,
-                    model=self.settings.embedding_model,
-                    chunks_per_record=3,
-                )
-            )
+            vectors = self.rag.embed([item["query"] for item, _ in scoped], visitor=visitor, cost_sink=embedding_cost)
+            if len(vectors) != len(scoped):
+                raise ValueError("Embedding count mismatch")
+            evidence = []
+            for (item, scope), vector in zip(scoped, vectors):
+                found = self._public_evidence(self.db.search(
+                    item["query"], scope, vector=vector, model=self.settings.embedding_model,
+                    chunks_per_record=3, **({"limit": 3} if retrieval_groups else {}),
+                ))
+                coverage.append({"label": item.get("label") or "Selected target", "passages": len(found),
+                                 "filters": scope.model_dump(mode="json"), "query": item["query"]})
+                evidence.extend(found)
+            evidence = list({e.evidence_id: e for e in evidence}.values())
             if self.db.health()["data_version"] != version:
                 evidence = []
                 version = self.db.health()["data_version"]
@@ -689,9 +738,12 @@ class Service:
                     "Data changed during retrieval; retry on a consistent version"
                 )
             dispatched = True
+            _progress(progress, "organizing")
             result = self.rag.generate(
-                question, evidence, visitor, reservation=reservation
+                question, evidence, visitor, reservation=reservation,
+                **({"progress": progress} if progress else {}),
             )
+            _progress(progress, "citations")
             final_version = self.db.health()["data_version"]
             if final_version != version:
                 # A dispatched call remains charged and audited, but an answer
@@ -722,11 +774,25 @@ class Service:
         finally:
             if reservation and not dispatched:
                 self.rag.budget.cancel_unsent(reservation)
-        result.latency_ms = int((time.monotonic() - start) * 1000)
         if reservation:
             result.cost_usd = self.rag.budget.reservation_cost(reservation) + sum(
                 embedding_cost
             )
+        if coverage:
+            result.structured_result = {"kind": "evidence_coverage", "groups": coverage,
+                                        "meaning": "Retrieved passages are a sample, not complete coverage or verified semantic support."}
+        gaps = [item["label"] for item in coverage if not item["passages"]]
+        if retrieval_groups and gaps and result.status == "answered":
+            # A supported statement about one target is a partial answer,
+            # never a completed comparison with a target that has no evidence.
+            result.status = "insufficient_evidence"
+            result.answer += "\n\nThe collection comparison is incomplete: no passages were retrieved for " + ", ".join(gaps) + "."
+        # Only an evidence shortfall qualifies. Outages, bad source versions,
+        # invalid quotes, limits and unsupported statistics never trigger search.
+        if result.status == "insufficient_evidence":
+            topics = gaps if retrieval_groups else []
+            result.external_research = self._search_external(question, filters, visitor, missing_topics=topics, progress=progress)
+            result.cost_usd += result.external_research.get("cost_usd", 0.0)
         if result.status == "answered":
             # Written by the server: a cited record's date is an estimate, or
             # could not be checked. An unknown is never reported as "none".
@@ -737,9 +803,42 @@ class Service:
                 result.answer = result.answer + "\n\n" + UNCHECKED_NOTE
             elif cited:
                 result.answer = result.answer + "\n\n" + BASIS_NOTE
+        if result.external_research:
+            after_web = self.health()
+            if after_web.get("status") != "ok" or after_web.get("data_version") != version:
+                result = Answer(status="service_unavailable", answer="The collection changed during research. Please submit the question again.",
+                                failure_reason="data_changed_during_web_research", cost_usd=result.cost_usd)
+        result.latency_ms = int((time.monotonic() - start) * 1000)
         if audit:
             try:
                 self.db.save_answer(question, filters, result, version)
             except Exception:
                 log.warning("Answer audit log unavailable")
+        return result
+
+    def _web_scope_supported(self, filters):
+        return (filters.dataset == "native" and self.settings.show_source_links
+                and not filters.record_ids and not filters.labels
+                and filters.date_presence == "any" and not filters.include_inferred_dates)
+
+    def _search_external(self, question, filters, visitor, missing_topics=None, progress=None):
+        if not getattr(self.settings, "web_search_enabled", False):
+            return {"status": "disabled", "reason": "web_search_not_enabled", "cost_usd": 0.0}
+        if not self._web_scope_supported(filters):
+            return {"status": "unavailable", "reason": "scope_not_supported", "cost_usd": 0.0,
+                    "message": "Web research is unavailable for this record, annotation or unloaded social scope. Adjust the selection to search for external native-ad sources."}
+        health = self.health()
+        if health.get("status") != "ok" or not health.get("record_counts", {}).get("native"):
+            return {"status": "unavailable", "reason": "collection_unavailable", "cost_usd": 0.0}
+        from .web_research import WebResearch
+
+        adapter = self.web_research or WebResearch(self.rag, enabled=True, base_filters=filters)
+        _progress(progress, "web")
+        try:
+            result = adapter.call({"question": question, "missing_topics": missing_topics or []}, visitor=visitor)
+        except Exception:
+            # The production adapter contains accounting failures; a custom
+            # adapter must likewise not expose provider diagnostics.
+            result = {"status": "unavailable", "reason": "web_research_unavailable", "cost_usd": 0.0}
+        _progress(progress, "citations")
         return result

@@ -95,6 +95,20 @@ class Citation(BaseModel):
     quote: str
 
 
+class CitedStatement(BaseModel):
+    """A displayed statement bound to the answer's one-based citation numbers."""
+
+    text: str
+    citation_indices: list[StrictInt] = Field(default_factory=list)
+
+
+class AnswerSection(BaseModel):
+    """A neutral heading grouping existing cited claims, without extra prose."""
+
+    title: str
+    citation_indices: list[StrictInt] = Field(default_factory=list)
+
+
 class Answer(BaseModel):
     status: Literal[
         "answered", "insufficient_evidence", "service_unavailable", "limited"
@@ -105,6 +119,10 @@ class Answer(BaseModel):
     research_trace: dict[str, Any] = Field(default_factory=dict)
     citations: list[Citation] = Field(default_factory=list)
     evidence: list[Evidence] = Field(default_factory=list)
+    summary: list[CitedStatement] = Field(default_factory=list)
+    sections: list[AnswerSection] = Field(default_factory=list)
+    cited_claims: list[CitedStatement] = Field(default_factory=list)
+    external_research: dict[str, Any] = Field(default_factory=dict)
     cost_usd: float = 0.0
     latency_ms: int = 0
     failure_reason: str = ""

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import inspect
 import os
 import re
 import secrets
@@ -16,7 +17,7 @@ from urllib.parse import quote, urlsplit
 import plotly.graph_objects as go
 from dash import Dash, Input, Output, State, ctx, dcc, html, no_update
 from dash.exceptions import PreventUpdate
-from flask import session
+from flask import request, session
 
 from observatory.analytics import (
     historical_label_distribution,
@@ -34,6 +35,7 @@ QUERY_EXAMPLES = (
     ("example-outlet-count", "Count ads at an outlet", "How many native ads are from the New York Times?"),
     ("example-company-outlets", "Explore a company's publishers", "Which publishers is ExxonMobil working with?"),
     ("example-outlet-sponsors", "Explore an outlet's sponsors", "Which fossil fuel companies has the Washington Post worked with?"),
+    ("example-company-claims", "Compare emissions claims", "How do ExxonMobil and Shell describe their efforts to reduce emissions in their native ads? What does each company emphasize? Please cite the relevant advertisements."),
 )
 
 
@@ -664,13 +666,185 @@ def _research_steps(result):
     call_label = "model call" if len(calls) == 1 else "model calls"
     return html.Details([
         html.Summary("How this question was answered"),
-        html.P(f"Model-assisted interpretation · {len(calls)} {call_label} · API cost ${result.get('cost_usd', 0):.5f}. Database calculations and source reads do not call a model."),
+        html.P(f"Question interpretation: {len(calls)} {call_label} · Total API cost ${result.get('cost_usd', 0):.5f} (includes retrieval, answer generation and web lookup when used). Database calculations and stored source reads do not call a model."),
         html.Ol([html.Li([
             html.Code(str(step.get("name") or step.get("tool") or "read-only tool")),
             html.Span(f" · {step.get('status') or step.get('result_status') or 'completed'}"),
         ]) for step in steps]),
         html.P("Tools preserve the current filters. Source relationships and historical annotations retain their review limits."),
     ], className="research-steps")
+
+
+def _answer_references(indices, citations):
+    """Keep summary links tied to the same one-based visible quote numbering."""
+    return [html.A(
+        f"[{number}]", href=f"#answer-citation-{number}", className="answer-reference",
+        **{"aria-label": f"Read supporting citation {number}"},
+    ) for number in indices if isinstance(number, int) and not isinstance(number, bool)
+            and 1 <= number <= len(citations)]
+
+
+def _grounded_answer_content(result, message):
+    """Render validated summaries and groups without reconstructing model prose."""
+    citations = result.get("citations") or []
+    summaries = result.get("summary") or []
+    claims = result.get("cited_claims") or []
+    sections = result.get("sections") or []
+    if not summaries and not sections:
+        # Stored answers from before the structured format remain readable.
+        return [html.P(message, className="answer-text")]
+    content = []
+    if summaries:
+        content.append(html.Section([
+            html.H4("Summary"),
+            *[html.P([
+                str(item.get("text") or ""), " ",
+                *_answer_references(item.get("citation_indices") or [], citations),
+            ]) for item in summaries if isinstance(item, dict) and item.get("text")],
+        ], className="answer-summary", **{"aria-label": "Answer summary"}))
+    groups = []
+    for section in sections:
+        if not isinstance(section, dict):
+            continue
+        refs = set(section.get("citation_indices") or [])
+        paragraphs = [html.P([
+            str(claim.get("text") or ""), " ",
+            *_answer_references(claim.get("citation_indices") or [], citations),
+        ]) for claim in claims if isinstance(claim, dict) and claim.get("text")
+            and refs.intersection(claim.get("citation_indices") or [])]
+        if paragraphs:
+            groups.append(html.Section([
+                html.H4(str(section.get("title") or "Supporting evidence")), *paragraphs,
+            ], className="answer-group"))
+    if groups:
+        content.extend([html.H4("What the advertisements emphasize"),
+                        html.Div(groups, className="answer-groups")])
+    elif not summaries:
+        content.append(html.P(message, className="answer-text"))
+    content.append(html.P(
+        "This describes claims made in the cited advertisements. It does not independently verify their environmental outcomes.",
+        className="scope-note",
+    ))
+    return content
+
+
+def _external_research_card(result, enabled):
+    """Web citations stay separate from exact quotes and collection records."""
+    from observatory.service import safe_url
+
+    research = result.get("external_research") or {}
+    if not isinstance(research, dict) or not research:
+        return None
+    status = research.get("status")
+    if status != "ok":
+        notes = {
+            "no_sources": "Web search did not return usable cited sources.",
+            "unavailable": "Web search is temporarily unavailable. No outside evidence was added.",
+            "limited": "The API budget or request limit prevented a web lookup.",
+            "disabled": "Web lookup is not enabled for this deployment.",
+        }
+        message = ("External web research is not available for this collection or annotation scope."
+                   if research.get("reason") == "scope_not_supported"
+                   else notes.get(status, "No usable web evidence was added."))
+        return html.P(message, className="scope-note")
+    sources = {}
+    for source in research.get("sources") or []:
+        if not isinstance(source, dict):
+            continue
+        source_id = source.get("source_id")
+        url = safe_url(source.get("url"))
+        if isinstance(source_id, str) and re.fullmatch(r"W[1-9][0-9]*", source_id) and url:
+            sources[source_id] = {**source, "url": url}
+    passages = []
+    for passage in research.get("passages") or []:
+        if not isinstance(passage, dict) or not passage.get("text"):
+            continue
+        source_ids = [source_id for source_id in passage.get("source_ids") or [] if source_id in sources]
+        if source_ids:
+            parts = []
+            linked = set()
+            for part in re.split(r"(\[W[1-9][0-9]*\])", str(passage["text"])):
+                source_id = part[1:-1] if part.startswith("[") and part.endswith("]") else ""
+                if source_id in source_ids:
+                    linked.add(source_id)
+                    parts.append(html.A(part, href=sources[source_id]["url"], target="_blank",
+                                        rel="noopener noreferrer", className="answer-reference")
+                                 if enabled else part)
+                else:
+                    parts.append(part)
+            for source_id in dict.fromkeys(source_ids):
+                if source_id not in linked:
+                    parts.extend([" ", html.A(f"[{source_id}]", href=sources[source_id]["url"],
+                                             target="_blank", rel="noopener noreferrer", className="answer-reference")
+                                  if enabled else f"[{source_id}]"])
+            passages.append(html.P(parts))
+    if not passages:
+        return html.P("Web search did not return usable cited passages.", className="scope-note")
+    return html.Section([
+        html.Span("Outside the advertising collection", className="eyebrow"),
+        html.H4("Additional web sources"),
+        html.P(
+            "These are web-search summaries with provider citations, not stored advertisement quotes. They have not been added to collection counts or independently fact-checked.",
+            className="scope-note",
+        ),
+        *passages,
+        html.Details([
+            html.Summary("Read web source links"),
+            *[html.Article([
+                html.Span(f"[{source_id}] · External web source", className="evidence-code"),
+                html.H4(html.A(str(source.get("title") or source["url"]), href=source["url"],
+                               target="_blank", rel="noopener noreferrer")
+                        if enabled else str(source.get("title") or "Web source")),
+                html.P("Not independently verified", className="scope-note"),
+                html.P("Source links are disabled", className="scope-note") if not enabled else None,
+            ], id=f"web-source-{source_id}", className="external-source-card")
+              for source_id, source in sources.items()],
+        ], open=True),
+    ], className="external-research", **{"aria-label": "External web research"})
+
+
+def _evidence_coverage(result):
+    data = result.get("structured_result") or {}
+    if not isinstance(data, dict) or data.get("kind") != "evidence_coverage":
+        return None
+    rows = []
+    missing = []
+    for group in data.get("groups") or []:
+        if not isinstance(group, dict):
+            continue
+        passages = group.get("passages", 0)
+        count = len(passages) if isinstance(passages, list) else passages
+        if not isinstance(count, int) or isinstance(count, bool) or count < 0:
+            continue
+        if count == 0:
+            missing.append(str(group.get("label") or "Search group"))
+        rows.append(html.Tr([
+            html.Th(str(group.get("label") or "Search group"), scope="row"),
+            html.Td(f"{count:,}", className="count-value"),
+            html.Td("No matching stored passage retrieved" if count == 0 else "Stored text retrieved"),
+        ]))
+    if not rows:
+        return None
+    return html.Details([
+        html.Summary("Retrieval coverage"),
+        html.P("No matching stored passages retrieved for: " + ", ".join(missing) + ".",
+               className="coverage-warning") if missing else None,
+        html.Div(html.Table([
+            html.Thead(html.Tr([html.Th(label, scope="col") for label in ("Question group", "Retrieved passages", "Coverage")])),
+            html.Tbody(rows),
+        ]), className="statistics-table"),
+        html.P("These passages are a sample of stored text within the current filters. Zero retrieved passages does not prove that a company has no advertisements or no such claims.",
+               className="scope-note"),
+    ], open=bool(missing), className="answer-coverage research-steps")
+
+
+def _partial_collection_answer(result):
+    """A supported partial comparison is useful, but is not a complete answer."""
+    data = result.get("structured_result") or {}
+    return bool(result.get("status") == "insufficient_evidence" and result.get("summary")
+                and isinstance(data, dict) and data.get("kind") == "evidence_coverage"
+                and any(isinstance(group, dict) and group.get("passages") in (0, [])
+                        for group in data.get("groups") or []))
 
 
 def _tools_card(result, links_enabled):
@@ -869,6 +1043,7 @@ def _evidence_cards(evidence, enabled, citations=()):
                         html.Blockquote(quote),
                     ],
                     className="citation-quote",
+                    id=f"answer-citation-{number}",
                 )
                 for number, quote in supported
             ]
@@ -1091,6 +1266,16 @@ def create_app(service, settings, record_details=None) -> Dash:
         SESSION_COOKIE_SAMESITE="Lax",
         SESSION_COOKIE_SECURE=bool(getattr(settings, "secure_cookies", False)),
     )
+    from observatory.query_progress import ProgressRegistry
+
+    progress_registry = ProgressRegistry()
+
+    @app.server.before_request
+    def query_visitor():
+        # Establish the owner cookie before a long answer callback starts, so
+        # concurrent polling uses the same session from its first request.
+        if request.path in {"/_dash-layout", "/_dash-update-component"} and "visitor_id" not in session:
+            session["visitor_id"] = secrets.token_urlsafe(24)
 
     from observatory.record_view import register_record_page
 
@@ -1255,7 +1440,7 @@ def create_app(service, settings, record_details=None) -> Dash:
                         query_options,
                         html.A("Collection filters", href="#collection-filters", className="toolbox-link", id="open-collection-filters"),
                         html.P(
-                            "Question understanding uses the project's API budget, including counting questions. Database calculations, source reads and keyword search are free. Questions can contain up to 2,000 characters." if agent_enabled else
+                            "Question understanding uses the project's API budget, including counting questions. Database calculations, stored source reads and keyword search are free. When enabled, web lookup also uses the API budget and is shown separately from collection evidence. Questions can contain up to 2,000 characters." if agent_enabled else
                             "Record counts and sponsor / outlet lists are free database queries. Evidence summaries use the project's API budget. Keyword search is free. Questions can contain up to 2,000 characters.",
                             id="query-cost",
                             className="search-help",
@@ -1278,6 +1463,8 @@ def create_app(service, settings, record_details=None) -> Dash:
             [
                 dcc.Location(id="page-location", refresh=False),
                 dcc.Store(id="research-submission"),
+                dcc.Store(id="research-progress-token", data=secrets.token_urlsafe(24)),
+                dcc.Interval(id="research-progress-poll", interval=600, disabled=True),
                 html.A("Skip to content", href="#main", className="skip-link"),
                 html.Header(
                     [
@@ -1368,15 +1555,15 @@ def create_app(service, settings, record_details=None) -> Dash:
                                                             id="research-stale",
                                                             role="status",
                                                         ),
-                                                        dcc.Loading(
-                                                            html.Div(
-                                                                id="research-results",
-                                                                **{
-                                                                    "aria-live": "polite"
-                                                                },
-                                                            ),
-                                                            type="circle",
-                                                            color=COLORS["teal"],
+                                                        html.Div([
+                                                            html.Span(className="query-progress-spinner", **{"aria-hidden": "true"}),
+                                                            html.Span("Preparing your search", id="research-progress-label"),
+                                                        ], id="research-progress", className="query-progress",
+                                                            style={"display": "none"}, role="status",
+                                                            **{"aria-live": "polite", "aria-atomic": "true"}),
+                                                        html.Div(
+                                                            id="research-results",
+                                                            **{"aria-live": "polite"},
                                                         ),
                                                     ],
                                                     id="query-page",
@@ -1861,6 +2048,16 @@ def create_app(service, settings, record_details=None) -> Dash:
         raise PreventUpdate
 
     @app.callback(
+        Output("research-progress-label", "children"),
+        Input("research-progress-poll", "n_intervals"),
+        State("research-progress-token", "data"),
+        prevent_initial_call=True,
+    )
+    def show_research_progress(_ticks, token):
+        state = progress_registry.snapshot(session.get("visitor_id"), token)
+        return state["label"] if state["status"] == "running" else "Preparing your search"
+
+    @app.callback(
         Output("research-results", "children"),
         Output("research-submission", "data"),
         Input("search-free", "n_clicks"),
@@ -1870,15 +2067,18 @@ def create_app(service, settings, record_details=None) -> Dash:
         State("active-dataset", "value"),
         *_filter_inputs("native", State),
         *_filter_inputs("social", State),
+        State("research-progress-token", "data"),
         State("page-location", "pathname"),
         prevent_initial_call=True,
         running=[
             (Output("search-free", "disabled"), True, False),
             (Output("answer-paid", "disabled"), True, False),
+            (Output("research-progress", "style"), {}, {"display": "none"}),
+            (Output("research-progress-poll", "disabled"), False, True),
         ],
     )
     def research(search_clicks, answer_clicks, question, scope, dataset, *values):
-        pathname, values = values[-1], values[:-1]
+        pathname, token, values = values[-1], values[-2], values[:-2]
         if pathname is None or _page(pathname) != "query":
             raise PreventUpdate
         if ctx.triggered_id not in {"search-free", "answer-paid"}:
@@ -1886,14 +2086,23 @@ def create_app(service, settings, record_details=None) -> Dash:
         clicks = search_clicks if ctx.triggered_id == "search-free" else answer_clicks
         if not isinstance(clicks, int) or isinstance(clicks, bool) or clicks <= 0:
             raise PreventUpdate
-        result = run_research(question, scope, dataset, values)
+        owner = session["visitor_id"]
+        request_id = progress_registry.begin(owner, token)
+        progress = progress_registry.reporter(owner, token, request_id)
+        try:
+            result = run_research(question, scope, dataset, values, progress)
+        except Exception:
+            progress_registry.finish(owner, token, request_id, status="failed")
+            raise
+        finally:
+            progress_registry.finish(owner, token, request_id)
         try:
             submitted = _research_signature(question, scope, dataset, values)
         except ValueError:
             submitted = None
         return result, submitted
 
-    def run_research(question, scope, dataset, values):
+    def run_research(question, scope, dataset, values, progress):
         question = (question or "").strip()
         if not question or len(question) > 2000:
             return _notice(
@@ -1918,6 +2127,7 @@ def create_app(service, settings, record_details=None) -> Dash:
         context = _search_context(question, filters)
         if ctx.triggered_id == "search-free":
             try:
+                progress("database")
                 report = (
                     service.search_report(question, filters, limit=5)
                     if hasattr(service, "search_report")
@@ -1960,9 +2170,15 @@ def create_app(service, settings, record_details=None) -> Dash:
         try:
             if "visitor_id" not in session:
                 session["visitor_id"] = secrets.token_urlsafe(24)
+            arguments = {"visitor": session["visitor_id"]}
+            parameters = inspect.signature(service.answer).parameters
+            if "progress" in parameters or any(parameter.kind == inspect.Parameter.VAR_KEYWORD
+                                                 for parameter in parameters.values()):
+                arguments["progress"] = progress
             result = _mapping(
-                service.answer(question, filters, visitor=session["visitor_id"])
+                service.answer(question, filters, **arguments)
             )
+            progress("organizing")
             if result.get("answer_mode") == "statistics" and result.get("structured_result"):
                 effective = Filters.model_validate(result["structured_result"]["filters"])
                 return [_search_context(question, effective), _statistics_card(result, enabled, service)]
@@ -1991,6 +2207,7 @@ def create_app(service, settings, record_details=None) -> Dash:
                     result.get("answer")
                     or "The available records do not support an answer."
                 )
+            partial = _partial_collection_answer(result)
             return [
                 context,
                 html.Div(
@@ -2005,15 +2222,23 @@ def create_app(service, settings, record_details=None) -> Dash:
                                   if result.get("answer_mode") == "statistics" else
                                   "Generated answer", className="eyebrow"),
                         html.H3("Clarify this question" if result.get("answer_mode") == "clarification"
+                                else "Partial collection evidence" if partial
                                 else labels.get(status, labels["service_unavailable"])),
-                        html.P(message, className="answer-text"),
+                        *(_grounded_answer_content(result, message)
+                          if (status == "answered" or partial) and result.get("answer_mode") == "rag"
+                          else [html.P(message, className="answer-text")]),
+                        _evidence_coverage(result),
                         _research_steps(result),
                     ],
-                    className="answer-card",
+                    className="answer-card grounded-answer"
+                    if (status == "answered" or partial) and result.get("answer_mode") == "rag" else "answer-card",
                 ),
+                html.H3("Advertisements and quoted evidence", className="answer-evidence-title")
+                if result.get("evidence") else None,
                 *_evidence_cards(
                     result.get("evidence") or [], enabled, result.get("citations") or []
                 ),
+                _external_research_card(result, enabled),
             ]
         except Exception:  # noqa: BLE001 - public boundary must hide unexpected service details.
             try:

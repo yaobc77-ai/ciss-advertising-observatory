@@ -17,7 +17,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from .budget import LimitReached, price
 from .models import Filters
 
-POLICY_VERSION = "research-tools-v3"
+POLICY_VERSION = "research-tools-v4"
 MAX_INPUT_BYTES = 60_000
 MAX_ARGUMENT_BYTES = 8_000
 MAX_INTERMEDIATE_BYTES = 16_000
@@ -49,6 +49,11 @@ relationship does not by itself prove a contractual or paid business relationshi
 Use search_records for semantic questions about article content and claims. Rewrite only the
 retrieval query into concise English terms if needed, retaining entities and topic qualifiers;
 the original user's question will be used for the separately grounded answer in its language.
+When comparing companies or outlets, supply comparison_scopes with a separate canonical
+sponsor/publisher filter and the same topic for each target. Do not run one broad OR search
+and assume that its top results represent every named target. Up to three targets are supported.
+The application checks target coverage, then may do one separately labeled external web
+lookup if corpus evidence is missing. External sources never establish stored-record totals.
 Use get_graph_schema then get_graph_neighborhood to inspect typed/provenance relationships.
 Use get_record_sources for the original materials behind an identified record and get_record
 for its bounded detail. Source citations establish provenance, not that claims are factually true.
@@ -323,7 +328,7 @@ class ResearchAgent:
             audit.update(error_type=type(exc).__name__, cost_usd=exposure)
             raise _CallFailure("research_provider_unavailable", cost=exposure, audit=audit) from None
 
-    def run(self, question: str, base_filters: Filters, visitor: str):
+    def run(self, question: str, base_filters: Filters, visitor: str, progress=None):
         run = ResearchRun(
             route="unavailable", original_question=question,
             base_filters=base_filters.model_dump(mode="json"),
@@ -351,6 +356,8 @@ class ResearchAgent:
         seen_calls = set()
         for step in range(1, self.max_steps + 1):
             try:
+                if progress:
+                    progress("interpreting")
                 response, model_audit, cost = self._dispatch(inputs, definitions, visitor, step)
                 run.model_calls.append(model_audit)
                 run.cost_usd += cost
@@ -402,6 +409,8 @@ class ResearchAgent:
                 return run
 
             try:
+                if progress:
+                    progress("database")
                 result = self.catalog.call(name, args)
                 encoded = _json(result)
                 if not isinstance(result, dict) or len(encoded.encode("utf-8")) > MAX_RESULT_BYTES:

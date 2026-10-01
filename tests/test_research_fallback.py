@@ -1,0 +1,154 @@
+"""Corpus gaps, not outages or aggregates, authorize a separate web lookup."""
+
+from types import SimpleNamespace
+
+import pytest
+
+from observatory.config import Settings
+from observatory.models import Answer, Filters
+from observatory.research_agent import ResearchRun
+from observatory.service import Service
+
+
+class DB:
+    def __init__(self, *, has_evidence=False):
+        from test_research_service import evidence
+
+        self.evidence = [evidence()] if has_evidence else []
+        self.version = "corpus-v1"
+        self.saved = []
+        self.reads = []
+
+    def health(self):
+        return {"status": "ok", "data_version": self.version, "record_counts": {"native": 2}}
+
+    def public_rows(self, filters):
+        return []
+
+    def search(self, query, filters, **kwargs):
+        self.reads.append((query, filters, kwargs))
+        return self.evidence
+
+    def save_answer(self, *args):
+        self.saved.append(args)
+
+
+class Web:
+    def __init__(self, db=None, *, change_version=False):
+        self.calls = []
+        self.db, self.change_version = db, change_version
+
+    def call(self, args, *, visitor):
+        self.calls.append((args, visitor))
+        if self.change_version:
+            self.db.version = "corpus-v2"
+        return {"status": "ok", "source_kind": "external_web", "summary": "An external page describes a proposal. [W1]",
+                "sources": [{"source_id": "W1", "title": "External source", "url": "https://example.org/ad"}],
+                "cost_usd": 0.02, "model_calls": 1}
+
+
+def harness(*, enabled=True, has_evidence=False, generated=None):
+    db = DB(has_evidence=has_evidence)
+    web = Web()
+    stages, reservations = [], []
+
+    def generate(_question, passages, _visitor, reservation, **kwargs):
+        if generated:
+            return generated(passages)
+        return Answer(status="insufficient_evidence", answer="Corpus evidence is insufficient.", evidence=passages)
+
+    rag = SimpleNamespace(embed=lambda texts, **kwargs: [[0.0] for _ in texts], generate=generate,
+                          budget=SimpleNamespace(reserve=lambda *_: "rid", cancel_unsent=reservations.append,
+                                                 reservation_cost=lambda _: 0.003))
+    service = Service(Settings(web_search_enabled=enabled), db=db, rag=rag, web_research=web)
+    return service, db, web, stages
+
+
+def test_hybrid_miss_searches_web_once_and_keeps_result_outside_corpus_answer():
+    service, db, web, stages = harness()
+    result = service._answer_evidence("How does Shell discuss hydrogen?", Filters(), "reader", progress=stages.append)
+    assert len(db.reads) == 2 and len(web.calls) == 1
+    assert result.status == "insufficient_evidence" and not result.citations
+    assert result.external_research["status"] == "ok"
+    assert "external page" not in result.answer
+    assert result.cost_usd == pytest.approx(0.023)
+    assert stages == ["database", "organizing", "citations", "web", "citations"]
+    assert len(db.saved) == 1
+
+
+def test_local_hits_without_semantic_support_can_search_but_supported_answer_does_not():
+    service, _, web, _ = harness(has_evidence=True)
+    assert service._answer_evidence("Describe hydrogen", Filters(), "reader").external_research["status"] == "ok"
+    service.rag.generate = lambda _q, passages, _v, **kwargs: Answer(status="answered", answer="Supported local statement.", evidence=passages)
+    result = service._answer_evidence("Describe hydrogen", Filters(), "reader")
+    assert not result.external_research and len(web.calls) == 1
+
+
+@pytest.mark.parametrize("filters", [Filters(dataset="social"), Filters(dataset="all"),
+                                       Filters(record_ids=["r1"]), Filters(labels=["historical"]),
+                                       Filters(date_presence="missing"), Filters(include_inferred_dates=True)])
+def test_web_cannot_replace_unsupported_source_or_annotation_scope(filters):
+    service, _, web, _ = harness()
+    result = service._answer_evidence("Describe hydrogen", filters, "reader")
+    assert result.external_research["reason"] == "scope_not_supported"
+    assert not web.calls
+
+
+def test_disabled_web_has_no_dispatch():
+    service, _, web, _ = harness(enabled=False)
+    result = service._answer_evidence("Describe hydrogen", Filters(), "reader")
+    assert result.external_research["status"] == "disabled" and not web.calls
+
+
+@pytest.mark.parametrize("failure", ["Unverifiable citation", "Evidence failed original-version validation", "Provider down"])
+def test_generation_failure_does_not_search_the_web(failure):
+    service, _, web, _ = harness(has_evidence=True)
+
+    def fail(*args, **kwargs):
+        raise ValueError(failure)
+
+    service.rag.generate = fail
+    result = service._answer_evidence("Describe hydrogen", Filters(), "reader")
+    assert result.status == "service_unavailable" and not web.calls
+
+
+def test_database_failure_does_not_search_the_web():
+    service, db, web, _ = harness()
+
+    def fail(*args, **kwargs):
+        raise RuntimeError("private driver diagnostic")
+
+    db.search = fail
+    result = service._answer_evidence("Describe hydrogen", Filters(), "reader")
+    assert result.status == "service_unavailable" and not web.calls
+    assert "private" not in result.answer
+
+
+def test_source_change_during_web_retains_cost_but_discards_stale_answer_and_sources():
+    service, db, _, _ = harness()
+    service.web_research = Web(db, change_version=True)
+    result = service._answer_evidence("Describe hydrogen", Filters(), "reader")
+    assert result.failure_reason == "data_changed_during_web_research"
+    assert result.cost_usd == pytest.approx(0.023) and not result.external_research
+
+
+def test_zero_database_count_never_calls_web_or_semantic_generator():
+    service, _, web, _ = harness()
+    service.settings.research_agent_enabled = True
+    data = {"status": "ok", "kind": "count", "method": "database", "group_by": None,
+            "filters": Filters().model_dump(mode="json"), "collections": [{"dataset": "native", "total": 0}],
+            "groups": [], "records": []}
+    service.research_agent = SimpleNamespace(run=lambda *_: ResearchRun(route="statistics", result=data))
+    result = service.answer("How many ads are stored?", Filters(), "reader")
+    assert result.answer_mode == "statistics" and "0 eligible" in result.answer
+    assert not web.calls
+
+
+def test_progress_disconnect_never_changes_answer_accounting():
+    service, _, web, _ = harness()
+
+    def disconnected(_stage):
+        raise RuntimeError("browser closed")
+
+    result = service._answer_evidence("Describe hydrogen", Filters(), "reader", progress=disconnected)
+    assert len(web.calls) == 1 and result.cost_usd == pytest.approx(0.023)
