@@ -1,8 +1,10 @@
 # 项目文档阅读索引
 
+**Railway 来源恢复（2026-10-01 UTC）**：[恢复报告](../reports/RAILWAY_DATABASE_RECOVERY_20261001.en.md) · [完整回执](../reports/railway_database_recovery_20261001.json)。完整云端逻辑备份已在同一 PostgreSQL 18.6 服务的新数据库恢复，21 表内容及结构、迁移3校验和和检索结果一致；私有下载哈希已核对。云端为 275 记录、828 正文版本、2,071 历史／当前片段、1,053 向量、120 历史答案、112 生成输出、177 账本记录，757 原文证据和 190 引用全部可定位；活动片段仍为 556。四项非 MVCC 序列状态是稳定观测，不是原子快照保证。六张 CLAIMS2 表为空，无新增模型调用；应用连接未切换。本机旧快照数字保留其原范围；异机／整服务灾备、全局角色密码、PDF／预览恢复、人工语义、真实社交和客户验收仍待办。
+
 **已审核附件上线**：[部署与范围](../reports/RECORD_ASSETS_HOSTED_20260930.en.md) · [挂载／新部署回执](../reports/record_assets_hosted_20260930.json) · [线上 HTTP 检查](../reports/record_assets_http_hosted_20260930.json) · [运行方法](record_assets.md)。只上线 PDF-265 和首张预览，正文／PDF／下载／图片字节和跨记录隔离检查通过；其余来源与 CLAIMS 身份仍待核对，工程检查不替代客户验收。
 
-**当前恢复与来源候选**：[0.4.7 完整本机恢复](../reports/DATABASE_RESTORE_V0_4_7_20260930.en.md) · [21 表／历史／向量回执](../reports/database_restore_v0_4_7_complete_20260930.json) · [迁移与范围补充](../reports/database_restore_v0_4_7_scope_20260930.json) · [旧段落的本地来源候选](../reports/claims_legacy_source_candidate_20260930.json)。本地 CSV 与 PDF-223 支持 CNBC/SunPower 候选；标点差异已保留，身份仍待确认，未导入标签或新增模型调用。旧版本证据保留其原范围。
+**本机恢复与来源候选**：[0.4.7 完整本机恢复](../reports/DATABASE_RESTORE_V0_4_7_20260930.en.md) · [21 表／历史／向量回执](../reports/database_restore_v0_4_7_complete_20260930.json) · [迁移与范围补充](../reports/database_restore_v0_4_7_scope_20260930.json) · [旧段落的本地来源候选](../reports/claims_legacy_source_candidate_20260930.json)。本机快照的向量／答案数量与上方云端回执不同，两者没有合并。本地 CSV 与 PDF-223 支持 CNBC/SunPower 候选；标点差异已保留，身份仍待确认，未导入标签或新增模型调用。旧版本证据保留其原范围。
 
 **0.4.7 维护入口**：[私有离线来源审查包](claims_source_discovery.md#create-a-private-source-review-packet) · [本轮回执](../reports/claims_source_review_v0_4_7_20260930.json)。安装包离线 1,650 项通过，其中审查包测试 61 项；跳过 1 项，87 项数据库／实时检查未运行，独立包清单核对通过。复用原搜索回执得到 5 个候选、0 份页面捕获，没有新增付费调用，原始文章 URL 仍未确认；线上与本机均已核验为 0.4.7。
 
@@ -18,13 +20,13 @@
 
 发布及交接：[0.4.5 生产与两仓库 CI](../reports/release_v0_4_5_publication_20260930.json) · [原版／英文源码包核对](../reports/source_handoff_v0_4_5_20260930.json)。生产已为 0.4.5、迁移3；源码包绑定应用提交并排除私有材料，后续文档提交不改这些制品。
 
-更新：2026-09-30。按阅读目的查找文档，历史回执保留原日期与范围。按路径／性质排序时使用[文档清单](document_catalog.csv)。
+更新：2026-10-01（UTC 恢复回执）。按阅读目的查找文档，历史回执保留原日期与范围。按路径／性质排序时使用[文档清单](document_catalog.csv)。
 
 **CLAIMS 历史推进：** 0.4.4 维护工具已完成[来源审计与结果适配](../reports/CLAIMS_SOURCE_LINKAGE_20260930.zh-CN.md)，可运行 [claims-audit](claims_source_audit.md)。两次审计使用相同正文快照，零数据库写入、零模型调用、零标签发布；[数字和文件哈希](../reports/claims_source_linkage_20260930.json)与[独立安装包核对](../reports/current_release_offline_reproduction_v0_4_4_20260930.json)分别记录证据。网页接入、权威分类批次和人工语义审查仍待完成。
 
 英文入口：[README](../README.md) · [简明设置与用户指南](guide.md) · [英文仓库](https://github.com/yaobc77-ai/ciss-advertising-observatory-549) · [静态项目页](https://yaobc77-ai.github.io/ciss-advertising-observatory-549/)。
 
-最新维护版本 **0.4.4**：[CLAIMS 来源审计](../reports/CLAIMS_SOURCE_LINKAGE_20260930.zh-CN.md) · [当前发布回执](../reports/release_v0_4_4_publication_20260930.json) · [安装包核对](../reports/current_release_offline_reproduction_v0_4_4_20260930.json)。此前维护记录：[0.4.3 交付推进与 CLAIMS 安排](../reports/DELIVERY_PROGRESS_20260930.zh-CN.md) · [0.4.3 发布回执](../reports/release_v0_4_3_publication_20260930.json)。图谱交互的既有生产证据：[0.4.2 选取关系与线上验证](../reports/GRAPH_SELECTION_V0_4_2_20260930.zh-CN.md) · [提交绑定的回执](../reports/graph_selection_publication_v0_4_2_20260930.json)。旧版证据保留：[0.4.0／0.4.1 发布记录](../reports/RELEASE_V0_4_0_20260930.zh-CN.md) · [既有数据库复现说明](CURRENT_RELEASE_REPRODUCTION.md) · [既有实际数据库回执](../reports/current_release_database_reproduction_20260930.json) · [0.4.1 制品回执](../reports/current_release_database_reproduction_v0_4_1_20260930.json) · [37,000 条合成数据性能基线](PERFORMANCE_BASELINE.md)。各回执只证明其中记载的版本与范围。
+历史维护版本 **0.4.4**：[CLAIMS 来源审计](../reports/CLAIMS_SOURCE_LINKAGE_20260930.zh-CN.md) · [该版本发布回执](../reports/release_v0_4_4_publication_20260930.json) · [安装包核对](../reports/current_release_offline_reproduction_v0_4_4_20260930.json)。此前维护记录：[0.4.3 交付推进与 CLAIMS 安排](../reports/DELIVERY_PROGRESS_20260930.zh-CN.md) · [0.4.3 发布回执](../reports/release_v0_4_3_publication_20260930.json)。图谱交互的既有生产证据：[0.4.2 选取关系与线上验证](../reports/GRAPH_SELECTION_V0_4_2_20260930.zh-CN.md) · [提交绑定的回执](../reports/graph_selection_publication_v0_4_2_20260930.json)。旧版证据保留：[0.4.0／0.4.1 发布记录](../reports/RELEASE_V0_4_0_20260930.zh-CN.md) · [既有数据库复现说明](CURRENT_RELEASE_REPRODUCTION.md) · [既有实际数据库回执](../reports/current_release_database_reproduction_20260930.json) · [0.4.1 制品回执](../reports/current_release_database_reproduction_v0_4_1_20260930.json) · [37,000 条合成数据性能基线](PERFORMANCE_BASELINE.md)。各回执只证明其中记载的版本与范围。
 
 **0.4.2 已发布核验：** 26 项新增状态回归、982 项安装包测试，以及生产 5 条关系→媒体 18 条→文章 1 条和跨视图保留检查。相关使用契约见用户指南与图谱文档；具体提交、CI、部署与截图由本轮回执绑定，工程结果不替代客户验收。
 
@@ -36,8 +38,9 @@
 
 | 想做什么 | 读哪份 | 性质及用途 |
 |---|---|---|
-| 接手当前代码、私有数据与运行环境 | [当前英文交接](current_handoff.md) · [私有附件 bundle](record_assets.md) | **当前实施说明**。数据库恢复、源文件、附件与模型费用；新私有 bundle 尚未部署到线上。 |
-| 核对完整当前本机数据库恢复 | [恢复报告](../reports/DATABASE_RESTORE_20260930.en.md) · [15 表与检索回执](../reports/database_restore_v0_4_2_complete_20260930.json) | **固定快照实测**。全部表内容／结构／序列／向量／历史引用和检索一致；不代表服务器或异机灾备。 |
+| 接手当前代码、私有数据与运行环境 | [当前英文交接](current_handoff.md) · [私有附件 bundle](record_assets.md) | **当前实施说明**。区分本机／Railway 逻辑恢复、独立源文件、附件与模型费用；已上线 PDF-265，文件恢复仍需独立核对。 |
+| 核对 0.4.7 完整本机数据库恢复 | [本机恢复报告](../reports/DATABASE_RESTORE_V0_4_7_20260930.en.md) · [21 表回执](../reports/database_restore_v0_4_7_complete_20260930.json) | **本机固定快照实测**。使用本机自身的行数及内容指纹，不替代独立 Railway 快照或异机灾备。 |
+| 核对 Railway 完整逻辑备份与新库恢复 | [云端恢复报告](../reports/RAILWAY_DATABASE_RECOVERY_20261001.en.md) · [云端恢复回执](../reports/railway_database_recovery_20261001.json) | **云端固定快照实测**。PostgreSQL 18.6 同集群新库、21 表／结构／迁移、证据定位、检索及私有下载哈希；序列为稳定观测，异机／文件／人工和客户验收未完成。 |
 | 准备客户试用与当前原生演示 | [客户审查](CLIENT_REVIEW_V0_4_2.md) · [演示脚本](../deliverables/native_demo_v0_4_2.en.md) · [材料请求草案](../deliverables/client_materials_request_v0_4_2.en.md) | **英文草案**。六问、实际关系、客户判断与待办；未发送、未签收，非最终双集合演示。 |
 | 按最新客户方向安排 CLAIMS 接入 | [CLAIMS 接入计划](claims_integration_plan.md) | **已排入当前工作**。先复核用户提供 ZIP 与批次，再做可定位离线结果、网页／MCP 查询和审核；尚未导入新分类。 |
 | 核对旧 CLAIMS 来源 URL 候选 | [离线审查包使用说明](claims_source_discovery.md#create-a-private-source-review-packet) · [维护回执](../reports/claims_source_review_v0_4_7_20260930.json) | **当前维护实现**。保留原始输入、搜索回执、捕获文本及字符位置；全部来源决定待审，不直接进入分类导入。 |
