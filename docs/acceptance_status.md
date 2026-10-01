@@ -10,6 +10,12 @@ The [installed runtime rehearsal](../reports/native_runtime_handoff_20261001.jso
 
 See the [combined report](../reports/NATIVE_EXPORT_AND_RUNTIME_HANDOFF_20261001.en.md). The Edge PDF download remains blocked. Real social data, approved CLAIMS publication, independent semantic/client review and another implementer's reproduction remain pending.
 
+## 0.4.10 full native import and client review preparation — 1 October 2026
+
+The [complete-input installed CLI rehearsal](../reports/NATIVE_FULL_IMPORT_20261001.en.md) created a new dedicated test database: first import 275 new versions, repeat zero new and 275 unchanged. Counts matched 275 stored, 263 countable and 226 retrievable. Existing databases, sequence states and private configuration stayed unchanged. Only the new test database was populated; no model calls occurred. Its default `legacy600-v1` profile has 558 passages and zero embeddings, so this is not current production-index or answer-history reproduction.
+
+The [native client review preparation](../reports/NATIVE_CLIENT_REVIEW_PREPARATION_20261001.en.md) assembled six previously used examples with complete record lists, two saved answers and four original quotations. All human verdicts remain blank; the packet has not been sent or approved. It does not replace the independent frozen questions, real social/cross-collection review or customer acceptance.
+
 ## Railway-origin logical recovery — 1 October 2026 UTC
 
 The [Railway recovery report](../reports/RAILWAY_DATABASE_RECOVERY_20261001.en.md) and [receipt](../reports/railway_database_recovery_20261001.json) record a full cloud backup and recovery into a fresh database on the same PostgreSQL 18.6 service. All 21 tables and schema matched, including owners, permissions and extension versions; migration version 3 and its checksums matched with no pending migration. The cloud snapshot contains 275 records, 828 text versions, 2,071 stored passages, 1,053 embeddings, 120 saved answers, 112 generation outputs and 177 usage entries. All 757 evidence references and 190 citations locate correctly. The active profile still has 556 passages; total stored passages include historical profiles.

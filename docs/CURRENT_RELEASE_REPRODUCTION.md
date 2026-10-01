@@ -43,8 +43,25 @@ explicit loopback host and database name `obs_test` or `obs_test_<suffix>`. It d
 not read `.env`, fall back to the application URL or connect to Railway. It checks
 the actual database identity before writing and on each application connection.
 The dedicated test database must already contain the PostgreSQL `vector`
-extension. All tables and fixture writes use a fresh random schema; cleanup drops
-only that schema. Existing schemas are not truncated.
+extension. Before creating a random schema, the verifier derives the application
+table names from the installed migrations, adds `schema_migrations`, and refuses
+any same-name relation in `public`, including views and sequences. A random
+schema with `public` on its search path does not by itself isolate existing
+application tables. Use a dedicated test database without those public names;
+unrelated public relations do not block the check. The script does not create a
+new database or clear a populated one.
+
+Immediately after the first migration, every unqualified application table name
+must resolve to an ordinary table in the new schema. Missing tables, a public or
+temporary-schema fallback, and views or other relation kinds are refused before
+the repeated migration or fixture import. Later application connections repeat
+the public-name and resolved-table checks. Unsupported migration table declaration
+syntax is refused rather than silently omitted from the inventory.
+
+All fixture writes use the validated fresh schema; cleanup drops only that
+schema. Existing schemas are not truncated. These catalog checks do not protect
+against unrelated concurrent DDL; use a test database with no concurrent
+administrative changes.
 
 This optional path exercises the actual CLI `migrate`, `index-prepare`,
 `index-activate`, and canonical default upsert. It first activates the **empty**

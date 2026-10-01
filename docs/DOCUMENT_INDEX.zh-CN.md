@@ -2,11 +2,17 @@
 
 **0.4.10 已发布**：[发布回执](../reports/citation_v0_4_10_publication_20261001.json)。两仓库 CI 各 1,936 项通过，本机全新安装包同样通过；Railway 已运行对应代码，数据与索引版本未变。已核对所选 PDF 的 HTTP 字节与页面预览，Edge 下载阻断仍待解决。
 
+**可供客户逐项审查的原生材料（2026-10-01）**：[准备报告](../reports/NATIVE_CLIENT_REVIEW_PREPARATION_20261001.en.md) · [回执](../reports/native_client_review_preparation_20261001.json)。私有材料包包含 NYT 19 条、ExxonMobil 15 条、华邮 18 条和组合筛选 3 条完整来源，以及两道已保存答案、4 条原文和 6 行空白人审栏。不是独立冻结题库；未发送、未审、未获批，现有冻结模板保持原样。
+
+**当前安装包完整导入（0.4.10）**：[报告](../reports/NATIVE_FULL_IMPORT_20261001.en.md) · [回执](../reports/native_full_import_20261001.json)。全新专用测试库首次导入 275 个版本，再次导入零新增、275 条未变；275／263／226 与固定输入一致，主库、旧测试库和私有配置未变。新库默认 `legacy600-v1` 为 558 块、零向量，无模型调用；这不复现线上 556 块句界索引或历史答案，也不代替独立实施者和客户验收。
+
+**维护复现脚本隔离修正**：[说明](CURRENT_RELEASE_REPRODUCTION.md) · [检查回执](../reports/release_database_guard_20261001.json)。在创建随机 schema 前拒绝 public 中同名业务关系，迁移后逐表核对所属 schema；37 项回归通过，实际只读检查拒绝旧测试库 15 个冲突关系。未写库或调用模型，未宣称修正后的完整合成数据库流程已跑通。
+
 **当前导出与独立目录运行（0.4.10）**：[报告](../reports/NATIVE_EXPORT_AND_RUNTIME_HANDOFF_20261001.en.md) · [CSV 对账](../reports/native_export_reconciliation_20261001.json) · [运行回执](../reports/native_runtime_handoff_20261001.json)。四份真实下载中，全范围 263 条记录与交叉表 160 格一致；组合筛选三条与矩阵下钻一致。仓库外安装包、已核对恢复库和选定 PDF 包组合运行，两次启动的关系、关键词和附件检查通过，21 表无变化，无费用或写入。由同一实施者在同一机器完成；不代替独立交接、全归档恢复或最终验收。
 
 **当前原生演示与引用展示（0.4.10）**：[后续核验](../reports/NATIVE_DEMO_FOLLOWUP_20261001.en.md) · [结构化回执](../reports/native_demo_followup_20261001.json)。矩阵点击、历史减排标签和文章关系已在 0.4.9 实测；两道开发题共约 $0.00490，原文引文与版本定位通过。0.4.10 明确显示全部 Citation 编号及原句。PDF 浏览器下载被 Edge 阻止；独立人工、客户、真实社交及 CLAIMS 发布继续待办。
 
-**原生数据交接与当前演示（2026-10-01）**：[输入交接说明](native_source_handoff.md) · [0.4.9 演示脚本](../deliverables/native_demo_v0_4_9.en.md) · [核验报告](../reports/NATIVE_HANDOFF_20261001.en.md) · [机器回执](../reports/native_handoff_20261001.json) · [两仓库 CI／部署／源码包发布回执](../reports/native_handoff_publication_20261001.json)。私有包保留 12 份输入／验证附件的原始字节和相对路径，仓库外用安装包离线重建 275／263／226 条记录；42 项护栏测试通过，两仓库完整 CI 各 1,926 项通过。当前公司→媒体→五篇文章、年度筛选→三篇文章与已审核 PDF 展示已核对；选定关系的 CSV 已在本机找到并核对 5 条／分母 15；[下载回执](../reports/native_demo_export_20261001.json)区分自动化通知超时与真实下载成功。其它导出模式、完整实时 CCS/biogas、独立实施者与客户验收仍待验。无数据库写入或新增模型调用，私有数据未上传 Git。
+**原生数据交接初次核验（0.4.9；后续见上方）**：[输入交接说明](native_source_handoff.md) · [当前演示脚本](../deliverables/native_demo_v0_4_9.en.md) · [核验报告](../reports/NATIVE_HANDOFF_20261001.en.md) · [机器回执](../reports/native_handoff_20261001.json) · [两仓库 CI／部署／源码包发布回执](../reports/native_handoff_publication_20261001.json)。私有包保留 12 份输入／验证附件的原始字节和相对路径，仓库外用安装包离线重建 275／263／226 条记录；42 项护栏测试通过，两仓库完整 CI 各 1,926 项通过。当前公司→媒体→五篇文章、年度筛选→三篇文章与已审核 PDF 展示已核对；选定关系的 CSV 已在本机找到并核对 5 条／分母 15；[下载回执](../reports/native_demo_export_20261001.json)区分自动化通知超时与真实下载成功。其它导出模式、完整实时 CCS/biogas、独立实施者与客户验收仍待验。无数据库写入或新增模型调用，私有数据未上传 Git。
 
 **查询明细更新 0.4.9（2026-10-01 UTC）**：[核验报告](../reports/QUERY_V0_4_9_20261001.en.md) · [工程回执](../reports/query_v0_4_9_engineering_20261001.json) · [线上分页／两仓库 CI／附件／源码包回执](../reports/query_v0_4_9_publication_20261001.json)。Query 内部可翻页查看完整匹配明细，保留提交时范围并检查来源版本；翻页不调用模型。原表备注的一组重复候选等待计数口径确认。此前 [0.4.8 核验报告](../reports/QUERY_V0_4_8_20261001.en.md)、[开发自测](../eval/selftest/README.md) 和 [发布核对](../reports/query_v0_4_8_publication_20261001.json) 保留原版本；这些工程检查不替代冻结题集和人工／客户验收。
 
@@ -51,7 +57,7 @@
 | 接手当前代码、私有数据与运行环境 | [当前英文交接](current_handoff.md) · [私有附件 bundle](record_assets.md) | **当前实施说明**。区分本机／Railway 逻辑恢复、独立源文件、附件与模型费用；已上线 PDF-265，文件恢复仍需独立核对。 |
 | 核对 0.4.7 完整本机数据库恢复 | [本机恢复报告](../reports/DATABASE_RESTORE_V0_4_7_20260930.en.md) · [21 表回执](../reports/database_restore_v0_4_7_complete_20260930.json) | **本机固定快照实测**。使用本机自身的行数及内容指纹，不替代独立 Railway 快照或异机灾备。 |
 | 核对 Railway 完整逻辑备份与新库恢复 | [云端恢复报告](../reports/RAILWAY_DATABASE_RECOVERY_20261001.en.md) · [云端恢复回执](../reports/railway_database_recovery_20261001.json) | **云端固定快照实测**。PostgreSQL 18.6 同集群新库、21 表／结构／迁移、证据定位、检索及私有下载哈希；序列为稳定观测，异机／文件／人工和客户验收未完成。 |
-| 准备客户试用与当前原生演示 | [0.4.9 演示脚本](../deliverables/native_demo_v0_4_9.en.md) · [当前核验](../reports/NATIVE_HANDOFF_20261001.en.md) · [早期客户审查](CLIENT_REVIEW_V0_4_2.md) | **当前原生演示草案**。覆盖六问，区分实测、未运行与客户判断；未发送、未签收，非最终双集合演示。 |
+| 准备客户试用与当前原生演示 | [当前演示脚本](../deliverables/native_demo_v0_4_9.en.md) · [当前核验](../reports/NATIVE_HANDOFF_20261001.en.md) · [早期客户审查](CLIENT_REVIEW_V0_4_2.md) | **当前原生演示草案**。覆盖六问，区分实测、未运行与客户判断；未发送、未签收，非最终双集合演示。 |
 | 按最新客户方向安排 CLAIMS 接入 | [CLAIMS 接入计划](claims_integration_plan.md) | **已排入当前工作**。先复核用户提供 ZIP 与批次，再做可定位离线结果、网页／MCP 查询和审核；尚未导入新分类。 |
 | 核对旧 CLAIMS 来源 URL 候选 | [离线审查包使用说明](claims_source_discovery.md#create-a-private-source-review-packet) · [维护回执](../reports/claims_source_review_v0_4_7_20260930.json) | **当前维护实现**。保留原始输入、搜索回执、捕获文本及字符位置；全部来源决定待审，不直接进入分类导入。 |
 | 核对 0.4.0／0.4.1 发布、CI 与线上验证 | [发布记录](../reports/RELEASE_V0_4_0_20260930.zh-CN.md) · [生产回执](../reports/release_v0_4_1_publication_20260930.json) | **历史版本实测**。这些版本的代码、配置、实际验证与材料边界。 |
