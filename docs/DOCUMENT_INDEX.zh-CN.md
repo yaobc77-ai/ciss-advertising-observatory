@@ -1,5 +1,7 @@
 # 项目文档阅读索引
 
+**0.4.7 维护入口**：[私有离线来源审查包](claims_source_discovery.md#create-a-private-source-review-packet) · [本轮回执](../reports/claims_source_review_v0_4_7_20260930.json)。安装包离线 1,650 项通过，其中审查包测试 61 项；跳过 1 项，87 项数据库／实时检查未运行，独立包清单核对通过。复用原搜索回执得到 5 个候选、0 份页面捕获，没有新增付费调用，原始文章 URL 仍未确认；最后已核验的线上版本仍为 0.4.6。
+
 **0.4.6 发布／交接核对**：[两个仓库 CI 与线上部署](../reports/release_v0_4_6_publication_20260930.json) · [原版／英文源码包](../reports/source_handoff_v0_4_6_20260930.json)。线上为 0.4.6，迁移3且正文／索引标识不变；维护搜索默认隐藏，真实候选仍待审。
 
 **0.4.6 当前入口**：[CLAIMS2 只读网页／图谱／MCP](claims_read_views.md) · [旧来源 URL 补查](claims_source_discovery.md) · [实施说明](../reports/CLAIMS_READ_V0_4_6_20260930.en.md) · [工程回执](../reports/claims_read_engineering_v0_4_6_20260930.json)。1,589 项安装包离线检查、33 项隔离数据库检查通过；一次付费来源搜索未确认原始文章，37 项候选仍待审，下方旧版本证据保留其当时范围。
@@ -32,6 +34,7 @@
 | 核对完整当前本机数据库恢复 | [恢复报告](../reports/DATABASE_RESTORE_20260930.en.md) · [15 表与检索回执](../reports/database_restore_v0_4_2_complete_20260930.json) | **固定快照实测**。全部表内容／结构／序列／向量／历史引用和检索一致；不代表服务器或异机灾备。 |
 | 准备客户试用与当前原生演示 | [客户审查](CLIENT_REVIEW_V0_4_2.md) · [演示脚本](../deliverables/native_demo_v0_4_2.en.md) · [材料请求草案](../deliverables/client_materials_request_v0_4_2.en.md) | **英文草案**。六问、实际关系、客户判断与待办；未发送、未签收，非最终双集合演示。 |
 | 按最新客户方向安排 CLAIMS 接入 | [CLAIMS 接入计划](claims_integration_plan.md) | **已排入当前工作**。先复核用户提供 ZIP 与批次，再做可定位离线结果、网页／MCP 查询和审核；尚未导入新分类。 |
+| 核对旧 CLAIMS 来源 URL 候选 | [离线审查包使用说明](claims_source_discovery.md#create-a-private-source-review-packet) · [维护回执](../reports/claims_source_review_v0_4_7_20260930.json) | **当前维护实现**。保留原始输入、搜索回执、捕获文本及字符位置；全部来源决定待审，不直接进入分类导入。 |
 | 核对 0.4.0／0.4.1 发布、CI 与线上验证 | [发布记录](../reports/RELEASE_V0_4_0_20260930.zh-CN.md) · [生产回执](../reports/release_v0_4_1_publication_20260930.json) | **历史版本实测**。这些版本的代码、配置、实际验证与材料边界。 |
 | 核对 0.4.2 选取与导出范围修订 | [选取修订报告](../reports/GRAPH_SELECTION_V0_4_2_20260930.zh-CN.md) · [发布回执](../reports/graph_selection_publication_v0_4_2_20260930.json) · [用户指南](user_guide.md) · [图谱使用契约](COLLECTION_KNOWLEDGE_GRAPH.zh-CN.md) | **当前实现与生产实测**。命名关系、精确支持集合、父分布、跨视图保留、所选分类 CSV 与完整筛选图 JSON 的区别。 |
 | 在干净环境验证当前安装包与迁移 | [复现方法](CURRENT_RELEASE_REPRODUCTION.md) · [离线回执](../reports/current_release_offline_reproduction_20260929.json) · [数据库回执](../reports/current_release_database_reproduction_20260930.json) | **实际安装包与合成数据库验证**。不等于真实生产语料／向量／历史恢复。 |
