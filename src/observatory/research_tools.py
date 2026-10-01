@@ -72,7 +72,7 @@ class FiltersRequest(Request):
     date_to: date | None = None
     include_unknown_dates: StrictBool | None = None
     date_presence: Literal["any", "known", "missing"] | None = Field(default=None, description="Publication dates: any, known, or missing (null/empty). Use missing to count or list ads without a publication date. Intersects trusted date filters; cannot widen a selection that excludes missing dates.")
-    include_inferred_dates: StrictBool | None = Field(default=None, description="Only when the user asks to include estimated dates: use unreviewed inferred dates where the source date is missing. Any answer using them must say the dates are inferred.")
+    include_inferred_dates: StrictBool | None = Field(default=None, description="Supplemented dates are used by default where the source date is missing; set false only when the user asks for source dates only. Results label every supplemented date.")
 
 
 class ScopedRequest(Request):
@@ -135,9 +135,9 @@ TOOLS = {
     "resolve_entity": (ResolveEntityRequest,
         "Resolve a sponsor or publisher against actual source names. Returns candidates, not corporate identity merges; ask for clarification when ambiguous."),
     "record_statistics": (StatisticsRequest,
-        "Count all eligible records or list every publisher/sponsor/platform and its count. measure='share' calculates a target's percentage. By default the denominator is the trusted current selection and filters narrow only the numerator. When the question names its own comparison group (for example the share of ExxonMobil ads that ran in the NYT), put that group in denominator_filters and the target in filters; the target is counted inside the group. Clarify an ambiguous comparison group instead of guessing. For ads without a publication date use filters.date_presence='missing'. Share requires group_by='none'. Separate native/social denominators; zero denominator means undefined. Exact SQL including records without searchable body; never infer totals from retrieved passages. Records carry date_basis; set filters.include_inferred_dates only when the user asks to include estimated dates, and keep the returned disclosure about inferred dates."),
+        "Count all eligible records or list every publisher/sponsor/platform and its count. measure='share' calculates a target's percentage. By default the denominator is the trusted current selection and filters narrow only the numerator. When the question names its own comparison group (for example the share of ExxonMobil ads that ran in the NYT), put that group in denominator_filters and the target in filters; the target is counted inside the group. Clarify an ambiguous comparison group instead of guessing. For ads without a publication date use filters.date_presence='missing'. Share requires group_by='none'. Separate native/social denominators; zero denominator means undefined. Exact SQL including records without searchable body; never infer totals from retrieved passages. Records carry date_basis; supplemented dates are used by default and labelled; keep the returned label in the answer."),
     "search_records": (SearchRequest,
-        "Free keyword retrieval of bounded source passages within the collection selection. Use for article content, never corpus totals or factual verification. Each passage carries date_basis (source, inferred:<method> or missing); when citing a passage whose date is inferred, say the date is an unreviewed estimate."),
+        "Free keyword retrieval of bounded source passages within the collection selection. Use for article content, never corpus totals or factual verification. Each passage carries date_basis (source, inferred:<method> or missing); when citing a passage whose date is supplemented, say so."),
     "get_record": (RecordTextRequest,
         "Read a bounded unchanged article text interval by exact record ID with version/body-hash and character positions. Current detail adapter supports native records."),
     "get_record_sources": (RecordRequest,
@@ -263,8 +263,9 @@ class ToolCatalog:
             filters.date_to = min(filter(None, (filters.date_to, upper)))
         if filters.date_from and filters.date_to and filters.date_from > filters.date_to:
             raise ScopeConflict("The requested dates do not intersect the active date range.")
-        if updates.pop("include_inferred_dates", None):
-            filters.include_inferred_dates = True
+        inferred = updates.pop("include_inferred_dates", None)
+        if inferred is not None:
+            filters.include_inferred_dates = inferred
         include_unknown = updates.pop("include_unknown_dates", None)
         if lower or upper:
             filters.include_unknown_dates = False

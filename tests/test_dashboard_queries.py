@@ -44,7 +44,7 @@ def dashboard_db():
                 CREATE TABLE record_versions (version_id text PRIMARY KEY, payload jsonb);
                 CREATE TABLE annotations (version_id text, ordinal integer, payload jsonb);
                 CREATE TABLE date_inferences (version_id text, method text, tier text,
-                    inferred_date date, precision text, review_state text);""")
+                    inferred_date date, precision text, review_state text, evidence jsonb);""")
             for index in range(125):
                 record = RecordInput(
                     record_id=f"native-{index:03}", dataset="native",

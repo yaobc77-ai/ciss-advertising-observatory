@@ -87,11 +87,18 @@ def test_local_hits_without_semantic_support_can_search_but_supported_answer_doe
 @pytest.mark.parametrize("filters", [Filters(dataset="social"), Filters(dataset="all"),
                                        Filters(record_ids=["r1"]), Filters(labels=["historical"]),
                                        Filters(date_presence="missing"), Filters(include_inferred_dates=True)])
-def test_web_cannot_replace_unsupported_source_or_annotation_scope(filters):
+def test_every_scope_can_be_supplemented_from_the_web(filters):
+    # Policy since 2026-10-01: always answer; filters travel as context only.
     service, _, web, _ = harness()
     result = service._answer_evidence("Describe hydrogen", filters, "reader")
-    assert result.external_research["reason"] == "scope_not_supported"
-    assert not web.calls
+    assert result.external_research["status"] == "ok" and len(web.calls) == 1
+
+
+def test_web_needs_showable_source_links():
+    service, _, web, _ = harness()
+    service.settings.show_source_links = False
+    result = service._answer_evidence("Describe hydrogen", Filters(), "reader")
+    assert result.external_research["reason"] == "scope_not_supported" and not web.calls
 
 
 def test_disabled_web_has_no_dispatch():
@@ -152,3 +159,62 @@ def test_progress_disconnect_never_changes_answer_accounting():
 
     result = service._answer_evidence("Describe hydrogen", Filters(), "reader", progress=disconnected)
     assert len(web.calls) == 1 and result.cost_usd == pytest.approx(0.023)
+
+
+class Agent:
+    def __init__(self, run):
+        self.result = run
+
+    def run(self, question, filters, visitor, *args, **kwargs):
+        self.result.original_question, self.result.base_filters = question, filters.model_dump(mode="json")
+        return self.result
+
+
+def always(run, *, web=None, enabled=True):
+    db = DB()
+    web = web or Web()
+    rag = SimpleNamespace(budget=SimpleNamespace(reserve=lambda *_: "rid", cancel_unsent=lambda *_: None,
+                                                 reservation_cost=lambda _: 0.0))
+    service = Service(Settings(research_agent_enabled=True, web_search_enabled=enabled), db=db, rag=rag,
+                      research_agent=Agent(run), web_research=web)
+    return service, db, web
+
+
+def test_a_clarification_becomes_a_labelled_web_supplemented_answer():
+    from observatory.service import WEB_SUPPLEMENT_LEAD
+
+    run = ResearchRun(route="clarify", result={"status": "clarify", "message": "Social data is not loaded."})
+    service, db, web = always(run)
+    result = service.answer("Which Twitter accounts post the most fossil fuel ads?", Filters(), "reader")
+    assert result.status == "answered" and result.answer_mode == "web_supplement"
+    assert result.answer.startswith(WEB_SUPPLEMENT_LEAD)
+    assert "Social data is not loaded." in result.answer
+    assert result.external_research["sources"][0]["url"] == "https://example.org/ad"
+    # Text-only clients receive the web findings and their links in the answer itself.
+    assert "An external page describes a proposal. [W1]" in result.answer
+    assert "[W1] External source - https://example.org/ad" in result.answer
+    assert len(web.calls) == 1
+
+
+def test_limits_and_failed_web_searches_never_invent_an_answer():
+    limited = ResearchRun(route="limited", failure_reason="research_budget_limit")
+    service, _, web = always(limited)
+    assert service.answer("Anything?", Filters(), "reader").status == "limited" and not web.calls
+
+    class FailingWeb(Web):
+        def call(self, args, *, visitor):
+            self.calls.append(args)
+            return {"status": "unresolved", "sources": [], "cost_usd": 0.01}
+
+    run = ResearchRun(route="clarify", result={"status": "clarify", "message": "Unknown name."})
+    service, _, web = always(run, web=FailingWeb())
+    result = service.answer("Who is Imaginary Oil?", Filters(), "reader")
+    assert result.status == "insufficient_evidence" and result.answer_mode == "clarification"
+    assert len(web.calls) == 1
+
+
+def test_disabled_web_keeps_the_collection_answer():
+    run = ResearchRun(route="clarify", result={"status": "clarify", "message": "Unknown name."})
+    service, _, web = always(run, enabled=False)
+    assert service.answer("Who is Imaginary Oil?", Filters(), "reader").status == "insufficient_evidence"
+    assert not web.calls

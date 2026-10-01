@@ -74,18 +74,23 @@ def summarize(rows):
     }
 
 
+WEB_SUPPLEMENT_LEAD = ("The advertising collection does not contain enough to answer this question, so the "
+                      "answer below is supplemented from web sources. It is not from the advertising "
+                      "database: each paragraph cites the web page it relies on.")
+
+
 def _date_inference_note(used: bool, tiers: dict) -> str:
-    """Server-written disclosure; the model can neither omit nor reword it."""
+    """Server-written label; the model can neither omit nor reword it."""
     total = sum(tiers.values())
     if not total:
         return ""
     labels = {"A": "a date in the article URL", "B": "an archive capture date", "C": "a web search"}
     detail = "; ".join(f"{n} from {labels.get(tier, tier)} (tier {tier})" for tier, n in sorted(tiers.items()))
     if used:
-        return (f" {total:,} of these records have no source date and are dated by an unreviewed "
-                f"estimate: {detail}.")
-    return (f" {total:,} of these records have no source date but have an unreviewed estimated date "
-            f"({detail}); they are treated as undated unless estimated dates are requested.")
+        return (f" {total:,} of these records have no publication date in the source data; their dates "
+                f"are supplemented ({detail}).")
+    return (f" {total:,} of these records have no publication date in the source data but have a "
+            f"supplemented date ({detail}) that was not used here.")
 
 
 def _plain_scope(scope, base):
@@ -340,6 +345,16 @@ class Service:
         if not any(item["total"] for item in collections):
             text += " No eligible records match; this does not establish that no such advertisements exist elsewhere."
         note = _date_inference_note(filters.include_inferred_dates, tiers)
+        if filters.date_presence == "missing" and filters.include_inferred_dates:
+            # "Without a date" after supplementing differs from the source gap; say both.
+            source_missing = sum(
+                self.dashboard(filters.model_copy(update={"dataset": dataset, "include_inferred_dates": False}),
+                               limit=1)["stats"]["total"] for dataset in datasets)
+            remaining = sum(item["total"] for item in collections)
+            if source_missing > remaining:
+                note += (f" {source_missing:,} records have no publication date in the source data; "
+                         f"{source_missing - remaining:,} of them have a supplemented date, so {remaining:,} "
+                         "remain without any date.")
         return Answer(
             status="answered", answer=text + note, answer_mode="statistics",
             structured_result={
@@ -437,9 +452,55 @@ class Service:
         return self._tool_statistics_answer(data, base_filters=trusted)
 
     def answer(self, question, filters, visitor, progress=None):
+        # Questions use supplemented dates by default; every use is labelled.
+        filters = filters.model_copy(update={"include_inferred_dates": True})
         if getattr(self.settings, "research_agent_enabled", False):
-            return self._answer_with_tools(question, filters, visitor, progress=progress)
-        return self._answer_legacy(question, filters, visitor, progress=progress)
+            result = self._answer_with_tools(question, filters, visitor, progress=progress)
+        else:
+            result = self._answer_legacy(question, filters, visitor, progress=progress)
+        return self._ensure_answer(question, filters, visitor, result, progress)
+
+    def _ensure_answer(self, question, filters, visitor, result, progress=None):
+        """Always give an answer: when the collection cannot, supplement from the web.
+
+        Supplemented content is labelled as not coming from the advertising
+        database and keeps the provider's source links. Budget and rate limits
+        still apply, and a failed web search never invents an answer.
+        """
+        if result.status in ("answered", "limited") or not 1 <= len(question.strip()) <= 2000:
+            return result
+        research = result.external_research or {}
+        if research.get("status") != "ok":
+            attempt = self._search_external(question, filters, visitor, progress=progress)
+            if attempt.get("status") == "disabled" or attempt.get("reason") == "scope_not_supported":
+                return result  # No lookup happened; the collection answer stands unchanged.
+            research = attempt
+            result.cost_usd += research.get("cost_usd", 0.0)
+            result.external_research = research
+        if research.get("status") != "ok":
+            self._save_supplement(question, filters, result)  # The attempt and its cost stay auditable.
+            return result
+        reason = (result.answer or "").strip()
+        result.status = "answered"
+        result.answer_mode = "web_supplement"
+        # The answer text itself carries the web findings and their links, so
+        # text-only clients (API, MCP, exports) receive a complete, cited answer.
+        sources = [s for s in research.get("sources") or []
+                   if isinstance(s, dict) and s.get("url") and s.get("supports_generated_paragraph", True)]
+        result.answer = WEB_SUPPLEMENT_LEAD + "\n\n" + (research.get("summary") or "").strip()
+        if sources:
+            result.answer += "\n\nWeb sources:\n" + "\n".join(
+                f"[{s.get('source_id')}] {s.get('title') or s['url']} - {s['url']}" for s in sources)
+        if reason:
+            result.answer += "\n\nWhy the collection could not answer: " + reason
+        self._save_supplement(question, filters, result)
+        return result
+
+    def _save_supplement(self, question, filters, result):
+        try:
+            self.db.save_answer(question, filters, result, self.health().get("data_version", "unavailable"))
+        except Exception:
+            log.warning("Supplemented answer audit log unavailable")
 
     def _answer_with_tools(self, question, filters, visitor, progress=None):
         """Understand the question before accessing constrained collection tools."""
@@ -817,9 +878,9 @@ class Service:
         return result
 
     def _web_scope_supported(self, filters):
-        return (filters.dataset == "native" and self.settings.show_source_links
-                and not filters.record_ids and not filters.labels
-                and filters.date_presence == "any" and not filters.include_inferred_dates)
+        # Every scope may be supplemented; the filters travel as context only.
+        # Links must be showable, because external content is only usable with its sources.
+        return bool(self.settings.show_source_links)
 
     def _search_external(self, question, filters, visitor, missing_topics=None, progress=None):
         if not getattr(self.settings, "web_search_enabled", False):
@@ -827,9 +888,6 @@ class Service:
         if not self._web_scope_supported(filters):
             return {"status": "unavailable", "reason": "scope_not_supported", "cost_usd": 0.0,
                     "message": "Web research is unavailable for this record, annotation or unloaded social scope. Adjust the selection to search for external native-ad sources."}
-        health = self.health()
-        if health.get("status") != "ok" or not health.get("record_counts", {}).get("native"):
-            return {"status": "unavailable", "reason": "collection_unavailable", "cost_usd": 0.0}
         from .web_research import WebResearch
 
         adapter = self.web_research or WebResearch(self.rag, enabled=True, base_filters=filters)

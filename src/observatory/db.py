@@ -16,10 +16,11 @@ def digest(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
-# An inference is usable when it is tier A and not rejected, or when a person
-# accepted it. Unreviewed tier B/C rows remain leads only: a web-search hit can
-# describe a related page rather than the advertisement itself.
-USABLE_INFERENCE = "((d.tier='A' AND d.review_state<>'rejected') OR d.review_state='accepted')"
+# Supplemented dates need no manual review; a row someone rejects is ignored.
+# A web-search date (tier C) is used only when its evidence page is on the same
+# site as the advertisement, checked automatically when the row is created.
+USABLE_INFERENCE = ("(d.review_state<>'rejected' AND (d.tier<>'C' OR d.review_state='accepted' "
+                    "OR d.evidence->>'host_match'='true'))")
 INFERRED_DATE = ("(SELECT d.inferred_date FROM date_inferences d WHERE d.version_id=v.version_id "
                  f"AND {USABLE_INFERENCE} AND d.precision='day' ORDER BY d.tier,d.method LIMIT 1)")
 

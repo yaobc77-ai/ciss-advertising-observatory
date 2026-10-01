@@ -8,8 +8,9 @@ record version with an evidence tier, never as a probability:
   B  archive_first_capture earliest archive capture; only an upper bound
   C  web_search            a dated mention found by hosted web search
 
-Every inference starts "unreviewed". Statistics use inferred dates only when a
-caller opts in, and answers must say so (see service and research_tools).
+Supplemented dates are used without a manual review step (a row someone
+explicitly rejects is ignored). Questions use them by default; counts, records
+and citations always say which dates were supplemented.
 """
 
 from __future__ import annotations
@@ -27,11 +28,21 @@ from .budget import LimitReached
 
 URL_DATE = re.compile(r"/((?:19|20)\d{2})/(\d{2})/(\d{2})/")
 METHOD_TIER = {"url_path": "A", "archive_first_capture": "B", "web_search": "C"}
-BASIS_NOTE = ("Some dates are inferred, not taken from the source data: tier A from a date in "
-              "the article URL, tier C from a web search. They are unreviewed estimates.")
+BASIS_NOTE = ("Some dates are supplemented, not taken from the source data: tier A from a date in "
+              "the article URL, tier C from a web search.")
 UNCHECKED_NOTE = "The date basis of the cited records could not be checked; treat their dates with caution."
 CURRENT = """FROM records r JOIN record_versions v ON v.version_id=r.current_version
  WHERE r.active AND (v.payload->>'countable')::boolean"""
+
+
+def same_site(left: str | None, right: str | None) -> bool:
+    """True when two URLs share a host (ignoring a leading www.)."""
+    from urllib.parse import urlsplit
+
+    def host(url):
+        name = (urlsplit(url or "").hostname or "").lower()
+        return name[4:] if name.startswith("www.") else name
+    return bool(host(left)) and host(left) == host(right)
 
 
 def url_date(url: str | None) -> date | None:
@@ -196,6 +207,7 @@ def web_search_inference(rag, record: dict, visitor: str = "date-inference-maint
         "method": "web_search", "tier": "C", "inferred_date": point,
         "earliest": earliest, "latest": latest, "precision": precision,
         "evidence": {"evidence_url": evidence_url, "quote": (found.get("quote") or "")[:300],
+                     "host_match": same_site(evidence_url, record["url"]),
                      "query": query, "provider_sources": sorted(sources)[:10], "model": SEARCH_MODEL,
                      "searched_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
                      "cost_usd": float(cost)}}}

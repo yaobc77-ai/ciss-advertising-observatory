@@ -283,6 +283,9 @@ def test_share_prose_reports_actual_percentage_and_denominator_not_raw_count():
     result = Service._tool_statistics_answer(data, base_filters=Filters())
     assert "25.00% (1 of 4 eligible native ad records)" in result.answer
     assert result.answer_mode == "statistics" and result.structured_result == data
+    # Questions run with supplemented dates on, so the trusted scope carries that flag.
+    for key in ("filters", "denominator_filters"):
+        data[key]["include_inferred_dates"] = True
     service, db, _ = setup_service(ResearchRun(route="statistics", result=data))
     result = service.answer("What percentage is from NYT?", Filters(), "visitor")
     assert result.status == "answered" and "25.00%" in result.answer

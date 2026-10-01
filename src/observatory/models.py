@@ -114,7 +114,7 @@ class Answer(BaseModel):
         "answered", "insufficient_evidence", "service_unavailable", "limited"
     ]
     answer: str
-    answer_mode: Literal["rag", "statistics", "clarification", "tools"] = "rag"
+    answer_mode: Literal["rag", "statistics", "clarification", "tools", "web_supplement"] = "rag"
     structured_result: dict[str, Any] | None = None
     research_trace: dict[str, Any] = Field(default_factory=dict)
     citations: list[Citation] = Field(default_factory=list)
