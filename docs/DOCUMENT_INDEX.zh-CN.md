@@ -1,6 +1,8 @@
 # 项目文档阅读索引
 
-**0.4.7 维护入口**：[私有离线来源审查包](claims_source_discovery.md#create-a-private-source-review-packet) · [本轮回执](../reports/claims_source_review_v0_4_7_20260930.json)。安装包离线 1,650 项通过，其中审查包测试 61 项；跳过 1 项，87 项数据库／实时检查未运行，独立包清单核对通过。复用原搜索回执得到 5 个候选、0 份页面捕获，没有新增付费调用，原始文章 URL 仍未确认；最后已核验的线上版本仍为 0.4.6。
+**0.4.7 维护入口**：[私有离线来源审查包](claims_source_discovery.md#create-a-private-source-review-packet) · [本轮回执](../reports/claims_source_review_v0_4_7_20260930.json)。安装包离线 1,650 项通过，其中审查包测试 61 项；跳过 1 项，87 项数据库／实时检查未运行，独立包清单核对通过。复用原搜索回执得到 5 个候选、0 份页面捕获，没有新增付费调用，原始文章 URL 仍未确认；线上与本机均已核验为 0.4.7。
+
+**0.4.7 发布／交接核对**：[两个仓库 CI 与线上部署](../reports/source_review_v0_4_7_publication_20260930.json) · [原版／英文源码包](../reports/source_handoff_v0_4_7_20260930.json)。两个仓库 CI 均通过 1,650 项；正文与索引标识不变，源码包逐文件哈希已核对且排除私有材料；来源确认与客户验收仍待完成。
 
 **0.4.6 发布／交接核对**：[两个仓库 CI 与线上部署](../reports/release_v0_4_6_publication_20260930.json) · [原版／英文源码包](../reports/source_handoff_v0_4_6_20260930.json)。线上为 0.4.6，迁移3且正文／索引标识不变；维护搜索默认隐藏，真实候选仍待审。
 

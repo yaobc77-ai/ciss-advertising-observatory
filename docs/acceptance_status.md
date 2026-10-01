@@ -4,7 +4,7 @@
 
 The [private source review packet](claims_source_discovery.md#create-a-private-source-review-packet) binds saved lookup bytes to the original CLAIMS paragraph and optionally compares captured UTF-8 text. It records exact or whitespace-only locations and leaves every source decision pending. The [maintenance receipt](../reports/claims_source_review_v0_4_7_20260930.json) records 1,650 installed-wheel offline tests, including 61 packet tests, and a passed package inventory check; one case was skipped and 87 database/live cases were excluded. The actual packet contains five existing candidate URLs, zero captured pages and no new paid calls. The original article URL remains unresolved; no real classification was imported or published.
 
-The last verified hosted application remains **0.4.6**. The following release records retain their version-specific scope; none establishes source recovery or client acceptance.
+Both repositories' CI passed and the local and hosted applications were verified at **0.4.7**. The [publication receipt](../reports/source_review_v0_4_7_publication_20260930.json) records unchanged source data and retrieval index identities; both [source archives](../reports/source_handoff_v0_4_7_20260930.json) have verified hashes and exclude private materials. The following release records retain their version-specific scope; none establishes source recovery or client acceptance.
 
 ## 0.4.6 implementation — 30 September 2026
 
