@@ -1,5 +1,7 @@
 # 项目文档阅读索引
 
+**原生数据交接与当前演示（2026-10-01）**：[输入交接说明](native_source_handoff.md) · [0.4.9 演示脚本](../deliverables/native_demo_v0_4_9.en.md) · [核验报告](../reports/NATIVE_HANDOFF_20261001.en.md) · [机器回执](../reports/native_handoff_20261001.json)。私有包保留 12 份输入／验证附件的原始字节和相对路径，仓库外用安装包离线重建 275／263／226 条记录；42 项护栏测试通过。当前公司→媒体→五篇文章、年度筛选→三篇文章与已审核 PDF 展示已核对；CSV 下载文件、完整实时 CCS/biogas、独立实施者与客户验收仍待验。无数据库写入或新增模型调用，私有数据未上传 Git。
+
 **查询明细更新 0.4.9（2026-10-01 UTC）**：[核验报告](../reports/QUERY_V0_4_9_20261001.en.md) · [工程回执](../reports/query_v0_4_9_engineering_20261001.json) · [线上分页／两仓库 CI／附件／源码包回执](../reports/query_v0_4_9_publication_20261001.json)。Query 内部可翻页查看完整匹配明细，保留提交时范围并检查来源版本；翻页不调用模型。原表备注的一组重复候选等待计数口径确认。此前 [0.4.8 核验报告](../reports/QUERY_V0_4_8_20261001.en.md)、[开发自测](../eval/selftest/README.md) 和 [发布核对](../reports/query_v0_4_8_publication_20261001.json) 保留原版本；这些工程检查不替代冻结题集和人工／客户验收。
 
 **Railway 来源恢复（2026-10-01 UTC）**：[恢复报告](../reports/RAILWAY_DATABASE_RECOVERY_20261001.en.md) · [完整回执](../reports/railway_database_recovery_20261001.json)。完整云端逻辑备份已在同一 PostgreSQL 18.6 服务的新数据库恢复，21 表内容及结构、迁移3校验和和检索结果一致；私有下载哈希已核对。云端为 275 记录、828 正文版本、2,071 历史／当前片段、1,053 向量、120 历史答案、112 生成输出、177 账本记录，757 原文证据和 190 引用全部可定位；活动片段仍为 556。四项非 MVCC 序列状态是稳定观测，不是原子快照保证。六张 CLAIMS2 表为空，无新增模型调用；应用连接未切换。本机旧快照数字保留其原范围；异机／整服务灾备、全局角色密码、PDF／预览恢复、人工语义、真实社交和客户验收仍待办。
@@ -43,7 +45,7 @@
 | 接手当前代码、私有数据与运行环境 | [当前英文交接](current_handoff.md) · [私有附件 bundle](record_assets.md) | **当前实施说明**。区分本机／Railway 逻辑恢复、独立源文件、附件与模型费用；已上线 PDF-265，文件恢复仍需独立核对。 |
 | 核对 0.4.7 完整本机数据库恢复 | [本机恢复报告](../reports/DATABASE_RESTORE_V0_4_7_20260930.en.md) · [21 表回执](../reports/database_restore_v0_4_7_complete_20260930.json) | **本机固定快照实测**。使用本机自身的行数及内容指纹，不替代独立 Railway 快照或异机灾备。 |
 | 核对 Railway 完整逻辑备份与新库恢复 | [云端恢复报告](../reports/RAILWAY_DATABASE_RECOVERY_20261001.en.md) · [云端恢复回执](../reports/railway_database_recovery_20261001.json) | **云端固定快照实测**。PostgreSQL 18.6 同集群新库、21 表／结构／迁移、证据定位、检索及私有下载哈希；序列为稳定观测，异机／文件／人工和客户验收未完成。 |
-| 准备客户试用与当前原生演示 | [客户审查](CLIENT_REVIEW_V0_4_2.md) · [演示脚本](../deliverables/native_demo_v0_4_2.en.md) · [材料请求草案](../deliverables/client_materials_request_v0_4_2.en.md) | **英文草案**。六问、实际关系、客户判断与待办；未发送、未签收，非最终双集合演示。 |
+| 准备客户试用与当前原生演示 | [0.4.9 演示脚本](../deliverables/native_demo_v0_4_9.en.md) · [当前核验](../reports/NATIVE_HANDOFF_20261001.en.md) · [早期客户审查](CLIENT_REVIEW_V0_4_2.md) | **当前原生演示草案**。覆盖六问，区分实测、未运行与客户判断；未发送、未签收，非最终双集合演示。 |
 | 按最新客户方向安排 CLAIMS 接入 | [CLAIMS 接入计划](claims_integration_plan.md) | **已排入当前工作**。先复核用户提供 ZIP 与批次，再做可定位离线结果、网页／MCP 查询和审核；尚未导入新分类。 |
 | 核对旧 CLAIMS 来源 URL 候选 | [离线审查包使用说明](claims_source_discovery.md#create-a-private-source-review-packet) · [维护回执](../reports/claims_source_review_v0_4_7_20260930.json) | **当前维护实现**。保留原始输入、搜索回执、捕获文本及字符位置；全部来源决定待审，不直接进入分类导入。 |
 | 核对 0.4.0／0.4.1 发布、CI 与线上验证 | [发布记录](../reports/RELEASE_V0_4_0_20260930.zh-CN.md) · [生产回执](../reports/release_v0_4_1_publication_20260930.json) | **历史版本实测**。这些版本的代码、配置、实际验证与材料边界。 |
