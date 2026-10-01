@@ -25,6 +25,7 @@ from pydantic import (
 )
 
 from .analytics import LABEL_NOTE, sponsor_display
+from .date_inference import BASIS_NOTE
 from .knowledge_graph import (
     IDENTITY_POLICY,
     NODE_TYPES,
@@ -42,8 +43,8 @@ Question = Annotated[str, Field(min_length=1, max_length=2000)]
 NcId = Annotated[str, Field(pattern=r"^NC_[1-9][0-9]*$", max_length=100)]
 ScId = Annotated[str, Field(pattern=r"^SC_[1-9][0-9]*$", max_length=100)]
 _DIMENSIONS = ("publishers", "sponsors", "platforms", "keywords", "labels", "record_ids")
-_RECORD_FIELDS = ("record_id", "version_id", "dataset", "title", "date", "publisher",
-                  "sponsor", "retrievable", "url", "archive_url")
+_RECORD_FIELDS = ("record_id", "version_id", "dataset", "title", "date", "date_basis",
+                  "inferred_date", "inferred_tier", "publisher", "sponsor", "retrievable", "url", "archive_url")
 _NOTES = (
     "Counts describe eligible stored records, not every advertisement published elsewhere.",
     "Sponsor and publisher fields are exact source candidates, not independently verified business relationships.",
@@ -68,6 +69,7 @@ class FiltersRequest(Request):
     date_to: date | None = None
     include_unknown_dates: StrictBool | None = None
     date_presence: Literal["any", "known", "missing"] | None = Field(default=None, description="Publication dates: any, known, or missing (null/empty). Use missing to count or list ads without a publication date. Intersects trusted date filters; cannot widen a selection that excludes missing dates.")
+    include_inferred_dates: StrictBool | None = Field(default=None, description="Only when the user asks to include estimated dates: use unreviewed inferred dates where the source date is missing. Any answer using them must say the dates are inferred.")
 
 
 class ScopedRequest(Request):
@@ -119,9 +121,9 @@ TOOLS = {
     "resolve_entity": (ResolveEntityRequest,
         "Resolve a sponsor or publisher against actual source names. Returns candidates, not corporate identity merges; ask for clarification when ambiguous."),
     "record_statistics": (StatisticsRequest,
-        "Count all eligible records or list every publisher/sponsor/platform and its count. measure='share' calculates a target's percentage. By default the denominator is the trusted current selection and filters narrow only the numerator. When the question names its own comparison group (for example the share of ExxonMobil ads that ran in the NYT), put that group in denominator_filters and the target in filters; the target is counted inside the group. Clarify an ambiguous comparison group instead of guessing. For ads without a publication date use filters.date_presence='missing'. Share requires group_by='none'. Separate native/social denominators; zero denominator means undefined. Exact SQL including records without searchable body; never infer totals from retrieved passages."),
+        "Count all eligible records or list every publisher/sponsor/platform and its count. measure='share' calculates a target's percentage. By default the denominator is the trusted current selection and filters narrow only the numerator. When the question names its own comparison group (for example the share of ExxonMobil ads that ran in the NYT), put that group in denominator_filters and the target in filters; the target is counted inside the group. Clarify an ambiguous comparison group instead of guessing. For ads without a publication date use filters.date_presence='missing'. Share requires group_by='none'. Separate native/social denominators; zero denominator means undefined. Exact SQL including records without searchable body; never infer totals from retrieved passages. Records carry date_basis; set filters.include_inferred_dates only when the user asks to include estimated dates, and keep the returned disclosure about inferred dates."),
     "search_records": (SearchRequest,
-        "Free keyword retrieval of bounded source passages within the collection selection. Use for article content, never corpus totals or factual verification."),
+        "Free keyword retrieval of bounded source passages within the collection selection. Use for article content, never corpus totals or factual verification. Each passage carries date_basis (source, inferred:<method> or missing); when citing a passage whose date is inferred, say the date is an unreviewed estimate."),
     "get_record": (RecordTextRequest,
         "Read a bounded unchanged article text interval by exact record ID with version/body-hash and character positions. Current detail adapter supports native records."),
     "get_record_sources": (RecordRequest,
@@ -245,6 +247,8 @@ class ToolCatalog:
             filters.date_to = min(filter(None, (filters.date_to, upper)))
         if filters.date_from and filters.date_to and filters.date_from > filters.date_to:
             raise ScopeConflict("The requested dates do not intersect the active date range.")
+        if updates.pop("include_inferred_dates", None):
+            filters.include_inferred_dates = True
         include_unknown = updates.pop("include_unknown_dates", None)
         if lower or upper:
             filters.include_unknown_dates = False
@@ -475,6 +479,26 @@ class ToolCatalog:
                 "annotations": annotations, "warnings": graph["warnings"],
                 "attachments_status": "adapter_not_connected", "claims_status": "historical_unverified"}
 
+    def _attach_date_basis(self, evidence, filters):
+        """Label each cited passage's date as source, inferred or missing.
+
+        A citation of a record dated by inference must say so; the notice is
+        written here, not left to the model.
+        """
+        ids = sorted({item["record_id"] for item in evidence})
+        browse = getattr(self.service, "browse", None)
+        if not ids or browse is None:
+            return ""
+        rows = {row["record_id"]: row for row in browse(filters.model_copy(update={"record_ids": ids}))}
+        inferred = False
+        for item in evidence:
+            row = rows.get(item["record_id"], {})
+            item["date_basis"] = row.get("date_basis") or ("source" if row.get("date") else "missing")
+            if str(item["date_basis"]).startswith("inferred:"):
+                item["inferred_date"], item["inferred_tier"] = row.get("inferred_date"), row.get("inferred_tier")
+                inferred = True
+        return BASIS_NOTE if inferred else ""
+
     def _search_records(self, request, filters):
         report = self.service.search_report(request.query, filters, limit=request.limit or 5)
         evidence, refs, rejected = [], [], 0
@@ -500,10 +524,12 @@ class ToolCatalog:
                 continue
             evidence.append(public)
             refs.append(ref)
+        notice = self._attach_date_basis(evidence, filters)
         diagnostics = report.get("diagnostics", {})
         allowed = {key: diagnostics[key] for key in ("status", "operator", "terms", "missing_terms", "reason")
                    if key in diagnostics}
         return {"status": "ok", "query": request.query, "evidence": evidence,
+                **({"date_notice": notice} if notice else {}),
                 "source_refs": refs, "diagnostics": allowed, "rejected_evidence": rejected,
                 "retrieval_limit": request.limit or 5,
                 "coverage": "retrieved_passages_only_not_complete_corpus",

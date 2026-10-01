@@ -65,6 +65,7 @@ class Filters(BaseModel):
     date_to: date | None = None
     include_unknown_dates: bool = True
     date_presence: Literal["any", "known", "missing"] = Field(default="any", description="Publication-date presence, intersected with the date range and include_unknown_dates. Null or empty date is missing; not an ingestion or collection date.")
+    include_inferred_dates: bool = Field(default=False, description="Use unreviewed inferred dates (date_inferences) where the source date is missing. Off by default; answers must state when inferred dates were used.")
 
 
 class Evidence(BaseModel):

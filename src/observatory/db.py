@@ -16,6 +16,14 @@ def digest(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
+# An inference is usable when it is tier A and not rejected, or when a person
+# accepted it. Unreviewed tier B/C rows remain leads only: a web-search hit can
+# describe a related page rather than the advertisement itself.
+USABLE_INFERENCE = "((d.tier='A' AND d.review_state<>'rejected') OR d.review_state='accepted')"
+INFERRED_DATE = ("(SELECT d.inferred_date FROM date_inferences d WHERE d.version_id=v.version_id "
+                 f"AND {USABLE_INFERENCE} AND d.precision='day' ORDER BY d.tier,d.method LIMIT 1)")
+
+
 class Database:
     def __init__(self, url: str):
         self.url = url
@@ -151,25 +159,27 @@ class Database:
                     f"COALESCE(NULLIF(v.payload->>'{field}',''),'(Unknown)')=ANY(%s)"
                 )
                 params.append(values)
-        published = "NULLIF(v.payload->>'published_at','')"
+        # Source date, or (only when requested) an unreviewed day-precision inference.
+        published = (f"COALESCE(NULLIF(v.payload->>'published_at','')::date,{INFERRED_DATE})"
+                     if filters.include_inferred_dates else "NULLIF(v.payload->>'published_at','')::date")
         if filters.date_presence == "known":
             terms.append(f"{published} IS NOT NULL")
         elif filters.date_presence == "missing":
             terms.append(f"{published} IS NULL")
         dates = []
         if filters.date_from:
-            dates.append("(v.payload->>'published_at')::date>=%s")
+            dates.append(f"{published}>=%s")
             params.append(filters.date_from)
         if filters.date_to:
-            dates.append("(v.payload->>'published_at')::date<=%s")
+            dates.append(f"{published}<=%s")
             params.append(filters.date_to)
         if dates:
             expression = " AND ".join(dates)
             if filters.include_unknown_dates:
-                expression = f"(({expression}) OR v.payload->>'published_at' IS NULL)"
+                expression = f"(({expression}) OR {published} IS NULL)"
             terms.append(f"({expression})")
         elif not filters.include_unknown_dates:
-            terms.append("v.payload->>'published_at' IS NOT NULL")
+            terms.append(f"{published} IS NOT NULL")
         if filters.labels:
             terms.append(
                 "EXISTS (SELECT 1 FROM annotations a WHERE a.version_id=v.version_id AND a.payload->>'version'='claims-calibrated' AND (a.payload->'labels') ?| %s)"
@@ -186,8 +196,15 @@ class Database:
          v.payload->>'published_at' AS date,v.payload->>'sponsor' AS sponsor,
          v.payload->>'keyword' AS keyword,v.payload->>'platform' AS platform,
          v.payload->>'account' AS account,(v.payload->>'retrievable')::boolean AS retrievable,
+         CASE WHEN NULLIF(v.payload->>'published_at','') IS NOT NULL THEN 'source'
+              WHEN di.method IS NOT NULL THEN 'inferred:' || di.method ELSE 'missing' END AS date_basis,
+         di.inferred_date::text AS inferred_date,di.tier AS inferred_tier,
          COALESCE((SELECT a.payload->'labels' FROM annotations a WHERE a.version_id=v.version_id AND a.payload->>'version'='claims-calibrated' ORDER BY a.ordinal LIMIT 1),'[]'::jsonb) AS labels
          FROM records r JOIN record_versions v ON v.version_id=r.current_version
+         LEFT JOIN LATERAL (SELECT d.method,d.tier,d.inferred_date FROM date_inferences d
+              WHERE d.version_id=v.version_id AND {USABLE_INFERENCE}
+                AND NULLIF(v.payload->>'published_at','') IS NULL
+              ORDER BY d.tier,d.method LIMIT 1) di ON true
          WHERE {where}"""
         return sql, params
 
@@ -421,9 +438,13 @@ class Database:
             labeled = conn.execute(prefix + """SELECT count(*) AS count FROM filtered
                 WHERE EXISTS (SELECT 1 FROM jsonb_array_elements_text(labels) AS label
                 WHERE btrim(label)<>'')""", params).fetchone()["count"]
+            # Inferred dates are counted in the same snapshot as every total.
+            inferred = conn.execute(prefix + """SELECT inferred_tier AS tier,count(*) AS n
+                FROM filtered WHERE date_basis LIKE 'inferred:%%' GROUP BY 1 ORDER BY 1""", params).fetchall()
         total = totals["total"]
         stats = {**totals, **{name: [] for name in ("publishers", "sponsors", "platforms", "keywords")},
-                 "relationships": relationships, "timeline": months}
+                 "relationships": relationships, "timeline": months,
+                 "inferred_dates": {row["tier"]: row["n"] for row in inferred}}
         for row in groups:
             stats[row["name"]].append({
                 "name": row["value"], "count": row["count"],

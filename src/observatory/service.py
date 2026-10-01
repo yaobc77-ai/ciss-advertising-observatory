@@ -42,6 +42,8 @@ def summarize(rows):
         ]
 
     timeline = Counter((r["date"][:7] if r.get("date") else "Unknown") for r in rows)
+    inferred = Counter(r.get("inferred_tier") for r in rows
+                       if str(r.get("date_basis") or "").startswith("inferred:"))
     relationships = Counter(
         (r.get("sponsor") or "(Unknown)", r.get("publisher") or "(Unknown)")
         for r in rows
@@ -59,7 +61,22 @@ def summarize(rows):
             {"sponsor": s, "publisher": p, "count": n}
             for (s, p), n in sorted(relationships.items(), key=lambda x: (-x[1], x[0]))
         ],
+        "inferred_dates": dict(sorted(inferred.items())),
     }
+
+
+def _date_inference_note(used: bool, tiers: dict) -> str:
+    """Server-written disclosure; the model can neither omit nor reword it."""
+    total = sum(tiers.values())
+    if not total:
+        return ""
+    labels = {"A": "a date in the article URL", "B": "an archive capture date", "C": "a web search"}
+    detail = "; ".join(f"{n} from {labels.get(tier, tier)} (tier {tier})" for tier, n in sorted(tiers.items()))
+    if used:
+        return (f" {total:,} of these records have no source date and are dated by an unreviewed "
+                f"estimate: {detail}.")
+    return (f" {total:,} of these records have no source date but have an unreviewed estimated date "
+            f"({detail}); they are treated as undated unless estimated dates are requested.")
 
 
 def _plain_scope(scope, base):
@@ -280,10 +297,12 @@ class Service:
             return self._share_statistics_answer(plan)
         filters = plan.filters
         datasets = ["native", "social"] if filters.dataset == "all" else [filters.dataset]
-        collections, groups, records = [], [], []
+        collections, groups, records, tiers = [], [], [], {}
         for dataset in datasets:
             snapshot = self.dashboard(filters.model_copy(update={"dataset": dataset}), limit=10)
             stats = snapshot["stats"]
+            for tier, n in (stats.get("inferred_dates") or {}).items():
+                tiers[tier] = tiers.get(tier, 0) + n
             collections.append({
                 "dataset": dataset, "total": stats["total"],
                 "retrievable": stats["retrievable"], "unknown_dates": stats["unknown_dates"],
@@ -295,8 +314,8 @@ class Service:
                         "display_name": sponsor_display(group["name"])
                         if plan.group_by == "sponsors" else group["name"],
                     })
-            fields = ("record_id", "version_id", "dataset", "title", "date", "publisher",
-                      "sponsor", "url", "archive_url", "retrievable")
+            fields = ("record_id", "version_id", "dataset", "title", "date", "date_basis",
+                      "inferred_date", "inferred_tier", "publisher", "sponsor", "url", "archive_url", "retrievable")
             records.extend({field: row.get(field) for field in fields} for row in snapshot["page"]["rows"])
         totals = "; ".join(
             f"{item['total']:,} eligible {'native ad records' if item['dataset'] == 'native' else 'social ad records'}"
@@ -310,14 +329,26 @@ class Service:
             text = f"{len(names):,} {dimension} appear in {totals} within this selection. Every category and its count is listed below."
         if not any(item["total"] for item in collections):
             text += " No eligible records match; this does not establish that no such advertisements exist elsewhere."
+        note = _date_inference_note(filters.include_inferred_dates, tiers)
         return Answer(
-            status="answered", answer=text, answer_mode="statistics",
+            status="answered", answer=text + note, answer_mode="statistics",
             structured_result={
                 "kind": plan.kind, "method": "database", "group_by": plan.group_by,
                 "filters": filters.model_dump(mode="json"), "collections": collections,
                 "groups": groups, "records": records, "scope_notes": list(plan.scope_notes),
+                "date_inference": {"used": filters.include_inferred_dates, "tiers": tiers, "note": note.strip()},
             },
         )
+
+    def _cites_inferred_dates(self, result, filters):
+        ids = sorted({item.record_id for item in result.evidence or []})
+        if not ids:
+            return False
+        try:
+            rows = self.db.public_rows(filters.model_copy(update={"record_ids": ids}))
+        except Exception:
+            return None  # Unknown: keep the answer and add a conservative notice.
+        return any(str(row.get("date_basis") or "").startswith("inferred:") for row in rows)
 
     def _share_statistics_answer(self, plan):
         """Compute numerator and trusted denominator in one snapshot per dataset.
@@ -331,7 +362,7 @@ class Service:
             raise ValueError("A percentage needs a trusted denominator and no grouping")
         validate_share_scope(numerator, denominator)
         datasets = ("native", "social") if numerator.dataset == "all" else (numerator.dataset,)
-        collections, records = [], []
+        collections, records, share_tiers, denominator_inferred = [], [], {}, 0
         health = self.health()
         if health.get("status") != "ok":
             raise ValueError("Percentage statistics require a loaded collection")
@@ -350,11 +381,19 @@ class Service:
             with self.db.connect() as conn:
                 conn.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY")
                 counts = conn.execute(prefix + """SELECT count(*) AS numerator,
+                    count(*) FILTER (WHERE date_basis LIKE 'inferred:%%' AND inferred_tier='A') AS inferred_a,
+                    count(*) FILTER (WHERE date_basis LIKE 'inferred:%%' AND inferred_tier='B') AS inferred_b,
+                    count(*) FILTER (WHERE date_basis LIKE 'inferred:%%' AND inferred_tier='C') AS inferred_c,
                     count(*) FILTER (WHERE retrievable) AS retrievable,
+                    (SELECT count(*) FROM denominator WHERE date_basis LIKE 'inferred:%%') AS denominator_inferred,
                     count(*) FILTER (WHERE date IS NULL OR date='') AS unknown_dates,
                     (SELECT count(*) FROM denominator) AS denominator FROM numerator""", params).fetchone()
                 rows = conn.execute(prefix + "SELECT * FROM numerator ORDER BY date DESC NULLS LAST,record_id LIMIT 10", params).fetchall()
             n, d = counts["numerator"], counts["denominator"]
+            denominator_inferred += counts.get("denominator_inferred") or 0
+            for tier in "ABC":
+                if counts.get(f"inferred_{tier.lower()}"):
+                    share_tiers[tier] = share_tiers.get(tier, 0) + counts[f"inferred_{tier.lower()}"]
             collections.append({
                 "dataset": dataset, "total": n, "retrievable": counts["retrievable"],
                 "unknown_dates": counts["unknown_dates"], "numerator": n, "denominator": d,
@@ -377,6 +416,13 @@ class Service:
         }
         if missing:
             data["scope_notes"].append("Unloaded collections are omitted, not reported as zero advertisements or zero percent.")
+        used = numerator.include_inferred_dates or denominator.include_inferred_dates
+        note = _date_inference_note(used, share_tiers).strip()
+        if used and denominator_inferred:
+            note = (note + " " if note else "") + (f"The comparison group includes {denominator_inferred:,} "
+                                                   "records dated by an unreviewed estimate.")
+        data["date_inference"] = {"used": used, "tiers": share_tiers,
+                                  "denominator_inferred": denominator_inferred, "note": note}
         trusted = getattr(plan, "trusted_filters", None) or denominator
         return self._tool_statistics_answer(data, base_filters=trusted)
 
@@ -523,8 +569,9 @@ class Service:
                 suffix = f". The comparison group is {group} in this collection."
             else:
                 suffix = ". Denominators use the current selection before question targets."
+            note = (data.get("date_inference") or {}).get("note") or ""
             return Answer(status="answered", answer_mode="statistics",
-                          answer="; ".join(messages) + suffix, structured_result=data)
+                          answer="; ".join(messages) + suffix + (" " + note if note else ""), structured_result=data)
         totals = "; ".join(
             f"{item['total']:,} eligible {'native ad records' if item['dataset'] == 'native' else 'social ad records'}"
             for item in data["collections"]
@@ -537,7 +584,9 @@ class Service:
             message = f"{len(names):,} {dimension} appear in {totals} within this selection. Every category and its count is listed below."
         else:
             message = f"{totals} match this question and the active filters."
-        return Answer(status="answered", answer_mode="statistics", answer=message, structured_result=data)
+        note = (data.get("date_inference") or {}).get("note") or ""
+        return Answer(status="answered", answer_mode="statistics",
+                      answer=message + (" " + note if note else ""), structured_result=data)
 
     def _answer_legacy(self, question, filters, visitor):
         start = time.monotonic()
@@ -678,6 +727,16 @@ class Service:
             result.cost_usd = self.rag.budget.reservation_cost(reservation) + sum(
                 embedding_cost
             )
+        if result.status == "answered":
+            # Written by the server: a cited record's date is an estimate, or
+            # could not be checked. An unknown is never reported as "none".
+            from .date_inference import BASIS_NOTE, UNCHECKED_NOTE
+
+            cited = self._cites_inferred_dates(result, filters)
+            if cited is None:
+                result.answer = result.answer + "\n\n" + UNCHECKED_NOTE
+            elif cited:
+                result.answer = result.answer + "\n\n" + BASIS_NOTE
         if audit:
             try:
                 self.db.save_answer(question, filters, result, version)
