@@ -62,6 +62,22 @@ def summarize(rows):
     }
 
 
+def _plain_scope(scope, base):
+    """Describe how a comparison group narrows the trusted selection, in plain words."""
+    from .analytics import sponsor_display
+
+    parts = []
+    if scope.sponsors and scope.sponsors != base.sponsors:
+        parts.append("ads sponsored by " + ", ".join(sponsor_display(s) for s in scope.sponsors))
+    if scope.publishers and scope.publishers != base.publishers:
+        parts.append("ads in " + ", ".join(scope.publishers))
+    if (scope.date_from, scope.date_to) != (base.date_from, base.date_to):
+        parts.append(f"ads dated {scope.date_from or 'any time'} to {scope.date_to or 'today'}")
+    if scope.date_presence != base.date_presence and scope.date_presence != "any":
+        parts.append("ads " + ("with" if scope.date_presence == "known" else "without") + " a publication date")
+    return " and ".join(parts) or "the current selection"
+
+
 class Service:
     def __init__(self, settings, db=None, rag=None, research_agent=None, claims_store=None):
         self.settings = settings
@@ -346,18 +362,23 @@ class Service:
                 "percentage_status": "defined" if d else "empty_selection",
             })
             records.extend({field: row.get(field) for field in fields} for row in self._public_rows(rows))
+        basis = getattr(plan, "denominator_basis", None) or "current_selection_before_question_targets"
+        note = ("Each percentage uses the comparison group named in the question, within the current selection."
+                if basis == "question_comparison_group" else
+                "Each percentage uses its collection's eligible records in the current selection before question targets.")
         data = {
             "kind": "share", "method": "database", "group_by": None,
             "filters": numerator.model_dump(mode="json"),
             "denominator_filters": denominator.model_dump(mode="json"),
-            "denominator_basis": "current_selection_before_question_targets",
+            "denominator_basis": basis,
             "collections": collections, "groups": [], "records": records,
             "scope_notes": [*plan.scope_notes,
-                "Each percentage uses its collection's eligible records in the current selection before question targets. Unsearchable records still count; a zero denominator is undefined."],
+                note + " Unsearchable records still count; a zero denominator is undefined."],
         }
         if missing:
             data["scope_notes"].append("Unloaded collections are omitted, not reported as zero advertisements or zero percent.")
-        return self._tool_statistics_answer(data, base_filters=denominator)
+        trusted = getattr(plan, "trusted_filters", None) or denominator
+        return self._tool_statistics_answer(data, base_filters=trusted)
 
     def answer(self, question, filters, visitor):
         if getattr(self.settings, "research_agent_enabled", False):
@@ -466,11 +487,18 @@ class Service:
         if data.get("kind") == "share":
             numerator = Filters.model_validate(data["filters"])
             denominator = Filters.model_validate(data["denominator_filters"])
-            if (not isinstance(base_filters, Filters) or denominator != base_filters
-                    or data.get("denominator_basis") != "current_selection_before_question_targets"
+            basis = data.get("denominator_basis")
+            if (not isinstance(base_filters, Filters)
+                    or basis not in {"current_selection_before_question_targets", "question_comparison_group"}
                     or data.get("method") != "database" or data.get("group_by") is not None
                     or data.get("groups") != []):
                 raise ValueError("The percentage denominator must match the trusted current selection")
+            if basis == "current_selection_before_question_targets":
+                if denominator != base_filters:
+                    raise ValueError("The percentage denominator must match the trusted current selection")
+            else:
+                # A question's comparison group may only narrow the trusted selection.
+                validate_share_scope(denominator, base_filters)
             validate_share_scope(numerator, denominator)
             seen, messages = set(), []
             for item in data["collections"]:
@@ -490,9 +518,13 @@ class Service:
                                 else f"Percentage undefined (0 eligible {unit} in the denominator)")
             if not messages:
                 raise ValueError("A percentage result needs a loaded collection")
+            if basis == "question_comparison_group":
+                group = _plain_scope(denominator, base_filters)
+                suffix = f". The comparison group is {group} in this collection."
+            else:
+                suffix = ". Denominators use the current selection before question targets."
             return Answer(status="answered", answer_mode="statistics",
-                          answer="; ".join(messages) + ". Denominators use the current selection before question targets.",
-                          structured_result=data)
+                          answer="; ".join(messages) + suffix, structured_result=data)
         totals = "; ".join(
             f"{item['total']:,} eligible {'native ad records' if item['dataset'] == 'native' else 'social ad records'}"
             for item in data["collections"]

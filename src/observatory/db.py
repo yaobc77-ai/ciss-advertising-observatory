@@ -151,6 +151,11 @@ class Database:
                     f"COALESCE(NULLIF(v.payload->>'{field}',''),'(Unknown)')=ANY(%s)"
                 )
                 params.append(values)
+        published = "NULLIF(v.payload->>'published_at','')"
+        if filters.date_presence == "known":
+            terms.append(f"{published} IS NOT NULL")
+        elif filters.date_presence == "missing":
+            terms.append(f"{published} IS NULL")
         dates = []
         if filters.date_from:
             dates.append("(v.payload->>'published_at')::date>=%s")

@@ -51,6 +51,8 @@ class SourceDB:
                 continue
             if filters.record_ids and row["record_id"] not in filters.record_ids:
                 continue
+            if filters.date_presence == "known" and not row["date"] or filters.date_presence == "missing" and row["date"]:
+                continue
             if row["date"]:
                 when = date.fromisoformat(row["date"])
                 if filters.date_from and when < filters.date_from or filters.date_to and when > filters.date_to:
@@ -402,3 +404,22 @@ def test_alias_audit_belongs_to_one_request():
     result = second.call("record_statistics", {"filters": {"publishers": ["The Washington Post"]}})
     assert first.alias_resolutions and not second.alias_resolutions
     assert "alias_resolutions" not in result
+
+
+def test_missing_publication_dates_can_be_counted_on_their_own():
+    # "How many of these ads have no publication date?" was answered with the
+    # whole collection (2026-10-01 U19: 263 instead of 22).
+    catalog, _ = make_catalog()
+    result = catalog.call("record_statistics", {"filters": {"date_presence": "missing"}})
+    assert result["status"] == "ok"
+    assert result["filters"]["date_presence"] == "missing"
+    assert result["collections"][0]["total"] == 1
+
+
+def test_missing_dates_cannot_be_read_when_the_selection_excludes_them():
+    catalog, _ = make_catalog(Filters(include_unknown_dates=False))
+    result = catalog.call("record_statistics", {"filters": {"date_presence": "missing"}})
+    assert result["status"] == "clarify"
+    both = make_catalog()[0].call("record_statistics", {"filters": {
+        "date_presence": "missing", "date_from": "2020-01-01", "date_to": "2020-12-31"}})
+    assert both["status"] == "clarify"

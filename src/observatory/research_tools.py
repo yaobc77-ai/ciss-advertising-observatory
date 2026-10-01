@@ -67,6 +67,7 @@ class FiltersRequest(Request):
     date_from: date | None = None
     date_to: date | None = None
     include_unknown_dates: StrictBool | None = None
+    date_presence: Literal["any", "known", "missing"] | None = Field(default=None, description="Publication dates: any, known, or missing (null/empty). Use missing to count or list ads without a publication date. Intersects trusted date filters; cannot widen a selection that excludes missing dates.")
 
 
 class ScopedRequest(Request):
@@ -82,6 +83,7 @@ class ResolveEntityRequest(ScopedRequest):
 class StatisticsRequest(ScopedRequest):
     group_by: Literal["none", "publishers", "sponsors", "platforms"] | None = None
     measure: Literal["count", "share"] | None = None
+    denominator_filters: FiltersRequest | None = Field(default=None, description="Only for measure='share' when the question names the group to compare against, e.g. 'share of ExxonMobil's ads that ran in the NYT': denominator_filters={sponsors:[exxonmobil]}, filters={publishers:[The New York Times]}. The target in filters is counted within this denominator.")
 
 
 class SearchRequest(ScopedRequest):
@@ -117,7 +119,7 @@ TOOLS = {
     "resolve_entity": (ResolveEntityRequest,
         "Resolve a sponsor or publisher against actual source names. Returns candidates, not corporate identity merges; ask for clarification when ambiguous."),
     "record_statistics": (StatisticsRequest,
-        "Count all eligible records or list every publisher/sponsor/platform and its count. measure='share' calculates a target's percentage of the trusted current selection: filters narrow only the numerator, never the denominator. Select a different denominator scope in the UI first; clarify ambiguous denominator requests. Share requires group_by='none'. Separate native/social denominators; zero denominator means undefined. Exact SQL including records without searchable body; never infer totals from retrieved passages."),
+        "Count all eligible records or list every publisher/sponsor/platform and its count. measure='share' calculates a target's percentage. By default the denominator is the trusted current selection and filters narrow only the numerator. When the question names its own comparison group (for example the share of ExxonMobil ads that ran in the NYT), put that group in denominator_filters and the target in filters; the target is counted inside the group. Clarify an ambiguous comparison group instead of guessing. For ads without a publication date use filters.date_presence='missing'. Share requires group_by='none'. Separate native/social denominators; zero denominator means undefined. Exact SQL including records without searchable body; never infer totals from retrieved passages."),
     "search_records": (SearchRequest,
         "Free keyword retrieval of bounded source passages within the collection selection. Use for article content, never corpus totals or factual verification."),
     "get_record": (RecordTextRequest,
@@ -207,8 +209,9 @@ class ToolCatalog:
             result["truncated"] |= len(values) > limit
         return result
 
-    def narrow(self, requested: FiltersRequest | None):
-        filters = self.base_filters
+    def narrow(self, requested: FiltersRequest | None, *, base: Filters | None = None):
+        # ``base`` lets a share numerator narrow its own trusted denominator.
+        filters = base.model_copy(deep=True) if base is not None else self.base_filters
         if requested is None:
             return filters
         updates = requested.model_dump(exclude_none=True)
@@ -229,6 +232,11 @@ class ToolCatalog:
             if not selected or len(set(selected)) != len(set(values)):
                 raise ScopeConflict("Some requested source names or records are outside the active filters. Clarify the selection instead of silently dropping them.")
             setattr(filters, dimension, list(dict.fromkeys(selected)))
+        presence = updates.pop("date_presence", None)
+        if presence and presence != "any":
+            if filters.date_presence not in ("any", presence):
+                raise ScopeConflict("Known-date and missing-date selections do not intersect the active filters.")
+            filters.date_presence = presence
         lower = updates.pop("date_from", None)
         upper = updates.pop("date_to", None)
         if lower:
@@ -242,6 +250,8 @@ class ToolCatalog:
             filters.include_unknown_dates = False
         elif include_unknown is not None:
             filters.include_unknown_dates = filters.include_unknown_dates and include_unknown
+        if filters.date_presence == "missing" and not filters.include_unknown_dates:
+            raise ScopeConflict("The active selection excludes missing publication dates; their count cannot be read by widening the date filter.")
         return filters
 
     def _canonical(self, dimension, values, dataset):
@@ -259,8 +269,9 @@ class ToolCatalog:
         for value in values:
             matches = [] if value in known else canonical_source_values(value, dimension, sorted(known))
             if len(matches) == 1:
-                self.alias_resolutions.append(
-                    {"field": dimension, "requested": value, "source_value": matches[0]})
+                item = {"field": dimension, "requested": value, "source_value": matches[0]}
+                if item not in self.alias_resolutions:
+                    self.alias_resolutions.append(item)
                 value = matches[0]
             result.append(value)
         return result
@@ -320,6 +331,9 @@ class ToolCatalog:
             # Health is an audit marker, not a claim that distinct tool calls
             # share one database snapshot. Row versions remain authoritative.
             result = {**context, **availability, **result}
+            if self.alias_resolutions:
+                # Include aliases resolved while reading, e.g. in a comparison group.
+                result["alias_resolutions"] = [dict(item) for item in self.alias_resolutions]
             json.dumps(result, ensure_ascii=False, allow_nan=False)
             return result
         except ScopeConflict as exc:
@@ -373,9 +387,23 @@ class ToolCatalog:
             "none": "count", "publishers": "list_publishers", "sponsors": "list_sponsors",
             "platforms": "list_platforms"}[group_by]
         # Reuse the exact same read-snapshot and public field projection as UI.
+        denominator, basis = (self.base_filters, "current_selection_before_question_targets") if kind == "share" else (None, None)
+        if request.denominator_filters is not None:
+            if kind != "share":
+                raise ScopeConflict("A comparison group applies only to a percentage.")
+            # The question's own comparison group, narrowed from the trusted
+            # selection; the target is then counted inside that group.
+            denominator = self.narrow(request.denominator_filters)
+            self._known_filters(denominator)
+            filters = self.narrow(request.filters, base=denominator)
+            self._known_filters(filters)
+            if filters == denominator:
+                raise ScopeConflict("Name the target to count inside the comparison group; a group compared with itself is always 100%.")
+            basis = "question_comparison_group"
         plan = SimpleNamespace(kind=kind, filters=filters, scope_notes=_NOTES,
                                group_by=None if group_by == "none" else group_by,
-                               denominator_filters=self.base_filters if kind == "share" else None)
+                               denominator_filters=denominator, denominator_basis=basis,
+                               trusted_filters=self.base_filters)
         answer = self.service._statistics_answer(plan)
         result = deepcopy(answer.structured_result)
         result["records"] = [{key: row.get(key) for key in _RECORD_FIELDS}
