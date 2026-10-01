@@ -174,6 +174,8 @@ class ToolCatalog:
         self.service = service
         self._base = base_filters.model_copy(deep=True)
         self.record_details = record_details
+        # Audit of aliases mapped to exact source values during this request.
+        self.alias_resolutions = []
 
     @property
     def base_filters(self):
@@ -220,6 +222,8 @@ class ToolCatalog:
             values = updates.pop(dimension, None)
             if not values:
                 continue
+            if dimension in ("publishers", "sponsors"):
+                values = self._canonical(dimension, values, filters.dataset)
             existing = getattr(filters, dimension)
             selected = [value for value in values if not existing or value in existing]
             if not selected or len(set(selected)) != len(set(values)):
@@ -240,6 +244,27 @@ class ToolCatalog:
             filters.include_unknown_dates = filters.include_unknown_dates and include_unknown
         return filters
 
+    def _canonical(self, dimension, values, dataset):
+        """Replace a known alias by its exact source value only when it is unique.
+
+        Models pass names such as "NYT" or "ExxonMobil" straight into filters.
+        An alias from the shared table, or a display name, that matches exactly
+        one source value is mapped and recorded; ambiguous or unknown names stay
+        unchanged so the strict facet check still asks the user.
+        """
+        known = set()
+        for name in ("native", "social") if dataset == "all" else (dataset,):
+            known.update(v for v in self.service.facets(name).get(dimension, []) if v and v != "(Unknown)")
+        result = []
+        for value in values:
+            matches = [] if value in known else canonical_source_values(value, dimension, sorted(known))
+            if len(matches) == 1:
+                self.alias_resolutions.append(
+                    {"field": dimension, "requested": value, "source_value": matches[0]})
+                value = matches[0]
+            result.append(value)
+        return result
+
     def _known_filters(self, filters):
         facets = self.service.facets(filters.dataset)
         for dimension in _DIMENSIONS[:-1]:
@@ -248,8 +273,11 @@ class ToolCatalog:
                 raise ScopeConflict("A requested news outlet, sponsor or label is not in this collection. Check the name or adjust the selection.")
 
     def _context(self, name, filters=None):
-        return {"tool": name, "filters": (filters or self._base).model_dump(mode="json"),
-                "scope_notes": list(_NOTES)}
+        context = {"tool": name, "filters": (filters or self._base).model_dump(mode="json"),
+                   "scope_notes": list(_NOTES)}
+        if self.alias_resolutions:
+            context["alias_resolutions"] = [dict(item) for item in self.alias_resolutions]
+        return context
 
     def _availability(self, filters):
         health = self.service.health()

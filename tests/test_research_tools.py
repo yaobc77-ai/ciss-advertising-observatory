@@ -184,9 +184,28 @@ def test_disjoint_scope_requires_clarification(filters):
 
 def test_unknown_source_name_is_not_silently_zero_or_substituted():
     catalog, _ = make_catalog()
-    result = catalog.call("record_statistics", {"filters": {"publishers": ["NYT"]}})
+    result = catalog.call("record_statistics", {"filters": {"publishers": ["Imaginary News"]}})
     assert result["status"] == "clarify"
     assert "collections" not in result
+    assert not catalog.alias_resolutions
+
+
+def test_unique_alias_in_filters_maps_to_source_value_with_audit():
+    # Models pass names such as "NYT" straight into filters (2026-10-01 S06/S14/S17/S24).
+    catalog, _ = make_catalog()
+    result = catalog.call("record_statistics", {"filters": {"publishers": ["NYT"]}})
+    assert result["collections"][0]["total"] == 1
+    assert result["filters"]["publishers"] == ["The New York Times"]
+    assert result["alias_resolutions"] == [
+        {"field": "publishers", "requested": "NYT", "source_value": "The New York Times"}]
+
+
+def test_alias_matching_several_source_spellings_is_never_merged():
+    # The fixture stores both "exxonmobil" and "ExxonMobil"; neither is chosen for "Exxon Mobil".
+    catalog, _ = make_catalog()
+    result = catalog.call("record_statistics", {"filters": {"sponsors": ["Exxon Mobil"]}})
+    assert result["status"] == "clarify"
+    assert not catalog.alias_resolutions
 
 
 def test_date_scope_without_unknown_override_excludes_unknown_dates():
@@ -357,3 +376,29 @@ def test_unknown_filter_message_is_user_facing():
     result = catalog.call("record_statistics", {"filters": {"publishers": ["Imaginary News"]}})
     assert result["status"] == "clarify"
     assert "resolve_entity" not in result["message"]
+
+
+def test_alias_and_exact_name_select_the_same_records():
+    alias, _ = make_catalog()
+    exact, _ = make_catalog()
+    by_alias = alias.call("record_statistics", {"filters": {"publishers": ["NYT"]}})
+    by_name = exact.call("record_statistics", {"filters": {"publishers": ["The New York Times"]}})
+    assert by_alias["filters"] == by_name["filters"]
+    assert by_alias["collections"] == by_name["collections"]
+    assert "alias_resolutions" not in by_name
+
+
+def test_publisher_alias_is_not_applied_to_the_sponsor_field():
+    catalog, _ = make_catalog()
+    result = catalog.call("record_statistics", {"filters": {"sponsors": ["NYT"]}})
+    assert result["status"] == "clarify"
+    assert not catalog.alias_resolutions
+
+
+def test_alias_audit_belongs_to_one_request():
+    first, _ = make_catalog()
+    first.call("record_statistics", {"filters": {"publishers": ["NYT"]}})
+    second, _ = make_catalog()
+    result = second.call("record_statistics", {"filters": {"publishers": ["The Washington Post"]}})
+    assert first.alias_resolutions and not second.alias_resolutions
+    assert "alias_resolutions" not in result
