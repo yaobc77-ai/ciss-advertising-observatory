@@ -1,5 +1,6 @@
 """Local language hints and a conservative mismatch guard, not semantic scoring."""
 
+import re
 from functools import lru_cache
 
 from lingua import LanguageDetectorBuilder
@@ -8,7 +9,18 @@ from lingua import LanguageDetectorBuilder
 # receive high detector scores (e.g. CCS -> Hungarian), so they stay inconclusive.
 MIN_LETTERS = 20
 MIN_MARGIN = 0.20
-POLICY_VERSION = "lingua-2.2.0-min20-margin0.20-v1"
+POLICY_VERSION = "lingua-2.2.0-min20-margin0.20-v2"
+
+# Quoted spans are titles or source wording whose language belongs to the
+# source. Only the model's own prose is checked: under v1 an English claim was
+# rejected as Latin because of a quoted English article title.
+_QUOTED = re.compile(r'“[^”]*”|"[^"]*"|«[^»]*»|「[^」]*」|『[^』]*』|‘[^’]*’')
+
+
+def _prose(text):
+    # A claim that is almost entirely quoted is still checked as written.
+    stripped = _QUOTED.sub(" ", text)
+    return stripped if sum(c.isalpha() for c in stripped) >= MIN_LETTERS else text
 
 
 @lru_cache(maxsize=1)
@@ -45,8 +57,9 @@ def check_claim_languages(texts, target):
     }
     if not target or not target["code"]:
         return audit
-    audit["claims"] = [language_hint(text) for text in texts]
-    audit["combined"] = language_hint("\n".join(texts))
+    prose = [_prose(text) for text in texts]
+    audit["claims"] = [language_hint(text) for text in prose]
+    audit["combined"] = language_hint("\n".join(prose))
     hints = [*audit["claims"], audit["combined"]]
     if any(h["code"] and h["code"] != target["code"] for h in hints):
         audit["status"] = "mismatch"

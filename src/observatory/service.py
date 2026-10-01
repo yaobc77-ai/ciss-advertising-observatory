@@ -342,10 +342,16 @@ class Service:
             elif run.route == "clarify":
                 result = Answer(status="insufficient_evidence", answer_mode="clarification",
                                 answer=data.get("message") or "Please clarify the collection, entity or date range.")
+            elif run.route == "limited":
+                # A rate or budget limit is expected behaviour, not an outage.
+                result = Answer(
+                    status="limited", answer_mode="tools", failure_reason=run.failure_reason,
+                    answer="Your question limit or the API budget has been reached. Browsing and keyword search remain available; please try again later.",
+                )
             else:
                 result = Answer(
-                    status="limited" if run.route == "limited" else "service_unavailable",
-                    answer_mode="tools", failure_reason=run.failure_reason,
+                    status="service_unavailable", answer_mode="tools",
+                    failure_reason=run.failure_reason,
                     answer="Question understanding is temporarily unavailable. Browse the collection or use keyword search.",
                 )
             downstream_cost = result.cost_usd

@@ -59,6 +59,20 @@ def _entity_keys(value: str, field_name: str) -> set[str]:
     return keys
 
 
+def canonical_source_values(query: str, field_name: str, values) -> list[str]:
+    """Source values whose exact name, display name or known alias equals ``query``.
+
+    Shared by the rule planner and the research tools so that, for example,
+    "NYT" and "nytimes.com" resolve the same way on both paths.
+    """
+    key = _normalize(query.strip(" \"'‘’“”"))
+    return [
+        value for value in values
+        if isinstance(value, str) and value.strip() and value != "(Unknown)"
+        and key and key in _entity_keys(value, field_name)
+    ]
+
+
 def _resolve_one(value: str, field_name: str, facets: dict) -> tuple[str, ...]:
     key = _normalize(value.strip(" \"'‘’“”"))
     return tuple(

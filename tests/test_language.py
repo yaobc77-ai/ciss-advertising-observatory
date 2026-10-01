@@ -257,3 +257,34 @@ def test_inconclusive_language_does_not_bypass_citation_validation():
     parsed.claims[0].quote = "This invented quote is absent from the source."
     with pytest.raises(ValueError, match="Unverifiable citation"):
         validate_answer(parsed, [ev], target=language_hint("CCS?"))
+
+
+QUOTED_TITLE = "Embracing Net Zero Carbon Emissions Aspirations"
+
+
+def test_quoted_english_title_does_not_flag_english_claim():
+    # v1 misread this English claim as Latin because of the quoted title.
+    claim = (f"The advertisement “{QUOTED_TITLE}” mentions carbon capture and "
+             "storage (CCS) as an emissions-abatement solution.")
+    target = language_hint(ENGLISH_QUESTION)
+    assert check_claim_languages([claim], target)["status"] == "match"
+
+
+@pytest.mark.parametrize("claim", [
+    f"El anuncio “{QUOTED_TITLE}” menciona la captura y almacenamiento de carbono (CCS) como solución.",
+    f"该广告“{QUOTED_TITLE}”提到碳捕集与封存（CCS）是一种减排方案，并说明了项目限制。",
+])
+def test_quoted_title_does_not_hide_a_real_language_switch(claim):
+    target = language_hint(ENGLISH_QUESTION)
+    assert check_claim_languages([claim], target)["status"] == "mismatch"
+
+
+def test_english_title_inside_chinese_claim_still_matches_chinese():
+    claim = f"这篇广告“{QUOTED_TITLE}”把碳捕集与封存描述为一种减排方案，但没有说明实际减排量。"
+    target = language_hint(CHINESE_QUESTION)
+    assert check_claim_languages([claim], target)["status"] == "match"
+
+
+def test_fully_quoted_foreign_claim_is_still_checked():
+    claim = "“El anuncio menciona la captura y almacenamiento de carbono como una solución para reducir emisiones.”"
+    assert check_claim_languages([claim], language_hint(ENGLISH_QUESTION))["status"] == "mismatch"

@@ -33,6 +33,7 @@ from .knowledge_graph import (
     build_graph,
 )
 from .models import Filters
+from .structured_queries import canonical_source_values
 
 Name = Annotated[str, Field(min_length=1, max_length=200)]
 Names = Annotated[list[Name], Field(max_length=20)]
@@ -243,7 +244,7 @@ class ToolCatalog:
         for dimension in _DIMENSIONS[:-1]:
             unknown = set(getattr(filters, dimension)) - set(facets.get(dimension, []))
             if unknown:
-                raise ScopeConflict("A requested source name or annotation is unknown. Use resolve_entity or clarify the selection.")
+                raise ScopeConflict("A requested news outlet, sponsor or label is not in this collection. Check the name or adjust the selection.")
 
     def _context(self, name, filters=None):
         return {"tool": name, "filters": (filters or self._base).model_dump(mode="json"),
@@ -315,6 +316,9 @@ class ToolCatalog:
                 # Dropping a leading article is a display lookup only; each
                 # matched exact source spelling remains a separate candidate.
                 names |= {item.removeprefix("the ") for item in names}
+                alias = bool(canonical_source_values(request.query, dimension, [value]))
+                if alias:
+                    names.add(query)
                 if query in names or any(query and query in item for item in names):
                     candidates.append({"entity_id": _candidate_id(dataset, request.entity_type, value),
                                        "dataset": dataset, "source_field": request.entity_type,
