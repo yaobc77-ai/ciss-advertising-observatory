@@ -2,13 +2,21 @@
 
 The [selected PDF-265 attachment is now hosted](../reports/RECORD_ASSETS_HOSTED_20260930.en.md). Complete mounted-file checks passed in two different deployments; local and hosted HTTP checks matched the body, PDF, download and preview bytes and verified cross-record isolation. Browser inspection showed the preview and source controls. This covers one engineering-reviewed capture, not complete archive coverage, new CLAIMS publication or client acceptance.
 
+## 0.4.10 native exports and runtime — 1 October 2026
+
+The [publication receipt](../reports/citation_v0_4_10_publication_20261001.json) records the installed artifact, CI and hosted release. The [actual hosted export reconciliation](../reports/native_export_reconciliation_20261001.json) checked four downloaded CSV files: 263 distinct full-selection records and all 160 cross-tab cells, followed by three filtered records and one matching cell.
+
+The [installed runtime rehearsal](../reports/native_runtime_handoff_20261001.json) combined the wheel, existing verified restored database and copied PDF-265 bundle outside the checkout. Selected company relationships, free biogas search, the preview and HTTP attachments passed before and after an owned-process restart; four inventories preserved all 21 tables. There were no paid model calls or database writes. Windows process termination is recorded separately from graceful shutdown. This is the same implementer and machine, not independent reproduction or complete service recovery.
+
+See the [combined report](../reports/NATIVE_EXPORT_AND_RUNTIME_HANDOFF_20261001.en.md). The Edge PDF download remains blocked. Real social data, approved CLAIMS publication, independent semantic/client review and another implementer's reproduction remain pending.
+
 ## Railway-origin logical recovery — 1 October 2026 UTC
 
 The [Railway recovery report](../reports/RAILWAY_DATABASE_RECOVERY_20261001.en.md) and [receipt](../reports/railway_database_recovery_20261001.json) record a full cloud backup and recovery into a fresh database on the same PostgreSQL 18.6 service. All 21 tables and schema matched, including owners, permissions and extension versions; migration version 3 and its checksums matched with no pending migration. The cloud snapshot contains 275 records, 828 text versions, 2,071 stored passages, 1,053 embeddings, 120 saved answers, 112 generation outputs and 177 usage entries. All 757 evidence references and 190 citations locate correctly. The active profile still has 556 passages; total stored passages include historical profiles.
 
 Four sequence states matched the initial source, restored copy and final source observation. This is a stable non-MVCC observation, not an atomic sequence snapshot. Separate live retrieval probes matched using stored vectors, with no model request or new embedding. The private downloaded archive passed checksum checks; local and cloud application connections and private configuration stayed unchanged. These are Railway counts, not replacements for the different earlier local snapshot counts.
 
-Six CLAIMS2 tables remain empty. Nonempty classification history recovery, independent-machine or whole-service recovery, global roles/passwords, PDF and preview file recovery, another implementer's reproduction, frozen human semantic review, real social data and client acceptance remain pending. This logical recovery does not complete production disaster recovery or project acceptance.
+Six CLAIMS2 tables remain empty. Nonempty classification history recovery, independent-machine or whole-service recovery, global roles/passwords, complete source-archive and attachment recovery, another implementer's reproduction, frozen human semantic review, real social data and client acceptance remain pending. The later runtime rehearsal copied and ran only the selected PDF-265 bundle. This logical recovery does not complete production disaster recovery or project acceptance.
 
 ## 0.4.7 maintenance implementation — 30 September 2026
 
