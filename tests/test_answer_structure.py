@@ -10,6 +10,7 @@ from observatory.config import Settings
 from observatory.language import language_hint
 from observatory.models import Answer, Evidence
 from observatory.rag import (
+    SYSTEM,
     Rag,
     materialize_selections,
     quote_catalog,
@@ -203,4 +204,132 @@ def test_generation_persists_structure_and_emits_real_validation_stage(listener_
     saved = connection.__enter__.return_value.execute.call_args.args[1][2].obj
     assert saved["summary"] == selected()["summary"]
     assert saved["sections"] == selected()["sections"]
+    rag.budget.uncertain.assert_not_called()
+
+
+CONTENT_QUESTION_CASES = [
+    pytest.param(
+        "What does this advertisement say about the project?",
+        [
+            ("Project announcement", "The company says the project remains in planning.",
+             "The project announcement says the project remains in planning."),
+        ],
+        [{"text": "The advertisement describes a planned project.", "citation_indices": [1]}],
+        [{"title": "Project status", "citation_indices": [1]}],
+        id="single-advertisement",
+    ),
+    pytest.param(
+        "Which approaches appear in the advertisements about reducing emissions?",
+        [
+            ("Industrial project", "The company says it plans carbon capture at its plant.",
+             "The industrial-project advertisement describes planned carbon capture at a plant."),
+            ("Transport project", "The company says it plans lower-emission fuels for transport.",
+             "The transport-project advertisement describes planned lower-emission transport fuels."),
+            ("Electricity project", "The company says it plans wind-power investment.",
+             "The electricity-project advertisement describes planned wind-power investment."),
+        ],
+        [
+            {"text": "The retrieved advertisements describe planned industrial carbon capture and lower-emission transport fuels.",
+             "citation_indices": [1, 2]},
+            {"text": "Another retrieved advertisement describes planned wind-power investment.",
+             "citation_indices": [3]},
+        ],
+        [
+            {"title": "Industrial and transport approaches", "citation_indices": [1, 2]},
+            {"title": "Electricity investment", "citation_indices": [3]},
+        ],
+        id="themes-across-advertisements",
+    ),
+    pytest.param(
+        "How does the advertisement describe the fuel-making process?",
+        [
+            ("Fuel process", "The company says it combines captured carbon dioxide with hydrogen.",
+             "The fuel-process advertisement says captured carbon dioxide is combined with hydrogen."),
+            ("Fuel process", "The company says that mixture is used to make synthetic fuel.",
+             "The fuel-process advertisement says the mixture is used to make synthetic fuel."),
+        ],
+        [{"text": "The advertisement describes combining captured carbon dioxide with hydrogen to make synthetic fuel.",
+          "citation_indices": [1, 2]}],
+        [{"title": "Described process", "citation_indices": [1, 2]}],
+        id="mechanism-explanation",
+    ),
+    pytest.param(
+        "What promise and uncertainty does the advertisement present?",
+        [
+            ("Project discussion", "The company says the project could reduce emissions.",
+             "The project-discussion advertisement reports the company's claim that the project could reduce emissions."),
+            ("Project discussion", "A researcher says the size of any reduction is not yet established.",
+             "The project-discussion advertisement reports a researcher's statement that the size of any reduction is not yet established."),
+        ],
+        [{"text": "The advertisement presents a possible emissions reduction alongside a researcher's uncertainty about its size.",
+          "citation_indices": [1, 2]}],
+        [
+            {"title": "Stated promise", "citation_indices": [1]},
+            {"title": "Reported uncertainty", "citation_indices": [2]},
+        ],
+        id="claim-and-qualification",
+    ),
+]
+
+
+@pytest.mark.parametrize("question,source_rows,summary,sections", CONTENT_QUESTION_CASES)
+def test_all_content_question_forms_generate_and_persist_cited_structure(
+    question, source_rows, summary, sections,
+):
+    """Exercise the shared adapter with synthetic outputs, not model quality."""
+    evidence = [
+        Evidence(
+            evidence_id=f"general-e{index}", record_id=f"general-r{index}",
+            version_id=f"general-v{index}", dataset="native", title=title,
+            text=text, start=20, end=20 + len(text),
+        )
+        for index, (title, text, _) in enumerate(source_rows, 1)
+    ]
+    catalog = quote_catalog(evidence)
+    payload = {
+        "status": "answered",
+        "claims": [
+            {"passage_id": passage_id, "text": row[2]}
+            for passage_id, row in zip(catalog, source_rows, strict=True)
+        ],
+        "summary": summary,
+        "sections": sections,
+    }
+    connection = MagicMock()
+    dispatched = []
+
+    def respond(**request):
+        dispatched.append(request)
+        schema = to_strict_json_schema(request["text_format"])
+        assert {"summary", "sections"} <= set(schema["required"])
+        return SimpleNamespace(
+            status="completed", model="offline-fixture",
+            output_parsed=request["text_format"].model_validate(payload),
+            usage=SimpleNamespace(
+                input_tokens=10, output_tokens=5,
+                input_tokens_details=SimpleNamespace(cached_tokens=0, cache_write_tokens=0),
+                model_dump=lambda: {"input_tokens": 10, "output_tokens": 5},
+            ),
+        )
+
+    rag = Rag(SimpleNamespace(
+        validate_evidence=lambda e: True, connect=lambda: connection,
+    ), Settings(), client=SimpleNamespace(responses=SimpleNamespace(parse=Mock(side_effect=respond))))
+    rag.budget = SimpleNamespace(settle=Mock(), uncertain=Mock())
+
+    answer = rag.generate(question, evidence, "offline-test", "reserved")
+
+    assert answer.status == "answered"
+    assert [point.model_dump() for point in answer.summary] == summary
+    assert [section.model_dump() for section in answer.sections] == sections
+    assert [claim.text for claim in answer.cited_claims] == [row[2] for row in source_rows]
+    assert [citation.quote for citation in answer.citations] == [row[1] for row in source_rows]
+    assert [citation.evidence_id for citation in answer.citations] == [
+        item.evidence_id for item in evidence
+    ]
+    assert dispatched[0]["input"][0]["content"].startswith(SYSTEM)
+    saved = connection.__enter__.return_value.execute.call_args.args[1][2].obj
+    assert saved["summary"] == summary
+    assert saved["sections"] == sections
+    assert saved["claims"] == payload["claims"]
     rag.budget.uncertain.assert_not_called()

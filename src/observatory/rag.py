@@ -42,15 +42,19 @@ For each claim FIRST select one passage_id from quote_catalog,
 THEN write a concise paraphrase containing only facts supported by that selected passage.
 These passages are already located in the original source. Do not copy or rewrite quote text.
 Select the passage that directly supports the claim. At most 6 claims.
-Organize an answered response into three parts:
+Organize every answered content response, regardless of question type, into three parts:
 1. claims: the atomic, source-attributed statements supported by selected passages;
 2. summary: 1 to 3 brief points answering the question directly, each with
    citation_indices naming the one-based claims that fully support that point;
-3. sections: neutral company or topic headings with citation_indices grouping the
-   claims. Include every claim in exactly one section. Headings are navigation,
-   not additional assertions. Do not add facts only in a heading.
-The summary may combine claims to compare the companies' stated emphases, but it
-must add no facts, magnitude, exclusivity, ranking or causation beyond those claims.
+3. sections: short, neutral headings relevant to the question, such as an article,
+   topic, process, entity, or comparison, with citation_indices grouping the claims.
+   Use a single section for a simple answer. Include every claim in exactly one
+   section. Headings are navigation, not additional assertions. Do not add facts
+   only in a heading.
+The summary synthesizes the supported findings into a direct answer instead of merely
+repeating a list of passages. Apply this to a single article, topic explanation,
+mechanism, comparison, or other supported content question. It must add no facts,
+magnitude, exclusivity, ranking or causation beyond the referenced claims.
 For a comparison, describe both named companies only when each has supporting
 evidence. Do not substitute one company's evidence for another or infer which
 company has done more, is greener, or has achieved the stated targets.
@@ -267,8 +271,8 @@ def selection_schema(catalog):
     summary = create_model(
         "SelectedSummaryPoint",
         text=(str, Field(description=(
-            "A short direct answer or comparison supported entirely by the referenced "
-            "atomic claims. Attribute claims to the ads, preserve their qualifications, "
+            "A short direct answer synthesized entirely from the referenced atomic "
+            "claims, for any supported content question. Attribute claims to the ads, preserve their qualifications, "
             "and do not add outside facts or factual verification."
         ))),
         citation_indices=(list[StrictInt], Field(description=(
@@ -277,7 +281,10 @@ def selection_schema(catalog):
     )
     section = create_model(
         "SelectedAnswerSection",
-        title=(str, Field(description="A short neutral company or topic heading; no additional assertion.")),
+        title=(str, Field(description=(
+            "A short neutral heading relevant to the question: an article, topic, "
+            "process, entity, or comparison. No additional assertion."
+        ))),
         citation_indices=(list[StrictInt], Field(description=(
             "One-based positions of claims in this section. Across sections, include "
             "every claim exactly once."

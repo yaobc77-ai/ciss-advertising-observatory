@@ -595,6 +595,33 @@ def _search_context(question, filters):
     )
 
 
+def _answer_section(title, children, class_name="answer-section"):
+    return html.Section([html.H4(title), *children], className=class_name)
+
+
+def _answer_frame(title, summary, evidence, scope, *, eyebrow, trace=None, class_name=""):
+    """One reading order for every successful query, with typed evidence beneath it."""
+    return html.Div([
+        html.Span(eyebrow, className="eyebrow"), html.H3(title),
+        _answer_section("Summary", summary, "answer-summary"),
+        _answer_section("Evidence", evidence) if evidence else None,
+        _answer_section("Scope and limits", scope, "answer-section answer-scope") if scope else None,
+        trace,
+    ], className="answer-card answer-layout " + class_name)
+
+
+def _answer_status(title, message, next_step, *, eyebrow=None, trace=None, extra=()):
+    """An unresolved question gets a status and action, not a fabricated takeaway."""
+    return html.Div([
+        html.Span(eyebrow, className="eyebrow") if eyebrow else None,
+        html.H3(title),
+        _answer_section("Status", [html.P(message)], "answer-status"),
+        *extra,
+        _answer_section("Next step", [html.P(next_step)], "answer-next-step"),
+        trace,
+    ], className="answer-card answer-layout")
+
+
 def _statistics_card(result, links_enabled, service):
     """Display complete SQL categories and all records through scoped paging."""
     from observatory.query_records import statistics_records_panel
@@ -605,12 +632,7 @@ def _statistics_card(result, links_enabled, service):
     names = {"native": "Native ad records", "social": "Social ad records"}
     model_query = bool(result.get("research_trace"))
     is_share = data.get("kind") == "share"
-    sections = [
-        html.Span("Collection statistics · model-assisted query" if model_query
-                  else "Collection statistics · no model charge", className="eyebrow"),
-        html.H3("Share of the current selection" if is_share else "Records in this selection"),
-        html.P(result["answer"], className="answer-text"),
-    ]
+    sections = []
     if is_share:
         sections.append(html.Div(html.Table([
             html.Caption("Matching records as a share of the current selection, by collection"),
@@ -647,13 +669,28 @@ def _statistics_card(result, links_enabled, service):
         f"{names[item['dataset']]}: {item['total']:,} eligible · {item['retrievable']:,} searchable · {item['unknown_dates']:,} with unknown dates."
         for item in collections
     ]
-    sections.extend([
+    scope = [
         html.Ul([html.Li(note) for note in notes + data.get("scope_notes", [])], className="scope-note"),
         html.P("Computed from all eligible stored records in this selection, including records without searchable text. Native articles and social posts are separate units. These are collection counts, not a census of all advertising.", className="scope-note"),
-    ])
+    ]
+    date_note = (data.get("date_inference") or {}).get("note")
+    if date_note:
+        scope.append(html.P(date_note, className="scope-note"))
     sections.append(statistics_records_panel(data, service, links_enabled))
-    sections.append(_research_steps(result))
-    return html.Div(sections, className="answer-card statistics-answer")
+    summary = [html.P(result["answer"], className="answer-text")]
+    if groups:
+        category_names = list(dict.fromkeys(group.get("display_name") or group["name"] for group in groups))
+        summary.append(html.P(
+            "Categories in this selection: " + ", ".join(category_names[:5])
+            + (". Additional categories are listed below." if len(category_names) > 5 else ".")
+        ))
+    return _answer_frame(
+        "Share of the current selection" if is_share else "Records in this selection",
+        summary, sections, scope,
+        eyebrow="Collection statistics · model-assisted query" if model_query
+        else "Collection statistics · no model charge",
+        trace=_research_steps(result), class_name="statistics-answer",
+    )
 
 
 def _research_steps(result):
@@ -684,24 +721,45 @@ def _answer_references(indices, citations):
             and 1 <= number <= len(citations)]
 
 
-def _grounded_answer_content(result, message):
-    """Render validated summaries and groups without reconstructing model prose."""
+def _rag_scope_notes(result):
+    """Keep source limits and known server disclosures outside model-written prose."""
+    from observatory.date_inference import BASIS_NOTE, UNCHECKED_NOTE
+
+    notes = [html.P(
+        "This answer uses the retrieved advertisements within the current filters. It describes what those sources say; it does not independently verify their claims or establish full-collection totals.",
+        className="scope-note",
+    )]
+    text = str(result.get("answer") or "").rstrip()
+    # Older service versions append these exact disclosures to the flat answer.
+    # Preserve only known server text, not arbitrary provider/error details.
+    legacy_date_note = (
+        "Some dates are inferred, not taken from the source data: tier A from a date in "
+        "the article URL, tier C from a web search. They are unreviewed estimates."
+    )
+    for warning in dict.fromkeys((BASIS_NOTE, UNCHECKED_NOTE, legacy_date_note)):
+        if text.endswith(warning):
+            notes.append(html.P(warning, className="scope-note"))
+    data = result.get("structured_result") or {}
+    if isinstance(data, dict):
+        notes.extend(html.P(str(note), className="scope-note") for note in data.get("scope_notes", []))
+    coverage = _evidence_coverage(result)
+    if coverage is not None:
+        notes.append(coverage)
+    return notes
+
+
+def _grounded_answer_parts(result, message):
+    """Use validated structure for any content question; never resummarize old prose."""
     citations = result.get("citations") or []
     summaries = result.get("summary") or []
     claims = result.get("cited_claims") or []
     sections = result.get("sections") or []
     if not summaries and not sections:
-        # Stored answers from before the structured format remain readable.
-        return [html.P(message, className="answer-text")]
-    content = []
-    if summaries:
-        content.append(html.Section([
-            html.H4("Summary"),
-            *[html.P([
-                str(item.get("text") or ""), " ",
-                *_answer_references(item.get("citation_indices") or [], citations),
-            ]) for item in summaries if isinstance(item, dict) and item.get("text")],
-        ], className="answer-summary", **{"aria-label": "Answer summary"}))
+        return [html.P(message, className="answer-text")], []
+    summary = [html.P([
+        str(item.get("text") or ""), " ",
+        *_answer_references(item.get("citation_indices") or [], citations),
+    ]) for item in summaries if isinstance(item, dict) and item.get("text")]
     groups = []
     for section in sections:
         if not isinstance(section, dict):
@@ -716,16 +774,19 @@ def _grounded_answer_content(result, message):
             groups.append(html.Section([
                 html.H4(str(section.get("title") or "Supporting evidence")), *paragraphs,
             ], className="answer-group"))
-    if groups:
-        content.extend([html.H4("What the advertisements emphasize"),
-                        html.Div(groups, className="answer-groups")])
-    elif not summaries:
-        content.append(html.P(message, className="answer-text"))
-    content.append(html.P(
-        "This describes claims made in the cited advertisements. It does not independently verify their environmental outcomes.",
-        className="scope-note",
-    ))
-    return content
+    return summary or [html.P(message, className="answer-text")], (
+        [html.Div(groups, className="answer-groups")] if groups else []
+    )
+
+
+def _grounded_answer_content(result, message):
+    """Compatibility helper using the same neutral layout as the full answer card."""
+    summary, findings = _grounded_answer_parts(result, message)
+    return [
+        _answer_section("Summary", summary, "answer-summary"),
+        _answer_section("Findings", findings) if findings else None,
+        _answer_section("Scope and limits", _rag_scope_notes(result), "answer-section answer-scope"),
+    ]
 
 
 def _external_research_card(result, enabled):
@@ -780,15 +841,23 @@ def _external_research_card(result, enabled):
             passages.append(html.P(parts))
     if not passages:
         return html.P("Web search did not return usable cited passages.", className="scope-note")
-    return html.Section([
-        html.Span("Outside the advertising collection", className="eyebrow"),
-        html.H4("Additional web sources"),
-        html.P(
-            "These are web-search summaries with provider citations, not stored advertisement quotes. They have not been added to collection counts or independently fact-checked.",
-            className="scope-note",
-        ),
-        *passages,
-        html.Details([
+    scope = [html.P(
+        "These are web-search summaries with provider citations, not stored advertisement quotes. They have not been added to collection counts or independently fact-checked. The web sources have not been verified against the current collection filters.",
+        className="scope-note",
+    )]
+    if result.get("answer_mode") == "web_supplement":
+        text = str(result.get("answer") or "")
+        _, marker, reason = text.partition("\n\nWhy the collection could not answer: ")
+        if marker and reason.strip():
+            # Service failures remain generic even after the web route succeeds.
+            if result.get("failure_reason"):
+                reason = ("The collection changed while processing the question; its result was withheld."
+                          if str(result["failure_reason"]).startswith("data_changed") else
+                          "The collection service could not produce a supported answer to this request.")
+            scope.append(html.P("Why the collection could not answer: " + reason, className="scope-note"))
+    return _answer_frame(
+        "Additional web sources", passages,
+        [html.Details([
             html.Summary("Read web source links"),
             *[html.Article([
                 html.Span(f"[{source_id}] · External web source", className="evidence-code"),
@@ -799,8 +868,10 @@ def _external_research_card(result, enabled):
                 html.P("Source links are disabled", className="scope-note") if not enabled else None,
             ], id=f"web-source-{source_id}", className="external-source-card")
               for source_id, source in sources.items()],
-        ], open=True),
-    ], className="external-research", **{"aria-label": "External web research"})
+        ], open=True)],
+        scope, eyebrow="Outside the advertising collection", class_name="external-research",
+        trace=_research_steps(result) if result.get("answer_mode") == "web_supplement" else None,
+    )
 
 
 def _evidence_coverage(result):
@@ -854,26 +925,36 @@ def _tools_card(result, links_enabled):
 
     data = result["structured_result"]
     kind = data.get("kind")
-    sections = [html.Span("Read-only data tools", className="eyebrow")]
+    sections, scope = [], [html.P(note, className="scope-note") for note in data.get("scope_notes", [])]
+    summary, title = [], "Source records"
     if kind == "claims":
         from observatory.claims_ui import claims_record_cards, public_claims
 
-        sections.extend([html.H3("Published CLAIMS2 assignments"), html.P(result["answer"], className="answer-text")])
+        title = "Published CLAIMS2 assignments"
         try:
             claims = public_claims(data)
-            sections.append(html.P(claims["note"], className="scope-note"))
+            if claims["state"] == "pending":
+                return _answer_status(title, claims["note"], "Browse available records in Data or retry after results are published.", trace=_research_steps(result))
+            summary = [html.P(
+                f"{claims['total_records']:,} stored records have {claims['total_matches']:,} published CLAIMS2 assignments within this selection."
+            )]
+            scope.append(html.P(claims["note"], className="scope-note"))
             sections.extend(claims_record_cards(claims["records"], links_enabled))
             if not claims["records"]:
                 sections.append(html.P("No published matching assignments are available in this selection."))
         except (TypeError, ValueError):
-            sections.append(html.P("These CLAIMS2 results are unavailable. Submit the question again.", className="scope-note"))
+            return _answer_status(title, "These CLAIMS2 results are unavailable.", "Submit the question again or browse the published evidence in Data.", trace=_research_steps(result))
         sections.append(dcc.Link("Browse published evidence in Data →", href="/data"))
     elif kind == "graph":
         graph = data.get("graph") or {}
         nodes = {node["id"]: node for node in graph.get("nodes", [])}
+        edges = graph.get("edges", [])
+        title = "Source relationships"
+        summary = [html.P(
+            f"{len(edges):,} recorded relationship{'s' if len(edges) != 1 else ''} across {len(nodes):,} entities are shown on this page. Each relationship links to its originating record."
+        )]
+        scope.append(html.P("This is a page of recorded relationships. It is not the complete graph and does not establish corporate contracts or verified claims.", className="scope-note"))
         sections.extend([
-            html.H3("Source relationships"),
-            html.P("This is a page of recorded relationships. It is not the complete graph and does not establish corporate contracts or verified claims.", className="scope-note"),
             html.Div(html.Table([
                 html.Caption("Typed relationships and their originating record"),
                 html.Thead(html.Tr([html.Th(label, scope="col") for label in ("From", "Relationship", "To", "Source record")])),
@@ -882,23 +963,26 @@ def _tools_card(result, links_enabled):
                     html.Td(edge.get("label") or edge["predicate"]),
                     html.Td(nodes.get(edge["target"], {}).get("label", "Target")),
                     html.Td(dcc.Link("Open record", href="/records/" + quote(str(edge.get("provenance", {}).get("record_id", "")), safe=""))),
-                ]) for edge in graph.get("edges", [])]),
+                ]) for edge in edges]),
             ]), className="statistics-table"),
             dcc.Link("Explore the article knowledge graph →", href="/data"),
         ])
     elif kind in {"record", "sources"}:
         record = data.get("record") or {}
-        sections.append(html.H3("Article text" if kind == "record" else "Sources for this record"))
+        title = "Article text" if kind == "record" else "Sources for this record"
         if record.get("record_id"):
             sections.extend(record_cards([record], links_enabled))
         if kind == "record":
             body = data.get("body") or {}
-            sections.extend([
-                html.P(f"Characters {body.get('start', 0):,}–{body.get('end', 0):,} of {body.get('total_characters', 0):,} · stored text completeness has not been established.", className="scope-note"),
-                html.Pre(body.get("text") or "No stored article text is available.", className="tool-article-text"),
-            ])
+            summary = [html.P(
+                f"Characters {body.get('start', 0):,}–{body.get('end', 0):,} of {body.get('total_characters', 0):,} are shown from this stored record."
+                if body.get("text") else "No stored article text is available for this record."
+            )]
+            sections.append(html.Pre(body.get("text") or "No stored article text is available.", className="tool-article-text"))
+            scope.append(html.P("This is a stored text interval; completeness of the original article has not been established.", className="scope-note"))
         else:
             artifacts = data.get("source_artifacts") or []
+            summary = [html.P(f"{len(artifacts):,} stored source reference{'s are' if len(artifacts) != 1 else ' is'} available for this record.")]
             sources = []
             for artifact in artifacts:
                 properties = artifact.get("properties") or {}
@@ -908,9 +992,89 @@ def _tools_card(result, links_enabled):
                     html.Span(" · URL recorded; contents not independently verified"),
                 ]))
             sections.append(html.Ul(sources) if sources else html.P("No public source references are available for this record."))
-            sections.append(html.P("Historical annotations are unverified. The reviewed attachment adapter is not connected to this tool yet.", className="scope-note"))
-    sections.extend([html.Ul([html.Li(note) for note in data.get("scope_notes", [])], className="scope-note"), _research_steps(result)])
-    return html.Div(sections, className="answer-card")
+            scope.append(html.P("Historical annotations are unverified. The reviewed attachment adapter is not connected to this tool yet.", className="scope-note"))
+    else:
+        return _answer_status("Data result unavailable", "The returned tool result cannot be displayed.", "Submit the question again or browse the records in Data.", trace=_research_steps(result))
+    return _answer_frame(title, summary, sections, scope,
+                         eyebrow="Read-only data tools", trace=_research_steps(result))
+
+
+def _render_answer_result(result, links_enabled, service):
+    """All answer routes share presentation; failure statuses cannot bypass it."""
+    status, mode = result.get("status"), result.get("answer_mode", "rag")
+    if status == "answered" and result.get("structured_result"):
+        if mode == "statistics":
+            return [_statistics_card(result, links_enabled, service)]
+        if mode == "tools":
+            return [_tools_card(result, links_enabled)]
+    external = _external_research_card(result, links_enabled)
+    if status == "answered" and mode == "web_supplement":
+        cards = []
+        local = {**result, "status": "insufficient_evidence", "answer_mode": "rag", "external_research": {}}
+        if _partial_collection_answer(local) and local.get("citations") and local.get("evidence"):
+            cards.extend(item for item in _render_answer_result(local, links_enabled, service) if item is not None)
+        cards.append(external if isinstance(external, html.Div) else _answer_status(
+            "Web answer unavailable", "No usable cited web answer is available.", "Retry the question or browse the collection.",
+        ))
+        return cards
+    partial = _partial_collection_answer(result)
+    if mode == "rag" and (status == "answered" or partial):
+        summary, findings = _grounded_answer_parts(result, str(result.get("answer") or ""))
+        evidence = [_answer_section("Findings", findings)] if findings else []
+        if result.get("evidence"):
+            evidence.extend([
+                html.H5("Advertisements and quoted evidence", className="answer-evidence-title"),
+                *_evidence_cards(result["evidence"], links_enabled, result.get("citations") or []),
+            ])
+        return [_answer_frame(
+            "Partial collection evidence" if partial else "Answer with supporting evidence",
+            summary, evidence, _rag_scope_notes(result),
+            eyebrow="Generated answer", trace=_research_steps(result), class_name="grounded-answer",
+        ), external]
+    if status == "insufficient_evidence":
+        title = "Clarify this question" if mode == "clarification" else "Insufficient evidence"
+        message = str(result.get("answer") or "The available records do not support an answer.")
+        next_step = ("Specify the collection, company, outlet or date range so the question can be answered within a clear scope."
+                     if mode == "clarification" else
+                     "Try a more specific question, change the filters or read the retrieved records. Missing evidence does not establish absence in the collection.")
+    elif status == "limited":
+        title, message = "Paid answers temporarily limited", "The model request limit or project API budget was reached."
+        next_step = "Try again later. You can continue browsing the collection and using keyword search."
+    else:
+        title, message = "Answer service unavailable", "The answer service could not complete this request."
+        next_step = "Submit the question again. You can continue browsing the collection and using keyword search."
+    extras = []
+    if result.get("evidence"):
+        extras.append(_answer_section("Retrieved passages", _evidence_cards(
+            result["evidence"], links_enabled,
+        )))
+    coverage = _evidence_coverage(result)
+    if coverage is not None:
+        extras.append(coverage)
+    label = "model-assisted query" if result.get("research_trace") else "no model charge"
+    eyebrow = {
+        "clarification": f"Question needs clarification · {label}",
+        "statistics": f"Collection statistics · {label}",
+        "tools": "Read-only data tools",
+    }.get(mode)
+    return [_answer_status(title, message, next_step, eyebrow=eyebrow,
+                           trace=_research_steps(result), extra=extras), external]
+
+
+def _keyword_result(report, links_enabled):
+    evidence = report["evidence"]
+    diagnostics = _coverage_notice(report.get("diagnostics", {}))
+    if not evidence:
+        return _answer_status(
+            "No matching evidence", "No matching stored passages were retrieved within the current filters. This does not establish that no such advertisements exist.",
+            "Try a different term or widen the search scope.", extra=[diagnostics],
+        )
+    return _answer_frame(
+        "Keyword search", [html.P(f"{len(evidence)} evidence passages found. No paid model call was made.")],
+        [diagnostics, *_evidence_cards(evidence, links_enabled)],
+        [html.P("This is a limited keyword retrieval within the current filters, not the number of advertisements in the collection or a generated answer.", className="scope-note")],
+        eyebrow="Keyword search · no model charge",
+    )
 
 
 def _summary(stats):
@@ -1089,6 +1253,8 @@ def _evidence_cards(evidence, enabled, citations=()):
                         else "Ordered by retrieval relevance; rank is not a confidence score.",
                         className="match-note",
                     ),
+                    *([html.P(str(item["date_notice"]), className="scope-note")]
+                      if item.get("date_notice") else []),
                     *quote_blocks,
                     html.Details(
                         [
@@ -2136,35 +2302,14 @@ def create_app(service, settings, record_details=None) -> Dash:
                         "diagnostics": {},
                     }
                 )
-                evidence = report["evidence"]
-                diagnostics = _coverage_notice(report.get("diagnostics", {}))
-                return (
-                    [
-                        context,
-                        _notice(
-                            "Keyword search",
-                            f"{len(evidence)} evidence passages found. No paid model call was made.",
-                        ),
-                        diagnostics,
-                        *_evidence_cards(evidence, enabled),
-                    ]
-                    if evidence
-                    else [
-                        context,
-                        _notice(
-                            "No matching evidence",
-                            "Try a different term or widen the search scope.",
-                        ),
-                        diagnostics,
-                    ]
-                )
+                return [context, _keyword_result(report, enabled)]
             except Exception:  # noqa: BLE001 - public boundary must hide unexpected service details.
                 return [
                     context,
-                    _notice(
+                    _answer_status(
                         "Search temporarily unavailable",
-                        "The data service could not complete this search. Please try again later.",
-                        "warning",
+                        "The data service could not complete this search.",
+                        "Please try again later or browse the records in Data.",
                     ),
                 ]
         try:
@@ -2179,67 +2324,10 @@ def create_app(service, settings, record_details=None) -> Dash:
                 service.answer(question, filters, **arguments)
             )
             progress("organizing")
-            if result.get("answer_mode") == "statistics" and result.get("structured_result"):
-                effective = Filters.model_validate(result["structured_result"]["filters"])
-                return [_search_context(question, effective), _statistics_card(result, enabled, service)]
-            if result.get("answer_mode") == "tools" and result.get("structured_result"):
+            if result.get("status") == "answered" and result.get("answer_mode") in {"statistics", "tools"} and result.get("structured_result"):
                 effective = Filters.model_validate(result["structured_result"].get("filters") or filters.model_dump())
-                return [_search_context(question, effective), _tools_card(result, enabled)]
-            status = result.get("status", "service_unavailable")
-            labels = {
-                "answered": "Answer with supporting evidence",
-                "insufficient_evidence": "Insufficient evidence",
-                "service_unavailable": "Answer service unavailable",
-                "limited": "Paid answers temporarily limited",
-            }
-            if status not in labels:
-                status = "service_unavailable"
-            if status in {"service_unavailable", "limited"}:
-                # Never surface provider exception strings, internal locations or configuration.
-                message = (
-                    "The model request limit or project API budget was reached. Try again later. "
-                    "You can continue browsing the collection and using keyword search."
-                    if status == "limited" else
-                    "You can continue browsing the collection and using keyword search."
-                )
-            else:
-                message = str(
-                    result.get("answer")
-                    or "The available records do not support an answer."
-                )
-            partial = _partial_collection_answer(result)
-            return [
-                context,
-                html.Div(
-                    [
-                        html.Span("Question needs clarification · model-assisted query"
-                                  if result.get("answer_mode") == "clarification" and result.get("research_trace") else
-                                  "Question needs clarification · no model charge"
-                                  if result.get("answer_mode") == "clarification" else
-                                  "Read-only data tools"
-                                  if result.get("answer_mode") == "tools" else
-                                  "Collection statistics · no model charge"
-                                  if result.get("answer_mode") == "statistics" else
-                                  "Generated answer", className="eyebrow"),
-                        html.H3("Clarify this question" if result.get("answer_mode") == "clarification"
-                                else "Partial collection evidence" if partial
-                                else labels.get(status, labels["service_unavailable"])),
-                        *(_grounded_answer_content(result, message)
-                          if (status == "answered" or partial) and result.get("answer_mode") == "rag"
-                          else [html.P(message, className="answer-text")]),
-                        _evidence_coverage(result),
-                        _research_steps(result),
-                    ],
-                    className="answer-card grounded-answer"
-                    if (status == "answered" or partial) and result.get("answer_mode") == "rag" else "answer-card",
-                ),
-                html.H3("Advertisements and quoted evidence", className="answer-evidence-title")
-                if result.get("evidence") else None,
-                *_evidence_cards(
-                    result.get("evidence") or [], enabled, result.get("citations") or []
-                ),
-                _external_research_card(result, enabled),
-            ]
+                context = _search_context(question, effective)
+            return [context, *_render_answer_result(result, enabled, service)]
         except Exception:  # noqa: BLE001 - public boundary must hide unexpected service details.
             try:
                 evidence = service.search(question, filters, limit=5)
@@ -2247,10 +2335,10 @@ def create_app(service, settings, record_details=None) -> Dash:
                 evidence = []
             return [
                 context,
-                _notice(
+                _answer_status(
                     "Answer service unavailable",
-                    "Keyword results are shown when available. You can continue browsing and searching.",
-                    "warning",
+                    "The answer service could not complete this request. Keyword results are shown when available.",
+                    "You can continue browsing and searching; submit the question again to retry.",
                 ),
                 *_evidence_cards(evidence, enabled),
             ]

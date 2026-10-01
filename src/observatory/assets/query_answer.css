@@ -23,3 +23,11 @@
 .external-source-card p { max-width: 90ch; line-height: 1.7; }
 .external-research { margin: 24px 0; border-top: 1px solid var(--line); padding-top: 20px; }
 .external-research > h4 { font-size: 18px; margin: 0 0 10px; }
+.answer-layout { background: transparent; border: 0; padding: 0; margin: 28px 0; }
+.answer-layout > h3 { font-size: 25px; margin: 12px 0 18px; }
+.answer-section { margin: 28px 0; }
+.answer-section > h4 { font-size: 18px; margin: 0 0 14px; }
+.answer-scope { border-top: 1px solid var(--line); padding-top: 18px; }
+.answer-scope p, .answer-status p { line-height: 1.7; max-width: 90ch; }
+.answer-next-step { margin-top: 24px; }
+.answer-next-step > h4 { font-size: 17px; margin: 0 0 10px; }
