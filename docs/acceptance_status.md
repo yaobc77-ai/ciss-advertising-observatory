@@ -2,9 +2,17 @@
 
 The [selected PDF-265 attachment is now hosted](../reports/RECORD_ASSETS_HOSTED_20260930.en.md). Complete mounted-file checks passed in two different deployments; local and hosted HTTP checks matched the body, PDF, download and preview bytes and verified cross-record isolation. Browser inspection showed the preview and source controls. This covers one engineering-reviewed capture, not complete archive coverage, new CLAIMS publication or client acceptance.
 
+## Railway-origin logical recovery — 1 October 2026 UTC
+
+The [Railway recovery report](../reports/RAILWAY_DATABASE_RECOVERY_20261001.en.md) and [receipt](../reports/railway_database_recovery_20261001.json) record a full cloud backup and recovery into a fresh database on the same PostgreSQL 18.6 service. All 21 tables and schema matched, including owners, permissions and extension versions; migration version 3 and its checksums matched with no pending migration. The cloud snapshot contains 275 records, 828 text versions, 2,071 stored passages, 1,053 embeddings, 120 saved answers, 112 generation outputs and 177 usage entries. All 757 evidence references and 190 citations locate correctly. The active profile still has 556 passages; total stored passages include historical profiles.
+
+Four sequence states matched the initial source, restored copy and final source observation. This is a stable non-MVCC observation, not an atomic sequence snapshot. Separate live retrieval probes matched using stored vectors, with no model request or new embedding. The private downloaded archive passed checksum checks; local and cloud application connections and private configuration stayed unchanged. These are Railway counts, not replacements for the different earlier local snapshot counts.
+
+Six CLAIMS2 tables remain empty. Nonempty classification history recovery, independent-machine or whole-service recovery, global roles/passwords, PDF and preview file recovery, another implementer's reproduction, frozen human semantic review, real social data and client acceptance remain pending. This logical recovery does not complete production disaster recovery or project acceptance.
+
 ## 0.4.7 maintenance implementation — 30 September 2026
 
-The subsequent [current local restore](../reports/DATABASE_RESTORE_V0_4_7_20260930.en.md) passed with all 21 tables and migration version 3, preserving vectors, histories and usage. Its six CLAIMS2 tables are empty; nonempty classification recovery, Railway recovery and independent-machine recovery are not established. A [private archive comparison](../reports/claims_legacy_source_candidate_20260930.json) supports a CNBC/SunPower source candidate for legacy input 2. Punctuation differences are explicit and its identity decision remains pending; no labels were published and no model calls were made.
+The separate [local restore](../reports/DATABASE_RESTORE_V0_4_7_20260930.en.md) passed with all 21 tables and migration version 3, preserving its own snapshot of vectors, histories and usage. Its six CLAIMS2 tables are empty; that check does not establish nonempty classification recovery or independent-machine recovery. Railway-origin logical recovery is recorded above with its own counts and boundaries. A [private archive comparison](../reports/claims_legacy_source_candidate_20260930.json) supports a CNBC/SunPower source candidate for legacy input 2. Punctuation differences are explicit and its identity decision remains pending; no labels were published and no model calls were made.
 
 The [private source review packet](claims_source_discovery.md#create-a-private-source-review-packet) binds saved lookup bytes to the original CLAIMS paragraph and optionally compares captured UTF-8 text. It records exact or whitespace-only locations and leaves every source decision pending. The [maintenance receipt](../reports/claims_source_review_v0_4_7_20260930.json) records 1,650 installed-wheel offline tests, including 61 packet tests, and a passed package inventory check; one case was skipped and 87 database/live cases were excluded. The actual packet contains five existing candidate URLs, zero captured pages and no new paid calls. The original article URL remains unresolved; no real classification was imported or published.
 
@@ -62,7 +70,7 @@ statements about pending interfaces are superseded by the 0.4.6 implementation a
 | M4 社交 | 独立导入与未接入状态存在 | **真实社交数据及客户字段说明：待办** |
 | M5 问答 | 线上模型理解和受约束工具；统计来自数据库，内容回答带原文证据 | 新问题的语义评价、真实社交／跨集合验证待办；未把历史标签当已证实漂绿 |
 | M6 评价 | 当前 evaluator 不再将支持来源锁死为 native；可显式额外评价模型计数路径，默认免费对账保留 | 独立冻结问题与人工审查待办；本轮未运行付费评价，代码测试不填语义成绩 |
-| M7 部署与恢复 | Railway 和 GitHub Pages 可达；[当前完整本机恢复](../reports/DATABASE_RESTORE_V0_4_7_20260930.en.md)通过，21 表／向量／历史答案／账本与固定快照一致，迁移3校验和已核对；6 张 CLAIMS2 表仍为空 | 非空分类恢复、服务器快照、异机及另一网络验收仍需另证；不据本机 PASS 宣布生产灾备完成 |
+| M7 部署与恢复 | Railway 和 GitHub Pages 可达；[本机恢复](../reports/DATABASE_RESTORE_V0_4_7_20260930.en.md)及[Railway 来源恢复](../reports/RAILWAY_DATABASE_RECOVERY_20261001.en.md)分别核对各自的 21 表／向量／历史答案／账本固定快照，迁移3校验和匹配；云端同 PostgreSQL 18.6 集群新库恢复及私有下载哈希已核对；6 张 CLAIMS2 表仍为空 | 非空分类恢复、异机／整服务灾备、全局角色及密码、PDF／预览文件恢复与另一网络验收仍需另证；工程恢复不替代人工语义或客户验收 |
 | M8 交接 | 新英文[交接说明](current_handoff.md)、[客户审查草案](CLIENT_REVIEW_V0_4_2.md)、[当前原生演示](../deliverables/native_demo_v0_4_2.en.md) | 另一实施者复现、双集合最终演示和客户签收待办 |
 
 **最新范围变更：** 用户转述客户要求处理 CLAIMS 接入，因此已加入当前[接入计划](claims_integration_plan.md)，不再只列原文未来工作。已提供 GitHub ZIP 优先复用；先确认具体 NC／SC 批次与原文绑定，再做离线结果导入、网页和工具查询。分类重训、无审核 taxonomy 自动修改和已证实漂绿判定没有被默认加入。本期社交和客户材料依用户要求设为待办；完整双集合交付仍未验收完成。
