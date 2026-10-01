@@ -1,5 +1,7 @@
 # 项目文档阅读索引
 
+**已审核附件上线**：[部署与范围](../reports/RECORD_ASSETS_HOSTED_20260930.en.md) · [挂载／新部署回执](../reports/record_assets_hosted_20260930.json) · [线上 HTTP 检查](../reports/record_assets_http_hosted_20260930.json) · [运行方法](record_assets.md)。只上线 PDF-265 和首张预览，正文／PDF／下载／图片字节和跨记录隔离检查通过；其余来源与 CLAIMS 身份仍待核对，工程检查不替代客户验收。
+
 **当前恢复与来源候选**：[0.4.7 完整本机恢复](../reports/DATABASE_RESTORE_V0_4_7_20260930.en.md) · [21 表／历史／向量回执](../reports/database_restore_v0_4_7_complete_20260930.json) · [迁移与范围补充](../reports/database_restore_v0_4_7_scope_20260930.json) · [旧段落的本地来源候选](../reports/claims_legacy_source_candidate_20260930.json)。本地 CSV 与 PDF-223 支持 CNBC/SunPower 候选；标点差异已保留，身份仍待确认，未导入标签或新增模型调用。旧版本证据保留其原范围。
 
 **0.4.7 维护入口**：[私有离线来源审查包](claims_source_discovery.md#create-a-private-source-review-packet) · [本轮回执](../reports/claims_source_review_v0_4_7_20260930.json)。安装包离线 1,650 项通过，其中审查包测试 61 项；跳过 1 项，87 项数据库／实时检查未运行，独立包清单核对通过。复用原搜索回执得到 5 个候选、0 份页面捕获，没有新增付费调用，原始文章 URL 仍未确认；线上与本机均已核验为 0.4.7。

@@ -1,5 +1,7 @@
 # Implementation and acceptance status
 
+The [selected PDF-265 attachment is now hosted](../reports/RECORD_ASSETS_HOSTED_20260930.en.md). Complete mounted-file checks passed in two different deployments; local and hosted HTTP checks matched the body, PDF, download and preview bytes and verified cross-record isolation. Browser inspection showed the preview and source controls. This covers one engineering-reviewed capture, not complete archive coverage, new CLAIMS publication or client acceptance.
+
 ## 0.4.7 maintenance implementation — 30 September 2026
 
 The subsequent [current local restore](../reports/DATABASE_RESTORE_V0_4_7_20260930.en.md) passed with all 21 tables and migration version 3, preserving vectors, histories and usage. Its six CLAIMS2 tables are empty; nonempty classification recovery, Railway recovery and independent-machine recovery are not established. A [private archive comparison](../reports/claims_legacy_source_candidate_20260930.json) supports a CNBC/SunPower source candidate for legacy input 2. Punctuation differences are explicit and its identity decision remains pending; no labels were published and no model calls were made.
@@ -55,7 +57,7 @@ statements about pending interfaces are superseded by the 0.4.6 implementation a
 | 模块 | 当前证据 | 剩余工作 |
 |---|---|---|
 | M1 导入 | 稳定记录／正文版本、原生与社交适配器、增量 upsert 与坏行报告 | 真实社交映射和对账列为待办；不拿旧研究样本代替指定导出 |
-| M2 正文与材料 | 263 可统计／226 可检索；原文定位和质量提示；唯一已核验 PDF 的私有 bundle 实际构建／检查通过 | 私有文件尚未部署到 Railway；其余候选仍未核验，归档缺口保留 |
+| M2 正文与材料 | 263 可统计／226 可检索；原文定位和质量提示；已审核 PDF-265 与预览上线，挂载文件、HTTP 与新容器后文件检查通过 | 只覆盖一篇工程审核的来源快照；其余候选、客户来源审查和归档缺口保留 |
 | M3 原生 Dashboard | 0.4.2 已发布，逐个选取的命名关系／精确文章集合／占比／CSV 已验；公司媒体矩阵和时间筛选可用 | 客户使用验收和公司／协会／活动统计口径列为待办 |
 | M4 社交 | 独立导入与未接入状态存在 | **真实社交数据及客户字段说明：待办** |
 | M5 问答 | 线上模型理解和受约束工具；统计来自数据库，内容回答带原文证据 | 新问题的语义评价、真实社交／跨集合验证待办；未把历史标签当已证实漂绿 |
