@@ -1,5 +1,7 @@
 # 项目文档阅读索引
 
+**当前原生演示与引用展示（0.4.10）**：[后续核验](../reports/NATIVE_DEMO_FOLLOWUP_20261001.en.md) · [结构化回执](../reports/native_demo_followup_20261001.json)。矩阵点击、历史减排标签和文章关系已在 0.4.9 实测；两道开发题共约 $0.00490，原文引文与版本定位通过。0.4.10 明确显示全部 Citation 编号及原句。PDF 浏览器下载被 Edge 阻止；独立人工、客户、真实社交及 CLAIMS 发布继续待办。
+
 **原生数据交接与当前演示（2026-10-01）**：[输入交接说明](native_source_handoff.md) · [0.4.9 演示脚本](../deliverables/native_demo_v0_4_9.en.md) · [核验报告](../reports/NATIVE_HANDOFF_20261001.en.md) · [机器回执](../reports/native_handoff_20261001.json) · [两仓库 CI／部署／源码包发布回执](../reports/native_handoff_publication_20261001.json)。私有包保留 12 份输入／验证附件的原始字节和相对路径，仓库外用安装包离线重建 275／263／226 条记录；42 项护栏测试通过，两仓库完整 CI 各 1,926 项通过。当前公司→媒体→五篇文章、年度筛选→三篇文章与已审核 PDF 展示已核对；选定关系的 CSV 已在本机找到并核对 5 条／分母 15；[下载回执](../reports/native_demo_export_20261001.json)区分自动化通知超时与真实下载成功。其它导出模式、完整实时 CCS/biogas、独立实施者与客户验收仍待验。无数据库写入或新增模型调用，私有数据未上传 Git。
 
 **查询明细更新 0.4.9（2026-10-01 UTC）**：[核验报告](../reports/QUERY_V0_4_9_20261001.en.md) · [工程回执](../reports/query_v0_4_9_engineering_20261001.json) · [线上分页／两仓库 CI／附件／源码包回执](../reports/query_v0_4_9_publication_20261001.json)。Query 内部可翻页查看完整匹配明细，保留提交时范围并检查来源版本；翻页不调用模型。原表备注的一组重复候选等待计数口径确认。此前 [0.4.8 核验报告](../reports/QUERY_V0_4_8_20261001.en.md)、[开发自测](../eval/selftest/README.md) 和 [发布核对](../reports/query_v0_4_8_publication_20261001.json) 保留原版本；这些工程检查不替代冻结题集和人工／客户验收。
