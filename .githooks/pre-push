@@ -1,0 +1,15 @@
+#!/bin/sh
+# Record every push ATTEMPT (git has no post-push hook). After the push
+# succeeds, post a deploy/result event yourself. Pushing main deploys Railway.
+remote="$1"
+summary=""
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [ -n "$local_sha" ] || continue
+  summary="$summary $local_ref(${local_sha%"${local_sha#?????????}"}) -> $remote/$remote_ref;"
+done
+[ -n "$summary" ] || exit 0
+case "$summary" in
+  *refs/heads/main*) summary="$summary deploys Railway" ;;
+esac
+. "$(git rev-parse --show-toplevel)/.githooks/_sync_python.sh" post push "push attempt$summary" --commit HEAD --quiet
+exit 0

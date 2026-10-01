@@ -17,3 +17,4 @@ backups/
 dist/
 deliverables/*.zip
 deliverables/*.zip.sha256
+.coordination/

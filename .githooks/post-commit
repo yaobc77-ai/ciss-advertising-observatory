@@ -1,0 +1,7 @@
+#!/bin/sh
+# Record every commit in the shared agent log (docs/AGENT_PROTOCOL.md).
+subject="$(git log -1 --format=%s 2>/dev/null)"
+files="$(git diff-tree --no-commit-id --name-only -r HEAD 2>/dev/null | head -60)"
+# shellcheck disable=SC2086
+. "$(git rev-parse --show-toplevel)/.githooks/_sync_python.sh" post commit "$subject" --commit HEAD --quiet --files $files
+exit 0
