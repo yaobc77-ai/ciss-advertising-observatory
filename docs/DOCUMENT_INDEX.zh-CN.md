@@ -1,5 +1,7 @@
 # 项目文档阅读索引
 
+**0.4.10 已发布**：[发布回执](../reports/citation_v0_4_10_publication_20261001.json)。两仓库 CI 各 1,936 项通过，本机全新安装包同样通过；Railway 已运行对应代码，数据与索引版本未变。已核对所选 PDF 的 HTTP 字节与页面预览，Edge 下载阻断仍待解决。
+
 **当前原生演示与引用展示（0.4.10）**：[后续核验](../reports/NATIVE_DEMO_FOLLOWUP_20261001.en.md) · [结构化回执](../reports/native_demo_followup_20261001.json)。矩阵点击、历史减排标签和文章关系已在 0.4.9 实测；两道开发题共约 $0.00490，原文引文与版本定位通过。0.4.10 明确显示全部 Citation 编号及原句。PDF 浏览器下载被 Edge 阻止；独立人工、客户、真实社交及 CLAIMS 发布继续待办。
 
 **原生数据交接与当前演示（2026-10-01）**：[输入交接说明](native_source_handoff.md) · [0.4.9 演示脚本](../deliverables/native_demo_v0_4_9.en.md) · [核验报告](../reports/NATIVE_HANDOFF_20261001.en.md) · [机器回执](../reports/native_handoff_20261001.json) · [两仓库 CI／部署／源码包发布回执](../reports/native_handoff_publication_20261001.json)。私有包保留 12 份输入／验证附件的原始字节和相对路径，仓库外用安装包离线重建 275／263／226 条记录；42 项护栏测试通过，两仓库完整 CI 各 1,926 项通过。当前公司→媒体→五篇文章、年度筛选→三篇文章与已审核 PDF 展示已核对；选定关系的 CSV 已在本机找到并核对 5 条／分母 15；[下载回执](../reports/native_demo_export_20261001.json)区分自动化通知超时与真实下载成功。其它导出模式、完整实时 CCS/biogas、独立实施者与客户验收仍待验。无数据库写入或新增模型调用，私有数据未上传 Git。
