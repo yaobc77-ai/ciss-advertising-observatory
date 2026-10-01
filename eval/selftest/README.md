@@ -1,32 +1,35 @@
-# Self-made regression set
+# Development selftest
 
-24 statistics questions and 7 retrieval topics (each asked in English, Chinese and as an English paraphrase), written outside the Observatory code in `cases.json`.
+This set contains 24 statistics questions and 7 retrieval topics, each asked in English, Chinese and an English paraphrase. The team wrote these cases for development. They are not an independent evaluation set, a human review of generated answers, or the project's formal 20 development + 20 acceptance questions.
 
-Gold answers are never stored as numbers. `scripts/run_selftest.py` recomputes them on every run with independent SQL over the same active, countable records, so the set stays valid when the data version changes. Retrieval gold is every retrievable article whose current text contains the case's `gold_phrase`; a variant passes when one of them is in the top five distinct records.
+## What is checked
 
-## Runs
+Statistics gold comes from independent SQL over current, active, countable native records. A result must be available, have no failure, use database statistics, and match the full filters, dataset, result kind, grouping dimension and values. Zero counts must satisfy the same checks. `no_count` cases check only that unsupported questions avoid a statistics answer; they do not score the meaning of the response.
 
-| Part | Command | Cost |
+S19 requires a real percentage: its numerator is the CNBC selection and its denominator is the native selection before the question narrows it. Both counts, scopes, percentage and denominator basis must match. A count or a publisher distribution alone fails. An empty denominator requires a null percentage and an explicit empty-selection status.
+
+Retrieval gold is every active, countable, retrievable native record containing the case's phrase inside an accepted source interval. Excluded navigation and gaps do not count. Records without active chunks remain in gold so missing index coverage remains visible. A variant passes when a gold record appears among the top five distinct results. An empty gold set is an invalid check, not a pass. This metric does not establish citation quality or generated-answer correctness.
+
+## Run
+
+| Check | Command | Access |
 | --- | --- | --- |
-| Case format and rule-planner scopes (CI) | `pytest tests/test_selftest_cases.py` | none, no database |
-| Rule planner + database statistics, keyword search | `python scripts/run_selftest.py` | none, needs the database |
-| Research agent answers, hybrid search | `python scripts/run_selftest.py --agent --hybrid --paid` | about $0.006; paced to the per-visitor rate limit (about 6 minutes) |
+| Case format, planner scopes and runner regressions | `python -m pytest tests/test_selftest_cases.py tests/test_selftest_runner.py` | Offline; no database or API |
+| Rule statistics and keyword retrieval | `python scripts/run_selftest.py` | Configured database; no model calls |
+| Selected rule cases | `python scripts/run_selftest.py --rules --ids S01,S07,S19` | Configured database; no model calls |
+| Selected research-agent answers | `python scripts/run_selftest.py --agent --paid --ids S01,S07,S19` | Configured database and paid API |
+| Selected hybrid retrieval | `python scripts/run_selftest.py --hybrid --paid --ids R01` | Configured database and query embedding API |
 
-Results are written to `outputs/selftest-<timestamp>.json` and never overwrite an earlier run.
+`--ids` accepts distinct known IDs and keeps case-file order. Every requested mode must have selected cases. The application budget and visitor quotas still apply. Research-agent questions can use several model calls; pacing between questions does not guarantee staying below the call quota. Paid runs stop after an unavailable answer or an exception. They do not bypass limits or retry failed cases automatically.
 
-`rules: "gap"` marks a question the rule planner is known not to handle. The CI test treats these as strict expected failures, so fixing one fails CI until the case is changed to `"pass"`.
+`rules: "gap"` marks a known planner gap. Offline CI treats these as strict expected failures, so a fix requires changing the corresponding case to `"pass"` after its scope checks pass.
 
-## Results on 2026-10-01 (data `f19d4d69…`)
+## Receipts and failure handling
 
-| Path | Before fixes (2026-09-30) | After fixes |
-| --- | ---: | ---: |
-| Rule planner (fallback path) | 13/24 | 13/24 (unchanged; not part of the fixes) |
-| Research agent (live path) | 21/24 | 23/24 |
-| Keyword search, en / zh / paraphrase | 6/7, 2/7, 1/7 | same |
-| Hybrid search, en / zh / paraphrase | 7/7, 5/7, 2/7 | same |
+Each run reserves a fresh `outputs/selftest-<timestamp>-<id>.json` before accessing the configured services. It then replaces that run's receipt atomically after each case and retrieval variant. Earlier runs are preserved. Pending cases stay in the score denominator, and completed-case counts are reported separately.
 
-Fixed: a quoted English title made the language guard reject an English answer; rate limits were reported as an outage; the research tools did not recognise publisher aliases such as "nytimes.com"; a clarification exposed an internal tool name.
+Receipts bind the case version and bytes, runner bytes, Git commit, relevant working-tree changes, and source-module hashes. Source data version, retrieval index version and active profile are recorded before and after the run. A change invalidates the run while retaining partial results. This is a change guard; it is not a shared, frozen database snapshot across service calls.
 
-Remaining: the research agent sometimes cannot resolve a full legal name ("Exxon Mobil Corporation"), so the same question can pass on one run and fail on the next. Neither path computes percentages. Paraphrased questions without the source's wording are rarely retrieved.
+Wrong results, invalid gold, incomplete runs, interruptions and exceptions return a nonzero exit code. Exceptions are recorded by type without connection strings or exception messages. Known answer costs and embedding cost-sink values are recorded; the usage ledger is authoritative for additional or uncertain exposure after an exception. If writing a receipt itself fails, the command fails and the last valid receipt remains.
 
-These are engineering checks, not semantic answer review or client acceptance.
+Historical result files retain their original rubric. Version 2 removes the earlier count/distribution alternative for S19. Regrading old responses under another rubric is not a new live result. No before/after performance claim is made here. Formal evaluation and customer evidence review remain separate.

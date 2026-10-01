@@ -1,6 +1,6 @@
 {
-  "version": 1,
-  "description": "Self-made regression set written outside the system. Gold counts are recomputed at run time by independent SQL from each case's constraints, never by Observatory code.",
+  "version": 2,
+  "description": "Self-made development checks, not independent or client acceptance. Gold values are recomputed by independent SQL over active countable native records. no_count cases check routing only. S19 requires an actual percentage and explicit denominator.",
   "facets_snapshot": {
     "note": "Public filter values on 2026-09-30, used only by the offline CI check of the rule planner.",
     "publishers": ["Business Insider", "CNBC", "Forbes", "Politico", "The Atlantic", "The New York Times", "The Wall Street Journal", "The Washington Post"],
@@ -25,7 +25,7 @@
     {"id": "S16", "question": "How many greenwashing ads did BP publish?", "expect": "no_count", "rules": "pass"},
     {"id": "S17", "question": "How many ads did TotalEnergies sponsor?", "expect": "count", "constraints": {"sponsor": "totalenergies"}, "rules": "gap"},
     {"id": "S18", "question": "How many ads are there?", "expect": "count", "constraints": {}, "rules": "gap"},
-    {"id": "S19", "question": "What percentage of ads are from CNBC?", "expect": "count", "constraints": {"publisher": "CNBC"}, "alternatives": [{"expect": "group", "group_by": "publisher", "constraints": {}}], "rules": "gap", "note": "Neither path computes a percentage. The CNBC count, or the full outlet distribution that contains it, is acceptable."},
+    {"id": "S19", "question": "What percentage of ads are from CNBC?", "expect": "share", "constraints": {"publisher": "CNBC"}, "denominator_constraints": {}, "rules": "pass", "note": "The denominator is the full active native selection before the question narrows it to CNBC. Counts or distributions alone do not pass."},
     {"id": "S20", "question": "How many ads did Chevron sponsor in The Atlantic?", "expect": "count", "constraints": {"publisher": "The Atlantic", "sponsor": "chevron"}, "rules": "gap"},
     {"id": "S21", "question": "How many social media ads are on Twitter?", "expect": "no_count", "rules": "pass", "note": "Native collection is active and social data is not loaded."},
     {"id": "S22", "question": "How many ads did ExxonMobil sponsor in the Wall Street Journal in 2022?", "expect": "count", "constraints": {"publisher": "The Wall Street Journal", "sponsor": "exxonmobil", "years": [2022, 2022]}, "rules": "gap"},
