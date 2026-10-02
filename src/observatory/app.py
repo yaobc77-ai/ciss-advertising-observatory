@@ -632,6 +632,7 @@ def _statistics_card(result, links_enabled, service):
     names = {"native": "Native ad records", "social": "Social ad records"}
     model_query = bool(result.get("research_trace"))
     is_share = data.get("kind") == "share"
+    is_time = data.get("kind") in {"list_years", "top_years", "compare_periods"}
     sections = []
     if is_share:
         sections.append(html.Div(html.Table([
@@ -652,12 +653,26 @@ def _statistics_card(result, links_enabled, service):
             html.Summary("Denominator · current selection before question targets"),
             html.P(" · ".join(_scope_selections(denominator))),
         ], className="statistics-denominator"))
+    if data.get("kind") == "compare_periods":
+        sections.append(html.Div(html.Table([
+            html.Caption("Counts for each requested period"),
+            html.Thead(html.Tr([html.Th(label, scope="col") for label in (
+                "Period", "Dates (inclusive)", "Collection", "Records",
+            )])),
+            html.Tbody([html.Tr([
+                html.Th(period["label"], scope="row"),
+                html.Td(f"{period['filters'].get('date_from') or 'Any start'} to "
+                        f"{period['filters'].get('date_to') or 'Any end'}"),
+                html.Td(names[item["dataset"]]), html.Td(f"{item['total']:,}", className="count-value"),
+            ]) for period in data.get("periods", []) for item in period.get("collections", [])]),
+        ]), className="statistics-table"))
     if groups:
         sections.append(html.Div(html.Table([
             html.Caption({"publishers": "All publishers and counts", "sponsors": "All source-listed sponsors / organizations and counts",
-                          "platforms": "All platforms and counts"}.get(data.get("group_by"), "All categories and counts")),
+                          "platforms": "All platforms and counts", "years": "Years with the highest count (all ties)"
+                          if data.get("kind") == "top_years" else "All years and counts"}.get(data.get("group_by"), "All categories and counts")),
             html.Thead(html.Tr([
-                html.Th({"publishers": "News outlet", "sponsors": "Source-listed sponsor / organization", "platforms": "Platform"}.get(data.get("group_by"), "Category"), scope="col"),
+                html.Th({"publishers": "News outlet", "sponsors": "Source-listed sponsor / organization", "platforms": "Platform", "years": "Year"}.get(data.get("group_by"), "Category"), scope="col"),
                 html.Th("Collection", scope="col"), html.Th("Records", scope="col"),
             ])),
             html.Tbody([html.Tr([
@@ -666,12 +681,12 @@ def _statistics_card(result, links_enabled, service):
             ]) for group in groups]),
         ]), className="statistics-table"))
     notes = [
-        f"{names[item['dataset']]}: {item['total']:,} eligible · {item['retrievable']:,} searchable · {item['unknown_dates']:,} with unknown dates."
+        f"{names[item['dataset']]}: {item['total']:,} matching · {item['retrievable']:,} searchable · {item['unknown_dates']:,} with unknown dates."
         for item in collections
     ]
     scope = [
         html.Ul([html.Li(note) for note in notes + data.get("scope_notes", [])], className="scope-note"),
-        html.P("Computed from all eligible stored records in this selection, including records without searchable text. Native articles and social posts are separate units. These are collection counts, not a census of all advertising.", className="scope-note"),
+        html.P("Computed from all matching stored records in this selection, including records without searchable text. Native articles and social posts are separate units. These are collection counts, not a census of all advertising.", className="scope-note"),
     ]
     date_note = (data.get("date_inference") or {}).get("note")
     if date_note:
@@ -685,7 +700,7 @@ def _statistics_card(result, links_enabled, service):
             + (". Additional categories are listed below." if len(category_names) > 5 else ".")
         ))
     return _answer_frame(
-        "Share of the current selection" if is_share else "Records in this selection",
+        "Share of the current selection" if is_share else "Counts across dates" if is_time else "Records in this selection",
         summary, sections, scope,
         eyebrow="Collection statistics · model-assisted query" if model_query
         else "Collection statistics · no model charge",
@@ -701,9 +716,12 @@ def _research_steps(result):
     steps = trace.get("tools") or []
     calls = trace.get("model_calls") or []
     call_label = "model call" if len(calls) == 1 else "model calls"
+    external = trace.get("external_web") or {}
+    web_calls = external.get("model_calls", 0)
+    web_note = f" · Web lookup: {web_calls} model call{'s' if web_calls != 1 else ''}" if external else ""
     return html.Details([
         html.Summary("How this question was answered"),
-        html.P(f"Question interpretation: {len(calls)} {call_label} · Total API cost ${result.get('cost_usd', 0):.5f} (includes retrieval, answer generation and web lookup when used). Database calculations and stored source reads do not call a model."),
+        html.P(f"Question interpretation: {len(calls)} {call_label}{web_note} · Total API cost ${result.get('cost_usd', 0):.5f} (includes retrieval, answer generation and web lookup when used). Database calculations and stored source reads do not call a model."),
         html.Ol([html.Li([
             html.Code(str(step.get("name") or step.get("tool") or "read-only tool")),
             html.Span(f" · {step.get('status') or step.get('result_status') or 'completed'}"),

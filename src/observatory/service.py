@@ -452,13 +452,20 @@ class Service:
         return self._tool_statistics_answer(data, base_filters=trusted)
 
     def answer(self, question, filters, visitor, progress=None):
-        # Questions use supplemented dates by default; every use is labelled.
-        filters = filters.model_copy(update={"include_inferred_dates": True})
+        start = time.monotonic()
+        # A default must never override a caller's explicit source-only choice.
+        if "include_inferred_dates" not in filters.model_fields_set:
+            filters = filters.model_copy(update={"include_inferred_dates": True})
         if getattr(self.settings, "research_agent_enabled", False):
             result = self._answer_with_tools(question, filters, visitor, progress=progress)
         else:
             result = self._answer_legacy(question, filters, visitor, progress=progress)
-        return self._ensure_answer(question, filters, visitor, result, progress)
+        result = self._ensure_answer(question, filters, visitor, result, progress)
+        self._record_web_trace(result, question, filters)
+        result.latency_ms = int((time.monotonic() - start) * 1000)
+        if result.external_research or result.research_trace.get("external_web"):
+            self._save_supplement(question, filters, result)
+        return result
 
     def _ensure_answer(self, question, filters, visitor, result, progress=None):
         """Always give an answer: when the collection cannot, supplement from the web.
@@ -467,38 +474,88 @@ class Service:
         database and keeps the provider's source links. Budget and rate limits
         still apply, and a failed web search never invents an answer.
         """
-        if result.status in ("answered", "limited") or not 1 <= len(question.strip()) <= 2000:
+        protected = {"citation_mismatch", "quote_too_long", "invalid_claim_count",
+                     "evidence_version_mismatch", "answer_structure_mismatch"}
+        if (result.status in ("answered", "limited") or not 1 <= len(question.strip()) <= 2000
+                or result.failure_reason.startswith("data_changed") or result.failure_reason in protected):
             return result
         research = result.external_research or {}
-        if research.get("status") != "ok":
+        # Any prior outcome is a completed attempt, including failures and limits.
+        # The evidence route may already have searched: do not charge it again.
+        if not research:
+            before = self.health()
             attempt = self._search_external(question, filters, visitor, progress=progress)
             if attempt.get("status") == "disabled" or attempt.get("reason") == "scope_not_supported":
                 return result  # No lookup happened; the collection answer stands unchanged.
             research = attempt
             result.cost_usd += research.get("cost_usd", 0.0)
             result.external_research = research
+            after = self.health()
+            version = before.get("data_version")
+            if before.get("status") == "ok" and version and version != "unavailable":
+                result.research_trace["data_version"] = version
+                if after.get("status") != "ok" or after.get("data_version") != version:
+                    return self._withhold_changed_web_result(result)
         if research.get("status") != "ok":
-            self._save_supplement(question, filters, result)  # The attempt and its cost stay auditable.
+            return result
+        sources = [s for s in research.get("sources") or []
+                   if isinstance(s, dict) and s.get("url") and s.get("supports_generated_paragraph", True)]
+        if not sources or not str(research.get("summary") or "").strip():
+            result.external_research = {**research, "status": "unresolved", "reason": "no_cited_answer"}
             return result
         reason = (result.answer or "").strip()
         result.status = "answered"
         result.answer_mode = "web_supplement"
-        # The answer text itself carries the web findings and their links, so
-        # text-only clients (API, MCP, exports) receive a complete, cited answer.
-        sources = [s for s in research.get("sources") or []
-                   if isinstance(s, dict) and s.get("url") and s.get("supports_generated_paragraph", True)]
+        # API, MCP and exports receive the findings and links, not only UI metadata.
         result.answer = WEB_SUPPLEMENT_LEAD + "\n\n" + (research.get("summary") or "").strip()
         if sources:
             result.answer += "\n\nWeb sources:\n" + "\n".join(
                 f"[{s.get('source_id')}] {s.get('title') or s['url']} - {s['url']}" for s in sources)
         if reason:
             result.answer += "\n\nWhy the collection could not answer: " + reason
-        self._save_supplement(question, filters, result)
         return result
+
+    @staticmethod
+    def _withhold_changed_web_result(result):
+        external = result.external_research or {}
+        trace = deepcopy(result.research_trace)
+        trace["external_web"] = {key: external.get(key) for key in (
+            "source_kind", "cost_usd", "model_calls", "searched_at", "audit",
+        ) if key in external}
+        trace["external_web"].update(status="withheld", reason="data_changed_during_web_research")
+        return Answer(status="service_unavailable",
+                      answer="The collection changed during research. Please submit the question again.",
+                      failure_reason="data_changed_during_web_research", cost_usd=result.cost_usd,
+                      research_trace=trace)
+
+    @staticmethod
+    def _record_web_trace(result, question, filters):
+        external = result.external_research or result.research_trace.get("external_web")
+        if not external or external.get("status") == "disabled" or external.get("reason") == "scope_not_supported":
+            return
+        trace = deepcopy(result.research_trace)
+        trace.setdefault("original_question", question)
+        trace.setdefault("base_filters", filters.model_dump(mode="json"))
+        trace.setdefault("model_calls", [])
+        trace["cost_usd"] = result.cost_usd
+        trace["external_web"] = {key: external.get(key) for key in (
+            "status", "reason", "source_kind", "cost_usd", "model_calls", "searched_at", "audit",
+        ) if key in external}
+        # The lower evidence path may already have recorded the same lookup.
+        trace["tools"] = [step for step in trace.get("tools", [])
+                          if (step.get("tool") or step.get("name")) != "search_external_sources"]
+        trace["tools"].append({
+            "tool": "search_external_sources", "status": external.get("status"),
+            "source_kind": "external_web", "cost_usd": external.get("cost_usd", 0),
+            "data_refs": [{"source_id": s.get("source_id"), "url": s.get("url")}
+                          for s in external.get("sources", [])],
+        })
+        result.research_trace = trace
 
     def _save_supplement(self, question, filters, result):
         try:
-            self.db.save_answer(question, filters, result, self.health().get("data_version", "unavailable"))
+            version = result.research_trace.get("data_version") or self.health().get("data_version", "unavailable")
+            self.db.save_answer(question, filters, result, version)
         except Exception:
             log.warning("Supplemented answer audit log unavailable")
 
@@ -566,13 +623,17 @@ class Service:
                 result = Answer(status="service_unavailable", answer_mode="tools",
                                 failure_reason="data_changed_during_tool_research",
                                 answer="The collection changed while processing this question. Please submit it again.",
-                                cost_usd=result.cost_usd)
+                                cost_usd=result.cost_usd, research_trace=result.research_trace)
             elif result.answer_mode == "statistics" and result.structured_result is not None:
                 # Bind later record pagination to the same source snapshot that
                 # passed the query's before/after guard, not a model-supplied ID.
                 result.structured_result = {**result.structured_result, "data_version": version}
             result.cost_usd += run.cost_usd
+            withheld_web = result.research_trace.get("external_web")
             result.research_trace = run.audit()
+            result.research_trace["data_version"] = version
+            if withheld_web:
+                result.research_trace["external_web"] = withheld_web
             if result.external_research:
                 external = result.external_research
                 result.research_trace["external_web"] = {key: external.get(key) for key in (
@@ -618,6 +679,8 @@ class Service:
     @staticmethod
     def _tool_statistics_answer(data, *, base_filters=None):
         """Publish program-computed counts; model-written totals are never used."""
+        if data.get("kind") in {"list_years", "top_years", "compare_periods"}:
+            return Service._time_statistics_answer(data, base_filters=base_filters)
         if data.get("kind") == "share":
             numerator = Filters.model_validate(data["filters"])
             denominator = Filters.model_validate(data["denominator_filters"])
@@ -675,6 +738,71 @@ class Service:
         note = (data.get("date_inference") or {}).get("note") or ""
         return Answer(status="answered", answer_mode="statistics",
                       answer=message + (" " + note if note else ""), structured_result=data)
+
+    @staticmethod
+    def _time_statistics_answer(data, *, base_filters):
+        """Describe bounded time aggregates from the tool, preserving every part."""
+        filters = Filters.model_validate(data["filters"])
+        if not isinstance(base_filters, Filters) or data.get("method") != "database":
+            raise ValueError("Time statistics require the trusted database scope")
+        validate_share_scope(filters, base_filters)
+        units = {"native": "native ad records", "social": "social ad records"}
+        collections = data.get("collections") or []
+        for item in collections:
+            if (item.get("dataset") not in units or type(item.get("total")) is not int
+                    or item["total"] < 0 or type(item.get("unknown_dates")) is not int
+                    or not 0 <= item["unknown_dates"] <= item["total"]):
+                raise ValueError("Invalid time-statistics totals")
+        parts = []
+        if data["kind"] == "compare_periods":
+            periods = data.get("periods") or []
+            if not 2 <= len(periods) <= 3:
+                raise ValueError("A time comparison requires two or three periods")
+            for period in periods:
+                validate_share_scope(Filters.model_validate(period["filters"]), filters)
+            for item in collections:
+                counts = []
+                for period in periods:
+                    matches = [row for row in period["collections"] if row["dataset"] == item["dataset"]]
+                    if len(matches) != 1 or type(matches[0].get("total")) is not int or matches[0]["total"] < 0:
+                        raise ValueError("Every period must include each selected collection")
+                    counts.append(matches[0]["total"])
+                parts.append(units[item["dataset"]].capitalize() + ": " + "; ".join(
+                    f"{count:,} in {period['label']}" for period, count in zip(periods, counts)))
+                if len(counts) == 2:
+                    if counts[0] == counts[1]:
+                        parts.append("The two periods have equal counts")
+                    else:
+                        larger = 0 if counts[0] > counts[1] else 1
+                        parts.append(f"{periods[larger]['label']} has {abs(counts[0] - counts[1]):,} more records")
+        else:
+            groups = data.get("groups") or []
+            for item in collections:
+                years = [group for group in groups if group["dataset"] == item["dataset"]]
+                if any(type(group.get("count")) is not int or group["count"] < 0 for group in years):
+                    raise ValueError("Invalid yearly counts")
+                if data["kind"] == "top_years":
+                    if years:
+                        highest = max(group["count"] for group in years)
+                        if any(group["count"] != highest for group in years):
+                            raise ValueError("A highest-year result must preserve ties")
+                        verb = "tie for the highest count" if len(years) > 1 else "has the highest count"
+                        parts.append(f"{units[item['dataset']].capitalize()}: "
+                                     + ", ".join(group["name"] for group in years)
+                                     + f" {verb}, with {highest:,} records per year")
+                    else:
+                        parts.append(f"No dated {units[item['dataset']]} are available for year ranking")
+                else:
+                    if sum(group["count"] for group in years) + item["unknown_dates"] != item["total"]:
+                        raise ValueError("Year counts and unknown dates must reconcile with the collection total")
+                    parts.append(f"{item['total']:,} {units[item['dataset']]} are grouped by year below")
+        parts.extend(f"{item['unknown_dates']:,} {units[item['dataset']]} have no date under this date basis; "
+                     "they are listed separately" for item in collections)
+        note = (data.get("date_inference") or {}).get("note")
+        if note:
+            parts.append(note)
+        return Answer(status="answered", answer_mode="statistics", answer=". ".join(part.rstrip(". ") for part in parts) + ".",
+                      structured_result=data)
 
     def _answer_legacy(self, question, filters, visitor, progress=None):
         start = time.monotonic()
@@ -823,6 +951,8 @@ class Service:
                 "Citation exceeds short-quote limit": "quote_too_long",
                 "Missing or excessive claims": "invalid_claim_count",
                 "Evidence failed original-version validation": "evidence_version_mismatch",
+                "Unverifiable answer-structure citation": "answer_structure_mismatch",
+                "Data changed during retrieval; retry on a consistent version": "data_changed_during_retrieval",
                 "Data changed during generation; retry on a consistent version": "data_changed_during_generation",
             }
             reason = known.get(str(exc), type(exc).__name__)
@@ -867,8 +997,7 @@ class Service:
         if result.external_research:
             after_web = self.health()
             if after_web.get("status") != "ok" or after_web.get("data_version") != version:
-                result = Answer(status="service_unavailable", answer="The collection changed during research. Please submit the question again.",
-                                failure_reason="data_changed_during_web_research", cost_usd=result.cost_usd)
+                result = self._withhold_changed_web_result(result)
         result.latency_ms = int((time.monotonic() - start) * 1000)
         if audit:
             try:

@@ -218,3 +218,49 @@ def test_disabled_web_keeps_the_collection_answer():
     service, _, web = always(run, enabled=False)
     assert service.answer("Who is Imaginary Oil?", Filters(), "reader").status == "insufficient_evidence"
     assert not web.calls
+
+
+def test_explicit_source_only_dates_survive_the_complete_question_route():
+    run = ResearchRun(route="clarify", result={"status": "clarify", "message": "Unknown source."})
+    service, _, _ = always(run)
+    service.answer("Which source contains this advertisement?", Filters(include_inferred_dates=False), "reader")
+    assert run.base_filters["include_inferred_dates"] is False
+
+
+def test_default_questions_can_use_supplements_without_mutating_the_callers_filters():
+    run = ResearchRun(route="clarify", result={"status": "clarify", "message": "Unknown source."})
+    service, _, _ = always(run)
+    original = Filters()
+    service.answer("Which source contains this advertisement?", original, "reader")
+    assert run.base_filters["include_inferred_dates"] is True
+    assert original.include_inferred_dates is False
+
+
+def test_late_web_source_change_retains_cost_and_withheld_lookup_trace():
+    run = ResearchRun(route="clarify", result={"status": "clarify", "message": "Unknown source."})
+    service, db, _ = always(run)
+    web = service.web_research = Web(db, change_version=True)
+    result = service.answer("Which source contains this advertisement?", Filters(), "reader")
+    assert len(web.calls) == 1 and result.status == "service_unavailable"
+    assert result.failure_reason == "data_changed_during_web_research"
+    assert result.cost_usd == pytest.approx(0.02)
+    assert result.research_trace["external_web"]["status"] == "withheld"
+    assert result.research_trace["external_web"]["model_calls"] == 1
+    assert result.research_trace["tools"][-1]["data_refs"] == []
+    assert not result.external_research and not result.citations
+    assert db.saved[-1][-1] == "corpus-v1"
+
+
+def test_web_ok_without_cited_material_is_not_published_as_an_answer():
+    run = ResearchRun(route="clarify", result={"status": "clarify", "message": "Unknown source."})
+    service, _, web = always(run)
+
+    def no_sources(args, *, visitor):
+        web.calls.append(args)
+        return {"status": "ok", "summary": "An unsupported answer.", "sources": [], "cost_usd": 0.02}
+
+    web.call = no_sources
+    result = service.answer("Which source contains this advertisement?", Filters(), "reader")
+    assert result.status == "insufficient_evidence" and len(web.calls) == 1
+    assert result.external_research["status"] == "unresolved"
+    assert result.external_research["reason"] == "no_cited_answer"

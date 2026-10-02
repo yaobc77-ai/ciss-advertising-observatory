@@ -17,7 +17,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from .budget import LimitReached, price
 from .models import Filters
 
-POLICY_VERSION = "research-tools-v4"
+POLICY_VERSION = "research-tools-v5"
 MAX_INPUT_BYTES = 60_000
 MAX_ARGUMENT_BYTES = 8_000
 MAX_INTERMEDIATE_BYTES = 16_000
@@ -33,16 +33,29 @@ Use record_statistics for exact stored-record counts and metadata lists: publish
 company/sponsor, sponsors for a publisher, counts across metadata and dates. Its counts cover
 the selected stored collection, not the whole real-world advertising market. All model calls
 have a cost even when the selected database tool is free. Never count retrieved excerpts.
+For a year distribution set group_by='years'. For the busiest/highest year also set
+ranking='highest'; the tool returns every tied highest year and missing dates separately.
+For before/after or two/three-period comparisons, set periods with distinct labels and
+explicit inclusive endpoints, leaving shared company/outlet conditions in filters. A
+single record_statistics call returns all period counts in one snapshot. Do not replace
+year counts, rankings, or a comparison with one aggregate total. Dates outside a period
+and missing dates are not assigned to it; preserve the returned source/supplemented basis.
 For a percentage/share of the current selection, use record_statistics with measure='share'
-and group_by='none'. Tool filters define the numerator only. The denominator is the trusted
-active_scope before those targets; you cannot supply or change it. Keep native and social
-percentages separate. Never substitute a count or a full distribution for a requested share.
-If the question specifies a different denominator (for example 'within 2018' when the active
-scope is not 2018), or the denominator is ambiguous, ask the user to select that scope first.
+and group_by='none'. Tool filters define the numerator. By default the denominator is the
+trusted active_scope before those targets. When the question names a comparison group,
+put its conditions in denominator_filters, narrowing active_scope; put the target in
+filters, narrowing that denominator. Keep native and social percentages separate.
+Never substitute a count or a full distribution for a requested share. If the comparison
+group is ambiguous, ask the user to identify it first.
 Do not silently turn a denominator condition into a numerator filter. A zero denominator is
 undefined, not zero percent. The application calculates every percentage, not you.
 Use canonical source values from entity_context, or resolve_entity when uncertain. Do not
 invent a canonical company or publisher. Display aliases do not establish corporate ownership.
+Check entity_context.ambiguity_hints: an exact short spelling can coexist with longer
+related source names. Unless active_scope or the user explicitly chooses a source value,
+resolve_entity or clarify that short name. Preserve all returned candidates even when
+one is an exact match. Never silently combine related spellings into one company. If the
+user explicitly requests several source candidates, count that explicit list and name it.
 The sponsor field includes source-listed companies, associations and events; a stored
 relationship does not by itself prove a contractual or paid business relationship.
 

@@ -25,6 +25,7 @@ from pydantic import (
     StrictBool,
     StrictInt,
     ValidationError,
+    model_validator,
 )
 
 from .analytics import LABEL_NOTE, sponsor_display
@@ -46,10 +47,10 @@ Question = Annotated[str, Field(min_length=1, max_length=2000)]
 NcId = Annotated[str, Field(pattern=r"^NC_[1-9][0-9]*$", max_length=100)]
 ScId = Annotated[str, Field(pattern=r"^SC_[1-9][0-9]*$", max_length=100)]
 _DIMENSIONS = ("publishers", "sponsors", "platforms", "keywords", "labels", "record_ids")
-_RECORD_FIELDS = ("record_id", "version_id", "dataset", "title", "date", "date_basis",
+_RECORD_FIELDS = ("record_id", "version_id", "dataset", "title", "date", "source_date", "effective_date", "date_basis",
                   "inferred_date", "inferred_tier", "publisher", "sponsor", "retrievable", "url", "archive_url")
 _NOTES = (
-    "Counts describe eligible stored records, not every advertisement published elsewhere.",
+    "Counts describe stored records in the selected collection, not every advertisement published elsewhere.",
     "Sponsor and publisher fields are exact source candidates, not independently verified business relationships.",
     "Native articles and social posts retain separate counting units.",
     LABEL_NOTE,
@@ -85,10 +86,39 @@ class ResolveEntityRequest(ScopedRequest):
     limit: Annotated[StrictInt, Field(ge=1, le=10)] | None = None
 
 
+class StatisticsPeriod(Request):
+    label: Annotated[str, Field(min_length=1, max_length=100)]
+    date_from: date | None = None
+    date_to: date | None = None
+
+    @model_validator(mode="after")
+    def explicit_range(self):
+        if self.date_from is None and self.date_to is None:
+            raise ValueError("A comparison period needs an explicit date endpoint")
+        if self.date_from and self.date_to and self.date_from > self.date_to:
+            raise ValueError("Period endpoints are reversed")
+        return self
+
+
 class StatisticsRequest(ScopedRequest):
-    group_by: Literal["none", "publishers", "sponsors", "platforms"] | None = None
+    group_by: Literal["none", "publishers", "sponsors", "platforms", "years"] | None = None
+    ranking: Literal["all", "highest"] | None = Field(default=None, description="For group_by='years': all returns the full year distribution; highest returns EVERY year tied for the largest dated-record count. Unknown dates are always reported separately.")
+    periods: Annotated[list[StatisticsPeriod], Field(min_length=2, max_length=3)] | None = Field(default=None, description="Compare two or three named explicit date ranges in one database snapshot. Endpoints are inclusive, null is open-ended. Shared filters apply to every period. Missing dates are reported separately and never assigned to a period.")
     measure: Literal["count", "share"] | None = None
     denominator_filters: FiltersRequest | None = Field(default=None, description="Only for measure='share' when the question names the group to compare against, e.g. 'share of ExxonMobil's ads that ran in the NYT': denominator_filters={sponsors:[exxonmobil]}, filters={publishers:[The New York Times]}. The target in filters is counted within this denominator.")
+
+    @model_validator(mode="after")
+    def compatible_statistics(self):
+        if self.ranking == "highest" and self.group_by != "years":
+            raise ValueError("Highest ranking currently requires years")
+        if self.periods:
+            if self.group_by not in (None, "none") or self.measure == "share" or self.denominator_filters:
+                raise ValueError("Periods compare counts without grouping or shares")
+            if len({item.label.casefold().strip() for item in self.periods}) != len(self.periods):
+                raise ValueError("Period labels must be distinct")
+        if self.measure == "share" and self.group_by == "years":
+            raise ValueError("Shares do not support grouping")
+        return self
 
 
 class ComparisonSearch(ScopedRequest):
@@ -135,7 +165,7 @@ TOOLS = {
     "resolve_entity": (ResolveEntityRequest,
         "Resolve a sponsor or publisher against actual source names. Returns candidates, not corporate identity merges; ask for clarification when ambiguous."),
     "record_statistics": (StatisticsRequest,
-        "Count all eligible records or list every publisher/sponsor/platform and its count. measure='share' calculates a target's percentage. By default the denominator is the trusted current selection and filters narrow only the numerator. When the question names its own comparison group (for example the share of ExxonMobil ads that ran in the NYT), put that group in denominator_filters and the target in filters; the target is counted inside the group. Clarify an ambiguous comparison group instead of guessing. For ads without a publication date use filters.date_presence='missing'. Share requires group_by='none'. Separate native/social denominators; zero denominator means undefined. Exact SQL including records without searchable body; never infer totals from retrieved passages. Records carry date_basis; supplemented dates are used by default and labelled; keep the returned label in the answer."),
+        "Count selected stored records or list every publisher/sponsor/platform and its count. For counts by year use group_by='years'; for the highest year use ranking='highest', which includes all ties and reports unknown dates separately. To compare before/after or two periods use periods with named inclusive date ranges and shared filters; never replace that task with a single total. measure='share' calculates a target's percentage. By default the denominator is the trusted current selection and filters narrow only the numerator. When the question names its own comparison group (for example the share of ExxonMobil ads that ran in the NYT), put that group in denominator_filters and the target in filters; the target is counted inside the group. Clarify an ambiguous comparison group instead of guessing. For ads without a publication date use filters.date_presence='missing'. Share requires group_by='none'. Separate native/social denominators; zero denominator means undefined. Exact SQL including records without searchable body; never infer totals from retrieved passages. Records carry date_basis; preserve the selected source-only or supplemented-date basis and keep the returned label in the answer."),
     "search_records": (SearchRequest,
         "Free keyword retrieval of bounded source passages within the collection selection. Use for article content, never corpus totals or factual verification. Each passage carries date_basis (source, inferred:<method> or missing); when citing a passage whose date is supplemented, say so."),
     "get_record": (RecordTextRequest,
@@ -179,6 +209,12 @@ def _normal(value):
     return " ".join(re.findall(r"\w+", value.casefold()))
 
 
+def _related_name(query, names):
+    # Whole words avoid treating short names such as BP as a substring in an
+    # unrelated spelling. Longer source names remain separate candidates.
+    return bool(query) and any(f" {query} " in f" {item} " for item in names)
+
+
 def _candidate_id(dataset, field, value):
     encoded = json.dumps((dataset, field, value), ensure_ascii=False, separators=(",", ":"))
     kind = "sponsorcandidate" if field == "sponsor" else "outlet"
@@ -215,7 +251,8 @@ class ToolCatalog:
         """Small public namespace context; unknown names still fail at execution."""
         limit = max(1, min(int(limit), 200))
         facets = self.service.facets(self._base.dataset)
-        result = {"identity_policy": IDENTITY_POLICY, "truncated": False}
+        result = {"identity_policy": IDENTITY_POLICY, "truncated": False,
+                  "ambiguity_hints": []}
         for dimension in ("publishers", "sponsors"):
             values = list(facets.get(dimension, []))
             if getattr(self._base, dimension):
@@ -225,6 +262,14 @@ class ToolCatalog:
                                   if dimension == "sponsors" else value}
                                  for value in values[:limit]]
             result["truncated"] |= len(values) > limit
+            for value in values[:limit]:
+                query = _normal(value).removeprefix("the ")
+                related = [candidate for candidate in values if _related_name(query, {
+                    _normal(candidate), _normal(candidate).removeprefix("the ")})]
+                if len(related) > 1 and len(result["ambiguity_hints"]) < 30:
+                    result["ambiguity_hints"].append({"field": dimension, "query": value,
+                        "source_candidates": related[:10], "candidate_count": len(related),
+                        "instruction": "A short name can refer to multiple source candidates. Resolve or clarify; do not silently select or merge them. Exact active filters still identify a source value."})
         return result
 
     def narrow(self, requested: FiltersRequest | None, *, base: Filters | None = None):
@@ -244,7 +289,8 @@ class ToolCatalog:
             if not values:
                 continue
             if dimension in ("publishers", "sponsors"):
-                values = self._canonical(dimension, values, filters.dataset)
+                values = self._canonical(dimension, values, filters.dataset,
+                                         selected=getattr(filters, dimension))
             existing = getattr(filters, dimension)
             selected = [value for value in values if not existing or value in existing]
             if not selected or len(set(selected)) != len(set(values)):
@@ -275,7 +321,7 @@ class ToolCatalog:
             raise ScopeConflict("The active selection excludes missing publication dates; their count cannot be read by widening the date filter.")
         return filters
 
-    def _canonical(self, dimension, values, dataset):
+    def _canonical(self, dimension, values, dataset, *, selected=()):
         """Replace a known alias by its exact source value only when it is unique.
 
         Models pass names such as "NYT" or "ExxonMobil" straight into filters.
@@ -288,6 +334,15 @@ class ToolCatalog:
             known.update(v for v in self.service.facets(name).get(dimension, []) if v and v != "(Unknown)")
         result = []
         for value in values:
+            query = _normal(value).removeprefix("the ")
+            related = sorted(candidate for candidate in known if _related_name(query, {
+                _normal(candidate), _normal(candidate).removeprefix("the ")})
+                and _normal(candidate).removeprefix("the ") != query)
+            if (dimension == "sponsors" and value in known and value not in selected
+                    and related and not set(related).issubset(values)):
+                names = "; ".join([value, *related[:9]])
+                raise ScopeConflict("This short sponsor name matches separate source candidates: "
+                    + names + ". Choose an exact source value in the collection filters, or explicitly select the source names to compare; they are not silently merged.")
             matches = [] if value in known else canonical_source_values(value, dimension, sorted(known))
             if len(matches) == 1:
                 item = {"field": dimension, "requested": value, "source_value": matches[0]}
@@ -383,15 +438,14 @@ class ToolCatalog:
                 alias = bool(canonical_source_values(request.query, dimension, [value]))
                 if alias:
                     names.add(query)
-                if query in names or any(query and query in item for item in names):
+                if query in names or _related_name(query, names):
                     candidates.append({"entity_id": _candidate_id(dataset, request.entity_type, value),
                                        "dataset": dataset, "source_field": request.entity_type,
                                        "source_value": value, "display_name": display,
                                        "match": "exact_or_display" if query in names else "partial",
                                        "identity_status": "source_candidate_not_resolved"})
-        exact = [item for item in candidates if item["match"] == "exact_or_display"]
-        if exact:
-            candidates = exact
+        candidates.sort(key=lambda item: (item["match"] != "exact_or_display",
+                                           item["dataset"], item["source_value"]))
         limit = request.limit or 10
         return {"status": "ok" if len(candidates) == 1 else "clarify",
                 "candidates": candidates[:limit], "candidate_count": len(candidates),
@@ -402,6 +456,8 @@ class ToolCatalog:
 
     def _record_statistics(self, request, filters):
         group_by = request.group_by or "none"
+        if group_by == "years" or request.periods:
+            return self._complete_statistics(request, filters)
         if request.measure == "share" and group_by != "none":
             raise ScopeConflict("A percentage compares target records with the current selection. Use no grouping, or ask for a count distribution separately.")
         kind = "share" if request.measure == "share" else {
@@ -437,6 +493,42 @@ class ToolCatalog:
             result["groups"] = [item for item in result["groups"] if item.get("dataset") not in missing]
             result["records"] = [item for item in result["records"] if item.get("dataset") not in missing]
             result["scope_notes"].append("Unloaded collections are omitted, not reported as zero advertisements.")
+        return {"status": "ok", **result}
+
+    def _complete_statistics(self, request, filters):
+        """A requested distribution/comparison cannot be replaced by its total."""
+        if request.denominator_filters or request.measure == "share":
+            raise ScopeConflict("Year distributions and named periods currently compare counts, not shares.")
+        periods = []
+        for period in request.periods or []:
+            selected = self.narrow(FiltersRequest(date_from=period.date_from,
+                date_to=period.date_to, include_unknown_dates=False), base=filters)
+            periods.append({"label": period.label, "filters": selected})
+        ranking = request.ranking or "all"
+        result = self.service.db.research_statistics(filters,
+            group_by="years" if not periods else "none", ranking=ranking, periods=periods)
+        result = deepcopy(result)
+        missing = self._availability(filters).get("missing_datasets", [])
+        result["collections"] = [item for item in result["collections"] if item["dataset"] not in missing]
+        result["groups"] = [item for item in result.get("groups", []) if item["dataset"] not in missing]
+        for period in result.get("periods", []):
+            period["collections"] = [item for item in period["collections"] if item["dataset"] not in missing]
+        result["unknown_dates"] = [{"dataset": item["dataset"], "count": item["unknown_dates"]}
+                                   for item in result["collections"]]
+        result["records"] = self.service._public_rows([
+            {key: row.get(key) for key in _RECORD_FIELDS}
+            for row in result.get("records", []) if row.get("dataset") not in missing])
+        result["kind"] = "compare_periods" if periods else "top_years" if ranking == "highest" else "list_years"
+        result["method"] = "database"
+        result["group_by"] = None if periods else "years"
+        result["ranking"] = ranking
+        result["scope_notes"] = list(_NOTES)
+        if missing:
+            result["scope_notes"].append("Unloaded collections are omitted, not reported as zero advertisements.")
+        used = sum(item.get("inferred_dates", 0) for item in result["collections"])
+        result["date_inference"] = {"enabled": filters.include_inferred_dates,
+            "used": used, "tiers": result.pop("inferred_tiers", {}),
+            "note": BASIS_NOTE if used else "Counts use source publication dates only." if not filters.include_inferred_dates else "No supplemented dates were used in this selection."}
         return {"status": "ok", **result}
 
     def _row(self, record_id, filters):

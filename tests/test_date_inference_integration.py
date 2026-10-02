@@ -59,14 +59,21 @@ def test_supplemented_dates_are_opt_in_per_filter_and_used_without_review(db, tm
     # No manual review step (user decision 2026-10-01): any row not rejected is used.
     assert year_2016(db, include=False) == {"source-dated"}
     assert year_2016(db, include=True) == {"source-dated", "url-dated", "search-dated"}
-    basis = {r["record_id"]: r["date_basis"] for r in db.public_rows(Filters())}
+    source_only = db.public_rows(Filters(include_inferred_dates=False))
+    assert {r["record_id"]: r["effective_date"] for r in source_only} == {
+        "url-dated": None, "search-dated": None, "source-dated": "2016-05-01",
+    }
+    assert db.dashboard(Filters(include_inferred_dates=False))["stats"]["unknown_dates"] == 2
+    selected = Filters(include_inferred_dates=True)
+    basis = {r["record_id"]: r["date_basis"] for r in db.public_rows(selected)}
     assert basis == {"url-dated": "inferred:url_path", "search-dated": "inferred:web_search", "source-dated": "source"}
-    assert db.dashboard(Filters())["stats"]["inferred_dates"] == {"A": 1, "C": 1}
+    assert db.dashboard(selected)["stats"]["inferred_dates"] == {"A": 1, "C": 1}
+    assert db.dashboard(selected)["stats"]["unknown_dates"] == 0
 
     with db.connect() as conn:
         conn.execute("UPDATE date_inferences SET review_state='rejected' WHERE method='url_path'")
     assert year_2016(db, include=True) == {"source-dated", "search-dated"}
-    assert db.dashboard(Filters())["stats"]["inferred_dates"] == {"C": 1}
+    assert db.dashboard(selected)["stats"]["inferred_dates"] == {"C": 1}
     # Source dates and the published data version are untouched by inferences.
     assert {r["record_id"]: r["date"] for r in db.public_rows(Filters())}["source-dated"] == "2016-05-01"
 
