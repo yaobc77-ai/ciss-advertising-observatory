@@ -1,5 +1,7 @@
 # 项目文档阅读索引
 
+**本机 PG18 升级（2026-10-01）**：[升级报告](../reports/LOCAL_POSTGRES18_UPGRADE_20261001.zh-CN.md) · [JSON 回执](../reports/local_postgres18_upgrade_20261001.json)。当前 PostgreSQL 18.6 + pgvector 0.8.6，保留原 13 个数据库及旧集群；87 项独立集群集成测试与 18 项保护测试通过。
+
 **0.4.10 已发布**：[发布回执](../reports/citation_v0_4_10_publication_20261001.json)。两仓库 CI 各 1,936 项通过，本机全新安装包同样通过；Railway 已运行对应代码，数据与索引版本未变。已核对所选 PDF 的 HTTP 字节与页面预览，Edge 下载阻断仍待解决。
 
 **可供客户逐项审查的原生材料（2026-10-01）**：[准备报告](../reports/NATIVE_CLIENT_REVIEW_PREPARATION_20261001.en.md) · [回执](../reports/native_client_review_preparation_20261001.json)。私有材料包包含 NYT 19 条、ExxonMobil 15 条、华邮 18 条和组合筛选 3 条完整来源，以及两道已保存答案、4 条原文和 6 行空白人审栏。不是独立冻结题库；未发送、未审、未获批，现有冻结模板保持原样。

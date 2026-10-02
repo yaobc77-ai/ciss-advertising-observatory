@@ -1,22 +1,24 @@
 # 本机 PostgreSQL + pgvector
 
-本项目使用独立的 **PostgreSQL 16.15 + pgvector 0.8.6**。运行目录位于项目 `.runtime/`，监听 **127.0.0.1:55432**，主数据库为 **observatory**。没有安装 Windows 服务或修改系统 PATH；机器重新启动后需执行启动脚本。
+本项目自 **2026-10-01** 使用独立的 **PostgreSQL 18.6 + pgvector 0.8.6**。当前运行时为 `.runtime/postgres18/`，数据目录为 `.runtime/pgdata18/`，监听 **127.0.0.1:55432**，主数据库为 **observatory**。没有安装 Windows 服务或修改系统 PATH；机器重新启动后需执行启动脚本。原 PostgreSQL 16 运行时与数据目录保留为升级前快照并停止使用。
 
 ## 为什么选择这条安装路径
 
-- [pgvector 官方安装说明](https://github.com/pgvector/pgvector#conda-forge)列出 conda-forge，Windows 也适用；这是社区维护的二进制包渠道。
-- [conda-forge 的 pgvector 包](https://anaconda.org/conda-forge/pgvector)提供 win-64 包。本次读取其官方包元数据，0.8.6 Windows 构建要求 libpq 16，因此固定 PostgreSQL 16 系列，不能单独替换为 17/18 的二进制。
+- PostgreSQL 18.6 及依赖使用 conda-forge 的 win-64 包。`scripts/postgres-win64.lock.txt` 固定 **18 个包**的下载 URL 与 MD5；安装元数据保留在 `.runtime/postgres18/conda-meta/`。
+- 先前使用的 conda-forge pgvector 0.8.6 Windows 包要求 libpq 16，不能将其 DLL 直接用于 PostgreSQL 18。当前锁文件不包含该包，而由 [Install-Pgvector.ps1](../scripts/Install-Pgvector.ps1) 按 [pgvector 上游 Windows 构建说明](https://github.com/pgvector/pgvector#windows)从源码编译。
+- pgvector 源码固定为上游 `v0.8.6`，归档 SHA-256 为 `10bf9938906e5d643bbc4a7eea104b6f57ba4898e5b76b20e60484ea1d5a7f8f`。脚本核对归档、限制解包路径，再使用 **Visual Studio 2022 x64 C++ 工具**和上游 `Makefile.win`，以当前 PostgreSQL 18 的 `Library` 目录为 `PGROOT` 编译并安装。构建记录 `.runtime/postgres18/pgvector-build.json` 绑定源码、PostgreSQL 二进制、DLL、control 与安装 SQL 的哈希；一致时重复运行不重建。
 - [micromamba 官方安装说明](https://mamba.readthedocs.io/en/latest/installation/micromamba-installation.html)提供独立运行方式。使用 2.9.0 的 conda-forge Windows 归档，下载后核对发布元数据中的 SHA-256，仅提取 `micromamba.exe`。
-- `scripts/postgres-win64.lock.txt` 固定了本次环境的 16 个包、下载 URL 和包 MD5；`.runtime/postgres/conda-meta/` 保留安装元数据。升级应重新核对 PostgreSQL 大版本、pgvector ABI 和备份恢复，不能直接替换现有数据目录。
+- Setup 负责新环境安装，不执行大版本迁移。已有旧集群标记或数据时会拒绝自动初始化；控制脚本在调用 `pg_ctl` 前核对 PostgreSQL 18 二进制与数据大版本，不能直接重用 PostgreSQL 16 数据目录。
 
 ## 文件位置与权限
 
 | 路径 | 内容 |
 |---|---|
-| `.runtime/postgres/` | PostgreSQL、pgvector 及依赖 |
-| `.runtime/pgdata/` | 此项目数据库集群；初始化遇到非空目录会拒绝覆盖 |
+| `.runtime/postgres18/` | 当前 PostgreSQL 18、源码构建的 pgvector 及依赖 |
+| `.runtime/pgdata18/` | 当前项目数据库集群；初始化遇到非空目录会拒绝覆盖 |
 | `.runtime/postgres-cluster.json` | 集群所属目录与端口标记 |
-| `.runtime/postgres.log` | PostgreSQL 服务日志 |
+| `.runtime/postgres18.log` | 当前 PostgreSQL 18 服务日志 |
+| `.runtime/postgres/`、`.runtime/pgdata/`、`.runtime/postgres.log` | 保留的 PostgreSQL 16 运行时、升级前数据与旧日志；不是当前运行目录 |
 | `.runtime/secrets/postgres.json` | 随机生成的本机管理账号与应用账号凭据 |
 | `.env` | `OBS_DATABASE_URL`，以及测试使用的 `OBS_TEST_DATABASE_URL` |
 | `.runtime/backups/` | 本地备份及 SHA-256 文件 |
@@ -27,10 +29,10 @@
 
 ## PowerShell 操作
 
-在项目根目录执行；脚本也支持从其他目录按完整路径调用。先准备项目 `.venv` 和 `psycopg` 依赖。
+在项目根目录执行；脚本也支持从其他目录按完整路径调用，并通过 Python 解析 Windows junction 后核对集群所属目录。新机器先准备项目 `.venv`、`psycopg` 依赖，以及 Visual Studio 2022 的 x64 C++ 编译工具与所需 Windows SDK。源码构建写入项目运行目录，不要求将数据库安装为系统服务。
 
 ```powershell
-# 首次下载安装；后续运行不会覆盖已有环境或数据。
+# 新环境下载安装并构建 PG18 对应的 pgvector；遇到旧集群时拒绝自动迁移。
 .\scripts\Setup-Postgres.ps1
 
 # 启动（首次会初始化集群和数据库）。已有服务正常时可重复执行。
@@ -48,7 +50,17 @@
 
 启动通过 `pg_ctl` 完成，辅助进程使用 Windows `CREATE_NO_WINDOW`，没有可见终端窗口。启动发现 55432 被其他进程占用时会报错，不停止占用进程。停止前核对集群标记和服务器数据目录，只对这个集群调用 `pg_ctl stop -m fast`；它会取消该集群的活动事务后正常关闭，因此应先停应用或等待写入结束。
 
-安装参考：[PostgreSQL initdb](https://www.postgresql.org/docs/16/app-initdb.html)、[pg_ctl](https://www.postgresql.org/docs/16/app-pg-ctl.html)。Windows 上 Python 使用系统工具 `icacls` 设置本项目凭据文件的 ACL，不依赖 PowerShell 模块自动加载。
+安装参考：[PostgreSQL 18 initdb](https://www.postgresql.org/docs/18/app-initdb.html)、[pg_ctl](https://www.postgresql.org/docs/18/app-pg-ctl.html)。Windows 上 Python 使用系统工具 `icacls` 设置本项目凭据文件的 ACL，不依赖 PowerShell 模块自动加载。
+
+## 当前升级记录（2026-10-01）
+
+本机 PostgreSQL 16.15 已通过 PostgreSQL 18 的 `pg_upgrade --check` 与 **copy 模式**升级为 PostgreSQL 18.6，pgvector 维持 0.8.6。新集群运行于 `.runtime/pgdata18/`，原端口与应用数据库名不变。原集群的 **13 个数据库**及角色、口令验证值、数据库权限已保留；12 个可连接数据库的表行指纹、规范化结构、owner、序列与扩展逐项一致。主库有 21 张表、275 条 records；词项检索、复用存储向量的检索结果和历史引用定位与升级前一致。`.env` 与凭据文件的字节哈希未变。
+
+迁移前完整私有备份位于 `.runtime/backups/pg16-before-pg18-20261001-complete/`，包含 12 个可连接数据库的 custom-format dump、全局角色导出 `globals.sql`、配置、集群标记和项目 `.env` 副本。该目录以私有 ACL 保护；全局导出包含口令验证值，不应作为公开报告附件。日常 `Backup-Postgres.ps1` 仍只是单数据库备份，不等同于此次完整迁移备份。
+
+原 `.runtime/postgres/` 与 `.runtime/pgdata/` 均保留并停止使用，未执行 `delete_old_cluster.bat`。它们只代表升级时刻的 PG16 快照，后续 PG18 写入不会同步过去。若需要回退，先保留并处理升级后的数据变化，再按经过核对的恢复方案还原旧配置、集群标记及脚本运行时路由；不能直接复用数据目录或只切回旧二进制。
+
+证据见 [PG18 升级报告](../reports/LOCAL_POSTGRES18_UPGRADE_20261001.zh-CN.md)及 [JSON 回执](../reports/local_postgres18_upgrade_20261001.json)。这是当前本机集群升级与等价性核验，不表示已在全新机器完成从零安装，也不替代语义回答质量或公众部署验收。以下带日期和版本的 PG16 记录保留为历史证据。
 
 ## 恢复：必须显式提供一个新数据库名
 
@@ -85,7 +97,7 @@
 
 2026-09-16 已在现有 `obs_test` 上连续执行两次 wrapper：9 个业务表的计数、主库 URL、所有其他 `.env` 值、私有凭据文件、`.env` ACL 和应用角色权限均未变，vector 0.8.6 可用，PowerShell 语法解析通过。这证明现有测试库上的幂等行为；未为测试新建分支而删除现有 `obs_test`，本次没有声称从空机器完整重装已经实测。
 
-## 本次验证记录
+## 历史 PostgreSQL 16 验证记录（2026-09-16）
 
 已验证运行时安装、启动、重复启动、停止后重新启动，以及 `.env` 写入；`SELECT version()` 返回 PostgreSQL 16.15，`pg_extension` 中 vector 为 0.8.6。相同三维向量的 L2 距离为 0；监听地址为 127.0.0.1，认证规则为 SCRAM，故意错误的口令被拒绝。`obs_test` 应用账号连接正常。
 
@@ -101,7 +113,7 @@
 
 详见 [本次备份恢复报告](../reports/backup_restore.md)。这是同一本机集群的新库恢复验证，单数据库归档不包含全局角色密码与应用运行环境。备份与恢复库均保留。
 
-## 当前快照恢复验证（0.2.4）
+## 历史快照恢复验证（0.2.4，2026-09-16）
 
 以上268条记录属于早期快照。当前 `5114ebc1cf9afe59cdaa715e3ea45166` 已于2026-09-16再次备份并恢复到新库 `observatory_restore_v024_20260916`。主库前后与恢复库的275收录、263可计数、226可检索、558当前块，以及9张业务表逐行指纹、列/索引/约束/序列均一致；全部177条存储引用可定位，94条仍指向旧正文版本。主库连接与凭据文件未变，应用保持运行。
 

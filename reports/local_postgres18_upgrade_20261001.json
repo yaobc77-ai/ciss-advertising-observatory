@@ -1,0 +1,406 @@
+{
+  "verified_at": "2026-10-01T15:27:07.779545+00:00",
+  "passed": true,
+  "source_postgresql": "16.15",
+  "target_postgresql": "PostgreSQL 18.6 on x86_64-windows, compiled by msvc-19.44.35229, 64-bit",
+  "migration": "pg_upgrade --copy",
+  "data_checksums": "on",
+  "database_count": 13,
+  "database_names": [
+    "obs_test",
+    "obs_test_native_0410_c9d1f5b9561c495f",
+    "observatory",
+    "observatory_restore_preview_20260916",
+    "observatory_restore_smoke_20260916",
+    "observatory_restore_v024_20260916",
+    "observatory_restore_v042_20260930",
+    "observatory_restore_v042_final_20260930",
+    "observatory_restore_v042_search_20260930",
+    "observatory_restore_v047_20260930",
+    "postgres",
+    "template0",
+    "template1"
+  ],
+  "comparisons": {
+    "cluster_databases_roles_passwords_permissions_equal": true,
+    "database_obs_test_equals": true,
+    "database_obs_test_native_0410_c9d1f5b9561c495f_equals": true,
+    "database_observatory_equals": true,
+    "database_observatory_restore_preview_20260916_equals": true,
+    "database_observatory_restore_smoke_20260916_equals": true,
+    "database_observatory_restore_v024_20260916_equals": true,
+    "database_observatory_restore_v042_20260930_equals": true,
+    "database_observatory_restore_v042_final_20260930_equals": true,
+    "database_observatory_restore_v042_search_20260930_equals": true,
+    "database_observatory_restore_v047_20260930_equals": true,
+    "database_postgres_equals": true,
+    "database_template1_equals": true,
+    "main_historical_locators_and_searches_equal": true,
+    "private_configuration_unchanged": true,
+    "all_backup_hashes_match": true
+  },
+  "main_inventory": {
+    "tables": {
+      "public.annotations": {
+        "rows": 1608,
+        "content_sha256": "487a8489bc70baae0cafbb7387252c3b44a7a2f41cd2e98f6fa5be7560036237",
+        "owner": "observatory_app",
+        "acl": null
+      },
+      "public.answer_runs": {
+        "rows": 220,
+        "content_sha256": "6ac837cc89d9da6553bc2aeda8385e5a090b019401f221f4859170566364789b",
+        "owner": "observatory_app",
+        "acl": null
+      },
+      "public.chunk_profile_membership": {
+        "rows": 1114,
+        "content_sha256": "e38878c528c2baa1765fa0e8e15887a51228cf6c9861126576b31005998f8542",
+        "owner": "observatory_app",
+        "acl": null
+      },
+      "public.chunks": {
+        "rows": 2071,
+        "content_sha256": "e729f0eae5ef7bd34c0ac84b7d580c97a3be77f70c1001d601543fa6236a2fc4",
+        "owner": "observatory_app",
+        "acl": null
+      },
+      "public.claims2_imports": {
+        "rows": 0,
+        "content_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "owner": "observatory_app",
+        "acl": null
+      },
+      "public.claims2_results": {
+        "rows": 0,
+        "content_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "owner": "observatory_app",
+        "acl": null
+      },
+      "public.claims2_retractions": {
+        "rows": 0,
+        "content_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "owner": "observatory_app",
+        "acl": null
+      },
+      "public.claims2_reviews": {
+        "rows": 0,
+        "content_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "owner": "observatory_app",
+        "acl": null
+      },
+      "public.claims2_runs": {
+        "rows": 0,
+        "content_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "owner": "observatory_app",
+        "acl": null
+      },
+      "public.claims2_taxonomies": {
+        "rows": 0,
+        "content_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "owner": "observatory_app",
+        "acl": null
+      },
+      "public.embeddings": {
+        "rows": 1073,
+        "content_sha256": "19b5e1ae86a4a0b330bb6a58ba598b63d81a7cad83d020008f048dc99aa99a54",
+        "owner": "observatory_app",
+        "acl": null
+      },
+      "public.generation_outputs": {
+        "rows": 114,
+        "content_sha256": "14a65c1f443064bdd28d1b261210846ae2dc9a232e53aa753151a7f7ad8afe07",
+        "owner": "observatory_app",
+        "acl": null
+      },
+      "public.imports": {
+        "rows": 13,
+        "content_sha256": "d8cdac70a2617c7a3369f5f93accd9c7c838ac8b429b8fef81a483053a1e7c01",
+        "owner": "observatory_app",
+        "acl": null
+      },
+      "public.record_versions": {
+        "rows": 828,
+        "content_sha256": "1675125bc3b5459ed752eb0d8581e7c66a08ad27dcbf3c16ebddd79806d890a1",
+        "owner": "observatory_app",
+        "acl": null
+      },
+      "public.records": {
+        "rows": 275,
+        "content_sha256": "28ca1290bb9d72c56b64f767b78d28daa2e07a55cd01a3b962871da9a80556e4",
+        "owner": "observatory_app",
+        "acl": null
+      },
+      "public.retrieval_preparations": {
+        "rows": 2,
+        "content_sha256": "1617ff4cb8a777ffddf97f61aa82be2315314c16b3d46dc3ee50868c774ae81d",
+        "owner": "observatory_app",
+        "acl": null
+      },
+      "public.retrieval_profiles": {
+        "rows": 2,
+        "content_sha256": "c944b9b51464e25428448c9f1713483e1a1a401790e7c0160ad3c36f9cd8b34a",
+        "owner": "observatory_app",
+        "acl": null
+      },
+      "public.retrieval_publications": {
+        "rows": 1,
+        "content_sha256": "16e3caecb11261bcc46a6eb7f487379c5687b2587efa72eff2f347bc8273c9fc",
+        "owner": "observatory_app",
+        "acl": null
+      },
+      "public.retrieval_state": {
+        "rows": 1,
+        "content_sha256": "d7e9c010b9da6216aec135ac549f50ec8906f8677c3fc773bf8c35535626a7e9",
+        "owner": "observatory_app",
+        "acl": null
+      },
+      "public.schema_migrations": {
+        "rows": 3,
+        "content_sha256": "6052c680e5d7dcc647efb0974df8c3165fcccb66f6d9c04a1cd44ac482f7fa86",
+        "owner": "observatory_app",
+        "acl": null
+      },
+      "public.usage_ledger": {
+        "rows": 287,
+        "content_sha256": "0d9a517ce7ad8d571d5d7deb8d19da56562de86ceb3b143895b592e2a4e9a183",
+        "owner": "observatory_app",
+        "acl": null
+      }
+    },
+    "sequences": {
+      "public.answer_runs_run_id_seq": {
+        "schemaname": "public",
+        "sequencename": "answer_runs_run_id_seq",
+        "sequenceowner": "observatory_app",
+        "start_value": 1,
+        "min_value": 1,
+        "max_value": 9223372036854775807,
+        "increment_by": 1,
+        "cycle": false,
+        "cache_size": 1,
+        "last_value": 220,
+        "is_called": true
+      },
+      "public.claims2_reviews_revision_seq": {
+        "schemaname": "public",
+        "sequencename": "claims2_reviews_revision_seq",
+        "sequenceowner": "observatory_app",
+        "start_value": 1,
+        "min_value": 1,
+        "max_value": 9223372036854775807,
+        "increment_by": 1,
+        "cycle": false,
+        "cache_size": 1,
+        "last_value": 1,
+        "is_called": false
+      },
+      "public.imports_import_id_seq": {
+        "schemaname": "public",
+        "sequencename": "imports_import_id_seq",
+        "sequenceowner": "observatory_app",
+        "start_value": 1,
+        "min_value": 1,
+        "max_value": 9223372036854775807,
+        "increment_by": 1,
+        "cycle": false,
+        "cache_size": 1,
+        "last_value": 13,
+        "is_called": true
+      },
+      "public.retrieval_publications_publication_id_seq": {
+        "schemaname": "public",
+        "sequencename": "retrieval_publications_publication_id_seq",
+        "sequenceowner": "observatory_app",
+        "start_value": 1,
+        "min_value": 1,
+        "max_value": 9223372036854775807,
+        "increment_by": 1,
+        "cycle": false,
+        "cache_size": 1,
+        "last_value": 1,
+        "is_called": true
+      }
+    },
+    "extensions": [
+      {
+        "extname": "plpgsql",
+        "extversion": "1.0",
+        "owner": "observatory_admin"
+      },
+      {
+        "extname": "vector",
+        "extversion": "0.8.6",
+        "owner": "observatory_admin"
+      }
+    ],
+    "schema_sha256": "f128522aba160d122597f00d5976d24ae3463c84f4edb5d35c9f124445d489ff"
+  },
+  "probes": {
+    "locators": {
+      "body_versions": 828,
+      "invalid_body_hashes": 0,
+      "stored_chunks": 2071,
+      "invalid_chunk_locators": 0,
+      "stored_answers": 220,
+      "answer_evidence": 779,
+      "invalid_answer_evidence": 0,
+      "answer_citations": 199,
+      "invalid_answer_citations": 0,
+      "historical_evidence": 267,
+      "historical_citations": 94
+    },
+    "search_sha256": "2196dff4725280ee83f93b9502f24f58aa1799ef2e856aee4b86523bba9c2c16",
+    "evidence_per_probe": {
+      "native_ccs": 5,
+      "native_biogas": 3,
+      "nyt_ccs": 5,
+      "all_ccs": 5,
+      "empty_record_filter": 0,
+      "hybrid_with_reused_stored_vector": 5
+    }
+  },
+  "backup_directory": "D:\\Projects\\549 native ads\\.runtime\\backups\\pg16-before-pg18-20261001-complete",
+  "backups": {
+    "obs_test": {
+      "bytes": 42497,
+      "sha256": "e2308ea4157290133f8f64e4334c811cf42fe1c3d81c6af8651ffca132c620eb"
+    },
+    "obs_test_native_0410_c9d1f5b9561c495f": {
+      "bytes": 1655991,
+      "sha256": "446853841c91d56d365c4240345ba7b44cc59e6aa4ff9fd462524ecc73b25238"
+    },
+    "observatory": {
+      "bytes": 13353684,
+      "sha256": "8ceee2a4e955de25f2add8fd685c221a5f245ce50b4b677059bb63c2f677037a"
+    },
+    "observatory_restore_preview_20260916": {
+      "bytes": 6804350,
+      "sha256": "d798cf2bc2fdd505511cd9bd604d4ad86e11cc82f1e2e720de18abdf14ac6c4a"
+    },
+    "observatory_restore_smoke_20260916": {
+      "bytes": 22093,
+      "sha256": "11e0e2f6c3bd25813a8a84f70bc306d7bd2e0d28965c6a52974aa8d222c16a53"
+    },
+    "observatory_restore_v024_20260916": {
+      "bytes": 9639064,
+      "sha256": "4f86c90fd25bb3dcbcd930e469f6a7dda5b2eda206f7ec4136620fc36f5b0e38"
+    },
+    "observatory_restore_v042_20260930": {
+      "bytes": 13044422,
+      "sha256": "59ac0d9851257a493c85cf27bacfa987adb7cbf86bba7c128020dcd3f5637a97"
+    },
+    "observatory_restore_v042_final_20260930": {
+      "bytes": 13044446,
+      "sha256": "f6cef8e32ed52ba89a46a58f2ad9667a3ff0542b4f2cea6529a92fdfdce7111e"
+    },
+    "observatory_restore_v042_search_20260930": {
+      "bytes": 13044450,
+      "sha256": "f3d8ffd92f1fa0226f7fb7fe23f3ca56da1ccbc7b4b73f1a53480a44631ab3b7"
+    },
+    "observatory_restore_v047_20260930": {
+      "bytes": 13059852,
+      "sha256": "929459e4498e283ccd986eb76df5e86b2f5949a49c52e31b246bb3ad2f805b7d"
+    },
+    "postgres": {
+      "bytes": 1065,
+      "sha256": "7c070f716727f04d9de7b33f89a6fdd2dce8e3e5e244a3cf0c80a759981660ba"
+    },
+    "template1": {
+      "bytes": 1594,
+      "sha256": "32603490e42d6e2c3531be470b6581014353604b100f8360718c9fd1dcb97eb7"
+    }
+  },
+  "old_cluster_preserved": true,
+  "private_configuration_unchanged": true,
+  "model_calls": 0,
+  "runtime_directory": "D:\\Projects\\549 native ads\\.runtime\\postgres18",
+  "data_directory": "D:\\Projects\\549 native ads\\.runtime\\pgdata18",
+  "host": "127.0.0.1",
+  "port": 55432,
+  "pgvector": "0.8.6",
+  "pgvector_build": {
+    "pgvector": "0.8.6",
+    "postgresql_major": 18,
+    "postgresql": "postgres (PostgreSQL) 18.6",
+    "source_url": "https://github.com/pgvector/pgvector/archive/refs/tags/v0.8.6.tar.gz",
+    "source_sha256": "10bf9938906e5d643bbc4a7eea104b6f57ba4898e5b76b20e60484ea1d5a7f8f",
+    "postgres_sha256": "3bcffc3be67beee554117de18f86548cfae14619640d8ac7da9d0e0149fa62b6",
+    "dll_sha256": "dfc4565b71eaae444731f600dc34c851ce91445f3e4916bf446a60132adf8c07",
+    "control_sha256": "f1e1717c0c1da9c200ff3a53acf1d14eba5e3f70da928a723b247b0b1059417d",
+    "sql_sha256": "7fb5bb279ef83bf9204bfac7405bb5c9a05e49f5ac7d64d1eb4464d103b80f32",
+    "compiler": "Visual Studio 2022 x64 C++ tools; upstream Makefile.win",
+    "installed_at": "2026-10-01T15:17:23.5412825Z"
+  },
+  "planner_statistics_refreshed": true,
+  "setup_idempotence_passed": true,
+  "validation": {
+    "integration": {
+      "passed": 87,
+      "deselected": 1989,
+      "elapsed_seconds": 67.77,
+      "isolated_cluster_port": 55434,
+      "test_database": "obs_test",
+      "cluster_stopped_after_test": true
+    },
+    "runtime_and_restore_guards": {
+      "passed": 18
+    },
+    "ruff": "passed",
+    "powershell_parse": "passed",
+    "diff_check": "passed",
+    "lockfile_dry_run": {
+      "packages": 18,
+      "postgresql": "18.6",
+      "libpq": "18.6"
+    }
+  },
+  "application_verification": {
+    "health": {
+      "active_profile": "sentence600-v1",
+      "application": {
+        "commit": null,
+        "features": {
+          "claims_read_view": true,
+          "collection_graph": true,
+          "graph_breakdowns": true,
+          "research_agent": true
+        },
+        "version": "0.4.8"
+      },
+      "chunks": 556,
+      "data_version": "f19d4d697f4e6d2699d2c58b3ce80620b03e02c7e9447f24e012123adcb00f53",
+      "index_version": "d580c5962a6222e595db2ed8681f9787cef648dad653b055120b6bed10e3af75",
+      "record_counts": {
+        "native": 275
+      },
+      "source_data_version": "5114ebc1cf9afe59cdaa715e3ea45166",
+      "status": "ok"
+    },
+    "endpoints": [
+      {
+        "status": 200,
+        "path": "/healthz"
+      },
+      {
+        "status": 200,
+        "path": "/_dash-layout"
+      },
+      {
+        "status": 200,
+        "path": "/assets/observatory.css"
+      }
+    ]
+  },
+  "old_runtime_directory": "D:\\Projects\\549 native ads\\.runtime\\postgres",
+  "old_data_directory": "D:\\Projects\\549 native ads\\.runtime\\pgdata",
+  "old_cluster_stopped": true,
+  "backup_scope": "12 connectable database dumps plus global roles/password verifiers and project configuration; template0 metadata and retained old cluster preserved",
+  "source_git_commit": "99039e5706724dfe126c2824900a4cf438ef0063",
+  "boundaries": [
+    "Local upgrade only; no remote database or publication changed.",
+    "Retained PostgreSQL16 data is the upgrade-time snapshot; later PostgreSQL18 writes require preservation before rollback.",
+    "template0 does not allow connections; its metadata was compared, not full table fingerprints.",
+    "This verifies local data preservation and engineering compatibility, not semantic answer quality or a fresh-machine rebuild."
+  ]
+}

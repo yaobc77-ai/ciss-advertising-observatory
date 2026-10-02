@@ -53,7 +53,9 @@
 
 ## 3. 隔离环境与已有安装
 
-当前机器的隔离运行环境位于 `.venv` 和 `.runtime/postgres`。重建脚本与历史安装证据见 [local_postgres.md](local_postgres.md)。
+**2026-10-01 本机运行时更新**：当前机器使用 `.venv` 和 `.runtime/postgres18/`，数据库为 **PostgreSQL 18.6 + pgvector 0.8.6**，当前数据目录为 `.runtime/pgdata18/`。端口仍是 `127.0.0.1:55432`，主库仍是 `observatory`。重建脚本、编译前提和历史安装证据见 [local_postgres.md](local_postgres.md)。本节数据库运行时更新不改变下文应用历史发布记录的版本范围。
+
+此次通过 `pg_upgrade --check` 与 copy 模式升级，保留原 13 个数据库、角色及权限。12 个可连接数据库的表行指纹、规范化结构、owner、序列和扩展一致；主库 21 张表、275 条 records，词项与存储向量检索、历史引用定位已对比。`.env` 与本机凭据文件字节哈希未变。详见 [PG18 升级报告](../reports/LOCAL_POSTGRES18_UPGRADE_20261001.zh-CN.md)及 [JSON 回执](../reports/local_postgres18_upgrade_20261001.json)。此证据覆盖本机升级，不表示已在全新机器从零重装。
 
 0.4.1 wheel 在 `.runtime/current-release-venv` 的独立 Python 3.12.14 环境中安装并运行；不是从 editable 源码加载。实际迁移和默认 upsert 的新 schema 验证见上节 9 月 30 日回执。该环境与备份均不提交公开仓库；合成复现回执不能替代另一台新机器的完整源数据导入或生产灾备恢复。
 
@@ -62,14 +64,17 @@
 | 部分 | 本项目位置 / 默认监听 |
 |---|---|
 | Python 依赖 | `.venv/`，由 `pyproject.toml` 与 `uv.lock` 描述 |
-| 数据库运行时 | `.runtime/postgres/`，锁定清单 `scripts/postgres-win64.lock.txt` |
-| 数据库数据 | `.runtime/pgdata/`，主库 `observatory` |
+| 数据库运行时 | `.runtime/postgres18/`，锁定清单 `scripts/postgres-win64.lock.txt`（18 个包） |
+| 数据库数据 | `.runtime/pgdata18/`，主库 `observatory` |
 | 数据库端口 | `127.0.0.1:55432` |
 | 页面入口 | `http://127.0.0.1:8050` |
 | 应用日志 | `.runtime/app.stdout.log`、`.runtime/app.stderr.log` |
-| 数据库日志 | `.runtime/postgres.log` |
+| 数据库日志 | `.runtime/postgres18.log` |
+| 升级前副本 | `.runtime/postgres/`、`.runtime/pgdata/`，PG16 已停止并保留 |
 
 没有安装 Windows 服务，也没有修改系统 PATH。机器重启后需执行启动脚本。`.env`、运行时、凭据和数据库文件属于本机私有资料。
+
+新机器需先准备项目 Python 依赖及 **Visual Studio 2022 x64 C++ 编译工具／Windows SDK**。`Setup-Postgres.ps1` 安装锁定的 PostgreSQL 18 包，再由 `Install-Pgvector.ps1` 校验并构建上游 pgvector `v0.8.6`；源归档 SHA-256 与安装 DLL/SQL 哈希记录在 `.runtime/postgres18/pgvector-build.json`。不能复用原 PG16 的 pgvector DLL。已有旧集群时 Setup 会拒绝自动迁移；启动和停止脚本先核对当前二进制、数据大版本及解析 junction 后的集群目录。
 
 ## 4. 精确维护命令
 
@@ -131,6 +136,8 @@
 ```
 
 `实际备份文件.dump` 是必须替换的占位。脚本拒绝主库和已有目标库，不自动切换应用连接。本机恢复验证记录见 [数据库运行文档](local_postgres.md)。旧备份只代表创建时刻，单数据库逻辑备份不包含运行环境或角色密码。
+
+PG18 迁移前的完整私有备份位于 `.runtime/backups/pg16-before-pg18-20261001-complete/`，包含 12 个数据库 dump、全局角色导出以及配置、marker、项目 `.env` 副本，以私有 ACL 保护。原 PG16 数据目录也保留，但只是升级时刻快照，PG18 后续写入不会同步。回退应先保存并处理新增数据，按核对后的方案恢复旧配置、集群 marker 与脚本运行时路由；不能只替换二进制或直接重用数据目录。未执行旧集群删除脚本。
 
 ### 数据更新与付费边界
 
