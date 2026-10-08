@@ -26,6 +26,8 @@ class Settings:
     trusted_proxy: str = ""
     # Explicit opt-in preserves the deterministic baseline for reproducible checks.
     research_agent_enabled: bool = False
+    # One typed interpretation compiled to existing reads; opt in after validation.
+    question_intent_enabled: bool = False
     # Paid source discovery is confined to the separate maintenance MCP server.
     claims_source_search_enabled: bool = False
     # Public semantic questions may search the web after a validated corpus miss.
@@ -66,6 +68,7 @@ class Settings:
             secure_cookies=os.getenv("OBS_SECURE_COOKIES", "false").lower() == "true",
             trusted_proxy=os.getenv("OBS_TRUSTED_PROXY", ""),
             research_agent_enabled=os.getenv("OBS_RESEARCH_AGENT_ENABLED", "false").lower() == "true",
+            question_intent_enabled=os.getenv("OBS_QUESTION_INTENT_ENABLED", "false").lower() == "true",
             claims_source_search_enabled=os.getenv("OBS_CLAIMS_SOURCE_SEARCH_ENABLED", "false").lower() == "true",
             web_search_enabled=os.getenv("OBS_WEB_SEARCH_ENABLED", "true").lower() == "true",
             record_asset_root=os.getenv("OBS_RECORD_ASSET_ROOT", ""),

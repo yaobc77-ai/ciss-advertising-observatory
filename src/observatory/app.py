@@ -1808,7 +1808,8 @@ def create_app(service, settings, record_details=None) -> Dash:
 
         record_details = RecordDetails(service.db, settings)
     enabled = bool(settings.show_source_links)
-    agent_enabled = bool(getattr(settings, "research_agent_enabled", False))
+    agent_enabled = bool(getattr(settings, "research_agent_enabled", False)
+                         or getattr(settings, "question_intent_enabled", False))
     app = Dash(
         __name__,
         assets_folder=str(Path(__file__).parent / "assets"),

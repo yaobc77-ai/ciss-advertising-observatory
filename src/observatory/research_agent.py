@@ -144,6 +144,7 @@ def research_failure_status(reason):
         "research_context_limit", "research_model_configuration", "research_budget_unavailable",
         "research_provider_unavailable", "research_response_incomplete", "research_tool_call_invalid",
         "research_tool_configuration", "research_tool_unavailable", "research_tool_invalid_request",
+        "research_intent_invalid",
         "research_tool_invalid_result", "research_clarification_invalid", "research_output_invalid",
         "statistics_scope_validation_unavailable", "research_title_binding_invalid",
         "research_record_binding_mismatch", "research_record_version_changed",
@@ -245,9 +246,10 @@ class ResearchRun:
     tool_trace: list[dict[str, Any]] = field(default_factory=list)
     failure_reason: str = ""
     question_contract: dict[str, Any] = field(default_factory=dict)
+    interpretation: dict[str, Any] | None = None
 
     def audit(self):
-        return {
+        audit = {
             "policy": POLICY_VERSION,
             "transport": "responses_function_calling",
             "original_question": self.original_question,
@@ -259,6 +261,9 @@ class ResearchRun:
             "failure_reason": self.failure_reason,
             "question_contract": self.question_contract,
         }
+        if self.interpretation is not None:
+            audit["interpretation"] = self.interpretation
+        return audit
 
 
 class _CallFailure(Exception):
@@ -346,6 +351,7 @@ class ResearchAgent:
     def __init__(
         self, rag, catalog, *, entity_context=None, reference_date=None,
         max_steps=4, max_tool_calls=4, max_output_tokens=900,
+        intent_enabled=False,
     ):
         if not 1 <= max_steps <= 4 or not 1 <= max_tool_calls <= 4:
             raise ValueError("Research agent permits at most four steps and tool calls")
@@ -358,6 +364,7 @@ class ResearchAgent:
         self.max_steps = max_steps
         self.max_tool_calls = max_tool_calls
         self.max_output_tokens = max_output_tokens
+        self.intent_enabled = intent_enabled
 
     def _definitions(self):
         # Held-out question-specific tools are never sent to the general planner,
@@ -379,7 +386,7 @@ class ResearchAgent:
             names.add(name)
         return [*definitions, PLAN_TOOL, CLARIFICATION_TOOL]
 
-    def _dispatch(self, inputs, definitions, visitor, step):
+    def _dispatch(self, inputs, definitions, visitor, step, *, policy=POLICY_VERSION):
         model = self.rag.settings.generation_model
         # A UTF-8-byte tokenizer upper bound plus schema/message overhead. This
         # covers the entire conversation resent with store=False on every turn.
@@ -401,6 +408,7 @@ class ResearchAgent:
 
         audit = {
             "step": step, "reservation_id": reservation, "requested_model": model,
+            "policy": policy,
             "prompt_sha256": _digest(serialized),
             "tool_schema_sha256": _digest(_json(definitions)),
             "state": "uncertain",
@@ -423,7 +431,7 @@ class ResearchAgent:
             self.rag.budget.settle(
                 reservation, actual,
                 {**usage, "observatory_request": {
-                    "stage": "research_agent", "policy": POLICY_VERSION,
+                    "stage": "research_agent", "policy": policy,
                     "step": step, "prompt_sha256": audit["prompt_sha256"],
                     "tool_schema_sha256": audit["tool_schema_sha256"],
                     "provider_model": audit["provider_model"],
@@ -448,7 +456,81 @@ class ResearchAgent:
             audit.update(error_type=type(exc).__name__, cost_usd=exposure)
             raise _CallFailure("research_provider_unavailable", cost=exposure, audit=audit) from None
 
+    def _run_intent(self, question, base_filters, visitor, progress=None):
+        """One interpretation call; the server then performs bounded typed reads."""
+        from .intent_execution import execute_intent
+        from .prompts import QUESTION_INTENT_SYSTEM
+        from .question_intent import compile_intent, intent_tool_definition
+
+        run = ResearchRun(route="unavailable", original_question=question,
+                          base_filters=base_filters.model_dump(mode="json"))
+        if not isinstance(question, str) or not 1 <= len(question.strip()) <= 2_000:
+            run.failure_reason = "research_question_invalid"
+            return run
+        try:
+            definition = intent_tool_definition()
+            _require_strict_objects(definition["parameters"])
+            context = self.entity_context
+            if context is None and hasattr(self.catalog, "entity_context"):
+                context = self.catalog.entity_context()
+            payload = {"question": question, "active_scope": run.base_filters,
+                       "entity_context": context or {},
+                       "reference_date": str(self.reference_date) if self.reference_date else None}
+            inputs = [{"role": "system", "content": QUESTION_INTENT_SYSTEM},
+                      {"role": "user", "content": _json(payload)}]
+        except Exception:
+            run.failure_reason = "research_tool_configuration"
+            return run
+        try:
+            if progress:
+                progress("interpreting")
+            response, audit, cost = self._dispatch(
+                inputs, [definition], visitor, 1, policy="question-intent-v1",
+            )
+            run.model_calls.append(audit)
+            run.cost_usd += cost
+        except _CallFailure as exc:
+            run.failure_reason = exc.reason
+            run.route = "limited" if exc.limited else "unavailable"
+            run.cost_usd += exc.cost
+            if exc.audit:
+                run.model_calls.append(exc.audit)
+            return run
+        if _field(response, "status") != "completed":
+            run.failure_reason = "research_response_incomplete"
+            return run
+        try:
+            calls = [item for item in _field(response, "output", [])
+                     if _field(item, "type") == "function_call"]
+            if len(calls) != 1:
+                raise ValueError("Expected one interpretation")
+            call = calls[0]
+            raw = _field(call, "arguments")
+            if (_field(call, "name") != definition["name"]
+                    or not isinstance(_field(call, "call_id"), str) or not _field(call, "call_id")
+                    or not isinstance(raw, str) or len(raw.encode("utf-8")) > MAX_ARGUMENT_BYTES):
+                raise ValueError("Invalid interpretation envelope")
+            args = json.loads(raw, parse_constant=_invalid_constant, object_pairs_hook=_unique_object)
+            if not isinstance(args, dict):
+                raise ValueError("Interpretation must be an object")
+            compiled = compile_intent(args, question, base_filters)
+            run.interpretation = {"schema_version": "question-intent-v1", "status": compiled.status,
+                                  "intent": args, "coverage": compiled.coverage,
+                                  "compiled_tasks": len(compiled.tasks)}
+        except (ValueError, TypeError, AttributeError, RecursionError):
+            run.route, run.failure_reason = "unavailable", "research_intent_invalid"
+            run.result = {"status": "unavailable", "message":
+                "Question interpretation did not preserve a valid task and scope. No data read was performed."}
+            return run
+        if compiled.status != "ready":
+            run.route, run.failure_reason = "clarify", "research_intent_unresolved"
+            run.result = {"status": "clarify", "message": compiled.message}
+            return run
+        return execute_intent(run, compiled, self.catalog, progress)
+
     def run(self, question: str, base_filters: Filters, visitor: str, progress=None):
+        if self.intent_enabled:
+            return self._run_intent(question, base_filters, visitor, progress)
         run = ResearchRun(
             route="unavailable", original_question=question,
             base_filters=base_filters.model_dump(mode="json"),

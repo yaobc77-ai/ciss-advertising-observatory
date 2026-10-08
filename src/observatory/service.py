@@ -573,7 +573,8 @@ class Service:
             filters = filters.model_copy(update={"include_inferred_dates": True})
         token = _FINAL_AUDIT_CONTEXT.set(True)
         try:
-            if getattr(self.settings, "research_agent_enabled", False):
+            if (getattr(self.settings, "research_agent_enabled", False)
+                    or getattr(self.settings, "question_intent_enabled", False)):
                 result = self._answer_with_tools(question, filters, visitor, progress=progress)
             else:
                 result = self._answer_legacy(question, filters, visitor, progress=progress)
@@ -731,7 +732,11 @@ class Service:
                 raise ValueError("A healthy source version is required for question tools")
             version = candidate_version
             catalog = ToolCatalog(self, filters)
-            agent = self.research_agent or ResearchAgent(self.rag, catalog)
+            agent = self.research_agent or ResearchAgent(
+                self.rag, catalog,
+                intent_enabled=getattr(self.settings, "question_intent_enabled", False),
+                max_output_tokens=1600 if getattr(self.settings, "question_intent_enabled", False) else 900,
+            )
             _progress(progress, "interpreting")
             run = agent.run(question, filters, visitor,
                             **({"progress": lambda stage: _progress(progress, stage)} if progress else {}))
