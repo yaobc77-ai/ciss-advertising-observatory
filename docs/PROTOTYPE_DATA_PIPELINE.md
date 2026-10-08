@@ -1,6 +1,6 @@
-# Data pipeline prototype — September 25, 2026
+# Database migrations and incremental imports
 
-This prototype supports ordered database upgrades and explicit incremental imports for new years. It does not infer the University of Miami source schema, manufacture social data, or automatically approve article text for RAG.
+This guide maintains the import contract introduced by the September 25 prototype. For the current end-to-end flow, use [architecture](architecture.md). Historical migration and test receipts retain their original dates. Imports do not infer an unknown source schema or automatically approve article text for RAG.
 
 ## Database upgrades
 
@@ -13,7 +13,7 @@ Run from the project root, with the existing server-only `OBS_DATABASE_URL` conf
 
 `init-db` remains supported and performs the same initialization. Both commands apply missing migrations before the existing retrieval bootstrap. Import commands do not silently upgrade the database: run `migrate` when deploying this code version.
 
-The authoritative migration files are `src/observatory/migrations/0001_baseline.sql`, `0002_dashboard_indexes.sql`, and future consecutively numbered SQL files. The old `schema.sql` is retained as a historical schema reference; new changes belong in a new migration. `0001` adopts the known previous schema using idempotent DDL and also creates a fresh database schema. `0002` adds two ordinary indexes for active-dataset and record-version lookup. It does not build a new vector index.
+The authoritative migration inventory is the [ordered SQL directory](../src/observatory/migrations). Use `migration-status` against the intended database to distinguish available scripts from applied migrations. A migration present in source is not proof that production applied it. `schema.sql` is historical; future changes use new consecutive migrations. Migrations do not import corpus records or generate embeddings.
 
 The `schema_migrations` table records version, filename, SHA-256 checksum and application time. New migrations and their ledger entries commit together. The existing import advisory lock serializes upgrades with imports. Applied files must not be edited; changed checksums, gaps or a database newer than the installed code cause a failure before pending SQL is applied. Checksums normalize Windows/Unix line endings.
 
@@ -72,10 +72,8 @@ Important contract details:
 
 ## Verification and limits
 
-```powershell
-.venv/Scripts/python.exe -m pytest tests/test_canonical_import.py tests/test_pipeline_integration.py -q
-```
+Use the [development gate](test_gate.zh-CN.md) for free offline checks and its private-database procedure for SQL integration checks. Do not run the full historical test tree directly: evaluation-dependent fixtures are isolated from development.
 
-Integration tests require `OBS_TEST_DATABASE_URL` with a database name starting `obs_test`. They use isolated per-test schemas and never import fixtures into the live corpus. Tests cover existing-schema adoption, repeat migrations, modified migration rejection, rollback after failed SQL, cross-year preservation, unchanged re-import, explicit snapshot retirement and cross-dataset ID rejection.
+Import checks cover existing-schema adoption, repeat migrations, changed-checksum rejection, rollback, cross-year preservation, unchanged re-import, explicit snapshot retirement and cross-dataset ID rejection. A passing run applies only to its recorded code, database and selected checks.
 
-This prototype does not establish production load limits, provide customer source mappings, or close semantic RAG acceptance. Those require formal data, scale targets and domain review.
+This importer does not establish production load limits, provide unconfirmed source mappings or close semantic RAG acceptance. Those require source definitions, scale targets and review.

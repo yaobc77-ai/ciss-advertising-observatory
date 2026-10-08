@@ -1,44 +1,33 @@
 # CISS Advertising Observatory
 
-A dashboard for exploring fossil fuel advertising, built for Boston University's Fall 2026 DS 549 project. It helps journalists, lawyers, and researchers compare advertising records and examine the claims in them.
+A dashboard for exploring fossil fuel advertising, built for Boston University's Fall 2026 DS 549 project. It helps journalists, lawyers, and researchers compare records and examine claims with source evidence.
 
 [Live dashboard](https://ciss-advertising-observatory-production.up.railway.app/data) · [Ask a question](https://ciss-advertising-observatory-production.up.railway.app/query) · [Static project page](https://yaobc77-ai.github.io/ciss-advertising-observatory-549/)
 
-## Project scope
+## Project requirements and application
 
-The original project description calls for a dashboard and retrieval-augmented generation (RAG) search across two datasets: fossil fuel native advertising and fossil fuel social media advertising.
-
-Native advertising data is connected. The social media view and importer are implemented, but the client dataset has not been loaded. CLAIMS2 import and read-only views are implemented; the 37 saved-result candidates remain on hold and no new real results have been published. Animal agriculture remains future work.
-
-## Research questions and current features
-
-| Research question | Current application |
-| --- | --- |
-| How many native ads appear by company and news outlet? | A company–outlet matrix with exact counts and CSV export. |
-| Which companies sponsor ads at each outlet? | An interactive relationship graph, named sponsor lists, distribution charts, and supporting articles. |
-| How do counts change across dates, outlets, and sponsors? | Shared filters, annual counts, all tied highest years, and comparisons between named date periods. Unknown dates are reported separately. |
-| Which themes appear in the ads? | Historical labels and a separate CLAIMS2 evidence view. Real CLAIMS2 results await reviewed publication. |
-| How can users explore social media advertising? | A separate collection view and configurable importer. Real-data analysis awaits the client export. |
-| How can RAG help users explore both datasets? | Database tools answer count questions; retrieved article passages support cited content answers. Cross-dataset use awaits social data. |
-
-Selecting a company, publisher, relationship, or article shows its specific connections and supporting records. Counts come from the database. Graph connections reflect stored source fields; they do not independently establish business relationships.
-
-## Requirements updates
-
-Recorded through 1 October 2026. These requirement revisions are separate from application release numbers. **Implemented** means the feature is available; customer acceptance is recorded separately.
-
-| Revision and source | Requirement update | Current status |
+| Requirement | Application path | Limit |
 | --- | --- | --- |
-| **R1 — Original FA26 project description** · document date not stated | Explore native and social advertising through filtered counts, company–outlet comparisons, themes where supported, and source-grounded RAG. Deliver code, deployment, documentation, and a final demonstration. | Native exploration is implemented. Real social data, independent review, and the final dual-dataset demonstration remain pending. |
-| **R2 — Meeting, 25 September 2026** | Add an interactive knowledge graph with clear source relationships. Support different years, usable exploration, maintainable migrations, and a reproducible pipeline. | Graph selection opens named relationships, distributions, and supporting articles. Import and migration mechanisms exist; large-scale performance and independent reproduction remain to be demonstrated. |
-| **R3 — Michelle's feedback email** · send date not provided | Make the six research questions easy to answer, including New York Times ad counts, ExxonMobil's publishers, and Washington Post sponsors. Calculate totals from all matching records, with clear filters and record access. | Exact counts, complete relationship lists, chart drilldowns, and record browsing are implemented. Customer usability and counting-policy review remain pending. |
-| **R4 — User interface requests** · request dates not recorded | Separate Query and Data. Organize data into overview, graph, and records; show numbers, readable relationships, and the selected object's articles. Keep source material close to the record, and secondary controls in a toolbox. | These views and selection drilldowns are implemented. Record details show available text and sources; complete PDF, screenshot, and archive coverage remains pending. |
-| **R5 — Later customer priority, relayed by the user** · documented 30 September 2026 | Bring CLAIMS integration into the current work. Reuse the supplied implementation and saved results, link them to original articles, and expose reviewed claims with their evidence. This advances work originally deferred to a future semester. | Source auditing, result import, and read-only views are implemented. All 37 candidates remain on hold for source and result review; no new real results have been published. |
-| **R6 — User query and tool requests** · consolidated 1 October 2026 | Use a consistent Summary / Evidence answer layout, model-selected data tools, annual totals and all highest-year ties, period comparisons, percentages, matching-record browsing, ambiguity handling, and optional external lookup when collection answers remain unresolved. Show actual loading stages. | These interfaces and tool paths are implemented. External findings stay separate from collection counts. Independent model-routing, evidence-support, and customer checks remain pending. |
+| Compare native ads by company and outlet | Count matrix and CSV export | Counts describe the selected collection. |
+| Find each company's publishers and each outlet's sponsors | Interactive graph, named relationships, distributions and supporting records | Connections reflect stored source fields. |
+| Compare dates, outlets, companies and sponsors | Shared filters, annual counts, tied maxima and period comparisons | Missing and inferred dates remain distinct. |
+| Explore themes supported by the data | Historical labels and published CLAIMS2 reads | Unverified labels are not confirmed greenwashing findings. |
+| Explore social advertising | Company-post filters, charts, observations and record export | Company posts do not establish paid-ad identity. |
+| Ask grounded questions across both collections | Model-selected data tools and cited RAG | Retrieved examples do not establish an exhaustive matching-ad list. |
 
-The [client requirements review](docs/CLIENT_REVIEW_V0_4_2.md) records the six research questions and review tasks. The [CLAIMS integration plan](docs/claims_integration_plan.md) and [research tools guide](docs/mcp_research_tools.md) describe the later scope and implementation. Earlier review documents retain their original release context; use the [current handoff](docs/current_handoff.md) for current delivery status. User implementation requests are distinguished from requirements stated directly in the project description, meeting, or client email.
+**Data** contains Overview, Relationships and Records. **Query** presents a summary, evidence and limitations. **Evaluation**, available from Tools, defines the measures and displays a reviewed report when configured.
 
-For each new meeting note, email, or user request, append a requirement revision with its source and date, changed tasks, owner, due date, acceptance check, and status. Keep unassigned owners and unagreed dates marked **TBD**. Mark a task accepted only when its named reviewer approves the result for the recorded application and data versions; tests and deployment alone do not close that task.
+Local code and data may differ from the live deployment. Dated coverage, model runs, review and release evidence belong in [work](work.md), [goals](goal.md) and the [handoff record](docs/current_handoff.md). This README does not repeat mutable row counts or historical test scores. A feature or software test does not constitute client acceptance. Animal agriculture remains future scope.
+
+## How it works
+
+1. **Import:** validate source files and create versioned PostgreSQL records, retaining original text and metadata.
+2. **Explore:** SQL computes filtered counts and relationships; records lead back to text and available source material.
+3. **Answer:** the model selects bounded tools. SQL answers statistics; content questions retrieve passages and generate cited answers. Optional web findings remain outside collection counts.
+4. **Classify offline:** CLAIMS results bind to source versions, taxonomy and review state. Query reads published results without rerunning classification per question.
+5. **Evaluate separately:** freeze sources, configuration and scoring rules. Client questions, references and derived variants are evaluation-only, excluded from daily prompts and development examples.
+
+See [the current pipeline](docs/architecture.md) and [the tool contract](docs/mcp_research_tools.md). Original text, media-derived text, historical annotations and reviewed classifications keep distinct provenance.
 
 ## Current technology
 
@@ -46,60 +35,77 @@ For each new meeting note, email, or user request, append a requirement revision
 | --- | --- |
 | Application | Python 3.12/3.13, Dash, Waitress |
 | Charts and tables | Plotly, Dash Cytoscape, Dash AG Grid |
-| Data processing | pandas, Pandera, Pydantic |
-| Database and search | PostgreSQL, pgvector, keyword and vector retrieval |
-| Language models | OpenAI Python SDK and Responses API; configured defaults: `gpt-5.6-luna` and `text-embedding-3-small` |
+| Data and validation | pandas, Pandera, Pydantic |
+| Database and retrieval | PostgreSQL, pgvector, keyword and vector retrieval |
+| Models | OpenAI Python SDK, Responses API; server-configured models and budgets |
 | Text processing | pySBD, tiktoken |
-| Installation and deployment | uv, Docker, Railway |
-| Tests | pytest, Ruff, GitHub Actions |
-| Optional tool interface | MCP Python SDK |
+| Tool interface | MCP Python SDK and web function calling, sharing one catalog |
+| Delivery and checks | uv, Docker, Railway, GitHub Pages; pytest, Ruff, GitHub Actions |
 
-Generated answers show every cited quotation with its answer number, such as **Citation [1]**. Retrieval rank is shown separately.
-
-Dashboard browsing and keyword search do not call a language model. Generated answers use the configured OpenAI API budget, including model interpretation of count questions.
-
-Query also answers percentages using exact database counts. Each answer shows the matching records, denominator and percentage separately for each collection. The comparison group must stay within the current page filters; an empty group has no defined percentage.
-
-Open **Inspect matching records** to browse all records behind a count, list or percentage. Previous, Next and First page keep the submitted selection and make no model calls. Submit again after changing the question or filters; if the collection changes, the application asks for a new query.
+Exact dependencies are in [pyproject.toml](pyproject.toml) and [uv.lock](uv.lock). Browsing and keyword search do not call a model. Generated answers can incur API charges, including interpretation of statistical questions.
 
 ## Run locally
 
-Use Python 3.12 or 3.13, uv, and a PostgreSQL database with pgvector.
+Use Python 3.12 or 3.13, uv, and PostgreSQL with pgvector.
 
 ```sh
 uv sync --frozen --extra test --extra mcp
 ```
 
-Copy `.env.example` to `.env`. Set `OBS_DATABASE_URL` and a random `OBS_COOKIE_SECRET`. Set `OPENAI_API_KEY` to enable generated answers.
+Copy `.env.example` to `.env`. Set `OBS_DATABASE_URL` and a random `OBS_COOKIE_SECRET`; set `OPENAI_API_KEY` for generated answers. Keep credentials on the server.
 
 ```sh
 uv run observatory migrate
 uv run observatory serve
 ```
 
-Open [localhost:8050](http://127.0.0.1:8050). Source datasets and database contents are supplied separately; installing the code does not load the live collection.
+Open [localhost:8050](http://127.0.0.1:8050). Datasets are supplied separately; installing code does not load the live collection. See [the user guide](docs/guide.md), [import contract](docs/PROTOTYPE_DATA_PIPELINE.md) and [operations](docs/operations.md).
 
-## Tests and deployment
+## Checks and evaluation
+
+Run the free development gate with a fresh report directory:
 
 ```sh
-uv run pytest -q -m "not integration and not live"
-uv run ruff check src tests scripts
+uv run --no-sync python scripts/run_project_checks.py --report-dir .runtime/project_checks_new
 ```
 
-Database and paid API tests run separately. `Dockerfile` and `railway.json` provide the application deployment configuration. GitHub Pages serves the static project page; the live dashboard and RAG run on Railway.
+The gate isolates protected evaluation material and records its actual scope. [Test instructions](docs/test_gate.zh-CN.md) cover private database and installed-package checks. Paid evaluation is separate and requires a bounded, authorized run.
 
-## Documentation and remaining work
+Evaluation defines 16 measures and their denominators. Answer coverage differs from correctness among answered questions. Quote-location checks do not prove semantic support; AI-reference agreement does not replace human review. See [evaluation isolation](docs/client24_masking.zh-CN.md) and [current engineering verification](docs/handoff_cleanup.zh-CN.md). Detailed methodology and dated accuracy reports are retained locally, separately from this source release.
 
-The [MCP and research tools guide](docs/mcp_research_tools.md) explains the eight shared tools, question routing, exact statistics, source evidence, knowledge graph relationships, CLAIMS reads, and optional web lookup. The website uses model function calling; an independent MCP server exposes the same tool implementation. Answers separate the summary, supporting evidence, scope and execution details. External web findings remain separate from collection records and counts.
+## Requirements updates
 
-This repository includes application code, tests, deployment configuration, a [setup and user guide](docs/guide.md), and [current handoff instructions](docs/current_handoff.md). The [CLAIMS source audit](docs/claims_source_audit.md) checks saved results against original articles. A [reviewed-result importer](docs/claims_result_import.md) preserves source evidence and review history. The [read-only views](docs/claims_read_views.md) display published definitions and original evidence when results are available. Optional [source discovery](docs/claims_source_discovery.md) finds candidate article URLs for legacy inputs; its maintenance MCP tool is hidden by default and does not update records. The [integration plan](docs/claims_integration_plan.md) describes remaining processing work.
+These are requirement revisions, not releases. Detailed dates and current status remain in [client goals](client_goal.md) and [user goals](user_goal.md). The complete acceptance ledger is retained locally in `client_finish.md`. Earlier IDs are retained without copying their historical completion claims.
 
-The [private source review packet](docs/claims_source_discovery.md#create-a-private-source-review-packet) freezes a saved lookup and the original CLAIMS paragraph, with optional captured-text comparisons. It runs offline and starts every source decision as pending. The [0.4.7 maintenance receipt](reports/claims_source_review_v0_4_7_20260930.json) records five candidates from the unchanged earlier lookup and no captured pages or new paid calls; the original article URL remains unresolved.
+| Revision | Source | Requirement |
+| --- | --- | --- |
+| R1 | FA26 project description | Dual-dataset dashboard, grounded RAG, deployment, documentation and demonstration. |
+| R2 | 25 September client meeting; year not stated | Interactive knowledge graph, different years and reproducible imports. |
+| R3 | Michelle's feedback email; send date not supplied | Accessible counts, company–publisher relationships and source records. |
+| R4 | User | Separate Query/Data, readable charts, nearby details and secondary tools. |
+| R5 | Client priority relayed by user | Bring supplied CLAIMS code and results into scope. |
+| R6 | User | Consistent answers, bounded tools, comparisons and labeled web supplementation. |
+| R7 | Client | Validation questions, RAG design, hallucination controls and evaluation criteria. |
+| R8 | Project description (3) and user | Preserve revised requirements; repair engineering issues and maintain plan/work files. |
+| R9 | User | Clear evaluation definitions and version-bound reports. |
+| R10 | User | Objectives, sources, completion criteria and unresolved requirements. |
+| R11 | Client, explicitly confirmed by user on 6 October | Full-article input, offline classification and review. |
+| R12 | User | Lower-effort video recovery; accuracy concession applies only to video transcription. |
+| R13 | User | Separate requirement ownership and record concrete failures and completed parts. |
+| R14 | User | Unique posts, distinct media evidence, readable review and explicit unknown states. |
+| R15 | User | Unified exploration with collection identity and separate counts. |
+| R16 | User | Separate development and evaluation; later strict masking also covers client-question derivatives. |
+| R17 | User | Search all saved company-post observations with exact source locations. |
+| R18 | User | Prepare AI references for evaluation only. |
+| Later updates | Source recorded per item | Follow the client/user ledgers and dated plan/work entries; engineering choices do not create client requirements. |
 
-Real social data, complete source/archive coverage, user acceptance testing, independent answer review, and final presentation materials remain part of project completion. Historical CLAIMS labels are not verified greenwashing findings.
+For each meeting note or email, retain its source, date authority, task, owner, dependency, completion check and status. Unknown dates and reviewers remain **TBD**. Original customer files and itemized baselines are retained separately in the local client-requirements folder.
 
-One reviewed PDF snapshot and its first-page preview are available in the live record view. [Attachment deployment and checks](docs/record_assets.md) explain how to preserve and verify these files separately from application code.
+## Documentation
 
-The [local](reports/DATABASE_RESTORE_V0_4_7_20260930.en.md) and [Railway](reports/RAILWAY_DATABASE_RECOVERY_20261001.en.md) recovery checks passed for all 21 tables, vectors and histories. The Railway copy was restored to a new database on the same PostgreSQL 18.6 service; its downloaded backup remains private. Independent-machine recovery and complete project acceptance remain pending.
-
-For the current native-data review, use the [demonstration script](deliverables/native_demo_v0_4_9.en.md). The [source input guide](docs/native_source_handoff.md) provides a checksum inventory and an offline check before import. Private inputs, database backups and reviewed attachments are transferred separately from public code.
+- [Architecture](docs/architecture.md): current modules and flows.
+- [Tool contract](docs/mcp_research_tools.md): inputs, outputs, scope and failures.
+- [Plan](plan.md) / [work](work.md): next actions and dated evidence.
+- [CLAIMS integration](docs/claims_integration_plan.md): source matching, imports and review limits.
+- [Document index](docs/DOCUMENT_INDEX.zh-CN.md): specialist guides and historical records.
+- [Simplification review](docs/project_simplification.zh-CN.md): removed duplication and remaining structural work.

@@ -1,5 +1,49 @@
 # 项目文档阅读索引
 
+## 当前阅读入口（2026-10-08整理）
+
+| 想了解什么 | 唯一主入口 | 不在此重复的内容 |
+| --- | --- | --- |
+| 项目目标及可用功能 | [README](../README.md) | 不复制运行条数和旧测试成绩 |
+| 当前模块和流程图 | [architecture](architecture.md) | 历史设计只作历史参考 |
+| 工具参数、返回和限制 | [MCP工具契约](mcp_research_tools.md) | 其他文档不再维护工具数量 |
+| 原始客户要求与验收 | [客户目标](../client_goal.md) · [原件目录](../客户需求/README.md) | 用户实施偏好另列 |
+| 本轮做什么、实际完成什么 | [plan](../plan.md) · [work](../work.md) | 历史回执不能升级为当前验证 |
+| 导入和数据库迁移 | [导入契约](PROTOTYPE_DATA_PIPELINE.md) | 实际版本读取目标库迁移账本 |
+| 检查和评分 | [免费检查入口](test_gate.zh-CN.md) · [评价方法](evaluation_methodology.zh-CN.md) | 工程通过不等于人审或客户验收 |
+| 本次删减和保留理由 | [简化审核](project_simplification.zh-CN.md) | 不删除原始需求或审计证据 |
+
+客户题、参考、改写及逐题结果仅用于评价；下方旧索引出现的开发／日常发布描述已被[当前隔离规则](client24_masking.zh-CN.md)替代。当前运行状态读带日期的工作记录与对应回执，不能从旧目录推断。
+
+## 历史目录（保留原日期和原说明）
+
+以下内容保留编制时的原貌，包括当时的“当前”字样、数据规模、缺口及测试结果；不代表2026-10-08运行状态。历史链接可供追溯，不作为新的执行指令。
+
+**较早代码候选（2026-10-06，P18–P20之前）**：[候选说明](current_source_candidate_20261006.md) · [隔离安装方法](CURRENT_RELEASE_REPRODUCTION.md) · [当前用户指南](guide.md) · [运维与私有结果配置](operations.md)。576份源码载荷、81份运行文件／69模块和10个维护帮助入口属于较早候选；去重1,006项安装检查通过、3项跳过，首次护栏失败与后续MCP检查均保留。下方“当前源码交接候选刷新”对应最新代码。这些未发布候选的同机缓存安装不等于异机复现或客户验收；私有／需求基准及部分历史链接需另供。
+
+## 2026-10-06 本机进度
+
+先读本节的当前入口，再按需要回查旧版本。新代码和材料仍在本机；旧发布回执只证明其中记录的版本，不自动覆盖这些更新。
+
+- **要求与计划**：[目标](../goal.md) · [下一步](../plan.md) · [当前工作](../work.md) · [客户需求目录](../客户需求/README.md)。保留上传原文、任务、时间、完成判断和待定角色，不替客户填写验收。
+- **用户评价**：[方法与16项指标](evaluation_methodology.zh-CN.md) · [独立统计参考](statistics_reference.md) · [报告契约](customer_metric_report.md)。本机Tools → Evaluation可查看定义；真实审核结果尚未配置，不展示成绩。
+- **24题全文判断**：[审查包](content_review_packet.md) · [全文处理](content_assessment.md) · [模型运行入口](content_provider.md)。263条范围、248份可用请求、15条跳过、6,312项未知；3篇／$0.10试跑计划待授权，尚无真实调用或语义成绩。
+- **审定完整名单**：[审查与发布流程](content_publication.md)。本机已接入共享只读入口，供Data、问答和MCP读取符合／不符合／未知及原文证据；翻页与导出核对当前版本。263×24的正式模板全部pending，真实审查、配置发布和线上验收待办。
+- **CLAIMS来源与正文**：[原始输入核对](claims_input_review.md) · [正文比较](native_body_review.md) · [审定文本更新](native_body_update.md)。先用已找回的原ZIP、TXT及表格，缺来源再补查；来源确认、正文采用和37项分类候选审核仍待办。
+- **社交资料**：[已收到的Twitter输入](social_archive_input.md)。37,082条已离线准备；集合范围、重复计数、准入和入库待确认。24题和Twitter文件已收到，不重复索要；Facebook／Instagram、审核角色、独立标准答案与最终验收仍待办。
+- **社交账号探索**：[使用方式与边界](social_account_exploration.md)。本机源码增加账号筛选、完整账号计数和点选帖子，公司归属不等于付费赞助；594项冻结离线及5项隔离SQL合成检查通过，真实准入与用户评价待办。未重启或部署，较早的冻结源码候选不包含这次后续改动。
+- **双集合工具入口**：[MCP说明](mcp_research_tools.md)。本机正文／来源读取已支持准入后的原生和社交记录，并保留筛选、版本和引用位置校验；286项离线与9项真实隔离SQL检查通过，另2项纯离线配置反例通过。真实社交入库、部署及跨集合实测待办，不把公司归属当作付费赞助。
+- **社交来源历史标签**：[详情、分布与筛选契约](social_historical_annotations.md)。本机独立显示13码True／False／未知及旧生成说明；缺失、重复或正文失配不记阴性。P20增加状态分布、对应帖子、CSV和MCP，多选表示任一状态。点选与导出复核完整范围和来源版本，不映射原生标签或CLAIMS2；真实准入、部署及语义评价仍待办。
+- **当前设计与字段交接**：[系统设计](architecture.md) · [字段和组件映射](data_dictionary.md)。记录实际技术栈、三条流程和逐源输入到页面／工具的映射；[旧0.2.3架构](architecture_0_2_3.md)按原字节保存，不把旧流程当当前运行状态。
+- **当前进展演示**：[六个研究问题的展示稿](../deliverables/project_demo_20261006.md)。包含具体点选、来源、评价说明、客户待确认事项及最终演示缺口；正常步骤不调用模型，不将本机进展当最终验收。
+- **视频省力路线**：[视频计划](video_recovery_plan.zh-CN.md)。V01–V07记录状态和完成判断；优先已有文字／字幕，无字幕且有人声才转写。字幕、实际转写和接入待办，准确性让步仅限视频。
+
+**当前源码交接候选刷新**：[候选说明](current_source_candidate_20261006.md) · [复现步骤](CURRENT_RELEASE_REPRODUCTION.md)。P18–P20后的597份载荷与84运行文件、72模块已核对；从解压源码建包并在项目外新环境安装，957项相关检查通过，3项Windows链接创建跳过。旧包和回执保留，新候选未提交／发布；私有数据、需求原件和审核材料另供，不代表异机、真实语义或客户验收。
+
+完整交接说明：[current_handoff.md](current_handoff.md)。以下日期明确的记录保留当时的检查范围。
+
+本机浏览器已核对ExxonMobil→华邮5条、API→华邮6条及NYT两页19条的完整成员；4个具名分布也与冻结来源一致。私有回执在`.runtime/relationship_ui_20261006/receipt.json`，属于开发者自查，未完成客户操作验收。
+
 **本机 PG18 升级（2026-10-01）**：[升级报告](../reports/LOCAL_POSTGRES18_UPGRADE_20261001.zh-CN.md) · [JSON 回执](../reports/local_postgres18_upgrade_20261001.json)。当前 PostgreSQL 18.6 + pgvector 0.8.6，保留原 13 个数据库及旧集群；87 项独立集群集成测试与 18 项保护测试通过。
 
 **0.4.10 已发布**：[发布回执](../reports/citation_v0_4_10_publication_20261001.json)。两仓库 CI 各 1,936 项通过，本机全新安装包同样通过；Railway 已运行对应代码，数据与索引版本未变。已核对所选 PDF 的 HTTP 字节与页面预览，Edge 下载阻断仍待解决。
@@ -38,7 +82,7 @@
 
 发布及交接：[0.4.5 生产与两仓库 CI](../reports/release_v0_4_5_publication_20260930.json) · [原版／英文源码包核对](../reports/source_handoff_v0_4_5_20260930.json)。生产已为 0.4.5、迁移3；源码包绑定应用提交并排除私有材料，后续文档提交不改这些制品。
 
-更新：2026-10-01（UTC 恢复回执）。按阅读目的查找文档，历史回执保留原日期与范围。按路径／性质排序时使用[文档清单](document_catalog.csv)。
+索引更新：2026-10-06。下方早期内容保留其原日期与范围；按路径／性质排序的[文档清单](document_catalog.csv)保留此前生成批次，不作为本轮新增文档的完整清单。
 
 **CLAIMS 历史推进：** 0.4.4 维护工具已完成[来源审计与结果适配](../reports/CLAIMS_SOURCE_LINKAGE_20260930.zh-CN.md)，可运行 [claims-audit](claims_source_audit.md)。两次审计使用相同正文快照，零数据库写入、零模型调用、零标签发布；[数字和文件哈希](../reports/claims_source_linkage_20260930.json)与[独立安装包核对](../reports/current_release_offline_reproduction_v0_4_4_20260930.json)分别记录证据。网页接入、权威分类批次和人工语义审查仍待完成。
 
@@ -61,7 +105,7 @@
 | 核对 Railway 完整逻辑备份与新库恢复 | [云端恢复报告](../reports/RAILWAY_DATABASE_RECOVERY_20261001.en.md) · [云端恢复回执](../reports/railway_database_recovery_20261001.json) | **云端固定快照实测**。PostgreSQL 18.6 同集群新库、21 表／结构／迁移、证据定位、检索及私有下载哈希；序列为稳定观测，异机／文件／人工和客户验收未完成。 |
 | 准备客户试用与当前原生演示 | [当前演示脚本](../deliverables/native_demo_v0_4_9.en.md) · [当前核验](../reports/NATIVE_HANDOFF_20261001.en.md) · [早期客户审查](CLIENT_REVIEW_V0_4_2.md) | **当前原生演示草案**。覆盖六问，区分实测、未运行与客户判断；未发送、未签收，非最终双集合演示。 |
 | 按最新客户方向安排 CLAIMS 接入 | [CLAIMS 接入计划](claims_integration_plan.md) | **已排入当前工作**。先复核用户提供 ZIP 与批次，再做可定位离线结果、网页／MCP 查询和审核；尚未导入新分类。 |
-| 核对旧 CLAIMS 来源 URL 候选 | [离线审查包使用说明](claims_source_discovery.md#create-a-private-source-review-packet) · [维护回执](../reports/claims_source_review_v0_4_7_20260930.json) | **当前维护实现**。保留原始输入、搜索回执、捕获文本及字符位置；全部来源决定待审，不直接进入分类导入。 |
+| 核对旧 CLAIMS 来源文章与URL | [原始输入核对](claims_input_review.md) · [旧联网候选审查](claims_source_discovery.md#create-a-private-source-review-packet) | **当前来源核对入口＋历史搜索材料**。先对应原ZIP、TXT和表格身份，不能用同名文章猜URL；真正缺来源时再查外部候选，全部采用决定仍待审。 |
 | 核对 0.4.0／0.4.1 发布、CI 与线上验证 | [发布记录](../reports/RELEASE_V0_4_0_20260930.zh-CN.md) · [生产回执](../reports/release_v0_4_1_publication_20260930.json) | **历史版本实测**。这些版本的代码、配置、实际验证与材料边界。 |
 | 核对 0.4.2 选取与导出范围修订 | [选取修订报告](../reports/GRAPH_SELECTION_V0_4_2_20260930.zh-CN.md) · [发布回执](../reports/graph_selection_publication_v0_4_2_20260930.json) · [用户指南](user_guide.md) · [图谱使用契约](COLLECTION_KNOWLEDGE_GRAPH.zh-CN.md) | **当前实现与生产实测**。命名关系、精确支持集合、父分布、跨视图保留、所选分类 CSV 与完整筛选图 JSON 的区别。 |
 | 在干净环境验证当前安装包与迁移 | [复现方法](CURRENT_RELEASE_REPRODUCTION.md) · [离线回执](../reports/current_release_offline_reproduction_20260929.json) · [数据库回执](../reports/current_release_database_reproduction_20260930.json) | **实际安装包与合成数据库验证**。不等于真实生产语料／向量／历史恢复。 |
@@ -73,13 +117,13 @@
 | 使用与维护完整范围的大幅知识图谱 | [图谱使用与技术契约](COLLECTION_KNOWLEDGE_GRAPH.zh-CN.md) | **当前本机契约**。双模式、稳定身份、源字段见证、完整 JSON 和可见 PNG、按需详细来源检查器与未来扩展边界。 |
 | 核对大图实现和实际验证 | [实现报告](../reports/COLLECTION_KNOWLEDGE_GRAPH_20260929.zh-CN.md) · [真实库核对](../reports/collection_graph_smoke_20260929.json) | **当前本机工程证据**。完整图计数与交叉表一致；浏览器检查与测试分母，不代替线上或客户验收。 |
 | 看 How Do They Lobby 借鉴依据 | [参考站点实际交互研究](../reports/LOBBY_GRAPH_REFERENCE_20260929.zh-CN.md) | **只读参考研究**。大网络、对象详情、名称变体与支持记录的实际核对；不移植游说关系语义或导入其数据。 |
-| 使用模型理解与 MCP 数据工具 | [MCP 技术路线与接口](MCP_RESEARCH_TOOLS.zh-CN.md) | **当前本机契约**。八个只读工具与独立维护搜索、模型调用与真正 MCP 的区别、来源及图谱扩展、费用和缺口。 |
+| 使用模型理解与 MCP 数据工具 | [当前MCP工具说明](mcp_research_tools.md) · [中文路线背景](MCP_RESEARCH_TOOLS.zh-CN.md) | **本机九个只读工具**。当前英文说明含审定24题读取；中文背景保留较早八工具版本。模型调用与真正MCP的区别、来源与图谱扩展、费用和缺口分别说明。 |
 | 核对本次模型与 MCP 实测 | [实施验证](../reports/MCP_RESEARCH_IMPLEMENTATION_20260929.zh-CN.md) | **当前工程与有限真实模型证据**。三个付费问题、独立进程协议、真实库来源读取及未完成项。 |
 | 回查公司、媒体与计数问题的第一版修正 | [本机修正与试用说明](../reports/MICHELLE_IMPLEMENTATION_20260929.zh-CN.md) | **同日基础版证据**。免费固定句式统计与双向探索；当前默认 Query 由模型理解后调用工具，理解步骤收费，见上方 MCP 入口。不是线上或客户验收。 |
 | 核对 Michelle 的六项研究要求 | [六项反馈审计](../reports/MICHELLE_FEEDBACK_AUDIT_20260929.zh-CN.md) | **2026-09-29 审计与沟通草稿**。修正前根因、当日记录统计、部署差异及剩余材料；英文回复未发送。 |
 | 试用 9 月 25 日新要求雏形 | [雏形交付与试用说明](../reports/MEETING_PROTOTYPE_20260925.zh-CN.md) | **9/25 阶段实现证据**。关系网络、后端分页、迁移和新增导入；保留社交、规模及语义验收缺口。 |
 | 接入新年份与升级数据库 | [数据管道雏形](PROTOTYPE_DATA_PIPELINE.md) | **当前契约**。有序迁移、upsert 与显式 snapshot、canonical JSONL 和 dry-run。 |
-| 准备独立客户评价 | [评价准备说明](PROTOTYPE_EVALUATION.md) · [空白材料模板](../eval/client_review_20260925/README.md) | **待客户材料**。检查、源版本核对和冻结；没有独立问题／金标准时保持 pending。 |
+| 准备独立客户评价 | [当前评价方法](evaluation_methodology.zh-CN.md) · [24题审查包](content_review_packet.md) · [早期空白模板](../eval/client_review_20260925/README.md) | **问题已收到，规则和审查仍待办**。24题、全文材料和独立统计参考已准备；审核角色、语义金标准、准入与验收目标尚未确定，未审结果保持待评价。 |
 | 接入离线 CLAIMS，保留实时 RAG | [离线分析与实时问答接入方案](CLAIMS_OFFLINE_RAG_ONLINE_20260925.zh-CN.md) | **按用户确认的技术分工写成的后续方案**。分类批次、原文关联、NC／SC 结果与验收；不表示客户批准本期新增范围，或 CLAIMS 2 已接通／重新分析。 |
 | 安排测试并向客户索要材料 | [客户测试与材料计划](CLIENT_TESTING_AND_MATERIALS_20260924.zh-CN.md) · [英文邮件草稿](../deliverables/client_review_request_20260924.en.md) | **当前沟通草案，尚未发送或获批**。四类优先材料、统计裁决、团队／客户测试分工和冻结步骤。 |
 | 看新提供的完整历史源码能复用什么 | [历史源码阅读与复用清单](../reports/UPSTREAM_SOURCE_REVIEW_20260918.zh-CN.md) | **只读审查证据**。CLAIMS 1.0/2.0、标签规范、50 条社交研究样本、赞助方来源、版本与评价缺口；尚未导入或替换当前应用。 |

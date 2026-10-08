@@ -1,227 +1,144 @@
 # MCP and research tools
 
-The Advertising Observatory uses a shared set of research tools to answer questions about stored advertising records. The model selects a tool; the application calculates counts, reads sources, and checks evidence.
+Checked against local source on 8 October 2026. This is the current tool contract; see [system design](architecture.md) for the complete pipeline and [work.md](../work.md) for dated execution evidence.
 
-The web application uses **Responses API function calling**. A separate **Model Context Protocol (MCP) server** exposes the same `ToolCatalog` to MCP clients. These are two interfaces to the same tool implementation. The public dashboard does not host a remote MCP endpoint.
+The web application uses **Responses API function calling**. The optional **Model Context Protocol (MCP) server** exposes the same `ToolCatalog` through a separate process. Starting MCP does not start the web planner, migrate a database or import data. The public dashboard does not host a remote MCP endpoint.
 
-## How a question is answered
+## Shared read tools
 
-```text
-Question + current collection filters
-  → model selects a supported tool and its arguments
-  → database statistics, article retrieval, graph relationships, or CLAIMS reads
-  → scope, source-version, and citation checks
-  → one labeled external lookup if the web answer remains unresolved
-  → summary, evidence, and limitations
-```
+These tools do not call a language model. Inputs below show the main fields; the generated schemas in [research_tools.py](../src/observatory/research_tools.py) are authoritative and reject unknown fields.
 
-An MCP client calls the tools directly through the separate MCP server. It supplies its own model or workflow; starting the server does not start the web application's model-selection process.
-
-The tools operate within a trusted collection selection. A request may narrow that selection, but it cannot silently clear filters or switch to another dataset. Results describe the stored collection, not every advertisement in the real world.
-
-## Eight core tools
-
-| Tool | Purpose | Main output |
+| Tool | Input | Output and boundary |
 | --- | --- | --- |
-| `resolve_entity` | Match a company or outlet name to actual source-field values. | Candidate names and IDs, with ambiguity information. |
-| `record_statistics` | Calculate exact counts, distributions, and shares. | Counts by outlet, sponsor, platform, or year; highest years; period comparisons; denominator and date-basis information. |
-| `search_records` | Find relevant article passages with keyword retrieval. | Bounded passages, record and version IDs, character positions, source references, and search diagnostics. |
-| `get_record` | Read part of an identified article. | An unchanged text interval with its version, body hash, and character positions. The current detail adapter supports native records. |
-| `get_record_sources` | Read the materials behind an identified record. | Public original and archive references, with annotation and source limitations. The current detail adapter supports native records. |
-| `get_graph_schema` | Explain the graph's node and relationship types. | Definitions, source-identity rules, and adapter limitations. |
-| `get_graph_neighborhood` | Explore the evidence relationships around selected articles. | A paged graph for up to five native articles, with typed relationships and provenance. |
-| `get_claims_matches` | Read published CLAIMS2 classifications. | NC/SC definitions, review states, taxonomy versions, and exact source evidence. |
+| `resolve_entity` | `query`, `entity_type` (`sponsor`, `publisher`, `account`), optional `limit` up to 10, filters | Source-name candidates and ambiguity. Accounts require social scope; a candidate does not merge identities. |
+| `record_statistics` | Filters, `group_by`, `ranking`, `periods`, `measure`, optional `denominator_filters` or `paid_ad_status` | Exact selected-record counts, distributions or shares with date basis and separate collection units. Uses the full selection, including countable records without searchable body text. |
+| `search_records` | `query` up to 2,000 characters, optional `limit` up to 10 and `comparison_scopes`, filters | Bounded keyword passages, source references and search diagnostics. The web service subsequently performs hybrid retrieval and cited generation for content answers. Passages do not establish corpus totals or an exhaustive matching list. |
+| `find_records` | Literal `title` up to 500 characters, optional `limit` up to 10, filters | Exact case-insensitive stored-title matches, or literal substring candidates if no exact match exists. Candidates bind record/version/body hash; multiple matches require selection. SQL wildcard characters remain literal. |
+| `get_record` | `record_id`, optional `body_start`, `body_limit` up to 12,000 characters and `source_observation_id`, filters | A permitted unchanged text interval with character positions and version. A differing social text observation needs its exact source ID; denied text is not returned. |
+| `get_record_metadata` | `record_id`, requested `fields`, filters | Original field values, each field's status and source-cell provenance; normalized display values remain separate. Missing or conflicting fields do not invalidate other known requested fields. |
+| `get_record_sources` | `record_id`, filters | Public original/archive references, source basis and historical annotation limits. Does not fetch arbitrary URLs or return private source paths. |
+| `get_graph_schema` | No parameters | Node types, predicates, provenance policy and adapter limits. |
+| `get_graph_neighborhood` | Optional `record_id`, `offset`, `limit` up to 5, filters | Typed relationships and supporting sources for a bounded page of native articles. It is neither the full graph nor a counting tool. |
+| `get_claims_matches` | Optional `nc_ids`, `sc_ids`, taxonomy fingerprint, `review_state`, `offset`, `limit` up to 20, filters | Published, current-source CLAIMS2 assignments with definitions, review states and exact evidence. Missing assignments are not negatives; this does not classify, approve or write. |
 
-The core tools do not call a language model. Model interpretation and content generation in the web application use the project's API budget, including interpretation of count questions.
+`get_record_metadata.fields` accepts `title`, `publisher`, `sponsor`, `original_url`, `publication_date`, `collection_search_term`, `disclosure_language` and `disclosure_location`. Request only the fields needed, together in one read; omit `fields` only for an explicit all-fields request. Original spreadsheet metadata takes precedence over cleaned copies. Missing provenance or conflicting original cells remain unknown or require review; an external page cannot silently fill an original field.
 
-### Examples
+Historical social labels retain their recorded True/False/Unknown states and generated explanations. They are unverified source annotations, separate from native labels and published CLAIMS2 assignments. Source-listed companies and accounts do not prove paid sponsorship or unique organizational identity.
 
-| Question | Tool and operation |
+## Scope and statistics rules
+
+The catalog is constructed with trusted base filters. Tool arguments may narrow that selection; they cannot silently clear it or switch outside it. The caller's explicit date basis remains binding. Source and supplemented dates are labeled separately, and Unknown is not zero or a negative finding.
+
+Supported filter fields are `dataset` (`native`, `social`, `all`), `publishers`, `sponsors`, `platforms`, `accounts`, `keywords`, `labels`, `record_ids`, `date_from`, `date_to`, `include_unknown_dates`, `date_presence` and `include_inferred_dates`. Name and record-ID lists are bounded by the schema. Account and historical social-label filters require an explicit social scope. Label choices use OR, not an inferred intersection.
+
+| Operation | Contract |
 | --- | --- |
-| How many native ads are from the New York Times? | `record_statistics`: select the outlet and return the total. |
-| Which publishers is ExxonMobil working with? | `record_statistics`: select the source-listed sponsor and group by publishers. The answer explains that the source fields do not independently verify contracts. |
-| Which sponsors appear in Washington Post records? | `record_statistics`: select the outlet and group by sponsors. |
-| Which year has the most CNBC ads? | `record_statistics`: group by years and return every highest-year tie. |
-| How do counts before and after 2020 compare? | `record_statistics`: compare two explicitly bounded periods. |
-| What do ExxonMobil and Shell emphasize about reducing emissions? | `search_records`: retrieve separately for each company, then use the web RAG path for a cited comparison. |
-| Which published CLAIMS categories match this article? | `get_claims_matches`: filter by the record and read published assignments. |
+| Distributions | `group_by` supports `none`, `publishers`, `sponsors`, `platforms`, `accounts`, `years` and `social_historical_labels`. Native articles and company posts retain separate units. |
+| Highest years | `group_by="years"` and `ranking="highest"` return every tied highest year. Unknown dates remain separate. |
+| Period comparison | `periods` contains 2–3 distinctly named date ranges, each with at least one explicit endpoint. Endpoints are inclusive. Shared filters apply within one statistics snapshot; missing dates fall outside the periods. Periods cannot be combined with grouping, shares or a comparison denominator. |
+| Share | `measure="share"` uses a stated denominator within the active scope; numerator filters narrow that group. A named denominator uses `denominator_filters`. Grouping is not supported for shares, and a zero denominator is undefined. |
+| Historical source states | Requires social scope, count, all rankings, no periods or denominator. Returns each original label's True/False/Unknown counts and annotation coverage; overlapping labels must not be added into one total. |
+| Verified paid social ads | `paid_ad_status="verified_paid"` asks for this explicit identity. Missing identity evidence requires clarification; company-post counts cannot substitute. |
 
-## Exact statistics
+Entity resolution uses actual source values and controlled aliases. Multiple plausible entities remain ambiguous. Title lookup likewise returns candidates rather than selecting the first hit. A missing stored title does not establish absence on the web.
 
-Counts come from the database, including matching records without searchable article text. Retrieved passages and graph pages cannot establish collection totals.
+Source/version checks apply before and after reads where needed. Continued pages and matching-record browsing retain the submitted selection and version. These checks are optimistic consistency guards; separate tool calls are not one database transaction.
 
-### Years and ties
-
-For a year distribution, use `group_by: "years"`. Add `ranking: "highest"` to return all years tied for the highest dated-record count. Unknown dates are reported separately.
-
-```json
-{
-  "filters": {"publishers": ["CNBC"]},
-  "group_by": "years",
-  "ranking": "highest"
-}
-```
-
-### Period comparisons
-
-The tool supports two or three named periods in one database snapshot. Endpoints are inclusive; `null` leaves an endpoint open. Every period retains the shared collection filters. Missing dates are never assigned to a period, and records outside the specified periods remain outside their counts.
-
-```json
-{
-  "filters": {"sponsors": ["totalenergies"]},
-  "periods": [
-    {"label": "Before 2020", "date_from": null, "date_to": "2019-12-31"},
-    {"label": "2020 onward", "date_from": "2020-01-01", "date_to": null}
-  ]
-}
-```
-
-Source-only dates and supplemented dates are distinct modes. The returned scope states which mode was used and reports missing dates. A supplemented date does not replace the stored original date.
-
-### Percentages
-
-Use `measure: "share"` with `group_by: "none"`. By default, the denominator is the trusted current selection, and the requested filters narrow the numerator. A question may define a narrower comparison group through `denominator_filters`; the target is then counted inside that group.
-
-The database calculates the numerator, denominator, and percentage. A zero denominator is undefined. Native and social percentages remain separate. Year distributions and period comparisons currently support counts, not shares.
-
-### Ambiguous names
-
-Source names are candidates, not approved corporate identities. Display aliases improve presentation but do not merge companies.
-
-For example, `williams`, `the williams companies, inc.`, and `williams companies` remain separate source values. An unresolved short name must be clarified, or the user must explicitly select the desired source values. The system cannot silently count one spelling or combine all related names.
-
-## Article retrieval and citations
-
-`search_records` supplies keyword passages to the shared tool interface. For web content questions, the application then uses its keyword-plus-vector RAG path and citation-constrained generation.
-
-Comparisons use `comparison_scopes` to retrieve separately for two or three targets. One company's passages cannot stand in for another company's evidence. Each target needs an explicit source-listed sponsor or outlet.
-
-Native passages are checked against the unchanged article text, version, body hash, and character positions. A valid quotation proves that the text exists at that location; it does not prove that the generated conclusion is correct or that an advertising claim is true.
-
-## What the knowledge graph represents
-
-The graph connects records, text versions, source materials, and classifications through named relationships. A simplified view is:
+## Web planner and answer path
 
 ```text
-Article
- ├─ source_lists_sponsor → SponsorCandidate
- ├─ published_in → Outlet
- ├─ has_text_version → TextVersion
- ├─ has_source_reference / has_archive_reference → SourceArtifact
- ├─ has_annotation_record → Annotation → Label / EvidenceSpan
- └─ has_claim_assignment → ClaimAssignment
-                           ├─ assigns_subclaim → Subclaim (NC)
-                           │                     └─ subclaim_of → Superclaim (SC)
-                           └─ cites_claim_evidence → EvidenceSpan → TextVersion
+Question + trusted filters
+  → bounded model interpretation
+  → shared read tools
+  → deterministic result, or retrieved evidence + generated answer
+  → scope / source / citation checks
+  → Summary + Evidence + Scope and limitations
 ```
 
-Relationships retain their source and version limits. A source-listed sponsor relationship does not independently establish payment, ownership, a contract, or endorsement. Missing relationships do not establish factual absence.
+The planner has a bounded step and tool-call budget. `set_research_plan` and `request_clarification` are planner controls, not shared data tools. A supported compound plan contains 2–3 explicit tasks; execution retains each task's result, missing fields and failure state. It does not run an unrestricted agent loop or accept arbitrary SQL.
 
-`get_claims_matches` reads published results; it does not rerun classification. A record without a published match is not a classified negative. A human-supported assignment means it was reviewed under its taxonomy, not that greenwashing or factual truth was independently verified.
+For content comparisons, `comparison_scopes` selects 2–3 distinct sponsor or outlet scopes. Each target is retrieved separately within the shared filters. The web service then combines keyword/vector candidates and optional fixed media evidence. The model selects program-built reference IDs; the program restores original quotes and checks their source versions, hashes and locations. A matching quote proves that the text exists, not that the interpretation is correct or the claim is true. Retrieved evidence is not a complete positive/negative classification of the collection.
 
-## External search: two different entry points
+Every answer uses Summary, Evidence, and Scope and limitations. Tool trace and API cost are available separately. Counts are calculated by data tools; interpretation and content generation still use the configured API budget. Loading indicators report real stages instead of simulated internal model reasoning.
 
-### Web application fallback
+The retained legacy answer route is a configuration alternative. MCP clients choose their own model and presentation; they do not automatically receive the web planner, hybrid answer generation or web layout.
 
-With `OBS_WEB_SEARCH_ENABLED=true`, the web service first attempts a collection-based answer. If it remains unresolved, it may make one external lookup, including for insufficient evidence, unresolved clarification, or unavailable collection services.
+## Media read and evaluation boundary
 
-This is a broader fallback than the standard MCP ticket workflow below. A successful database answer, including an exact zero count, does not trigger it. Invalid questions, budget limits, disabled source links, source-version changes, and citation-integrity failures do not trigger it either. An earlier external attempt is not repeated.
+### Media read
 
-External answers show **Outside the advertising collection** and separate `[W1]`-style references. They cannot supply missing collection counts or resolve a source identity by silently changing stored data.
+`get_media_evidence` is exposed through MCP. It accepts `query`, optional `media_types` (`text`, `image`, `video`), `limit` up to 5, and narrowing filters. Each route considers bounded candidates, then merges by current record/version. Image and video are the default routes.
 
-### Standard MCP ticket workflow
+The operator mounts a fixed bundle using `OBS_MEDIA_BUNDLE_PATH`, `OBS_MEDIA_BUNDLE_SHA256` and `OBS_MEDIA_ASSET_ROOT`. Callers cannot supply local paths, arbitrary URLs or version maps. Each read verifies bundle bytes, saved assets and current record permissions. It does not run OCR, transcription, classification, downloads or a paid model.
+
+`not_configured`, `missing_material`, `no_match` and `unavailable` distinguish missing configuration, absent media, no text match and validation/read failure. None proves that a claim is absent. OCR, descriptions and captions retain their own origins and available character, image or time locations.
+
+The web planner does not select this tool directly: its service reads the fixed bundle internally after content search. The web renderer already distinguishes these evidence types and locations. Actual material recovery, review and activation remain separate work; use [media answers](media_answers.md) for its dated evidence and limits.
+
+### Evaluation-only historical tools
+
+`get_content_matches` is not exposed in normal MCP or web operation and is always excluded from the general web planner. Its historical question-specific publication mechanism is retained only for explicit evaluation. The client-question catalog, references, variants and per-question outputs must not enter ordinary tool prompts or development examples. Source-independent CLAIMS taxonomies remain usable. See [masking rules](client24_masking.zh-CN.md).
+
+## Optional external lookup
+
+External findings remain outside the stored advertising collection. They do not supply missing collection counts, replace original metadata cells, merge source identities or enter indexes/classifications automatically. Their provider citations are not the original-text character-location guarantee. Calls can incur model charges and retain usage accounting even when a result fails.
+
+### Web application
+
+When `OBS_WEB_SEARCH_ENABLED=true`, an unresolved collection answer or incomplete original-field answer may receive one external supplement if scope and budget permit. The original collection result, known fields and reason for incompleteness remain visible.
+
+Exact zero counts and successful collection answers do not trigger fallback. Invalid requests, source-integrity errors, source drift, unavailable collection/statistics services, operational limits and budget failures are preserved; external results cannot bypass those checks. A previous external attempt is not repeated. The supplement is labeled **Outside the advertising collection**, with separate web references.
+
+### MCP ticket workflow
 
 When enabled, `search_external_sources` is an additional MCP tool:
 
 1. Call `search_records` in the same server instance.
-2. A healthy empty keyword search with no rejected evidence may return `web_fallback_ticket` for a supported scope.
-3. Call `search_external_sources` with that ticket.
+2. A healthy empty keyword search in supported scope may issue `web_fallback_ticket`.
+3. Call `search_external_sources` with that ticket only.
 
-The ticket expires after five minutes and is consumed before dispatch. It can be used once, even if the lookup fails. The tool checks the collection version again before searching. It does not accept a new question, arbitrary URL, or SQL through the ticket request.
+The ticket expires after five minutes and is consumed before dispatch, including failed attempts. The collection version is checked again. The request cannot substitute another question, arbitrary URL or SQL. Empty keyword retrieval is not proof of semantic absence; this route does not run the web application's complete hybrid-generation path first.
 
-An empty keyword search is not proof that no semantically relevant material exists in the database. Unlike the webpage, this tool does not first run the complete hybrid-retrieval and generation path.
+### CLAIMS source maintenance
 
-External lookups have an API cost and update usage accounting. Returned text is a model paraphrase with provider citations; it does not have the local article's character-position guarantee. External pages do not enter the article tables, vector index, graph, or CLAIMS classifications automatically.
+`find_claims_source_candidates` is a separate maintenance tool for legacy excerpts with unresolved source articles. It searches locally first, may make one paid external lookup, and returns candidates with pending review. It is hidden unless `OBS_CLAIMS_SOURCE_SEARCH_ENABLED=true`; it does not publish classifications or update source records. See [source discovery](claims_source_discovery.md).
 
-### Optional CLAIMS source maintenance
+## Start the separate MCP server
 
-`find_claims_source_candidates` is a separate maintenance tool for legacy CLAIMS excerpts whose original article or URL is unresolved. It searches locally first, may perform one paid external lookup, and returns pending source candidates for review.
-
-It is hidden by default (`OBS_CLAIMS_SOURCE_SEARCH_ENABLED=false`). It is not a public-question fallback and does not publish or update article records.
-
-## The web answer layout
-
-Every web answer uses the same reading order:
-
-| Section | Content |
-| --- | --- |
-| **Summary** | A direct answer or the main comparison. Statistics summaries are built from returned numbers; content summaries cite their evidence. |
-| **Evidence** | Counts and matching records, located article quotations, graph relationships, or published classification evidence. |
-| **Scope and limitations** | Submitted filters, date basis, missing data, retrieval coverage, pagination, and annotation review status. |
-| **How this question was answered** | Tool execution, model calls, external-lookup status, and API cost. |
-
-Unresolved or failed requests show status and a next step instead of unsupported findings. Loading indicators report actual stages, such as question interpretation, database search, external search, answer preparation, and citation checks. They do not expose private model reasoning or simulate progress with a timer.
-
-This layout belongs to the web application. A standard MCP client receives structured tool results and chooses its own presentation.
-
-## Run the MCP server
-
-From the repository root, install the locked environment with the optional MCP dependency:
+From the repository root:
 
 ```sh
 uv sync --frozen --extra test --extra mcp
-```
-
-Copy [`.env.example`](../.env.example) to `.env` and configure the database and application secrets as described in the [README](../README.md#run-locally). Keep credentials private. Set `OPENAI_API_KEY` only when paid model features are needed. Starting the MCP server does not migrate the database or import a dataset.
-
-Start a stdio server:
-
-```sh
 uv run python -m observatory.mcp_server --dataset native
 ```
 
-An MCP client normally launches this process and communicates over its standard input and output. To restrict its trusted selection at startup:
+Configure the private database and required application settings according to the [README](../README.md#run-locally). Keep credentials private. A client normally launches the stdio process; it may narrow the trusted scope with `--publisher` or `--sponsor` startup arguments.
 
-```sh
-uv run python -m observatory.mcp_server --dataset native --publisher "The Washington Post"
-```
-
-Alternatively, run a separate local HTTP server:
+For a separate local HTTP endpoint:
 
 ```sh
 uv run python -m observatory.mcp_server --transport streamable-http --host 127.0.0.1 --port 8051
 ```
 
-HTTP is restricted to loopback addresses. Port 8051 is separate from the dashboard's port 8050. Public remote MCP access would need its own deployment and access-control design.
+HTTP is restricted to loopback. Public remote MCP would require a separate deployment and access-control design. Starting the process is not permission to spend, import or publish.
 
 | Setting | Purpose |
 | --- | --- |
-| `OBS_RESEARCH_AGENT_ENABLED=true` | Enable model selection of the shared tools in the webpage. |
-| `OBS_WEB_SEARCH_ENABLED=true` | Enable bounded paid external lookup in the webpage and optional MCP tool. |
-| `OBS_CLAIMS_SOURCE_SEARCH_ENABLED=false` | Keep the separate CLAIMS maintenance tool hidden. |
+| `OBS_RESEARCH_AGENT_ENABLED=true` | Enable model selection of shared tools in the web application. |
+| `OBS_WEB_SEARCH_ENABLED=true` | Enable bounded external lookup in applicable web/MCP paths. |
+| `OBS_CLAIMS_SOURCE_SEARCH_ENABLED=false` | Keep legacy source maintenance hidden. |
 
-These are configuration examples, not confirmation that a particular deployed process has loaded them. The standalone MCP server is not assumed to be running.
+These are configuration examples, not evidence that a running process loaded them. Check the actual runtime before reporting availability.
 
-## Limits and verification
+## Verification and source ownership
 
-- Model selection is bounded to four steps and four tool calls. Content generation and optional external lookup are separate operations with their own budget accounting.
-- The shared catalog exposes no arbitrary SQL, local file paths, URL fetching, classification jobs, or collection writes.
-- Graph neighborhoods currently support native records and return at most five articles per page.
-- Record text reads return at most 12,000 characters. Search passages and result pages are bounded.
-- A complex compound question may require clarification because the model-selection workflow ends at one final tool result.
-- The social-data importer and views exist, but real social-data analysis awaits the client export.
-- The recent statistics and fallback change passed 2,205 offline tests and five isolated database tests. These do not establish real-model tool-selection accuracy, external-source relevance, or customer acceptance. No new paid model or web call was made for those checks.
+Use the [free test gate](test_gate.zh-CN.md) for current permitted engineering checks. Paid model evaluation, independent semantic review and client acceptance require separate evidence; passing schemas or quote-position checks does not establish answer accuracy.
 
-## Source code
+- Tool schemas, selection and dispatch: [research_tools.py](../src/observatory/research_tools.py).
+- Model planning and prompt policy: [research_agent.py](../src/observatory/research_agent.py), [prompts.py](../src/observatory/prompts.py).
+- MCP transport: [mcp_server.py](../src/observatory/mcp_server.py).
+- Answer and fallback orchestration: [service.py](../src/observatory/service.py).
+- Retrieval, statistics and graph relationships: [db.py](../src/observatory/db.py), [knowledge_graph.py](../src/observatory/knowledge_graph.py).
+- Source restoration and presentation: [rag.py](../src/observatory/rag.py), [app.py](../src/observatory/app.py).
 
-| Responsibility | File |
-| --- | --- |
-| Shared schemas, scope checks, and tool dispatch | [`research_tools.py`](../src/observatory/research_tools.py) |
-| Web model-selection policy and bounded execution | [`research_agent.py`](../src/observatory/research_agent.py) |
-| Standard MCP transport | [`mcp_server.py`](../src/observatory/mcp_server.py) |
-| Answer orchestration, validation, and global fallback | [`service.py`](../src/observatory/service.py) |
-| Database statistics and retrieval | [`db.py`](../src/observatory/db.py) |
-| Graph types, predicates, and provenance | [`knowledge_graph.py`](../src/observatory/knowledge_graph.py) |
-| Web answer presentation | [`app.py`](../src/observatory/app.py) |
-
-Related documentation: [CLAIMS read-only views](claims_read_views.md) · [Legacy source discovery](claims_source_discovery.md) · [Current handoff](current_handoff.md).
+Current collection sizes, published-result coverage and test totals belong in dated execution records. This contract does not repeat them or imply that local source changes have been deployed.

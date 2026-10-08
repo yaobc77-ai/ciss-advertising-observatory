@@ -18,3 +18,6 @@ dist/
 deliverables/*.zip
 deliverables/*.zip.sha256
 .coordination/
+# Customer evaluation references remain local.
+24_answer.md
+eval/customer_metrics/
