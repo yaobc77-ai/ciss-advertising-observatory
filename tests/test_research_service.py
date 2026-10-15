@@ -65,10 +65,10 @@ def no_legacy(monkeypatch):
     monkeypatch.setattr("observatory.service.plan_question", fail)
 
 
-def statistics(groups=None):
+def statistics(groups=None, *, include_inferred_dates=True):
     return {
         "status": "ok", "kind": "count", "method": "database", "group_by": None,
-        "filters": Filters(publishers=["The New York Times"]).model_dump(mode="json"),
+        "filters": Filters(publishers=["The New York Times"], include_inferred_dates=include_inferred_dates).model_dump(mode="json"),
         "collections": [{"dataset": "native", "total": 19, "retrievable": 14, "unknown_dates": 2}],
         "groups": groups or [], "records": [], "scope_notes": ["Stored records only."],
     }
@@ -172,7 +172,7 @@ def test_semantic_query_rewrite_is_for_retrieval_and_original_question_for_cited
     rag, state = semantic_rag(db)
     original = "Shell 的广告怎么描述碳捕集？"
     rewrite = "Shell carbon capture planned facility"
-    narrowed = Filters(sponsors=["shell"], publishers=["The New York Times"])
+    narrowed = Filters(sponsors=["shell"], publishers=["The New York Times"], include_inferred_dates=True)
     run = ResearchRun(route="evidence", cost_usd=0.002, result={
         "status": "ok", "filters": narrowed.model_dump(mode="json"), "search_query": rewrite,
     })
@@ -195,7 +195,7 @@ def test_collection_change_withholds_answer_but_preserves_aggregate_paid_cost(mo
     db = Database()
     rag, state = semantic_rag(db, change_version=True)
     run = ResearchRun(route="evidence", cost_usd=0.002, result={
-        "status": "ok", "filters": Filters().model_dump(mode="json"), "search_query": "carbon capture",
+        "status": "ok", "filters": Filters(include_inferred_dates=True).model_dump(mode="json"), "search_query": "carbon capture",
     })
     service, _, _ = setup_service(run, db=db, rag=rag)
     result = service.answer("广告怎么描述碳捕集？", Filters(), "visitor")
@@ -212,7 +212,7 @@ def test_database_check_failure_after_paid_semantics_preserves_both_costs(monkey
     no_legacy(monkeypatch)
     db = Database()
     run = ResearchRun(route="evidence", cost_usd=0.002, result={
-        "status": "ok", "filters": Filters().model_dump(mode="json"), "search_query": "carbon capture",
+        "status": "ok", "filters": Filters(include_inferred_dates=True).model_dump(mode="json"), "search_query": "carbon capture",
     })
     service, _, _ = setup_service(run, db=db)
 
@@ -284,3 +284,38 @@ def test_limit_is_reported_as_a_limit_not_an_outage(monkeypatch):
     run = ResearchRun(route="unavailable", failure_reason="research_provider_unavailable")
     outage, _, _ = setup_service(run)
     assert "temporarily unavailable" in outage.answer("How many records?", Filters(), "visitor").answer
+
+
+@pytest.mark.parametrize("enabled", [False, True])
+@pytest.mark.parametrize("adapter", ["research", "retrieval_groups"])
+def test_custom_evidence_adapters_cannot_change_the_trusted_date_basis(enabled, adapter):
+    db = Database()
+    rag, state = semantic_rag(db)
+    trusted = Filters(include_inferred_dates=enabled)
+    changed = trusted.model_copy(update={"include_inferred_dates": not enabled})
+    run = ResearchRun(route="evidence", result={
+        "status": "ok", "filters": changed.model_dump(mode="json"), "search_query": "carbon capture",
+    })
+    service, _, agent = setup_service(run, db=db, rag=rag)
+    if adapter == "research":
+        result = service.answer("Describe this advertisement's proposal.", trusted, "visitor")
+        assert agent.calls[0][1].include_inferred_dates is enabled
+    else:
+        result = service._answer_evidence("Describe this advertisement's proposal.", trusted, "visitor",
+            retrieval_groups=[{"query": "carbon capture", "filters": changed.model_dump(mode="json")}])
+    assert result.status == "service_unavailable"
+    assert not db.searches
+    assert not state["reserved"] and not state["embedded"] and not state["generated"]
+
+
+def test_explicit_source_only_selection_is_passed_to_planner_and_preserved():
+    trusted = Filters(include_inferred_dates=False)
+    run = ResearchRun(route="statistics", result=statistics(include_inferred_dates=False))
+    service, db, agent = setup_service(run)
+    result = service.answer("How many ads come from NYT?", trusted, "visitor")
+    assert result.status == "answered" and result.answer_mode == "statistics"
+    assert agent.calls[0][1].include_inferred_dates is False
+    assert run.base_filters["include_inferred_dates"] is False
+    assert result.structured_result["filters"]["include_inferred_dates"] is False
+    assert trusted.include_inferred_dates is False
+    assert not db.searches

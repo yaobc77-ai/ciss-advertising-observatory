@@ -15,6 +15,7 @@ from claims_publication_fixtures import (
 from psycopg import sql
 from psycopg.conninfo import conninfo_to_dict, make_conninfo
 from psycopg.types.json import Jsonb
+from record_version_bypass import out_of_band_edit
 
 from observatory.claims_publication import prepare_claims_import
 from observatory.claims_store import ClaimsStore
@@ -128,10 +129,12 @@ def test_one_invalid_source_rejects_the_entire_batch_before_writes(db, tmp_path,
         if mutation == "stale":
             conn.execute("UPDATE records SET active=false WHERE record_id=%s", (record["record_id"],))
         elif mutation == "body":
-            conn.execute("UPDATE record_versions SET body='Changed' WHERE version_id=%s", (record["version_id"],))
+            with out_of_band_edit(conn):
+                conn.execute("UPDATE record_versions SET body='Changed' WHERE version_id=%s", (record["version_id"],))
         else:
-            conn.execute("UPDATE record_versions SET payload=jsonb_set(payload,'{retrievable}','false') WHERE version_id=%s",
-                         (record["version_id"],))
+            with out_of_band_edit(conn):
+                conn.execute("UPDATE record_versions SET payload=jsonb_set(payload,'{retrievable}','false') WHERE version_id=%s",
+                             (record["version_id"],))
     with pytest.raises(ValueError):
         store.import_prepared(prepare(files), apply=True)
     assert set(stored_counts(db).values()) == {0}

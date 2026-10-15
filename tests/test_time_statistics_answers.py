@@ -39,6 +39,15 @@ def test_year_answer_reconciles_totals_and_ui_labels_years_and_unknowns():
     assert "1 with unknown dates" in card and "Original publication dates only." in card
 
 
+def test_year_answer_states_the_earliest_and_latest_dates_when_known():
+    # B1K: a date-range question got year groups only (5 of 10 wrong).
+    data = result_data()
+    data["collections"][0].update(earliest_date="2019-03-04", latest_date="2021-11-30")
+    result = Service._tool_statistics_answer(data, base_filters=Filters())
+    assert "The earliest is dated 2019-03-04 and the latest 2021-11-30" in result.answer
+    assert "earliest" not in Service._tool_statistics_answer(result_data(), base_filters=Filters()).answer
+
+
 def test_highest_year_answer_preserves_every_tie_and_unknowns():
     data = result_data("top_years")
     data["groups"] = data["groups"][1:]

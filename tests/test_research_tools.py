@@ -91,7 +91,6 @@ class SourceDB:
         return rows[0] if rows else None
 
     def knowledge_page(self, filters, offset=0, limit=5):
-        assert filters.dataset == "native"
         rows = self.select(filters)
         offset = min(offset, max(0, ((len(rows) - 1) // limit) * limit))
         return {"rows": rows[offset:offset + limit], "total": len(rows), "offset": offset, "limit": limit}
@@ -209,14 +208,27 @@ def test_unique_alias_in_filters_maps_to_source_value_with_audit():
     result = catalog.call("record_statistics", {"filters": {"publishers": ["NYT"]}})
     assert result["collections"][0]["total"] == 1
     assert result["filters"]["publishers"] == ["The New York Times"]
-    assert result["alias_resolutions"] == [
-        {"field": "publishers", "requested": "NYT", "source_value": "The New York Times"}]
+    [resolution] = result["alias_resolutions"]
+    assert resolution["requested"] == "NYT" and resolution["source_values"] == ["The New York Times"]
+    assert resolution["organization"] == "outlet:nyt" and resolution["review_status"] == "ai_proposed"
+    assert resolution["registry_version"].startswith("entity-registry-v1:")
 
 
-def test_alias_matching_several_source_spellings_is_never_merged():
-    # The fixture stores both "exxonmobil" and "ExxonMobil"; neither is chosen for "Exxon Mobil".
+def test_alias_of_one_registry_organization_filters_every_listed_spelling():
+    # The fixture stores both "exxonmobil" and "ExxonMobil"; the entity registry lists both
+    # spellings for one organization, so "Exxon Mobil" counts them together and says so.
     catalog, _ = make_catalog()
     result = catalog.call("record_statistics", {"filters": {"sponsors": ["Exxon Mobil"]}})
+    assert result["status"] == "ok"
+    assert sorted(result["filters"]["sponsors"]) == ["ExxonMobil", "exxonmobil"]
+    assert catalog.alias_resolutions[0]["organization"] == "org:exxonmobil"
+
+
+def test_alias_matching_unregistered_spellings_is_never_merged():
+    catalog, db = make_catalog()
+    for row, name in zip(db.rows, ("Imaginary Petroleum", "imaginary petroleum")):
+        row["sponsor"] = name
+    result = catalog.call("record_statistics", {"filters": {"sponsors": ["Imaginary Petroleum Co"]}})
     assert result["status"] == "clarify"
     assert not catalog.alias_resolutions
 
@@ -236,10 +248,11 @@ def test_explicit_date_constraint_cannot_include_unknown_dated_records():
     assert result["filters"]["include_unknown_dates"] is False
 
 
-def test_entity_resolution_case_variants_are_separate_candidates_not_merged():
+def test_entity_resolution_case_variants_stay_separate_candidates_of_one_organization():
     catalog, _ = make_catalog()
     result = catalog.call("resolve_entity", {"query": "ExxonMobil", "entity_type": "sponsor"})
-    assert result["status"] == "clarify"
+    assert result["status"] == "ok"
+    assert {candidate["organization"]["id"] for candidate in result["candidates"]} == {"org:exxonmobil"}
     assert result["candidate_count"] == 2
     assert {candidate["source_value"] for candidate in result["candidates"]} == {"exxonmobil", "ExxonMobil"}
     assert len({candidate["entity_id"] for candidate in result["candidates"]}) == 2
@@ -252,7 +265,8 @@ def test_outlet_display_article_lookup_returns_exact_source_spelling():
     result = catalog.call("resolve_entity", {"query": "Washington Post", "entity_type": "publisher"})
     assert result["status"] == "ok"
     assert result["candidates"][0]["source_value"] == "The Washington Post"
-    assert catalog.call("resolve_entity", {"query": "Imaginary News", "entity_type": "publisher"})["status"] == "clarify"
+    # An absent outlet is a fact about the collection, not an ambiguity to ask about.
+    assert catalog.call("resolve_entity", {"query": "Imaginary News", "entity_type": "publisher"})["status"] == "not_found"
 
 
 def test_entity_context_respects_names_scope_and_marks_truncation():
@@ -630,12 +644,16 @@ def test_social_excerpt_hash_mismatch_and_out_of_range_fail_closed():
     assert sources["source_refs"][0]["body_hash"] == ""
 
 
-def test_social_detail_capability_does_not_enable_native_graph_for_social():
+def test_the_graph_tool_reads_social_posts_as_posts_not_sponsored_articles():
     catalog, _, _ = social_catalog()
     schema = catalog.call("get_graph_schema", {})
     assert schema["adapters"]["versioned_record_detail"] == ["native", "social"]
-    assert schema["adapters"]["knowledge_graph"] == ["native"]
-    assert catalog.call("get_graph_neighborhood", {})["status"] == "unavailable"
+    assert schema["adapters"]["knowledge_graph"] == ["native", "social"]
+    result = catalog.call("get_graph_neighborhood", {})
+    assert result["status"] == "ok" and result["filters"]["dataset"] == "social"
+    types = {node["type"] for node in result["graph"]["nodes"]}
+    assert "SocialPost" in types and "Article" not in types
+    assert {edge["predicate"] for edge in result["graph"]["edges"]} >= {"posted_by", "source_lists_affiliation"}
 
 
 def test_all_collection_search_verifies_both_source_kinds_without_merging_them():
@@ -681,3 +699,30 @@ def test_social_search_corrupt_coordinates_or_retrieval_bounds_fail_closed(damag
     result = catalog.call("search_records", {"query": "emissions"})
     assert result.get("evidence", []) == []
     assert result["status"] in {"ok", "unavailable"}
+
+
+def test_a_topic_word_sent_as_a_keyword_stays_a_text_search():
+    catalog, _ = make_catalog()
+    result = catalog.call("search_records", {"query": "emissions", "filters": {"keywords": ["Emissions"]}})
+    assert result["status"] == "ok" and result["evidence"]
+    assert result["keywords_as_text"] == ["Emissions"]
+    stored = make_catalog()[0].call("search_records", {"query": "emissions", "filters": {"keywords": ["energy"]}})
+    assert stored["status"] == "ok" and "keywords_as_text" not in stored
+
+
+def test_an_unknown_keyword_absent_from_the_text_or_in_a_count_still_clarifies():
+    catalog, _ = make_catalog()
+    assert catalog.call("search_records", {"query": "emissions", "filters": {"keywords": ["harbor"]}})["status"] == "clarify"
+    assert catalog.call("record_statistics", {"filters": {"keywords": ["emissions"]}})["status"] == "clarify"
+
+
+def test_a_name_stored_as_another_source_type_is_reported_instead_of_absent():
+    # B1K-Q059: "RWE AG" is an account of the sponsor RWE; "no sponsor named" was answered.
+    catalog, _ = make_catalog()
+    result = catalog.call("resolve_entity", {"query": "The Washington Post", "entity_type": "sponsor"})
+    assert result["status"] == "not_found"
+    assert {(item["entity_type"], item["source_value"]) for item in result["stored_as_other_entity_type"]} \
+        == {("publisher", "The Washington Post")}
+    assert "stored as publisher" in result["message"]
+    assert "stored_as_other_entity_type" not in catalog.call(
+        "resolve_entity", {"query": "Imaginary News", "entity_type": "sponsor"})

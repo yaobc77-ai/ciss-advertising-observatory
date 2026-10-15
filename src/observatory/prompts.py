@@ -1,6 +1,6 @@
 """Shared, structured prompts. Task semantics are separate from tool and output rules."""
 
-PROMPT_POLICY_VERSION = "observatory-task-prompts-v9"
+PROMPT_POLICY_VERSION = "observatory-task-prompts-v11"
 
 TASK_SEMANTICS = """Classify the requested meaning before selecting a tool or evidence:
 - Metadata statistics: count stored records using the exact stated metadata scope.
@@ -99,9 +99,10 @@ Do not silently turn a denominator condition into a numerator filter. A zero den
 undefined, not zero percent. The application calculates every percentage, not you."""),
     ('Source entities', """Use canonical source values from entity_context, or resolve_entity when uncertain. Do not
 invent a canonical company or publisher. Display aliases do not establish corporate ownership.
-Check entity_context.ambiguity_hints: an exact short spelling can coexist with longer
-related source names. Unless active_scope or the user explicitly chooses a source value,
-resolve_entity or clarify that short name. Preserve all returned candidates even when
+Filter only by sponsors, publishers and accounts the question or active_scope names; entity_context
+lists what exists, not what was asked. Check entity_context.ambiguity_hints: an exact short spelling
+can coexist with longer related source names. When the question uses such a short name and
+active_scope does not choose a source value, resolve_entity or clarify that short name. Preserve all returned candidates even when
 one is an exact match. Never silently combine related spellings into one company. If the
 user explicitly requests several source candidates, count that explicit list and name it.
 The sponsor field includes source-listed companies, associations and events; a stored
@@ -112,9 +113,19 @@ same-named accounts across platforms. resolve_entity with entity_type='account' 
 source candidates without inferring a company, owner, publisher alias or paid status.
 Numbers and dates inside a literal source entity name are part of that name. They do
 not impose date filters unless the question states a separate date restriction."""),
-    ('Content retrieval', """Use search_records for semantic questions about article content and claims. Rewrite only the
+    ('Content retrieval', """A question about what an advertisement or post says, describes, claims or announces, or
+that asks to cite or quote it, is one search_records read, even when it names the company or
+asks several things about the same source. Social posts have no meaningful titles: never look
+a post up by title; search its text. Use search_records for semantic questions about article content and claims. Rewrite only the
 retrieval query into concise English terms if needed, retaining entities and topic qualifiers;
 the original user's question will be used for the separately grounded answer in its language.
+Always set answer_shape on search_records by meaning, in any language or phrasing: every_matching_source
+when the user wants all ads or posts in scope that meet a condition (the server then checks each one).
+When the question names a social account (which may differ from the company), resolve it with
+entity_type='account' and put it in filters.accounts; social posts outnumber articles about 130 to 1,
+so an unfiltered search rarely reaches one account's post. A question that uses both collections
+and names a source in each is read with comparison_scopes: one social scope with that account
+(or company) and its topic, one native scope with that sponsor or outlet and its topic.
 When comparing companies or outlets, supply comparison_scopes with a separate canonical
 sponsor/publisher filter and the same topic for each target. Do not run one broad OR search
 and assume that its top results represent every named target. Up to three targets are supported.
@@ -192,6 +203,10 @@ Use record_ref and source_ref with the supplied record_id, version_id and source
 keep each passage's URL, archive URL and published_at attached to its own source. Do not
 copy dates, titles, links or observations from another record/version into an attribution.
 A source's publication date is not automatically the date of the event it describes.
+Name a source only by its own fields: an ad by its publisher and sponsor, a social post by
+its account (and platform). If the question names an outlet, account or document that none of
+the supplied passages come from, say that no passage from it was retrieved; never attach that
+name to a passage from another source, even one about the same topic or company.
 Unknown or conflicting fields remain unknown or conflicting; media-derived evidence has
 its separate origin and cannot supply an absent original-source field."""),
     ('Evidence selection', """For each claim FIRST select one passage_id from quote_catalog,

@@ -269,7 +269,9 @@ def test_title_sql_uses_literal_contains_and_parameterization():
             captured.update(sql=sql, params=params)
             return SimpleNamespace(fetchall=lambda: [])
 
-    stub = SimpleNamespace(_public_query=lambda f: ("SELECT 1", ["trusted-filter"]), connect=Connection)
+    # The descriptive-title fallback (no literal match) is checked separately.
+    stub = SimpleNamespace(_public_query=lambda f: ("SELECT 1", ["trusted-filter"]), connect=Connection,
+                           _title_term_candidates=lambda *args: [])
     Database.find_records(stub, Filters(dataset="native"), "  17%_A  ", 3)
     assert "strpos(" in captured["sql"] and "LIKE" not in captured["sql"]
     assert "17%_A" not in captured["sql"]
@@ -312,3 +314,17 @@ def test_readonly_actual_metadata_and_p50_receipt_crosscheck(tmp_path):
     assert result["original_field_statuses"]["disclosure_location"] == {
         "recorded": 267, "not_recorded": 7, "unknown": 1}
     assert result["recorded_disclosure_location_source_columns"] == {"disclosure description": 267}
+
+
+def test_descriptive_title_fallback_is_parameterized_and_native_only():
+    captured = {}
+
+    class Connection:
+        def execute(self, sql, params):
+            captured.update(sql=sql, params=params)
+            return SimpleNamespace(fetchall=lambda: [])
+
+    stub = SimpleNamespace(TITLE_MIN_TERMS=2)
+    Database._title_term_candidates(stub, Connection(), "SELECT 1", ["trusted-filter"], "evolution 17%_A", 3)
+    assert "evolution" not in captured["sql"] and "p.dataset='native'" in captured["sql"]
+    assert captured["params"] == ["evolution 17%_A", "trusted-filter", 2, 3]

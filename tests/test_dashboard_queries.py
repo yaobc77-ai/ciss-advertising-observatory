@@ -9,6 +9,7 @@ import pytest
 from psycopg import sql
 from psycopg.conninfo import conninfo_to_dict, make_conninfo
 from psycopg.types.json import Jsonb
+from record_version_bypass import out_of_band_edit
 
 from observatory.analytics import (
     historical_label_distribution,
@@ -180,7 +181,8 @@ def test_dashboard_uses_one_snapshot_during_concurrent_import(dashboard_db, monk
     finally:
         with original_connect() as conn:
             conn.execute("DELETE FROM records WHERE record_id='concurrent'")
-            conn.execute("DELETE FROM record_versions WHERE version_id='v-concurrent'")
+            with out_of_band_edit(conn):
+                conn.execute("DELETE FROM record_versions WHERE version_id='v-concurrent'")
 
 
 @pytest.mark.parametrize("kwargs", [

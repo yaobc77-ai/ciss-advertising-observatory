@@ -279,6 +279,8 @@ class Database:
         validate_historical_label_scope(filters.dataset, filters.labels)
         if filters.accounts and filters.dataset != "social":
             raise ValueError("Account filters require the social collection")
+        if filters.replies and filters.dataset != "social":
+            raise ValueError("Reply filters require the social collection")
         terms = ["r.active", "(v.payload->>'countable')::boolean"]
         params = []
         if filters.dataset != "all":
@@ -299,6 +301,10 @@ class Database:
                     f"COALESCE(NULLIF(v.payload->>'{field}',''),'(Unknown)')=ANY(%s)"
                 )
                 params.append(values)
+        # Source reply mark only; selecting both states is no restriction.
+        if filters.replies and set(filters.replies) != {"reply", "not_marked"}:
+            marked = "COALESCE(v.payload#>>'{raw,source_row,post,is_reply}','')='true'"
+            terms.append(marked if "reply" in filters.replies else f"NOT ({marked})")
         # Source date, or (only when requested) an unreviewed day-precision inference.
         published = (f"COALESCE(NULLIF(v.payload->>'published_at','')::date,{INFERRED_DATE})"
                      if filters.include_inferred_dates else "NULLIF(v.payload->>'published_at','')::date")
@@ -348,6 +354,8 @@ class Database:
          {source_date} AS source_date,{effective_date} AS effective_date,
          v.payload->>'keyword' AS keyword,v.payload->>'platform' AS platform,
          v.payload->>'account' AS account,(v.payload->>'retrievable')::boolean AS retrievable,
+         CASE WHEN r.dataset='social' THEN CASE WHEN COALESCE(v.payload#>>'{{raw,source_row,post,is_reply}}','')='true'
+              THEN 'reply' ELSE 'not_marked' END END AS reply_status,
          CASE WHEN r.dataset='social' AND v.payload#>>'{{raw,social_admission,scheme}}'
                    ='collected-company-posts-unique-url-v1'
                    AND v.payload#>>'{{raw,social_admission,scope}}'='collected_company_posts'
@@ -449,8 +457,33 @@ class Database:
         query = title.strip()
         with self.connect() as conn:
             rows = conn.execute(sql, [*params, query, query, query, query, limit]).fetchall()
+            if not rows and filters.dataset in {"native", "all"}:
+                rows = self._title_term_candidates(conn, public_sql, params, query, limit)
         return {"rows": rows, "total_candidates": rows[0]["candidate_count"] if rows else 0,
                 "match_type": rows[0]["title_match"] if rows else None}
+
+    def _title_term_candidates(self, conn, public_sql, params, query, limit):
+        """Native titles described in other words ("whose title asks about X").
+
+        Only when no literal title matches. A title must share at least half of
+        the query's distinct English lexemes, and at least TITLE_MIN_TERMS; every
+        title tied at the best coverage is returned, so ambiguity is never hidden.
+        Social titles are platform IDs and are not searched.
+        """
+        title = "to_tsvector('english',COALESCE(p.title,''))"
+        sql = f"""WITH q AS (SELECT array(SELECT DISTINCT unnest(tsvector_to_array(to_tsvector('english',%s)))) AS terms),
+            scored AS (
+            SELECT p.*,v.body_hash,'' AS original_title,'title_terms' AS title_match,
+                (SELECT count(*) FROM unnest(q.terms) t WHERE t=ANY(tsvector_to_array({title}))) AS coverage,
+                cardinality(q.terms) AS query_terms
+            FROM ({public_sql}) p JOIN record_versions v ON v.version_id=p.version_id AND v.record_id=p.record_id, q
+            WHERE p.dataset='native'
+            ), best AS (
+            SELECT * FROM scored WHERE coverage>=GREATEST(%s, ceil(query_terms/2.0))
+                AND coverage=(SELECT max(coverage) FROM scored)
+            ) SELECT *,count(*) OVER() AS candidate_count FROM best ORDER BY title,record_id LIMIT %s"""
+        rows = conn.execute(sql, [query, *params, self.TITLE_MIN_TERMS, limit]).fetchall()
+        return [{key: value for key, value in row.items() if key not in {"coverage", "query_terms"}} for row in rows]
 
     def versioned_record(self, filters: Filters, record_id: str):
         """Read one current native/social source without widening trusted filters.
@@ -643,8 +676,8 @@ class Database:
         Body and annotation payloads are for validation by the graph builder,
         never a browser response. Raw imports and private provenance stay here.
         """
-        if filters.dataset != "native":
-            raise ValueError("The knowledge graph currently supports the native collection")
+        if filters.dataset not in {"native", "social", "all"}:
+            raise ValueError("Unknown collection for the knowledge graph")
         offset, limit = self._page_bounds(offset, limit)
         limit = min(limit, 20)
         where, params = self.where(filters)
@@ -659,7 +692,20 @@ class Database:
                 v.payload->>'title' AS title,v.payload->>'publisher' AS publisher,
                 v.payload->>'sponsor' AS sponsor,v.payload->>'published_at' AS date,
                 v.payload->>'url' AS url,v.payload->>'archive_url' AS archive_url,
+                v.payload->>'account' AS account,v.payload->>'platform' AS platform,
                 (v.payload->>'retrievable')::boolean AS retrievable,
+                CASE WHEN r.dataset='social' AND v.payload#>'{raw,source_row}' IS NOT NULL THEN jsonb_build_object(
+                    'channel_id',v.payload#>'{raw,source_row,channel_id}',
+                    'username',v.payload#>'{raw,source_row,channel,username}',
+                    'engagement',(SELECT jsonb_object_agg(e.key,e.value) FROM jsonb_each(
+                        CASE WHEN jsonb_typeof(v.payload#>'{raw,source_row,engagement}')='object'
+                        THEN v.payload#>'{raw,source_row,engagement}' ELSE '{}'::jsonb END) e
+                        WHERE e.key IN ('like_count','reply_count','retweet_count','quote_count','view_count',
+                            'bookmark_count','username_mentions','replying_to_username','referenced_tweet_ids')),
+                    'hashtags',v.payload#>'{raw,source_row,post.hashtags_identified}',
+                    'reference_type',v.payload#>'{raw,source_row,post,reference_tweet_type}',
+                    'entity_info',v.payload#>'{raw,source_row,parent_entity_info}',
+                    'source_observations',v.payload#>'{raw,social_admission,member_count}') END AS social_source,
                 COALESCE((SELECT jsonb_agg(jsonb_build_object('code',i->>'code'))
                     FROM jsonb_array_elements(v.payload->'issues') i),'[]'::jsonb) AS issues,
                 COALESCE((SELECT jsonb_agg(jsonb_build_object('ordinal',a.ordinal,
@@ -668,6 +714,7 @@ class Database:
                 """ + base + " ORDER BY (v.payload->>'published_at') DESC NULLS LAST,r.record_id LIMIT %s OFFSET %s",
                 [*params, limit, offset],
             ).fetchall()
+            self._collected_references(conn, rows)
             from .claims_store import ClaimsStore
 
             # The source page and its derived assignments must describe the
@@ -675,6 +722,28 @@ class Database:
             selected = filters.model_copy(update={"record_ids": [row["record_id"] for row in rows]}) if rows else filters
             claims2 = ClaimsStore(self).matches(selected, limit=20, _connection=conn)
         return {"rows": rows, "total": total, "offset": offset, "limit": limit, "claims2": claims2}
+
+    def _collected_references(self, conn, rows):
+        """Add, to each post's projected X fields, which referenced post IDs are
+        themselves collected posts (by the status ID in their original URL)."""
+        def post_ids(source):
+            value = ((source or {}).get("engagement") or {}).get("referenced_tweet_ids")
+            values = value if isinstance(value, list) else [value]
+            return {item.strip() for item in values if isinstance(item, str) and item.strip().isdigit()}
+
+        wanted = sorted({post_id for row in rows for post_id in post_ids(row.get("social_source"))})
+        if not wanted:
+            return
+        where, params = self.where(Filters(dataset="social"))
+        status = "substring(v.payload->>'url' from '/status(?:es)?/([0-9]+)')"
+        found = {item["post_id"]: item["record_id"] for item in conn.execute(
+            f"SELECT {status} AS post_id,min(r.record_id) AS record_id FROM records r "
+            f"JOIN record_versions v ON v.version_id=r.current_version WHERE {where} AND {status}=ANY(%s) GROUP BY 1",
+            [*params, wanted]).fetchall()}
+        for row in rows:
+            ids = post_ids(row.get("social_source"))
+            if ids:
+                row["social_source"]["collected_posts"] = {post_id: found.get(post_id) for post_id in sorted(ids)}
 
     @staticmethod
     def _page_order(sort_by, descending):
@@ -689,6 +758,22 @@ class Database:
         direction = "DESC" if descending else "ASC"
         # Only allowlisted identifiers and a fixed direction enter SQL text.
         return f"{sort_by} {direction} NULLS LAST,record_id ASC"
+
+    def source_value_counts(self):
+        """Countable current records per collection and exact sponsor/publisher spelling."""
+        where, params = self.where(Filters(dataset="all"))
+        sql = ("SELECT r.dataset,v.payload->>'sponsor' AS sponsor,v.payload->>'publisher' AS publisher,"
+               "count(*) AS n FROM records r JOIN record_versions v ON v.version_id=r.current_version "
+               f"WHERE {where} GROUP BY 1,2,3")
+        counts = {}
+        with self.connect() as conn:
+            conn.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY")
+            for row in conn.execute(sql, params).fetchall():
+                for field in ("sponsor", "publisher"):
+                    if row[field]:
+                        key = (row["dataset"], field, row[field])
+                        counts[key] = counts.get(key, 0) + row["n"]
+        return counts
 
     def facets(self, dataset):
         """Fetch distinct filter options, without transferring article rows."""
@@ -896,12 +981,14 @@ class Database:
                 count(*) AS total,count(*) FILTER (WHERE retrievable) AS retrievable,
                 count(*) FILTER (WHERE effective_date IS NULL OR effective_date='') AS unknown_dates,
                 count(*) FILTER (WHERE source_date IS NULL OR source_date='') AS source_unknown_dates,
-                count(*) FILTER (WHERE date_basis LIKE 'inferred:%%') AS inferred_dates
+                count(*) FILTER (WHERE date_basis LIKE 'inferred:%%') AS inferred_dates,
+                min(effective_date) FILTER (WHERE effective_date<>'') AS earliest_date,
+                max(effective_date) FILTER (WHERE effective_date<>'') AS latest_date
                 FROM filtered GROUP BY dataset ORDER BY dataset""", params).fetchall()
             by_dataset = {row["dataset"]: row for row in rows}
             return [by_dataset.get(dataset, {"dataset": dataset, "total": 0,
                 "retrievable": 0, "unknown_dates": 0, "source_unknown_dates": 0,
-                "inferred_dates": 0}) for dataset in datasets]
+                "inferred_dates": 0, "earliest_date": None, "latest_date": None}) for dataset in datasets]
 
         select, params = self._public_query(filters)
         prefix = f"WITH filtered AS ({select}) "
@@ -1019,6 +1106,23 @@ class Database:
                 (model, profile_id),
             ).fetchall()
 
+    # Shared by keyword/vector/title channels and the literal phrase lookup.
+    _SEARCH_SELECT = """SELECT c.chunk_id AS evidence_id,c.record_id,c.version_id,r.dataset,
+    v.payload->>'title' AS title,v.payload->>'publisher' AS publisher,v.payload->>'sponsor' AS sponsor,
+    COALESCE(v.payload->>'account','') AS account,COALESCE(v.payload->>'platform','') AS platform,
+    v.payload->>'url' AS url,v.payload->>'archive_url' AS archive_url,
+    (v.payload->>'published_at')::date AS published_at,c.text,
+    c.start_char AS start,c.end_char AS end,c.paragraph_ids,
+    c.source_observation_id,c.source_version_id,c.source_body_hash,
+    CASE WHEN c.source_observation_id IS NOT NULL THEN v.payload END AS observation_payload,
+    CASE WHEN r.dataset='native' THEN v.payload->'issues' END AS source_text_issues"""
+    _SEARCH_JOIN = (
+        " FROM chunks c JOIN records r ON r.current_version=c.version_id "
+        "AND r.record_id=c.record_id JOIN record_versions v ON v.version_id=c.version_id "
+        "JOIN chunk_profile_membership m ON m.chunk_id=c.chunk_id "
+        "JOIN retrieval_state s ON s.singleton AND s.active_profile=m.profile_id "
+    )
+
     def search(
         self,
         query: str,
@@ -1030,20 +1134,8 @@ class Database:
         _include_diagnostics=False,
     ):
         where, params = self.where(filters)
-        select = """SELECT c.chunk_id AS evidence_id,c.record_id,c.version_id,r.dataset,
-        v.payload->>'title' AS title,v.payload->>'publisher' AS publisher,v.payload->>'sponsor' AS sponsor,
-        v.payload->>'url' AS url,v.payload->>'archive_url' AS archive_url,
-        (v.payload->>'published_at')::date AS published_at,c.text,
-        c.start_char AS start,c.end_char AS end,c.paragraph_ids,
-        c.source_observation_id,c.source_version_id,c.source_body_hash,
-        CASE WHEN c.source_observation_id IS NOT NULL THEN v.payload END AS observation_payload,
-        CASE WHEN r.dataset='native' THEN v.payload->'issues' END AS source_text_issues"""
-        join = (
-            " FROM chunks c JOIN records r ON r.current_version=c.version_id "
-            "AND r.record_id=c.record_id JOIN record_versions v ON v.version_id=c.version_id "
-            "JOIN chunk_profile_membership m ON m.chunk_id=c.chunk_id "
-            "JOIN retrieval_state s ON s.singleton AND s.active_profile=m.profile_id "
-        )
+        select = self._SEARCH_SELECT
+        join = self._SEARCH_JOIN
         # Keep OR recall; distinct English query lexemes rank before word density.
         tokens = re.findall(r"[\w-]+", query.lower())
         stop = {
@@ -1079,6 +1171,10 @@ class Database:
                 )}
             return []
         lexical_query = " OR ".join('"' + t + '"' for t in terms)
+        # Each channel returns at least 50 passages, and enough for two per
+        # requested record: a list read of 120 ads was cut near 50 ads when
+        # every channel stopped at 50 (B1K-Q: 64 of 91 missed ads never retrieved).
+        channel_rows = max(50, 2 * limit)
         # Both collections are ranked separately: social posts outnumber native
         # articles about 130 to 1, so one pooled top 50 would crowd native out.
         collections = ("native", "social") if filters.dataset == "all" else (None,)
@@ -1098,16 +1194,23 @@ class Database:
                     "AS lexical_coverage,ts_rank_cd(c.search_vector,websearch_to_tsquery('english',%s)) AS score"
                     + join
                     + f" WHERE {scoped_where} AND c.search_vector @@ websearch_to_tsquery('english',%s) "
-                    "ORDER BY lexical_coverage DESC,score DESC,c.chunk_id LIMIT 50",
-                    [" ".join(terms), lexical_query, *scoped_params, lexical_query],
+                    "ORDER BY lexical_coverage DESC,score DESC,c.chunk_id LIMIT %s",
+                    [" ".join(terms), lexical_query, *scoped_params, lexical_query, channel_rows],
                 ).fetchall() if terms else []
                 semantic = []
                 if vector is not None:
                     semantic = self._semantic_rows(
                         conn, select, join, scoped_where, scoped_params, vector, model,
-                        approximate=(collection or filters.dataset) != "native",
+                        approximate=(collection or filters.dataset) != "native", limit_rows=channel_rows,
                     )
-                channels_by_collection[collection] = [("keyword", lexical), ("vector", semantic)]
+                ranked = [("keyword", lexical), ("vector", semantic)]
+                if terms and (collection or filters.dataset) in {"native", "all"}:
+                    # Native ad titles are descriptive but are not in the chunk text
+                    # index; a question that describes an ad by its title must still
+                    # reach it. Social titles are platform IDs and are excluded.
+                    ranked.append(("title", self._title_rows(
+                        conn, select, join, scoped_where, scoped_params, terms, lexical_query)))
+                channels_by_collection[collection] = ranked
             literal = []
             if literal_allowed and not any(rows for item in channels_by_collection.values() for _, rows in item):
                 literal = conn.execute(
@@ -1172,15 +1275,104 @@ class Database:
                 return {"evidence": evidence, "diagnostics": diagnostics}
             return evidence
 
+    def phrase_search(self, phrases, filters: Filters, limit_records=80):
+        """The first passage of every record whose indexed text contains each quoted phrase.
+
+        Ranked retrieval reads the most similar passages, which need not include
+        every literal occurrence (L3: 0 of 3 ads with a quoted phrase reached the
+        top 40). Matching ignores case, hyphen-versus-space and a plural ending.
+        """
+        from .social_source_binding import bind_search_row
+
+        patterns = []
+        for phrase in phrases:
+            words = re.findall(r"\w+", phrase.casefold())
+            if words:
+                patterns.append(r"\m" + "[[:space:]-]+".join(f"{word}(s|es)?" for word in words) + r"\M")
+        if not patterns:
+            return []
+        where, params = self.where(filters)
+        condition = " AND ".join("c.text ~* %s" for _ in patterns)
+        with self.connect() as conn:
+            conn.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY")
+            rows = conn.execute(
+                "SELECT DISTINCT ON (c.record_id) " + self._SEARCH_SELECT.removeprefix("SELECT ")
+                + ",1.0 AS score" + self._SEARCH_JOIN + f" WHERE {where} AND {condition} "
+                "ORDER BY c.record_id,c.start_char LIMIT %s",
+                [*params, *patterns, limit_records],
+            ).fetchall()
+        return [bind_search_row({**row, "retrieval_rank": rank, "retrieval_sources": ["phrase"]})
+                for rank, row in enumerate(rows, 1)]
+
+    def record_passages(self, record_ids, filters: Filters, per_record=8):
+        """Every indexed passage of the given records, in document order, records in the given order.
+
+        List screening judges a whole short article instead of its two best
+        passages (B1K: 71 missed ads had the supporting sentence only in an
+        unshown passage; the median article has three). `per_record=None`
+        returns every passage, for re-reading an ad before ruling it out.
+        """
+        from .social_source_binding import bind_search_row
+
+        ids = list(dict.fromkeys(record_ids))
+        if not ids:
+            return []
+        where, params = self.where(filters)
+        with self.connect() as conn:
+            conn.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY")
+            rows = conn.execute(
+                self._SEARCH_SELECT + ",1.0 AS score" + self._SEARCH_JOIN
+                + f" WHERE {where} AND c.record_id = ANY(%s) ORDER BY c.record_id,c.start_char,c.chunk_id",
+                [*params, ids],
+            ).fetchall()
+        grouped = {rid: [] for rid in ids}
+        for row in rows:
+            group = grouped.get(row["record_id"])
+            if group is not None and (per_record is None or len(group) < per_record):
+                group.append(row)
+        return [bind_search_row({**row, "retrieval_rank": rank, "retrieval_sources": ["record_passages"]})
+                for rank, rid in enumerate(ids, 1) for row in grouped[rid]]
+
     # Nearest-neighbour candidates taken from the HNSW index before filtering.
     # At 1,000 the planner abandons the index for a full scan (about 290 ms on
     # 37k vectors); 400 stays on the index (about 8 ms) and leaves ample
     # candidates for the usual filters, with the exact fallback below.
     ANN_CANDIDATES = 400
 
+    # A title must share at least this many distinct query lexemes to count as a
+    # match; one common word ("energy") would otherwise match most titles.
+    TITLE_MIN_TERMS = 2
+
+    @classmethod
+    def _title_rows(cls, conn, select, join, where, params, terms, lexical_query):
+        """The first passage of each native record whose title matches the query.
+
+        Ranked by how many distinct query lexemes the title contains, then by
+        text-search rank, with at most 20 records.
+        """
+        title = "to_tsvector('english',coalesce(v.payload->>'title',''))"
+        rows = conn.execute(
+            select
+            + f",(SELECT count(*) FROM unnest(tsvector_to_array(to_tsvector('english',%s))) "
+            f"AS query_lexeme(term) WHERE query_lexeme.term=ANY(tsvector_to_array({title}))) AS title_coverage,"
+            f"ts_rank_cd({title},websearch_to_tsquery('english',%s)) AS score"
+            + join
+            + f" WHERE {where} AND r.dataset='native' AND {title} @@ websearch_to_tsquery('english',%s) "
+            "ORDER BY title_coverage DESC,score DESC,c.record_id,c.start_char",
+            [" ".join(terms), lexical_query, *params, lexical_query],
+        ).fetchall()
+        first, seen = [], set()
+        for row in rows:
+            if row["title_coverage"] >= cls.TITLE_MIN_TERMS and row["record_id"] not in seen:
+                seen.add(row["record_id"])
+                first.append({key: value for key, value in row.items() if key != "title_coverage"})
+                if len(first) == 20:
+                    break
+        return first
+
     @staticmethod
-    def _semantic_rows(conn, select, join, where, params, vector, model, *, approximate):
-        """Top 50 chunks by cosine distance within the filtered scope.
+    def _semantic_rows(conn, select, join, where, params, vector, model, *, approximate, limit_rows=50):
+        """Top `limit_rows` chunks (50 by default) by cosine distance within the filtered scope.
 
         A large scope first takes index candidates from the embeddings table
         alone, then joins and filters them. If filtering leaves fewer than 50
@@ -1198,19 +1390,19 @@ class Database:
                 "WHERE model=%s ORDER BY embedding <=> %s LIMIT %s) "
                 + select + ", 1-ann.distance AS score" + join
                 + " JOIN ann ON ann.text_hash=c.text_hash "
-                + f"WHERE {where} ORDER BY ann.distance,c.chunk_id LIMIT 50",
-                [vector, model, vector, Database.ANN_CANDIDATES, *params],
+                + f"WHERE {where} ORDER BY ann.distance,c.chunk_id LIMIT %s",
+                [vector, model, vector, Database.ANN_CANDIDATES, *params, limit_rows],
             ).fetchall()
             conn.execute("SELECT set_config('enable_seqscan', 'on', true)")
-            if len(rows) == 50:
+            if len(rows) == limit_rows:
                 return rows
         return conn.execute(
             select
             + ", 1-(e.embedding <=> %s) AS score"
             + join
             + " JOIN embeddings e ON e.text_hash=c.text_hash AND e.model=%s "
-            + f"WHERE {where} ORDER BY e.embedding <=> %s,c.chunk_id LIMIT 50",
-            [vector, model, *params, vector],
+            + f"WHERE {where} ORDER BY e.embedding <=> %s,c.chunk_id LIMIT %s",
+            [vector, model, *params, vector, limit_rows],
         ).fetchall()
 
     def search_report(self, query, filters, limit=5):

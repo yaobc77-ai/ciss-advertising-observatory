@@ -54,7 +54,8 @@ def data_panel(dataset, links_enabled, empty_figure):
     def chart(key, title, note="", wide=False):
         return html.Section([
             html.H3(title),
-            html.P(note, className="chart-note", id=f"{dataset}-{key}-note"),
+            html.P(note, className="chart-note", id=f"{dataset}-{key}-note",
+                   hidden=not native and key == "labels-chart"),
             html.Div(dcc.Graph(id=f"{dataset}-{key}", figure=empty_figure("Choose a collection to explore"),
                               config=graph_config, style={"width": "100%"}),
                      className="chart-scroll" if wide else ""),

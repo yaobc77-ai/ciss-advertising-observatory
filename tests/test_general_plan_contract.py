@@ -248,3 +248,21 @@ def test_genuinely_distinct_reads_keep_the_plan_requirement(question):
     assert run.route == "clarify" and run.failure_reason == "research_plan_required"
     assert not agent.catalog.calls
 
+
+
+@pytest.mark.parametrize("prefix", ["Use both collections: ", "Search both datasets, ", "同时使用两个数据集："])
+def test_leading_collection_instruction_is_shared_scope_not_an_omitted_part(prefix):
+    post = "what deadline did the Larkfield account give in May 2031 for its harbor grants"
+    ad = "which river does the Pineglass ad on canal history name? Cite both."
+    question = prefix + post + ", and " + ad
+    args = {"tasks": [{"question_part": post, "dataset": "social", "route": "record"},
+                      {"question_part": ad, "dataset": "native", "route": "record"}]}
+    tasks = _validate_plan(args, question, Filters(dataset="all"))
+    assert [task.question_part for task in tasks] == [post, ad]
+
+
+def test_a_collection_instruction_inside_the_question_is_still_required():
+    args = _plan("summarize the Pineglass ad", dataset="all")
+    with pytest.raises(ValueError):
+        _validate_plan(args, "summarize the Pineglass ad and use both collections to count posts",
+                       Filters(dataset="all"))

@@ -45,8 +45,10 @@ from observatory.social_source_ui import (
 UNKNOWN = "(Unknown)"
 NATIVE_COLUMNS = ("url", "publisher", "title", "date", "sponsor", "keyword")
 SOCIAL_COLUMNS = ("platform", "account", "sponsor", "title", "date", "url")
-FILTER_NAMES = ("publishers", "sponsors", "platforms", "keywords", "labels", "accounts")
+FILTER_NAMES = ("publishers", "sponsors", "platforms", "keywords", "labels", "accounts", "replies")
 FILTER_VALUE_COUNT = len(FILTER_NAMES) + 3
+REPLY_OPTIONS = ({"label": "Marked as reply", "value": "reply"},
+                 {"label": "Not marked as reply", "value": "not_marked"})
 COLORS = {"ink": "#202633", "teal": "#003262", "muted": "#687587", "amber": "#a86b25"}
 QUERY_EXAMPLES = (
     ("example-outlet-count", "Count ads at an outlet", "How many native ads are from the New York Times?"),
@@ -371,6 +373,7 @@ def _public_rows(rows, links_enabled):
         row["url"] = _url(item.get("url")) if links_enabled else ""
         row["archive_url"] = _url(item.get("archive_url")) if links_enabled else ""
         if row["dataset"] == "social":
+            row["reply_status"] = str(item.get("reply_status") or "not_marked")
             row["collection_scope"] = str(item.get("collection_scope") or "collected_company_posts")
             row["count_unit"] = str(item.get("count_unit") or "source_record")
             row["paid_ad_status"] = "not_verified"
@@ -427,7 +430,7 @@ def _filters(dataset, *values):
     if dataset == "all":
         from .combined_ui import decode_company_selection
 
-        if any(selections[name] for name in ("publishers", "platforms", "labels", "accounts")):
+        if any(selections[name] for name in ("publishers", "platforms", "labels", "accounts", "replies")):
             raise ValueError("Collection-specific filters require a specific collection")
         selections["sponsors"] = decode_company_selection(selections["sponsors"] or [])
     date_from, date_to, unknown_dates = values[len(FILTER_NAMES):]
@@ -1252,7 +1255,11 @@ def _render_answer_result(result, links_enabled, service):
             return [_tools_card(result, links_enabled)]
     external = _external_research_card(result, links_enabled)
     if status == "answered" and mode == "web_supplement":
-        cards = []
+        cards = [_answer_status(
+            "Collection answer incomplete",
+            "The web sources below add context. They do not complete the answer from this collection.",
+            "Any available collection evidence is shown separately below.",
+        )]
         collection = (result.get("external_research") or {}).get("collection_answer") or {}
         local = {**result, "status": collection.get("status", "insufficient_evidence"),
                  "answer_mode": collection.get("answer_mode", "tools" if data.get("kind") in {"original_metadata", "composite"} else "rag"),
@@ -1705,18 +1712,20 @@ def _filter_panel(dataset, facets):
         "keywords": "Collection search term",
         "labels": "Historical automated label" if native else "Historical source state (OR)",
         "accounts": "Account",
+        "replies": "Reply status",
     }
     controls = {}
     for field in FILTER_NAMES:
-        hidden = (native and field in {"platforms", "accounts"}) or (
+        hidden = (native and field in {"platforms", "accounts", "replies"}) or (
             not native and field == "publishers"
-        )
+        ) or (dataset == "all" and field == "replies")
         controls[field] = html.Div(
                 [
                     html.Label(names[field], htmlFor=f"{dataset}-{field}"),
                     dcc.Dropdown(
                         id=f"{dataset}-{field}",
-                        options=social_state_options() if not native and field == "labels" else [
+                        options=list(REPLY_OPTIONS) if field == "replies"
+                        else social_state_options() if not native and field == "labels" else [
                             {
                                 "label": sponsor_display(value)
                                 if field == "sponsors"
@@ -1767,7 +1776,7 @@ def _filter_panel(dataset, facets):
                 html.P(
                     "Historical labels come from earlier automated classification runs. Collection search terms describe how records were collected; they are not sponsor identities or article themes."
                     if native else
-                    "Accounts group the source channel.name values, not unique channel IDs. Use Platform with Account to narrow names shared across platforms; names can also be shared within a platform. Company affiliation comes from the source and does not verify paid sponsorship. Unknown values remain selectable. Historical source states use OR: a post matches any selected state. Source True/False are unreviewed automated outputs, not verified themes or greenwashing judgments. Unknown annotation does not mean Source False."
+                    "Accounts group the source channel.name values, not unique channel IDs. Use Platform with Account to narrow names shared across platforms; names can also be shared within a platform. Company affiliation comes from the source and does not verify paid sponsorship. Unknown values remain selectable. Reply status uses the source post.is_reply mark: 'Not marked as reply' includes posts whose mark is unknown, so it is not a verified list of original posts. Historical source states use OR: a post matches any selected state. Source True/False are unreviewed automated outputs, not verified themes or greenwashing judgments. Unknown annotation does not mean Source False."
                 ),
             ],
             className="filter-note",
@@ -1780,7 +1789,8 @@ def _filter_panel(dataset, facets):
                    className="scope-note") if not native else None,
             html.Details([
                 html.Summary("More filters"),
-                html.Div([controls["keywords"], controls["labels"], controls["platforms"] if native else controls["publishers"]], className="advanced-filter-fields"),
+                html.Div([controls["keywords"], controls["labels"], controls["platforms"] if native else controls["publishers"],
+                          controls["replies"]], className="advanced-filter-fields"),
                 about_filters,
             ], className="advanced-filters"),
             html.Button("Clear filters", id=f"{dataset}-clear-filters", n_clicks=0, className="button button-quiet clear-filters"),
@@ -2725,7 +2735,7 @@ def create_app(service, settings, record_details=None) -> Dash:
                 ) + ["record_id", "version_id", "labels", "retrievable"]
                 if dataset == "social":
                     fields[fields.index("sponsor")] = "company_affiliation"
-                    fields.extend(["collection_scope", "count_unit", "paid_ad_status", "social_historical_states", "social_historical_scheme", "social_historical_status"])
+                    fields.extend(["reply_status", "collection_scope", "count_unit", "paid_ad_status", "social_historical_states", "social_historical_scheme", "social_historical_status"])
                 if enabled:
                     fields.append("archive_url")
                 output = StringIO(newline="")
