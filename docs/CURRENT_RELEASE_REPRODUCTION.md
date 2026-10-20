@@ -1,5 +1,69 @@
 # Current wheel reproduction
 
+## Current local candidate: 6 October 2026
+
+Use the [current source handoff candidate](current_source_candidate_20261006.md)
+for the latest package state, hashes and installation evidence. The new candidate
+includes the company-post and media MCP modules and coordinated page-loading
+changes. Same-machine source extraction, wheel building and installation have
+been checked: 253 selected installed engineering cases passed, with three
+Windows link-creation skips. The linked guide records the current candidate's
+final hashes and status. This does not establish client acceptance.
+The package version remains 0.4.10, so file hashes must identify the actual code.
+Neither the published 0.4.10 receipt nor an earlier candidate's test count
+verifies subsequently added modules.
+
+### Earlier saved-TXT and statistics-preflight candidate
+
+The later saved-TXT and statistics-preflight candidate has 598 source payloads
+and all 84 runtime files. Its extracted-source wheel passed the installed
+verification, 72 module imports and ten maintenance help entries in a new
+external environment; 469 selected installed checks passed, with three Windows
+link-creation skips. Evidence is separate in
+`.runtime/current_source_handoff_text_20261006/`. No database or real model was
+used. The final source keeps tested nondocument bytes unchanged; its manifest
+and wheel hash identify the actual candidate. Earlier candidates below retain
+their own versions and results. This remains same-machine, cache-only evidence.
+
+### Earlier P18–P20 candidate
+
+The refreshed candidate after P18–P20 has 84 runtime files and 72 importable
+modules. It was built from the extracted source review archive and installed
+in a fresh external Python 3.12.14 environment using the existing cache. All
+runtime files, module imports, canonical dry-run, three sentence chunks and
+source offsets passed, as did ten extracted maintenance help entries. Evidence
+is `.runtime/current_source_handoff_p20_20261006/`.
+The selected installed-wheel regression passed 957 cases with three Windows
+link-creation skips; 12 integration/live cases were excluded. The final source
+archive and receipts have their own hashes. This is same-machine engineering
+evidence and does not demonstrate cold-machine setup, real-data admission or
+semantic performance.
+
+The earlier candidate's 81 files, 69 modules and 1,006 selected passing cases
+belong to `.runtime/current_source_handoff_20261006/`; its three symlink skips
+and original Windows socketpair-harness failures remain preserved. They do not
+verify later code. Neither candidate proves independent client acceptance.
+
+To prepare a review archive from the Git checkout, explicitly include current
+nonignored untracked files that pass the builder's existing public checks:
+
+```powershell
+python scripts/build_handoff.py --include-untracked --output '<new candidate.zip>'
+```
+
+Without `--include-untracked`, the builder still uses tracked files only. The
+manifest records the untracked paths, working-tree state, source hashes and
+archived hashes. Private data, runtime results, credentials and backups remain
+separate. A source ZIP is not a Git checkout; the builder needs a repository with
+HEAD and must not be used to invent commit identity for extracted files.
+
+The wheel alone does not contain maintenance `scripts/` or the `eval/` definitions
+they read. Keep the complete source tree for those commands. The source archive
+and installed package are checked separately; neither restores database content,
+assets, real review decisions or client acceptance.
+
+## Installed-wheel procedure
+
 `scripts/verify_current_release.py` verifies the current installed package using
 synthetic engineering fixtures. It is independent of the historical
 `verify_clean_import.py` contract for 0.2.3 / `legacy600-v1`.

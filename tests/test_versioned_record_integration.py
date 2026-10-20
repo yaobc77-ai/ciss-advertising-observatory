@@ -17,6 +17,7 @@ from postgres_fixtures import validate_test_target
 from psycopg import sql
 from psycopg.conninfo import make_conninfo
 from psycopg.types.json import Jsonb
+from record_version_bypass import out_of_band_edit
 from test_import_preconditions_integration import (
     _public_relations,
     benchmark,
@@ -512,14 +513,16 @@ def test_real_retrieval_interval_and_body_hash_guard(isolated_db, monkeypatch):
         assert catalog(db, filters).call("search_records", {"query": "emissions"})["rejected_evidence"] == 1
     row = db.versioned_record(filters, rec.record_id)
     with db.connect() as conn:
-        conn.execute("UPDATE record_versions SET body_hash=%s WHERE version_id=%s", ("0" * 64, row["version_id"]))
+        with out_of_band_edit(conn):
+            conn.execute("UPDATE record_versions SET body_hash=%s WHERE version_id=%s", ("0" * 64, row["version_id"]))
     try:
         assert catalog(db, filters).call("get_record", {"record_id": rec.record_id})["status"] == "unavailable"
         result = catalog(db, filters).call("search_records", {"query": "emissions"})
         assert result["evidence"] == [] and result["rejected_evidence"] == 1
     finally:
         with db.connect() as conn:
-            conn.execute("UPDATE record_versions SET body_hash=%s WHERE version_id=%s", (digest(body), row["version_id"]))
+            with out_of_band_edit(conn):
+                conn.execute("UPDATE record_versions SET body_hash=%s WHERE version_id=%s", (digest(body), row["version_id"]))
     db.checked("retrieval_ranges_and_hash", excluded_range_rejected=True, body_hash_corruption_rejected=True)
 
 

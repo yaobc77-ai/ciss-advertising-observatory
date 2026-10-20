@@ -20,6 +20,7 @@ dependencies = [
     "waitress>=3,<4",
     "pysbd>=0.3.4,<0.4",
     "lingua-language-detector==2.2.0",
+    "networkx>=3.4,<4",
 ]
 
 [project.optional-dependencies]

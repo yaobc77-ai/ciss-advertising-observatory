@@ -75,7 +75,7 @@ class FakeCatalog:
                            "additionalProperties": False}, "strict": True,
         } for name in [
             "resolve_entity", "record_statistics", "search_records", "get_graph_schema",
-            "get_graph_neighborhood", "get_record_sources", "get_record", "get_claims_matches",
+            "get_graph_neighborhood", "get_record_sources", "get_record", "get_claims_matches", "get_content_matches",
         ]]
 
     def entity_context(self):
@@ -144,6 +144,74 @@ def test_model_written_count_is_never_used_as_statistics():
     result = agent.run("NYT 广告数量？", Filters(), "visitor")
     assert result.result["total"] == 19
     assert "99999" not in json.dumps(result.audit())
+
+
+@pytest.mark.parametrize("question", [
+    "How many ExxonMobil ads present tidal kites as a quiet power source?",
+    "How many Shell ads mention refinery safety?",
+    "Which ads make kite-recycling claims?",
+    "How many articles at NYT discuss vaccine limitations?",
+    "Which ads highlight the benefits of clean water for a coastal town?",
+    "How do Company A and Company B describe their efforts to reduce emissions?",
+    "Which ads say consumers should conserve water?",
+    "Which ads state that independent monitoring is necessary?",
+    "有多少壳牌广告提到食品安全？",
+    "哪些广告将碳捕集作为就业机会？",
+    "哪些广告指出食品安全问题？",
+    "两家公司如何描述其产品改进？",
+    "有多少广告表示将提高生产安全？",
+    "哪些广告表述了对消费者责任的观点？",
+])
+def test_content_condition_cannot_be_dropped_by_a_metadata_statistics_tool(question):
+    agent, rag, catalog, calls = harness([response("record_statistics", {
+        "filters": {"sponsors": ["shell"]}, "group_by": "none",
+    })])
+    result = agent.run(question, Filters(), "visitor")
+    assert result.route == "clarify"
+    assert result.result["reason"] == "unsupported_analysis"
+    assert result.tool_trace[0]["blocked_by"] == "content_condition_requires_evidence"
+    assert not catalog.called
+    assert len(calls) == len(rag.budget.settled) == 1
+    assert result.cost_usd > 0
+    contract = result.audit()["question_contract"]
+    assert contract["content_condition"] is True
+    payload = json.loads(calls[0]["input"][1]["content"])
+    assert payload["question"] == question
+    assert payload["question_contract"] == contract
+    if any("\u4e00" <= char <= "\u9fff" for char in question):
+        assert "元数据统计" in result.result["message"]
+    else:
+        assert "Metadata counts cannot answer" in result.result["message"]
+
+
+@pytest.mark.parametrize("question,args", [
+    ("How many ads are from NYT?", {"filters": {"publishers": ["The New York Times"]}}),
+    ("Which publishers is Shell working with?", {"group_by": "publishers", "filters": {"sponsors": ["shell"]}}),
+    ("Which years have the highest ad count?", {"group_by": "years", "ranking": "highest"}),
+    ("What percentage of the collection is sponsored by Shell?", {"measure": "share", "filters": {"sponsors": ["shell"]}}),
+    ("How many ads have the historical label 'climate_science'?", {"filters": {"labels": ["climate_science"]}}),
+    ("How many native ads are in the United States collection?", {}),
+    ("How many ads were published by ‘Say Something Media’?", {}),
+    ("纽约时报有多少原生广告？", {"filters": {"publishers": ["The New York Times"]}}),
+])
+def test_content_guard_preserves_metadata_statistics_and_explicit_label_counts(question, args):
+    agent, _, catalog, _ = harness([response("record_statistics", args)])
+    result = agent.run(question, Filters(), "visitor")
+    assert result.route == "statistics"
+    assert catalog.called == [("record_statistics", args)]
+    assert result.audit()["question_contract"]["content_condition"] is False
+
+
+def test_content_predicate_can_still_choose_bounded_evidence_search():
+    agent, _, catalog, calls = harness([response("search_records", {
+        "query": "recycling consumer responsibility", "limit": 5,
+    })])
+    result = agent.run("Which ads position consumers as responsible for recycling?", Filters(), "visitor")
+    assert result.route == "evidence"
+    assert catalog.called[0][0] == "search_records"
+    assert result.question_contract["task"] == "content_framing"
+    assert result.question_contract["requires_complete_list"] is True
+    assert json.loads(calls[0]["input"][1]["content"])["question_contract"] == result.question_contract
 
 
 def test_entity_resolution_can_narrow_then_call_exact_statistics():
@@ -347,7 +415,7 @@ def test_actual_usage_settled_once_and_audit_contains_no_prose():
     assert len(rag.budget.settled) == 1
     usage = rag.budget.settled[0][2]
     assert usage["observatory_request"]["stage"] == "research_agent"
-    assert usage["observatory_request"]["policy"] == "research-tools-v5"
+    assert usage["observatory_request"]["policy"] == "research-tools-v9"
     assert calls[0]["store"] is False
     assert calls[0]["parallel_tool_calls"] is False
     assert calls[0]["tool_choice"] == "required"

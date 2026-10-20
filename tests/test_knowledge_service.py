@@ -75,7 +75,7 @@ def test_attachment_from_concurrently_changed_version_is_not_joined():
 
 
 @pytest.mark.parametrize("payload", [None, {}, {"limit": True}, {"limit": 21}, {"offset": -1},
-                                     {"filters": {"dataset": "social"}}, {"unknown": "x"}])
+                                     {"filters": {"dataset": "media"}}, {"unknown": "x"}])
 def test_graph_request_schema(payload):
     from flask import Flask
 

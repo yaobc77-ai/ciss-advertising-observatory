@@ -7,6 +7,7 @@ from .claims_ui import claims_panel
 from .collection_graph_ui import collection_graph_panel
 from .content_ui import content_panel
 from .historical_theme_ui import historical_theme_panel
+from .cooccurrence_ui import maps_panel
 from .knowledge_ui import knowledge_panel
 from .network import network_figure
 from .research_explorer import explorer_panel
@@ -54,7 +55,8 @@ def data_panel(dataset, links_enabled, empty_figure):
     def chart(key, title, note="", wide=False):
         return html.Section([
             html.H3(title),
-            html.P(note, className="chart-note", id=f"{dataset}-{key}-note"),
+            html.P(note, className="chart-note", id=f"{dataset}-{key}-note",
+                   hidden=not native and key == "labels-chart"),
             html.Div(dcc.Graph(id=f"{dataset}-{key}", figure=empty_figure("Choose a collection to explore"),
                               config=graph_config, style={"width": "100%"}),
                      className="chart-scroll" if wide else ""),
@@ -185,6 +187,10 @@ def data_panel(dataset, links_enabled, empty_figure):
                     knowledge_panel(),
                 ], id="article-provenance-disclosure", className="article-provenance-disclosure"),
                 dcc.Store(id="article-provenance-open", data=False),
+                html.Details([
+                    html.Summary("Knowledge maps: hashtags, mentions, companies, labels and name similarity"),
+                    maps_panel(),
+                ], className="article-provenance-disclosure"),
             ] if native else None, id=f"{dataset}-relationships", className="data-view", hidden=True),
             records,
         ], id=f"{dataset}-content", className="collection-content"),

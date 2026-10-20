@@ -23,8 +23,9 @@ class Rows(list):
 class Connection:
     """Answers keyword, approximate and exact vector reads per collection."""
 
-    def __init__(self, hits, ann_short=False):
+    def __init__(self, hits, ann_short=False, titles=()):
         self.hits, self.ann_short, self.calls = hits, ann_short, []
+        self.titles = list(titles)
 
     def commit(self):
         pass
@@ -33,6 +34,8 @@ class Connection:
         self.calls.append(sql)
         if not params or "set_config" in sql:
             return Rows()
+        if "title_coverage" in sql:
+            return Rows(self.titles)
         dataset = next((p for p in params if isinstance(p, str) and p in ("native", "social")), None)
         rows = [r for r in self.hits if dataset in (None, r["dataset"])]
         if "WITH ann" in sql:
@@ -78,3 +81,25 @@ def test_native_scope_is_always_exact():
     connection = Connection([row(f"n{i}", "native") for i in range(3)])
     database(connection).search("harbor ferry", Filters(dataset="native"), vector=[0.1] * 1536)
     assert not any("WITH ann" in sql for sql in connection.calls)
+
+
+def titled(record, coverage, n=0):
+    return {**row(record, "native", n), "title_coverage": coverage}
+
+
+def test_a_native_title_match_reaches_records_the_text_index_misses():
+    # The body text of n9 never matches the query, but its title does.
+    hits = [row(f"n{i}", "native") for i in range(6)]
+    connection = Connection(hits, titles=[titled("n9", 3), titled("n8", 1)])
+    evidence = database(connection).search("harbor ferry timetable", Filters(dataset="native"), limit=5)
+    ids = [e.record_id for e in evidence]
+    assert "n9" in ids and "title" in next(e for e in evidence if e.record_id == "n9").retrieval_sources
+    # One shared word is not a title match.
+    assert "n8" not in ids
+
+
+def test_social_titles_are_not_searched():
+    connection = Connection([row("s1", "social")], titles=[titled("s9", 4)])
+    evidence = database(connection).search("harbor ferry timetable", Filters(dataset="social"), limit=5)
+    assert [e.record_id for e in evidence] == ["s1"]
+    assert not any("title_coverage" in sql for sql in connection.calls)

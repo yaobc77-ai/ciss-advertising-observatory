@@ -17,8 +17,9 @@ from datetime import date, datetime
 from urllib.parse import quote, urlsplit
 
 from .analytics import sponsor_display, sponsor_metadata
+from .entities import registry as entity_registry
 
-SCHEMA_VERSION = "advertising-source-graph-v2"
+SCHEMA_VERSION = "advertising-source-graph-v4"
 _HASH = re.compile(r"[0-9a-f]{64}\Z")
 _KEY = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,199}\Z")
 _LABEL = re.compile(r"[A-Za-z0-9][A-Za-z0-9 _.-]{0,119}\Z")
@@ -26,12 +27,18 @@ _MISSING = {"", "(unknown)", "unknown", "n/a", "none", "null"}
 NODE_TYPES = {
     "Article": {"description": "An imported article record, not a deduplicated real-world publication.",
                 "identity_fields": ["dataset", "record_id"]},
+    "SocialPost": {"description": "A collected company social post (one canonical original post URL), not a verified paid advertisement.",
+                   "identity_fields": ["dataset", "record_id"]},
+    "Account": {"description": "An exact source account name on one platform; not a verified channel identity or owner.",
+                "identity_fields": ["dataset", "source_field", "platform", "source_value"]},
     "TextVersion": {"description": "A stored text version with a body hash and capture limitations.",
                     "identity_fields": ["dataset", "record_id", "version_id"]},
     "SponsorCandidate": {"description": "An exact source sponsor-field value; organization identity is unresolved.",
                          "identity_fields": ["dataset", "source_field", "source_value"]},
     "Outlet": {"description": "An exact source publisher-field value, not a verified legal entity.",
                "identity_fields": ["dataset", "source_field", "source_value"]},
+    "Organization": {"description": "A registry organization or outlet joining exact source spellings across collections; identity is AI-proposed until reviewed.",
+                     "identity_fields": ["registry_id"]},
     "SourceArtifact": {"description": "An online URL reference or a hash-bound reviewed capture.",
                        "identity_fields": ["kind", "url_or_record_asset_hash"]},
     "Annotation": {"description": "An imported category-assignment record with explicit text scope.",
@@ -46,9 +53,19 @@ NODE_TYPES = {
                  "identity_fields": ["taxonomy_version", "nc_id"]},
     "Superclaim": {"description": "An SC definition in one exact CLAIMS2 taxonomy bundle.",
                    "identity_fields": ["taxonomy_version", "sc_id"]},
+    "Channel": {"description": "A platform channel ID from the social source; its owner is not verified.",
+                "identity_fields": ["dataset", "platform", "channel_id"]},
+    "Handle": {"description": "A platform handle (@name) as written in the source, compared without case; not a verified identity.",
+               "identity_fields": ["dataset", "platform", "handle"]},
+    "Hashtag": {"description": "A hashtag the source lists for a post, compared without case.",
+                "identity_fields": ["dataset", "platform", "hashtag"]},
+    "ReferencedPost": {"description": "A platform post ID that a social post replies to, quotes or reposts; it names the collected post when the ID matches one, and may be outside the collection.",
+                       "identity_fields": ["dataset", "platform", "platform_post_id"]},
+    "AffiliationProfile": {"description": "The source's own type, commodity and region for a company affiliation; not verified.",
+                           "identity_fields": ["dataset", "source_value", "type", "commodity", "region"]},
 }
 IDENTITY_POLICY = {
-    "entity_resolution": "exact_source_values_only_no_alias_merging",
+    "entity_resolution": "exact_source_values_kept_registry_organizations_join_listed_spellings",
     "missing_values": "omitted_entities_with_article_missing_flags",
     "display_aliases": "presentation_only_not_identity_assertions",
     "type_hints": "provisional_not_verified_organization_types",
@@ -63,21 +80,34 @@ _BODY_LIMITATIONS = {
 
 
 def _predicate(label, domain, range_, description):
-    return {"label": label, "domain": [domain], "range": [range_],
-            "description": description}
+    domains = list(domain) if isinstance(domain, tuple) else [domain]
+    return {"label": label, "domain": domains, "range": [range_], "description": description}
+
+
+SOURCE_RECORDS = ("Article", "SocialPost")
 
 
 PREDICATES = {
-    "has_text_version": _predicate("has text version", "Article", "TextVersion",
+    "has_text_version": _predicate("has text version", SOURCE_RECORDS, "TextVersion",
         "The stored text version for this source record; completeness is not implied."),
     "source_lists_sponsor": _predicate("source lists sponsor", "Article", "SponsorCandidate",
         "The stored sponsor field lists this candidate. Identity and payment are not independently verified."),
     "published_in": _predicate("source lists outlet", "Article", "Outlet",
         "The stored publisher field names this outlet candidate; it does not imply endorsement."),
-    "has_source_reference": _predicate("has original reference", "Article", "SourceArtifact",
+    "identifies_organization": _predicate("identified as organization", "SponsorCandidate", "Organization",
+        "The entity registry lists this exact source spelling for the organization. Review status is on the edge."),
+    "identifies_outlet": _predicate("identified as outlet", "Outlet", "Organization",
+        "The entity registry lists this exact publisher spelling for the outlet."),
+    "supplemented_sponsor": _predicate("supplemented sponsor", "Article", "Organization",
+        "The source lists no sponsor; the registry supplements one from stated evidence. The source field stays missing."),
+    "has_source_reference": _predicate("has original reference", SOURCE_RECORDS, "SourceArtifact",
         "A source URL, not a guaranteed immutable or currently available capture."),
-    "has_archive_reference": _predicate("has archive reference", "Article", "SourceArtifact",
+    "has_archive_reference": _predicate("has archive reference", SOURCE_RECORDS, "SourceArtifact",
         "A stored archive URL; its contents have not been verified by this graph projection."),
+    "posted_by": _predicate("posted by account", "SocialPost", "Account",
+        "The stored account field names the posting account. Account names are not verified identities."),
+    "source_lists_affiliation": _predicate("source lists company affiliation", "SocialPost", "SponsorCandidate",
+        "The social source lists this company affiliation for the account; it is not a paid sponsorship."),
     "derived_from": _predicate("recovered from reviewed capture", "TextVersion", "SourceArtifact",
         "The public attachment registry binds this hash-checked capture to the text version."),
     "has_annotation_record": _predicate("has annotation record", "Article", "Annotation",
@@ -98,7 +128,80 @@ PREDICATES = {
         "The pinned taxonomy maps this NC to this SC. An unmapped NC has no inferred parent."),
     "cites_claim_evidence": _predicate("cites original passage", "ClaimAssignment", "EvidenceSpan",
         "An exact source passage for the assignment. Location and semantic review are distinct."),
+    "posted_from_channel": _predicate("posted from channel", "SocialPost", "Channel",
+        "The source row's channel ID. A display name can change; the channel ID identifies the posting channel."),
+    "channel_uses_handle": _predicate("channel uses handle", "Channel", "Handle",
+        "The source row names this handle for the channel when the post was collected."),
+    "mentions_handle": _predicate("mentions handle", "SocialPost", "Handle",
+        "The source lists this @-mention for the post. A mention is not endorsement or affiliation."),
+    "replies_to_handle": _predicate("replies to handle", "SocialPost", "Handle",
+        "The source names the handle this post replies to."),
+    "uses_hashtag": _predicate("uses hashtag", "SocialPost", "Hashtag",
+        "The source lists this hashtag for the post."),
+    "replies_to_post": _predicate("replies to post", "SocialPost", "ReferencedPost",
+        "The source marks the post as a reply to this post ID."),
+    "quotes_post": _predicate("quotes post", "SocialPost", "ReferencedPost",
+        "The source marks the post as quoting this post ID."),
+    "reposts_post": _predicate("reposts post", "SocialPost", "ReferencedPost",
+        "The source marks the post as a repost of this post ID."),
+    "references_post": _predicate("references post", "SocialPost", "ReferencedPost",
+        "The source links this post ID without a single unambiguous reply, quote or repost type."),
+    "source_profiles_affiliation": _predicate("source profiles affiliation", "SponsorCandidate", "AffiliationProfile",
+        "The social source describes the affiliated company with this type, commodity and region."),
 }
+
+# Public X fields projected from the source row (`Database.knowledge_page`).
+_SOCIAL_COUNTS = ("like_count", "reply_count", "retweet_count", "quote_count", "view_count", "bookmark_count")
+_HANDLE = re.compile(r"[A-Za-z0-9_]{1,50}\Z")
+_STATUS_ID = re.compile(r"[0-9]{1,25}\Z")
+_STATUS_URL = re.compile(r"/status(?:es)?/([0-9]{1,25})(?:[/?#]|\Z)")
+_REFERENCE_PREDICATES = {"replied_to": "replies_to_post", "quoted": "quotes_post", "retweeted": "reposts_post"}
+
+
+def _strings(value):
+    """One string or a list of strings, trimmed and deduplicated in order; the source mixes both."""
+    items = value if isinstance(value, list) else [value]
+    return list(dict.fromkeys(item.strip() for item in items if isinstance(item, str) and item.strip()))
+
+
+def _handles(value):
+    return list(dict.fromkeys(handle.lstrip("@").casefold() for handle in _strings(value)
+                              if _HANDLE.match(handle.lstrip("@"))))
+
+
+def _hashtags(value):
+    return list(dict.fromkeys(tag.lstrip("#").casefold() for tag in _strings(value)
+                              if tag.lstrip("#") and not re.search(r"[\s#]", tag.lstrip("#")) and len(tag) <= 140))
+
+
+def _social_source(row):
+    """Normalized public X fields of the post's selected source row, or None."""
+    source = row.get("social_source")
+    if not isinstance(source, Mapping):
+        return None
+    engagement = source.get("engagement") if isinstance(source.get("engagement"), Mapping) else {}
+    counts = {name: engagement[name] for name in _SOCIAL_COUNTS
+              if type(engagement.get(name)) is int and engagement[name] >= 0}
+    info = source.get("entity_info") if isinstance(source.get("entity_info"), Mapping) else {}
+    profile = {key: _text(info.get(key)) for key in ("type", "commodity", "region")}
+    channel_id = _text(source.get("channel_id"))
+    observations = source.get("source_observations")
+    return {
+        "channel_id": channel_id if _STATUS_ID.match(channel_id) else "",
+        "handle": (_handles(source.get("username")) or [""])[0],
+        "counts": counts,
+        "mentions": _handles(engagement.get("username_mentions")),
+        "reply_to": _handles(engagement.get("replying_to_username")),
+        "hashtags": _hashtags(source.get("hashtags")),
+        "referenced": [item for item in _strings(engagement.get("referenced_tweet_ids")) if _STATUS_ID.match(item)],
+        "reference_type": _text(source.get("reference_type")),
+        "profile": profile if any(profile.values()) else None,
+        "observations": observations if type(observations) is int and observations > 0 else 1,
+        # Referenced post ID -> collected record ID or None; None overall when not looked up.
+        "collected": ({key: value if isinstance(value, str) and _KEY.match(value) else None
+                       for key, value in source["collected_posts"].items()}
+                      if isinstance(source.get("collected_posts"), Mapping) else None),
+    }
 
 
 def _id(kind, *identity):
@@ -208,6 +311,15 @@ def build_graph(rows, *, links_enabled=True, attachments_by_record=None, claims2
             nodes[identifier] = item
         return identifier
 
+    def organization(entity, record_id):
+        return node("Organization", (entity.id,), entity.name, {
+            "registry_id": entity.id, "name": entity.name, "organization_type": entity.type,
+            "aliases": list(entity.aliases), "former_names": list(entity.former_names),
+            "source_values": {key: list(values) for key, values in entity.source_values.items()},
+            "registry_record_counts": dict(entity.record_counts), "basis": entity.basis,
+            "review_status": entity.review_status, "registry_version": entity_registry().version,
+        }, record_id)
+
     def edge(source, target, predicate, record_id, version_id, field, *,
              method="source_field_projection", status="source_recorded_unverified", annotation_id=None):
         provenance = {"record_id": record_id, "version_id": version_id,
@@ -241,13 +353,38 @@ def build_graph(rows, *, links_enabled=True, attachments_by_record=None, claims2
         limitations = sorted(issue_codes & _BODY_LIMITATIONS)
         digest = _hash(row.get("body_hash"))
         digest_valid = bool(digest) and hashlib.sha256(body.encode("utf-8")).hexdigest() == digest
-        title = _text(row.get("title")) or "Untitled article"
-        article = node("Article", (dataset, record_id), title, {
-            "record_id": record_id, "version_id": version_id, "dataset": dataset, "title": title,
-            "published_at": _date(row.get("date")), "missing_sponsor": _missing(row.get("sponsor")),
-            "missing_outlet": _missing(row.get("publisher")),
-            "detail_url": f"/records/{quote(record_id, safe='')}",
-        }, record_id)
+        social = dataset == "social"
+        title = _text(row.get("title")) or ("Social post" if social else "Untitled article")
+        source = _social_source(row) if social else None
+        if social:
+            # A post is identified by its own record, posted by an account, and
+            # affiliated with a company; it has no outlet and no paid sponsor.
+            extra = {}
+            if source is not None:
+                status = _STATUS_URL.search(_text(row.get("url")))
+                extra = {
+                    "platform_post_id": status.group(1) if status else "",
+                    # Counts at collection time, read from one source row. Duplicate
+                    # observations of the same post can carry different counts.
+                    "engagement": {**source["counts"], "basis": "selected_source_row_at_collection",
+                                   "source_observations": source["observations"]},
+                }
+            article = node("SocialPost", (dataset, record_id), title, {
+                "record_id": record_id, "version_id": version_id, "dataset": dataset, "title": title,
+                "published_at": _date(row.get("date")), "platform": _text(row.get("platform")),
+                "missing_account": _missing(row.get("account")),
+                "missing_affiliation": _missing(row.get("sponsor")),
+                "paid_ad_status": "not_verified",
+                "detail_url": f"/records/{quote(record_id, safe='')}",
+                **extra,
+            }, record_id)
+        else:
+            article = node("Article", (dataset, record_id), title, {
+                "record_id": record_id, "version_id": version_id, "dataset": dataset, "title": title,
+                "published_at": _date(row.get("date")), "missing_sponsor": _missing(row.get("sponsor")),
+                "missing_outlet": _missing(row.get("publisher")),
+                "detail_url": f"/records/{quote(record_id, safe='')}",
+            }, record_id)
         text_version = node("TextVersion", (dataset, record_id, version_id), "Stored text version", {
             "version_id": version_id, "body_hash": digest, "body_characters": len(body),
             "body_status": "missing" if not body.strip() else "partial_or_quality_limited" if limitations else "stored_text",
@@ -261,15 +398,66 @@ def build_graph(rows, *, links_enabled=True, attachments_by_record=None, claims2
         if "historical_annotations_prior_body" in issue_codes:
             warn("historical_annotations_prior_body", record_id,
                  "Earlier annotations describe a previous body and are not classifications of the recovered current text.")
-        for field, kind, predicate in (("sponsor", "SponsorCandidate", "source_lists_sponsor"),
-                                        ("publisher", "Outlet", "published_in")):
+        if social:
+            account = row.get("account")
+            if _missing(account):
+                warn("missing_account", record_id, "No account entity is created for a missing source account.")
+            else:
+                platform = _text(row.get("platform"))
+                posted = node("Account", (dataset, "account", platform, account), account, {
+                    "source_value": account, "platform": platform, "dataset": dataset, "source_field": "account",
+                    "identity_status": "source_account_name_not_verified_identity",
+                }, record_id)
+                edge(article, posted, "posted_by", record_id, version_id, "account")
+        if source is not None:
+            platform = _text(row.get("platform"))
+
+            def handle(name):
+                return node("Handle", (dataset, platform, name), "@" + name, {
+                    "platform": platform, "handle": name, "dataset": dataset,
+                    "identity_status": "source_handle_not_verified_identity"}, record_id)
+
+            field = "raw.source_row."
+            if source["channel_id"]:
+                channel = node("Channel", (dataset, platform, source["channel_id"]), f"{platform} channel {source['channel_id']}", {
+                    "platform": platform, "channel_id": source["channel_id"], "dataset": dataset,
+                    "identity_status": "source_channel_id_owner_not_verified"}, record_id)
+                edge(article, channel, "posted_from_channel", record_id, version_id, field + "channel_id")
+                if source["handle"]:
+                    edge(channel, handle(source["handle"]), "channel_uses_handle", record_id, version_id,
+                         field + "channel.username")
+            for name in source["mentions"]:
+                edge(article, handle(name), "mentions_handle", record_id, version_id, field + "engagement.username_mentions")
+            for name in source["reply_to"]:
+                edge(article, handle(name), "replies_to_handle", record_id, version_id,
+                     field + "engagement.replying_to_username")
+            for tag in source["hashtags"]:
+                hashtag = node("Hashtag", (dataset, platform, tag), "#" + tag, {
+                    "platform": platform, "hashtag": tag, "dataset": dataset}, record_id)
+                edge(article, hashtag, "uses_hashtag", record_id, version_id, field + "post.hashtags_identified")
+            # A type applies only when it names exactly one referenced post.
+            typed = _REFERENCE_PREDICATES.get(source["reference_type"]) if len(source["referenced"]) == 1 else None
+            for post_id in source["referenced"]:
+                collected = source["collected"]
+                status = ({"collection_status": "not_resolved_to_a_collected_post"} if collected is None else
+                          {"collection_status": "collected_post", "collected_record_id": collected[post_id],
+                           "detail_url": f"/records/{quote(collected[post_id], safe='')}"} if collected.get(post_id) else
+                          {"collection_status": "not_in_collection"})
+                target = node("ReferencedPost", (dataset, platform, post_id), f"{platform} post {post_id}", {
+                    "platform": platform, "platform_post_id": post_id, "dataset": dataset, **status}, record_id)
+                edge(article, target, typed or "references_post", record_id, version_id,
+                     field + "engagement.referenced_tweet_ids")
+        listed = ((("sponsor", "SponsorCandidate", "source_lists_affiliation"),) if social else
+                  (("sponsor", "SponsorCandidate", "source_lists_sponsor"), ("publisher", "Outlet", "published_in")))
+        for field, kind, predicate in listed:
             raw = row.get(field)
             if _missing(raw):
                 warn(f"missing_{field}", record_id, f"No {field} entity is created for missing source values.")
                 continue
             properties = {"source_value": raw, "dataset": dataset, "source_field": field,
                           "identity_status": "source_candidate_not_resolved",
-                          "role": "listed_sponsor" if field == "sponsor" else "listed_outlet"}
+                          "role": ("listed_company_affiliation" if social else "listed_sponsor")
+                          if field == "sponsor" else "listed_outlet"}
             if field == "sponsor":
                 hint = sponsor_metadata(raw)["entity_type"]
                 properties["type_hint"] = hint if hint in {"conference/event", "industry association"} else "unresolved"
@@ -277,6 +465,24 @@ def build_graph(rows, *, links_enabled=True, attachments_by_record=None, claims2
             entity = node(kind, (dataset, field, raw), sponsor_display(raw) if field == "sponsor" else raw,
                           properties, record_id)
             edge(article, entity, predicate, record_id, version_id, field)
+            if social and field == "sponsor" and source is not None and source["profile"]:
+                profile = source["profile"]
+                described = node("AffiliationProfile", (dataset, raw, profile["type"], profile["commodity"], profile["region"]),
+                                 " · ".join(value for value in profile.values() if value), {
+                                     "source_value": raw, "dataset": dataset, **profile,
+                                     "status": "source_supplied_profile_not_verified"}, record_id)
+                edge(entity, described, "source_profiles_affiliation", record_id, version_id,
+                     "raw.source_row.parent_entity_info")
+            owner = entity_registry().for_source(dataset, field, raw)
+            if owner is not None:
+                edge(entity, organization(owner, record_id),
+                     "identifies_organization" if field == "sponsor" else "identifies_outlet",
+                     record_id, version_id, field, method="entity_registry", status=owner.review_status)
+        fill = None if social else entity_registry().supplemented.get((dataset, record_id, "sponsor"))
+        if fill and _missing(row.get("sponsor")) and fill.get("version_id") == version_id:
+            owner = entity_registry().entities[fill["organization"]]
+            edge(article, organization(owner, record_id), "supplemented_sponsor", record_id, version_id, "sponsor",
+                 method="entity_registry_" + fill["method"], status=fill["review_status"])
 
         for field, kind, predicate in (("url", "web_reference", "has_source_reference"),
                                       ("archive_url", "archive_reference", "has_archive_reference")):
@@ -307,7 +513,10 @@ def build_graph(rows, *, links_enabled=True, attachments_by_record=None, claims2
             edge(text_version, source, "derived_from", record_id, version_id, "public_attachments",
                  method="reviewed_attachment_registry", status="reviewed_source_binding")
 
-        annotations = row.get("annotations") or []
+        if social and row.get("annotations"):
+            warn("social_labels_not_projected", record_id,
+                 "Historical social source labels use a separate 13-code scheme and are read through the label tools, not this graph.")
+        annotations = [] if social else row.get("annotations") or []
         for fallback_ordinal, annotation in enumerate(annotations):
             payload = _payload(annotation)
             public = _public_annotation(payload)
@@ -444,7 +653,7 @@ def validate_graph(graph, *, rows=None):
         ):
             raise ValueError("Graph edge record provenance conflicts with endpoint membership")
         for endpoint in (source, target):
-            if endpoint["type"] in {"Article", "TextVersion", "EvidenceSpan", "ClaimAssignment"} and (
+            if endpoint["type"] in {"Article", "SocialPost", "TextVersion", "EvidenceSpan", "ClaimAssignment"} and (
                 endpoint["properties"].get("version_id") != provenance["version_id"]
             ):
                 raise ValueError("Graph edge version provenance conflicts with endpoint version")
@@ -478,3 +687,36 @@ def validate_graph(graph, *, rows=None):
                 ):
                     raise ValueError("Evidence does not match its source text")
     return []
+
+
+ORGANIZATION_NOTE = (
+    "Organizations join exact source spellings across collections. Native articles and social "
+    "posts are separate units and are never summed. Trade associations and events are listed "
+    "with their own type; whether they belong in a company count awaits the client's decision. "
+    "Identities are AI-proposed until a named reviewer approves them. A collected company post "
+    "is not a verified paid advertisement."
+)
+
+
+def organization_overview(counts):
+    """Every registry organization and outlet with countable records per collection.
+
+    ``counts`` maps (dataset, field, exact spelling) to countable current records,
+    so organizations found only in the social collection appear as well.
+    """
+    current = entity_registry()
+    items = []
+    for entity in current.entities.values():
+        field = "sponsor" if entity.kind == "organization" else "publisher"
+        per_collection = {}
+        for key, values in entity.source_values.items():
+            dataset = key.split(".")[0]
+            per_collection[dataset] = per_collection.get(dataset, 0) + sum(
+                counts.get((dataset, field, value), 0) for value in values)
+        items.append({**entity.public(), "kind": entity.kind, "aliases": list(entity.aliases),
+                      "former_names": list(entity.former_names),
+                      "source_values": {key: list(values) for key, values in entity.source_values.items()},
+                      "countable_records": per_collection, "basis": entity.basis})
+    items.sort(key=lambda item: (-sum(item["countable_records"].values()), item["id"]))
+    return {"registry_version": current.version, "review": dict(current.review),
+            "note": ORGANIZATION_NOTE, "organizations": items}

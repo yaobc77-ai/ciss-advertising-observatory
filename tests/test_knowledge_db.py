@@ -39,8 +39,8 @@ def test_graph_projection_uses_current_version_and_filter_semantics(db):
     assert [r["record_id"] for r in db.knowledge_page(filters)["rows"]] == ["a"]
     assert db.knowledge_page(Filters(sponsors=["x' OR 1=1 --"]))["total"] == 0
     assert db.knowledge_page(Filters(include_unknown_dates=False))["total"] == 1
-    with pytest.raises(ValueError, match="native"):
-        db.knowledge_page(Filters(dataset="social"))
+    with pytest.raises(ValueError, match="collection"):
+        db.knowledge_page(Filters.model_construct(**{**Filters().model_dump(), "dataset": "media"}))
 
 
 def test_graph_page_bounds_and_stable_pagination(db):
@@ -91,3 +91,38 @@ def test_graph_count_and_version_rows_share_one_snapshot(db, monkeypatch):
     refreshed = db.knowledge_page(Filters())
     assert refreshed["total"] == 2
     assert refreshed["rows"][0]["sponsor"] == "new-source"
+
+
+def test_social_rows_project_only_the_listed_public_x_fields(db):
+    source_row = {"channel_id": "3667", "channel": {"username": "Tidal_Co", "name": "Tidal Co"},
+                  "engagement": {"like_count": 4, "username_mentions": ["HarborFund"],
+                                 "in_reply_to_user_id": "private-marker"},
+                  "post.hashtags_identified": ["#KitePower"],
+                  "post": {"reference_tweet_type": "quoted", "image_text": "private-marker"},
+                  "parent_entity_info": {"type": "Trade Association", "commodity": "Wind", "region": "Atlantis"}}
+    db.import_batch(ImportBatch(records=[
+        RecordInput(record_id="x1", dataset="social", platform="Twitter", account="Tidal Co", sponsor="Tidal Co",
+                    body="Kites lift the harbor.", raw={"source_row": source_row, "secret": "private-marker"}),
+        record("n1"),
+    ]))
+    rows = {row["record_id"]: row for row in db.knowledge_page(Filters(dataset="all"))["rows"]}
+    assert rows["n1"]["social_source"] is None
+    assert rows["x1"]["social_source"] == {
+        "channel_id": "3667", "username": "Tidal_Co",
+        "engagement": {"like_count": 4, "username_mentions": ["HarborFund"]},
+        "hashtags": ["#KitePower"], "reference_type": "quoted",
+        "entity_info": {"type": "Trade Association", "commodity": "Wind", "region": "Atlantis"},
+        "source_observations": None}
+    assert "private-marker" not in str(rows)
+
+
+def test_referenced_post_ids_are_matched_to_collected_posts_by_their_status_url(db):
+    def post(record_id, status, refs):
+        return RecordInput(record_id=record_id, dataset="social", platform="Twitter", account="Tidal Co",
+                           sponsor="Tidal Co", body="Kites lift the harbor.",
+                           url=f"https://twitter.com/Tidal_Co/status/{status}",
+                           raw={"source_row": {"engagement": {"referenced_tweet_ids": refs}}})
+    db.import_batch(ImportBatch(records=[post("x1", "5005", ["5006", "7777"]), post("x2", "5006", None)]))
+    rows = {row["record_id"]: row for row in db.knowledge_page(Filters(dataset="social"))["rows"]}
+    assert rows["x1"]["social_source"]["collected_posts"] == {"5006": "x2", "7777": None}
+    assert "collected_posts" not in rows["x2"]["social_source"]

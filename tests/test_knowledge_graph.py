@@ -48,7 +48,7 @@ def edges(graph, predicate):
 def test_typed_article_centric_graph_has_provenance_and_dictionary():
     graph = build_graph([row()])
     assert {node["type"] for node in graph["nodes"]} == {
-        "Article", "TextVersion", "SponsorCandidate", "Outlet", "SourceArtifact",
+        "Article", "TextVersion", "SponsorCandidate", "Outlet", "SourceArtifact", "Organization",
     }
     assert nodes(graph, "Article")[0]["properties"]["detail_url"] == "/records/r1"
     assert nodes(graph, "SponsorCandidate")[0]["label"] == "ExxonMobil"
@@ -277,7 +277,7 @@ def test_recovery_issue_remains_visible_when_current_annotations_are_empty():
     assert version["quality_codes"] == ["body_partial_recovery"]
     assert any(warning["code"] == "historical_annotations_prior_body" for warning in graph["warnings"])
     assert "PRIVATE_ARBITRARY" not in json.dumps(graph)
-    assert graph["identity_policy"]["entity_resolution"] == "exact_source_values_only_no_alias_merging"
+    assert graph["identity_policy"]["entity_resolution"] == "exact_source_values_kept_registry_organizations_join_listed_spellings"
     assert "SponsorCandidate" in graph["node_types"]
 
 
@@ -335,7 +335,7 @@ def test_article_path_counts_match_existing_matrix_without_counting_annotation_e
 def test_graph_schema_export_cannot_mutate_the_module_predicate_dictionary():
     graph = build_graph([row()])
     graph["predicate_definitions"]["has_text_version"]["domain"].append("Wrong")
-    assert PREDICATES["has_text_version"]["domain"] == ["Article"]
+    assert PREDICATES["has_text_version"]["domain"] == ["Article", "SocialPost"]
 
 
 def test_malformed_metadata_is_not_elevated_to_current_version_binding():
@@ -346,3 +346,115 @@ def test_malformed_metadata_is_not_elevated_to_current_version_binding():
     assert not edges(graph, "annotates")
     assert nodes(graph, "Annotation")[0]["properties"]["basis"] == "not_recorded"
     assert "PRIVATE" not in json.dumps(graph)
+
+
+def test_registry_organizations_join_source_spellings_without_rewriting_them():
+    graph = build_graph([row()])
+    validate_graph(graph)
+    [sponsor] = nodes(graph, "SponsorCandidate")
+    assert sponsor["properties"]["source_value"] == "exxonmobil"
+    links = edges(graph, "identifies_organization")
+    assert len(links) == 1 and links[0]["provenance"]["method"] == "entity_registry"
+    assert links[0]["provenance"]["status"] == "ai_proposed"
+    organization = next(node for node in nodes(graph, "Organization") if node["id"] == links[0]["target"])
+    props = organization["properties"]
+    assert props["registry_id"] == "org:exxonmobil" and props["organization_type"] == "company"
+    # The social collection meets the native article at the organization node.
+    assert props["source_values"] == {"native.sponsor": ["exxonmobil"], "social.sponsor": ["ExxonMobil"]}
+    assert props["registry_record_counts"]["social.sponsor"] > 0
+    assert props["registry_version"].startswith("entity-registry-v1:")
+
+
+def test_unregistered_sponsor_stays_an_unresolved_candidate():
+    graph = build_graph([row(sponsor="imaginary petroleum")])
+    validate_graph(graph)
+    assert not edges(graph, "identifies_organization")
+    assert nodes(graph, "SponsorCandidate")[0]["properties"]["identity_status"] == "source_candidate_not_resolved"
+
+
+def test_supplemented_sponsor_is_labelled_and_keeps_the_source_missing():
+    from observatory.entities import registry
+    fill = next(iter(registry().supplemented.values()))
+    graph = build_graph([row(record_id=fill["record_id"], version_id=fill["version_id"], sponsor="")])
+    validate_graph(graph)
+    [link] = edges(graph, "supplemented_sponsor")
+    assert link["provenance"]["status"] == "ai_proposed"
+    assert link["provenance"]["method"].startswith("entity_registry_")
+    assert nodes(graph, "Article")[0]["properties"]["missing_sponsor"] is True
+    # A changed version no longer carries the supplement.
+    stale = build_graph([row(record_id=fill["record_id"], version_id="other-version", sponsor="")])
+    assert not edges(stale, "supplemented_sponsor")
+
+
+def x_row(**updates):
+    """A fictional X post with the public source fields `Database.knowledge_page` projects."""
+    source = {
+        "channel_id": "3667", "username": "Tidal_Co",
+        "engagement": {"like_count": 12, "reply_count": 0, "retweet_count": 3, "view_count": 900,
+                       "quote_count": -1, "username_mentions": ["HarborFund", "harborfund", "@KiteLab"],
+                       "replying_to_username": "HarborFund", "referenced_tweet_ids": "9001",
+                       "in_reply_to_user_id": "private-user-id-zq"},
+        "hashtags": ["#KitePower", "#kitepower", "#Harbor Day"],
+        "reference_type": "replied_to",
+        "entity_info": {"type": "Investor-owned Company", "commodity": "Wind", "region": "Atlantis"},
+        "source_observations": 2,
+    }
+    source.update(updates.pop("social_source", {}))
+    return row(**{"record_id": "social-post:1", "version_id": "sv1", "dataset": "social", "platform": "Twitter",
+                  "account": "Tidal Co", "sponsor": "Tidal Co", "publisher": "",
+                  "url": "https://twitter.com/Tidal_Co/status/5005", "social_source": source, **updates})
+
+
+def test_x_source_fields_become_typed_relations_with_source_provenance():
+    graph = build_graph([x_row()])
+    post = nodes(graph, "SocialPost")[0]["properties"]
+    assert post["platform_post_id"] == "5005"
+    # Invalid counts are dropped; counts are a collection-time reading of one source row.
+    assert post["engagement"] == {"like_count": 12, "reply_count": 0, "retweet_count": 3, "view_count": 900,
+                                  "basis": "selected_source_row_at_collection", "source_observations": 2}
+    assert [n["properties"]["channel_id"] for n in nodes(graph, "Channel")] == ["3667"]
+    # Handles and hashtags compare without case; a tag with a space is not a hashtag.
+    assert sorted(n["properties"]["handle"] for n in nodes(graph, "Handle")) == ["harborfund", "kitelab", "tidal_co"]
+    assert [n["label"] for n in nodes(graph, "Hashtag")] == ["#kitepower"]
+    assert len(edges(graph, "mentions_handle")) == 2 and len(edges(graph, "replies_to_handle")) == 1
+    assert len(edges(graph, "channel_uses_handle")) == 1 and len(edges(graph, "posted_from_channel")) == 1
+    reply = edges(graph, "replies_to_post")
+    assert len(reply) == 1 and reply[0]["provenance"]["field"] == "raw.source_row.engagement.referenced_tweet_ids"
+    profile = nodes(graph, "AffiliationProfile")[0]["properties"]
+    assert (profile["type"], profile["region"], profile["status"]) == (
+        "Investor-owned Company", "Atlantis", "source_supplied_profile_not_verified")
+    assert edges(graph, "source_profiles_affiliation")[0]["source"] == nodes(graph, "SponsorCandidate")[0]["id"]
+    # A user ID is projected by the database but never becomes a graph value.
+    assert "private-user-id-zq" not in json.dumps(graph)
+    assert validate_graph(graph) == []
+
+
+def test_a_reference_type_names_only_a_single_referenced_post():
+    graph = build_graph([x_row(social_source={"engagement": {"referenced_tweet_ids": ["9001", "9002"]},
+                                              "reference_type": "quoted"})])
+    assert not edges(graph, "quotes_post") and len(edges(graph, "references_post")) == 2
+
+
+def test_two_posts_share_handle_hashtag_and_channel_nodes_but_keep_their_own_edges():
+    graph = build_graph([x_row(), x_row(record_id="social-post:2", version_id="sv2",
+                                        url="https://twitter.com/Tidal_Co/status/5006")])
+    assert len(nodes(graph, "Channel")) == 1 and nodes(graph, "Channel")[0]["record_ids"] == ["social-post:1", "social-post:2"]
+    assert len(nodes(graph, "Hashtag")) == 1 and len(edges(graph, "uses_hashtag")) == 2
+
+
+def test_a_social_row_without_projected_source_fields_keeps_the_earlier_shape():
+    graph = build_graph([row(record_id="r3", version_id="v3", dataset="social", platform="Twitter", account="Tidal Co")])
+    assert "engagement" not in nodes(graph, "SocialPost")[0]["properties"]
+    assert not nodes(graph, "Channel") and not nodes(graph, "Hashtag")
+
+
+def test_a_referenced_post_names_the_collected_post_when_the_database_matched_it():
+    graph = build_graph([x_row(social_source={
+        "engagement": {"referenced_tweet_ids": ["9001", "9002"]},
+        "collected_posts": {"9001": "social-post:abc", "9002": None}})])
+    status = {n["properties"]["platform_post_id"]: n["properties"] for n in nodes(graph, "ReferencedPost")}
+    assert status["9001"]["collection_status"] == "collected_post"
+    assert status["9001"]["detail_url"] == "/records/social-post%3Aabc"
+    assert status["9002"]["collection_status"] == "not_in_collection"
+    assert nodes(build_graph([x_row()]), "ReferencedPost")[0]["properties"]["collection_status"] == (
+        "not_resolved_to_a_collected_post")

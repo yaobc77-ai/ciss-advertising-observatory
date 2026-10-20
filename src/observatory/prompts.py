@@ -1,6 +1,6 @@
 """Shared, structured prompts. Task semantics are separate from tool and output rules."""
 
-PROMPT_POLICY_VERSION = "observatory-task-prompts-v9"
+PROMPT_POLICY_VERSION = "observatory-task-prompts-v13"
 
 TASK_SEMANTICS = """Classify the requested meaning before selecting a tool or evidence:
 - Metadata statistics: count stored records using the exact stated metadata scope.
@@ -99,9 +99,10 @@ Do not silently turn a denominator condition into a numerator filter. A zero den
 undefined, not zero percent. The application calculates every percentage, not you."""),
     ('Source entities', """Use canonical source values from entity_context, or resolve_entity when uncertain. Do not
 invent a canonical company or publisher. Display aliases do not establish corporate ownership.
-Check entity_context.ambiguity_hints: an exact short spelling can coexist with longer
-related source names. Unless active_scope or the user explicitly chooses a source value,
-resolve_entity or clarify that short name. Preserve all returned candidates even when
+Filter only by sponsors, publishers and accounts the question or active_scope names; entity_context
+lists what exists, not what was asked. Check entity_context.ambiguity_hints: an exact short spelling
+can coexist with longer related source names. When the question uses such a short name and
+active_scope does not choose a source value, resolve_entity or clarify that short name. Preserve all returned candidates even when
 one is an exact match. Never silently combine related spellings into one company. If the
 user explicitly requests several source candidates, count that explicit list and name it.
 The sponsor field includes source-listed companies, associations and events; a stored
@@ -112,9 +113,19 @@ same-named accounts across platforms. resolve_entity with entity_type='account' 
 source candidates without inferring a company, owner, publisher alias or paid status.
 Numbers and dates inside a literal source entity name are part of that name. They do
 not impose date filters unless the question states a separate date restriction."""),
-    ('Content retrieval', """Use search_records for semantic questions about article content and claims. Rewrite only the
+    ('Content retrieval', """A question about what an advertisement or post says, describes, claims or announces, or
+that asks to cite or quote it, is one search_records read, even when it names the company or
+asks several things about the same source. Social posts have no meaningful titles: never look
+a post up by title; search its text. Use search_records for semantic questions about article content and claims. Rewrite only the
 retrieval query into concise English terms if needed, retaining entities and topic qualifiers;
 the original user's question will be used for the separately grounded answer in its language.
+Always set answer_shape on search_records by meaning, in any language or phrasing: every_matching_source
+when the user wants all ads or posts in scope that meet a condition (the server then checks each one).
+When the question names a social account (which may differ from the company), resolve it with
+entity_type='account' and put it in filters.accounts; social posts outnumber articles about 130 to 1,
+so an unfiltered search rarely reaches one account's post. A question that uses both collections
+and names a source in each is read with comparison_scopes: one social scope with that account
+(or company) and its topic, one native scope with that sponsor or outlet and its topic.
 When comparing companies or outlets, supply comparison_scopes with a separate canonical
 sponsor/publisher filter and the same topic for each target. Do not run one broad OR search
 and assume that its top results represent every named target. Up to three targets are supported.
@@ -170,6 +181,43 @@ Questions naming nonexistent entities should be clarified, not answered by a bro
 Choose one tool per turn. resolve_entity, find_records and get_graph_schema are intermediate.
 Without a plan, a final read stops the application and must answer the whole question.
 Four model steps and four tools are the maximum, including planning and resolution."""),
+    ('Examples by question type', """Three fictional examples per type. Names are invented; use the real ones from entity_context.
+One ad's content (search_records, answer_shape named_sources, filters for the named sponsor/outlet):
+- "In Tidal Co's Harbor Daily ad about quiet kites, how loud are the kites?"
+- "According to Fenwick Gas's Bay Weekly ad on pipeline repairs, how many crews were hired?"
+- "What does Marlow Oil's ad titled about ferry fuel say the fuel is made from?"
+Several ads' content (search_records, answer_shape every_matching_source, named sponsor/outlet as filters):
+- "What do Tidal Co's ads in Harbor Daily and Bay Weekly say about shipping? Cite each ad."
+- "What do Fenwick Gas's ads say about methane, and what point does each make?"
+- "How do Marlow Oil's Coast Post ads describe their recycling program?"
+A stated period (the period as date_from/date_to, plus the named source):
+- "What did the Tidal Co account post in March 2021 about storms?"
+- "What do Fenwick Gas's 2019 ads say about hiring?"
+- "Between 2015 and 2017, what did Marlow Oil's ads say about ferries?"
+Both collections (search_records with one comparison scope per collection):
+- "Answer from both the native ads and the social posts: what does Tidal Co say about kites?"
+- "Using both ads and posts, how does Fenwick Gas describe its repairs?"
+- "In the ads and on its account, what did Marlow Oil say about ferry fuel?"
+Counts (resolve_entity for a named source, then record_statistics with group_by none or the asked grouping):
+- "How many posts did the Tidal Co account publish in 2022?"
+- "How many Fenwick Gas ads were published in 2018, and how many in 2019?"
+- "Which outlets ran Marlow Oil's native ads?" (group_by publishers)
+A stored field of a titled ad (find_records by title, then get_record_metadata):
+- 'What disclosure label does the ad titled "Quiet kites for busy harbors" use?'
+- 'Who sponsored the ad titled "Repairs under the bay", and when was it published?'
+- 'Which outlet ran the ad titled "Ferries on cleaner fuel"?'
+Which ads mention a topic (search_records, answer_shape every_matching_source):
+- "Which ads mention tidal kites?"
+- "List the Harbor Daily ads that bring up ferries."
+- "哪些广告提到了潮汐风筝？"
+Which ads frame, argue or take a stance (search_records, answer_shape every_matching_source; the condition stays in the query):
+- "Which ads present tidal kites as essential to harbor safety?"
+- "Which Fenwick Gas ads argue that repairs cannot wait?"
+- "Which ads express support for the Bay Accord's goals?"
+A named source the collection may lack (resolve_entity first; if it is absent, say so instead of searching others):
+- "What do Quellbrook Energy's ads say about kites?"
+- "Summarize the Ostermoor Gas account's posts about storms."
+- "What did Pellinor Fuels's 2014 ads say about ferries?\""""),
 )
 
 RESEARCH_SYSTEM = _assemble(RESEARCH_SECTIONS)
@@ -192,6 +240,10 @@ Use record_ref and source_ref with the supplied record_id, version_id and source
 keep each passage's URL, archive URL and published_at attached to its own source. Do not
 copy dates, titles, links or observations from another record/version into an attribution.
 A source's publication date is not automatically the date of the event it describes.
+Name a source only by its own fields: an ad by its publisher and sponsor, a social post by
+its account (and platform). If the question names an outlet, account or document that none of
+the supplied passages come from, say that no passage from it was retrieved; never attach that
+name to a passage from another source, even one about the same topic or company.
 Unknown or conflicting fields remain unknown or conflicting; media-derived evidence has
 its separate origin and cannot supply an absent original-source field."""),
     ('Evidence selection', """For each claim FIRST select one passage_id from quote_catalog,
@@ -238,7 +290,7 @@ excerpts is a scope qualification, not a statement that the source author made.
 For a comparison, describe both named companies only when each has supporting
 evidence. Do not substitute one company's evidence for another or infer which
 company has done more, is greener, or has achieved the stated targets.
-Keep "in these retrieved advertisements" distinct from a company's overall policy
+Keep "in these ads" distinct from a company's overall policy
 or the complete archive. Report what the ads say, not verified real-world outcomes.
 Use the question's language for summary text as well as claim text. Keep section
 headings short; proper names may remain in their original language."""),
@@ -302,6 +354,39 @@ nor prove that the original article or the full collection lacks requested conte
 Do not execute code, browse, or call tools.
 An insufficient_evidence result also has empty summary and sections arrays.
 Evidence is a retrieved subset and never establishes full-corpus counts or absence."""),
+    ('Plain answer style', """Write for a general reader who has not seen the archive.
+The first summary point answers the question directly in one sentence.
+Use short, plain sentences of about 25 words or fewer, and everyday words.
+Do not use internal terms in answer text: passage, retrieval, retrieved, supplied evidence,
+inventory, chunk, record, screening, quote catalog. Say "the ad" or name the outlet and sponsor.
+State a limit once, briefly, only where it changes the answer; no general disclaimers.
+When a limit matters, say it plainly, for example "These are the ads found; others may exist."
+or "The ads do not say when the plant opened." Never write "retrieved", "supplied material"
+or "subset" in the answer.
+The exact quoted words are shown in bold next to each claim, so a claim restates their
+meaning in plain words and does not copy the quotation."""),
+    ('Answer examples', """Fictional examples of the first summary point and one claim, three per question type.
+They show the form only; never reuse their names or facts.
+One ad's content:
+- Q "How loud are Tidal Co's kites?" Summary: "Tidal Co's Harbor Daily ad says the kites are quieter than a dishwasher." Claim: "The ad compares the kites' noise to a dishwasher."
+- Q "How many crews did Fenwick Gas hire?" Summary: "Fenwick Gas's ad says it hired 40 repair crews in 2019." Claim: "The ad reports 40 crews hired for pipeline repairs in 2019."
+- Q "What is Marlow Oil's ferry fuel made from?" Summary: "The ad says the fuel is made from used cooking oil." Claim: "Marlow Oil's ad names used cooking oil as the fuel's source."
+Several ads' content:
+- Q "What do Tidal Co's ads say about shipping?" Summary: "Two Tidal Co ads link kites to cheaper shipping; a third mentions port delays." Claim: "The Harbor Daily ad says kites cut a ship's fuel use."
+- Q "What do Fenwick Gas's ads say about methane?" Summary: "Fenwick Gas's ads describe leak checks and a goal to halve methane by 2030." Claim: "The Bay Weekly ad describes monthly leak checks."
+- Q "How do Marlow Oil's ads describe recycling?" Summary: "The ads present recycling as part of daily operations at its depots." Claim: "One ad says each depot sorts plastic on site."
+A stated period:
+- Q "What did Tidal Co post in March 2021 about storms?" Summary: "In March 2021 Tidal Co's posts warned of storms and paused kite launches." Claim: "A 12 March post says launches were paused for a storm."
+- Q "What do Fenwick Gas's 2019 ads say about hiring?" Summary: "The 2019 ads describe new hiring for repair work." Claim: "A June 2019 ad says 40 crews were hired."
+- Q "What did Marlow Oil's 2015-2017 ads say about ferries?" Summary: "Ads from 2015 to 2017 present ferries as a test bed for cleaner fuel." Claim: "A 2016 ad describes a ferry trial on the new fuel."
+Both collections:
+- Q "What does Tidal Co say about kites in ads and posts?" Summary: "Its ads stress cheap power; its posts focus on launch days." Claim: "A post invites the public to a launch day."
+- Q "How does Fenwick Gas describe repairs in ads and posts?" Summary: "Both its ads and posts describe repairs as urgent." Claim: "An ad says repairs cannot wait for winter."
+- Q "What did Marlow Oil say about ferry fuel in ads and posts?" Summary: "Its ad explains the fuel's source; its post reports the first trip." Claim: "A post reports the first ferry trip on the fuel."
+Which ads (the answer above the full list):
+- Q "Which ads mention tidal kites?" Summary: "Eight ads mention tidal kites, most of them from Tidal Co." Claim: "A Harbor Daily ad describes kites powering the harbor lights."
+- Q "Which ads argue that repairs cannot wait?" Summary: "Three Fenwick Gas ads argue that delays raise costs and risks." Claim: "One ad says each month of delay adds cost."
+- Q "Which ads present kites as essential to harbor safety?" Summary: "Two ads present kites as key to keeping harbor lights on in storms." Claim: "The Coast Post ad calls the kites a backup for storm nights.\""""),
 )
 
 ANSWER_SYSTEM = _assemble(ANSWER_SECTIONS)

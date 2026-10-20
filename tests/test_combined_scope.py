@@ -12,7 +12,13 @@ from test_dashboard_aggregate_reuse import (  # noqa: F401
     readonly_pg,
 )
 
-from observatory.app import _collection_filter_values, _filters, create_app
+from observatory.app import (
+    FILTER_NAMES,
+    FILTER_VALUE_COUNT,
+    _collection_filter_values,
+    _filters,
+    create_app,
+)
 from observatory.models import Filters
 
 
@@ -43,10 +49,11 @@ def test_collection_switch_shows_unified_records_and_preserves_all_filter_values
 
 
 def test_unified_filter_values_are_a_third_independent_scope():
-    assert list(_collection_filter_values("all", list(range(27)))) == list(range(18, 27))
-    for field in ("publishers", "platforms", "labels", "accounts"):
-        values = [[], [], [], [], [], [], None, None, ["include"]]
-        values[("publishers", "sponsors", "platforms", "keywords", "labels", "accounts").index(field)] = ["hidden"]
+    count = FILTER_VALUE_COUNT
+    assert list(_collection_filter_values("all", list(range(3 * count)))) == list(range(2 * count, 3 * count))
+    for field in ("publishers", "platforms", "labels", "accounts", "replies"):
+        values = [*([] for _ in FILTER_NAMES), None, None, ["include"]]
+        values[FILTER_NAMES.index(field)] = ["hidden"]
         with pytest.raises(ValueError, match="specific collection"):
             _filters("all", *values)
 

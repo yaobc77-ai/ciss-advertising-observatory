@@ -113,6 +113,8 @@ def test_query_and_single_channel_rrf_match_current_database_search(question):
             pass
 
         def execute(self, sql, params=None):
+            if "title_coverage" in sql:
+                return Rows([])  # no native title matches: the single text channel is compared
             if params:
                 captured.append(params)
             return Rows(rows if params else [])
@@ -125,7 +127,8 @@ def test_query_and_single_channel_rrf_match_current_database_search(question):
         assert existing == [] and captured == []
     else:
         # First parameter is the plain term list used for lexical coverage ranking.
-        assert captured[0][1] == query == captured[0][-1]
+        # The channel row limit follows the query (F26: 50, or two per requested record).
+        assert captured[0][1] == query == captured[0][-2] and captured[0][-1] == 50
         assert captured[0][0] == query.replace("\"", "").replace(" OR ", " ")
         derived = comparison.select_records([{**row, "chunk_id": row["evidence_id"]} for row in rows], chunks_per_record=3)
         assert [(row.evidence_id, row.score) for row in existing] == [(row["chunk_id"], row["score"]) for row in derived]

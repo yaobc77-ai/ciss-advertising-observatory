@@ -1,0 +1,1 @@
+run_id,attempt_id,request_id,query_id,ranking_id,stage,retrieval_mode,retrieval_group_id,collection,unit_type,effective_filters_json,requested_k,returned_count,status,failure_stage,reason,qrels_scope_id

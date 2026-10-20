@@ -15,7 +15,7 @@ from flask import session
 from .analytics import csv_safe_cell, sponsor_display
 
 COMPANY_PREFIX = "company:"
-FILTER_NAMES = ("publishers", "sponsors", "platforms", "keywords", "labels", "accounts")
+FILTER_NAMES = ("publishers", "sponsors", "platforms", "keywords", "labels", "accounts", "replies")
 FILTER_COUNT = len(FILTER_NAMES) + 3
 COLLECTION_NAMES = {"native": "Native advertisements", "social": "Company social posts"}
 COLORS = {"native": "#456992", "social": "#168477"}

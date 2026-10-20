@@ -1,5 +1,52 @@
 # Implementation and acceptance status
 
+## Current local work — 6 October 2026
+
+The latest local scope is recorded in [goal.md](../goal.md) and [plan.md](../plan.md).
+The dated release receipts below keep their original scope; they do not verify
+the later uncommitted changes or their deployment.
+
+| Area | Current evidence | Remaining work |
+| --- | --- | --- |
+| Social input and exploration | The Twitter export and field information were received. All 37,082 prepared rows passed full import and repeat import in an owned isolated database, with every payload, body, annotation and current version reconciled; the repeat added zero versions. Account filtering, record details and 13 historical source-label distributions are implemented locally. | Confirm post/paid-ad scope and duplicate counting, then admit and import the approved scope into the application, deploy, and evaluate real user tasks. The isolated database was removed and both admission flags remain False; storage verification does not establish admission or label accuracy. Do not request the received export again. |
+| Content questions and CLAIMS | All 24 client questions are retained. [Current-source materials](native_truncated_text_update_20261006.md) were separately refreshed after the nineteen latest TXT updates: 263 records, 6,312 pending judgments, 254 ready requests and nine not requested. Source positions and bindings passed files-only checks; 37 legacy classification candidates remain on hold. | Obtain approval for the bounded real-model pilot, confirm definitions and semantic judgments with a named reviewer, and publish approved results separately. No real model response, approved classification or quality score was created; older frozen packets retain their own versions. |
+| Video placeholders | The [video plan](video_recovery_plan.zh-CN.md) covers 14 originally countable placeholders. Six supplied page TXT files have received recorded AI engineering reviews and were adopted in the local database; 23 lexical chunks use only reviewed ranges. Full TXT, metadata, counting and old versions are preserved; exact repeat adds zero versions. | Obtain actual captions or speech transcripts, add time-linked evidence, and measure effort. These six files are partial saved page text, not recovered videos, verified publisher pages, reviewed classifications or customer approval. New embeddings and remote publication remain separate. |
+| Truncated nonvideo texts | The [latest twenty-candidate review](native_truncated_text_update_20261006.md) adopted nineteen supplied texts after AI full-text/source review; source79 replacement was rejected to retain current disclosure/footnote. Full TXT is preserved with explicit retrieval ranges. Guarded local import added nineteen versions and 74 lexical passages, exact repeat zero; nineteen detail reads passed. The earlier two-text batch is retained separately. | Publisher-page completeness, other source defects, source79 navigation cleanup, semantics, embeddings and publication remain pending. A literal domain-word probe did not match; source probes are not retrieval scores. No video-only accuracy tradeoff was applied. Latest source/request materials were rebound with 6,312 judgments still unknown/pending; the earlier 1,844 application checks retain their former source scope. |
+| User-facing evaluation | The local Evaluation page provides 16 definitions and a version-bound report interface. No reviewed real report is configured. | Run the agreed tasks, retain failures, complete independent review and publish scores for the recorded versions. |
+| Source handoff | The [latest local candidate](current_source_candidate_20261006.md#latest-candidate-after-saved-txt-and-statistics-preflight) has 598 payloads, including all 84 runtime files, 140 tests, 44 maintenance files and 19 evaluation files. It includes saved-TXT notes, the statistics preflight and current planning records. Its extracted-source wheel passed 72 module imports, ten help entries and 469 selected installed checks; three Windows link-creation cases were skipped. Final nondocument bytes match the tested source; earlier archives retain their own evidence. | Obtain publication approval, reproduce with another implementer, and complete the dual-dataset demonstration and customer acceptance. This installation used the same machine and cached dependencies; no real model or database was evaluated, and source data, review packets and service configuration require separate handoff. |
+
+No full-project acceptance is established. The historical statements below that
+social material was still missing describe their recorded dates.
+
+The local evidence is retained privately in
+`.runtime/social_full_import_20261006/import_receipt-02.json` and
+`.runtime/current_source_handoff_storage_20261006/verification.json`.
+The latter binds the source archive, extracted files, installed runtime and
+tested wheel; neither receipt establishes a published release, semantic
+performance or customer acceptance. The original input and older receipts are
+preserved.
+
+Current local totals after the nineteen-text batch are 263 countable native records,
+232 retrievable records and 622 active-profile chunks. Its transaction, repeat
+and readers are in `.runtime/native_truncated_review_20261006/`.
+The earlier two-text transaction,
+repeat and readers are in `.runtime/native_text_review_20261006/`. The six-text
+local transaction, repeat and public-detail checks are retained in
+`.runtime/video_text_review_20261006/`; those stages had 582 and 579 active chunks
+respectively. New lexical chunks have no new embeddings. Other-record checks cover current-version bindings and
+active status; selected historical checks cover body and payload, not a full
+database content audit. The 169 selected offline tests and separate files-only
+review do not establish semantic performance, recovered video or publication.
+
+The earlier [six-text source refresh](content_source_refresh_20261006.md)
+retain all 24 questions and 6,312 pending judgments. A separately observed
+read-only database reference matched all 275 metadata rows in the same full
+source snapshot; 1,844 explicit application checks passed for matrix members,
+relationships, graph source paths, year ties and period boundaries. Source,
+index and usage/answer/output/embedding fingerprints stayed unchanged. The
+first offline-reference identity error is retained separately; natural-language
+interpretation, semantic scores and customer acceptance remain unevaluated.
+
 The [selected PDF-265 attachment is now hosted](../reports/RECORD_ASSETS_HOSTED_20260930.en.md). Complete mounted-file checks passed in two different deployments; local and hosted HTTP checks matched the body, PDF, download and preview bytes and verified cross-record isolation. Browser inspection showed the preview and source controls. This covers one engineering-reviewed capture, not complete archive coverage, new CLAIMS publication or client acceptance.
 
 ## 0.4.10 native exports and runtime — 1 October 2026

@@ -58,6 +58,14 @@ def validate_payload(payload):
     return validate_answer(materialize_selections(parsed, catalog), ev)
 
 
+def assert_navigation_dropped(payload, reason=""):
+    """A malformed summary/section grouping is dropped; verified claims remain."""
+    answer = validate_payload(payload)
+    assert answer.status == "answered" and answer.cited_claims and answer.citations
+    assert not answer.summary and not answer.sections
+    assert reason.lower() in answer.research_trace["answer_structure_dropped"].lower()
+
+
 def test_summary_and_sections_reference_exact_original_citations():
     evidence = sources()
     before = [e.model_dump() for e in evidence]
@@ -77,11 +85,10 @@ def test_summary_and_sections_reference_exact_original_citations():
 
 
 @pytest.mark.parametrize("refs", [[], [0], [3], [1, 1], [-1]])
-def test_summary_rejects_missing_duplicate_or_out_of_range_citations(refs):
+def test_summary_with_missing_duplicate_or_out_of_range_citations_is_dropped(refs):
     payload = selected()
     payload["summary"][0]["citation_indices"] = refs
-    with pytest.raises(ValueError, match="citation"):
-        validate_payload(payload)
+    assert_navigation_dropped(payload, "citation")
 
 
 @pytest.mark.parametrize("refs", [[True], ["1"], [1.0]])
@@ -98,18 +105,16 @@ def test_structure_citation_numbers_are_strict_integers(refs):
     [{"title": "A", "citation_indices": [1]}, {"title": "A", "citation_indices": [2]}],
     [{"title": "  ", "citation_indices": [1, 2]}],
 ])
-def test_sections_cannot_omit_duplicate_or_hide_claims(sections):
+def test_sections_that_omit_duplicate_or_hide_claims_are_dropped(sections):
     payload = selected()
     payload["sections"] = sections
-    with pytest.raises(ValueError):
-        validate_payload(payload)
+    assert_navigation_dropped(payload)
 
 
-def test_summary_cannot_omit_a_company_that_has_an_answer_section():
+def test_summary_omitting_a_section_is_dropped():
     payload = selected()
     payload["summary"][0]["citation_indices"] = [1]
-    with pytest.raises(ValueError, match="omits"):
-        validate_payload(payload)
+    assert_navigation_dropped(payload, "omits")
 
 
 @pytest.mark.parametrize("field", ["summary", "sections"])
@@ -120,11 +125,10 @@ def test_new_explicit_output_cannot_drop_its_structure(field):
         validate_payload(payload)
 
 
-def test_summary_cannot_invent_inline_citation_numbers():
+def test_summary_with_inline_citation_numbers_is_dropped():
     payload = selected()
     payload["summary"][0]["text"] += " [999]"
-    with pytest.raises(ValueError, match="structured references"):
-        validate_payload(payload)
+    assert_navigation_dropped(payload, "structured references")
 
 
 def test_historical_selection_fixture_and_saved_answer_remain_loadable():
@@ -337,3 +341,32 @@ def test_all_content_question_forms_generate_and_persist_cited_structure(
     assert saved["sections"] == sections
     assert saved["claims"] == [{"support_passage_ids": [], **claim} for claim in payload["claims"]]
     rag.budget.uncertain.assert_not_called()
+
+
+def test_a_claim_with_support_from_another_source_is_dropped_not_the_answer():
+    payload = selected()
+    payload["claims"][1]["support_passage_ids"] = ["Q1"]  # support from Company A's ad
+    answer = validate_payload(payload)
+    assert answer.status == "answered"
+    assert [claim.text for claim in answer.cited_claims] == [payload["claims"][0]["text"]]
+    assert answer.research_trace["unverified_claims_dropped"] == ["Unrelated passage support"]
+    # Positional navigation no longer fits the remaining claims.
+    assert not answer.summary and not answer.sections
+
+
+def test_an_answer_whose_only_claim_is_unverified_still_fails():
+    payload = selected()
+    payload["claims"] = [{**payload["claims"][1], "support_passage_ids": ["Q1"]}]
+    payload["summary"][0]["citation_indices"] = [1]
+    payload["sections"] = [{"title": "Company B", "citation_indices": [1]}]
+    with pytest.raises(ValueError, match="Unrelated passage support"):
+        validate_payload(payload)
+
+
+def test_passage_ids_copied_into_prose_are_removed_but_text_and_numbers_stay():
+    from observatory.rag import _without_passage_ids
+
+    assert _without_passage_ids("Bruce Tocher leads shale research. [Q4–Q6]") == "Bruce Tocher leads shale research."
+    assert _without_passage_ids("It loses 6 to 8 percent [Q12] of its power.") == "It loses 6 to 8 percent of its power."
+    assert _without_passage_ids("Shares rose [Q3, Q5-Q7] in 2019.") == "Shares rose in 2019."
+    assert _without_passage_ids("Quarter [Q2 results] and 2024 [1] stay.") == "Quarter [Q2 results] and 2024 [1] stay."

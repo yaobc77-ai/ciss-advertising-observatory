@@ -1,12 +1,37 @@
 # 本机与部署运行、预算及交接
 
-**2026-09-30 当前入口：** 线上 0.4.2 的发布证据见[选取关系回执](../reports/graph_selection_publication_v0_4_2_20260930.json)。新增[英文交接说明](current_handoff.md)、[私有附件配置](record_assets.md)和[固定快照完整恢复](../reports/DATABASE_RESTORE_20260930.en.md)。本机 15 表、向量、历史答案及用量账本已恢复对账；该结果不覆盖 Railway 的独立快照或异机恢复。本轮 0.4.3 维护代码尚须按新提交核对发布。下文 0.4.1 及旧阶段命令／数字按其历史范围阅读。
+## 2026-10-06 本机交接入口
+
+最新代码、资料与发布状态以[当前交接](current_handoff.md)为准。本机已实现 Evaluation 页面和 Data → Overview 的 **Reviewed content questions** 入口；没有配置真实审定评价报告或内容发布，263条原生记录的6,312项判定仍全部pending。新功能尚未公开发布；旧版0.4.10的安装和部署回执不覆盖后续本机修订。真实社交准入、模型运行、人工审查和客户验收继续待办。
+
+### 选择私有评价报告与审定内容
+
+两条路径均由服务器运维人员显式选择，参数见[.env.example](../.env.example)；默认留空，浏览器不能上传报告或设定文件路径、审核人和批准。私有工件单独传递或挂载，不放入 Git、公开静态目录或代码镜像。以下只列出配置含义，没有应用实际路径或指纹。
+
+| 服务器设置 | 所选工件与核对对象 |
+| --- | --- |
+| `OBS_EVALUATION_REPORT_PATH` | 符合[评价报告契约](customer_metric_report.md)的私有 JSON 文件路径。 |
+| `OBS_EVALUATION_REPORT_SHA256` | 该报告原始文件字节的 SHA-256。 |
+| `OBS_EVALUATION_PLAN_SHA256` | 独立保留的冻结评价计划指纹，按 `metric_plan_sha256` 的计划契约核对；不以未核实报告自己声明的指纹代替。 |
+| `OBS_CONTENT_PUBLICATION_PATH` | 由[审定内容准备流程](content_publication.md)生成的私有 `publication.json` 路径。 |
+| `OBS_CONTENT_PUBLICATION_SHA256` | 该发布文件原始字节的 SHA-256。 |
+| `OBS_CONTENT_REVIEW_SHA256` | 对应审查文件原始字节的 SHA-256，与发布内保留的审查绑定一致。 |
+
+选择前由运维人员核对真实运行、来源、定义、审查权限和对应版本，并审阅公开投影。文件指纹和审核声明不认证人员身份或客户批准；合成测试工件不作为生产证据。不改写旧报告、审查文件或发布文件；更新使用新文件路径和新指纹，保留原始材料与回执。更改配置后重启应用以读取新选择，再检查页面的冻结范围与版本；开启这些读取不执行模型、导入、重算向量或客户验收。
+
+`/evaluation` 只展示聚合、范围、样本覆盖、失败、日期、方法与局限，不展示原始答案、个人审查记录、姓名和私有路径。报告读取发生在应用创建时，运行中不自动重载文件。所有设置留空时保持待评；设置不全、文件缺失、过大、指纹或契约失配时显示 unavailable，不补造分数或回显路径。已载入的分数只描述其冻结运行，页面不自动比对当前代码／数据／索引；部分算术仅为标明覆盖的已评子集，空分母不生成成绩。评价解读见[方法](evaluation_methodology.md)。
+
+内容名单在每次读取时校验所选发布和审查指纹，并比对当前记录、正文版本、哈希及允许区间。待审、不足正文和版本漂移保留 unknown；配置缺失或发布无效时返回 unavailable，不代入草案或报告零命中。翻页和导出会重读并检查问题、筛选、发布及来源范围；变化后须重新读取首页。页 JSON 只包含当页审定命中与全选择覆盖，仅当 `classification_complete` 与 `page_complete` 都为true才是完整命中名单。公开投影不包含审核人身份、批准引用和本地路径；操作与正文证据见[用户指南](guide.md#current-local-review-work)。
+
+## 历史发布与运行记录
+
+**2026-09-30 历史入口：** 线上 0.4.2 的发布证据见[选取关系回执](../reports/graph_selection_publication_v0_4_2_20260930.json)。新增[英文交接说明](current_handoff.md)、[私有附件配置](record_assets.md)和[固定快照完整恢复](../reports/DATABASE_RESTORE_20260930.en.md)。本机 15 表、向量、历史答案及用量账本已恢复对账；该结果不覆盖 Railway 的独立快照或异机恢复。该次 0.4.3 维护代码尚须按新提交核对发布。下文 0.4.1 及旧阶段命令／数字按其历史范围阅读。
 
 0.4.1 修复初次图谱加载可能为空的回调竞态；当前状态见[发布记录](../reports/RELEASE_V0_4_0_20260930.zh-CN.md)，独立制品回执见[0.4.1复现](../reports/current_release_database_reproduction_v0_4_1_20260930.json)。以下0.4.0测试与规模基准保持其版本范围。
 
-更新日期：2026-09-30。当前发布运行契约为 **0.4.1**；Railway 的实际发布状态以本轮部署回执和线上 `/healthz` 为准。下面标注旧日期的测试、费用和恢复记录保留其历史范围。
+历史更新日期：2026-09-30。该次发布运行契约为 **0.4.1**；Railway 的实际发布状态以对应部署回执和当时线上 `/healthz` 为准。下面标注旧日期的测试、费用和恢复记录保留其历史范围。
 
-## 当前状态 — 0.4.1
+## 历史状态 — 0.4.1
 
 查询入口为 `/query`、数据入口为 `/data`，根路径 `/` 进入查询。Data 提供当前范围的公司／来源所列赞助方与媒体统计、集合知识图谱、点击实体后的占比与来源记录，以及历史标签下钻。图谱边表达记录支持的关系，不认证商业合作；历史标签不是经过核验的 CLAIMS 判断。界面与限制见 [用户指南](user_guide.md)及[图谱详情验证](../reports/GRAPH_DETAILS_V2_20260929.zh-CN.md)。
 
@@ -30,7 +55,7 @@
 |---|---|
 | `status`、`record_counts`、`chunks`、`active_profile` | 服务状态、收录规模与当前检索索引；收录数不等于可统计或可检索数 |
 | `source_data_version`、`index_version`、`data_version` | 发布前后来源与索引是否变化 |
-| `application.version` | 实际安装包版本，应与本轮发布记录匹配（0.4.1） |
+| `application.version` | 实际安装包版本，应与所选部署的发布回执匹配 |
 | `application.commit` | 平台 `RAILWAY_GIT_COMMIT_SHA` 中有效的 40 位 Git SHA；无效或缺失时返回 `null` |
 | `application.features` | `collection_graph`、`graph_breakdowns`、`research_agent` 能力／开关状态；不代表数据完整或回答准确 |
 
