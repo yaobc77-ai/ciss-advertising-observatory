@@ -79,7 +79,12 @@ def test_the_semantic_projection_is_reproducible_and_labelled_as_names_not_co_oc
 
 
 def test_the_panel_reads_the_latest_build_and_explains_an_edge(tmp_path):
-    from observatory.cooccurrence_ui import detail_for, figure_for, latest_maps, summary_for
+    from observatory.cooccurrence_ui import (
+        detail_for,
+        figure_for,
+        latest_maps,
+        summary_for,
+    )
 
     units = units_from([("#kites", "#harbor")] * 3 + [("#kites",)] * 2)
     view = project(units, view="hashtags", unit_kind="X post", node_kind="hashtag", edge_meaning="same post",

@@ -1,7 +1,6 @@
 """Fictional list screening: every candidate gets a decision; only located quotes are listed."""
 import json
 import re
-
 from datetime import date
 from types import SimpleNamespace
 from unittest.mock import MagicMock, Mock

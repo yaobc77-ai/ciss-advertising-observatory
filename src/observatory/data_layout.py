@@ -6,8 +6,8 @@ from dash import dcc, html
 from .claims_ui import claims_panel
 from .collection_graph_ui import collection_graph_panel
 from .content_ui import content_panel
-from .historical_theme_ui import historical_theme_panel
 from .cooccurrence_ui import maps_panel
+from .historical_theme_ui import historical_theme_panel
 from .knowledge_ui import knowledge_panel
 from .network import network_figure
 from .research_explorer import explorer_panel

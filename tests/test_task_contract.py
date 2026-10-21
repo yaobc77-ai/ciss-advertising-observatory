@@ -1,6 +1,6 @@
 """Fictional task contracts (R2): a content search keeps the question's named source and
 period, and does not drop an independent part of a plan (Codex audit D1, D2, D6)."""
-from test_research_agent import FakeCatalog, harness, response
+from research_fakes import FakeCatalog, harness, response
 
 from observatory.models import Filters
 from observatory.question_policy import question_source_scope

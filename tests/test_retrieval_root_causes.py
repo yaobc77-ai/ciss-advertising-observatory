@@ -7,7 +7,7 @@ an ambiguity; search terms are English; a social post carries its own account.
 """
 
 import pytest
-from test_combined_tools import catalog_for
+from research_fakes import catalog_for
 from test_masked_repair import Catalog, ScriptedAgent, definition, stats
 
 from observatory.models import Evidence, Filters

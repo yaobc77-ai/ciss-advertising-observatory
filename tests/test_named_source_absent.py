@@ -1,7 +1,7 @@
 """A question restricted to a sponsor/account the collection lacks is answered as such (B1K-0544/0694)."""
 
 import pytest
-from test_research_agent import FakeCatalog, harness, response
+from research_fakes import FakeCatalog, harness, response
 
 from observatory.models import Filters
 from observatory.question_policy import restricts_to_named_source

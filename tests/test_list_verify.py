@@ -3,9 +3,8 @@ import json
 from types import SimpleNamespace
 from unittest.mock import Mock
 
-from test_list_screening import KITE, OTHER, VAGUE, screening_service
-
 import pytest
+from test_list_screening import KITE, OTHER, VAGUE, screening_service
 
 from observatory import list_screening
 from observatory.list_screening import Decision, Verdict, Verdicts

@@ -1,6 +1,6 @@
 """A read may not filter to a sponsor, publisher or account nobody named (B1K-P027/P006)."""
 
-from test_research_agent import FakeCatalog, harness, response
+from research_fakes import FakeCatalog, harness, response
 
 from observatory.models import Filters
 from observatory.research_agent import _ungrounded_source_names

@@ -1,6 +1,6 @@
 """A read that drops a collection the question names is returned to the model once (B1K cross-collection)."""
 
-from test_research_agent import FakeCatalog, harness, response
+from research_fakes import FakeCatalog, harness, response
 
 from observatory.models import Filters
 
