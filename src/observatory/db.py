@@ -134,8 +134,10 @@ INFERRED_DATE = ("(SELECT d.inferred_date FROM date_inferences d WHERE d.version
 # Whole-collection reads (the health digest, dashboard aggregates, filter options)
 # take seconds on the full collection, yet pages, callbacks and answers repeat them
 # many times per request. Reuse a result while no source table has been written.
-# Ledger tables change on every answer and feed none of these reads.
-READ_CACHE_VOLATILE_TABLES = ("usage_ledger", "answer_runs", "generation_outputs")
+# Ledger tables change on every answer and feed none of these reads; embeddings
+# gains each new question's vector. A maintenance step that only adds chunk
+# embeddings is therefore seen within READ_CACHE_SECONDS, not at once.
+READ_CACHE_VOLATILE_TABLES = ("usage_ledger", "answer_runs", "generation_outputs", "embeddings")
 READ_CACHE_SECONDS = 300
 READ_CACHE_ENTRIES = 32
 
@@ -448,6 +450,23 @@ class Database:
               ORDER BY d.tier,d.method LIMIT 1) di ON true
          WHERE {where}"""
         return sql, params
+
+    def public_titles(self, filters: Filters):
+        """(record_id, dataset, title) of every public row in scope; narrow and reused."""
+        def compute():
+            select, params = self._public_query(filters)
+            with self.connect() as conn:
+                rows = conn.execute(f"SELECT record_id,dataset,title FROM ({select}) AS titled", params)
+                return [(row["record_id"], row["dataset"], row["title"] or "") for row in rows]
+        return self._cached_read(("public_titles", filters.model_dump_json()), compute)
+
+    def count_public(self, filters: Filters):
+        """Number of public rows in scope, without transferring them."""
+        def compute():
+            sql, params = self._public_query(filters)
+            with self.connect() as conn:
+                return conn.execute(f"SELECT count(*) AS n FROM ({sql}) AS scoped", params).fetchone()["n"]
+        return self._cached_read(("count_public", filters.model_dump_json()), compute)
 
     def public_rows(self, filters: Filters):
         sql, params = self._public_query(filters)

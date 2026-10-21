@@ -5,12 +5,13 @@ import logging
 import re
 import time
 from collections import Counter
+from concurrent.futures import ThreadPoolExecutor
 from contextvars import ContextVar
 from copy import deepcopy
 from itertools import zip_longest
 from urllib.parse import urlsplit
 
-from .budget import LimitReached, price
+from .budget import QUESTIONS, LimitReached, price
 from .db import Database
 from .list_screening import (
     DISPLAY_LIMIT,
@@ -307,8 +308,11 @@ def _titled_records(db, question, filters):
         return " ".join(re.findall(r"\w+", text.lower()))
 
     query = normal(question)
-    return [(r["record_id"], r.get("dataset", filters.dataset)) for r in db.public_rows(filters)
-            if len(normal(r["title"])) >= 20 and normal(r["title"]) in query]
+    reader = getattr(db, "public_titles", None)
+    rows = (reader(filters) if callable(reader) else
+            [(r["record_id"], r.get("dataset", filters.dataset), r["title"]) for r in db.public_rows(filters)])
+    return [(record_id, dataset or filters.dataset) for record_id, dataset, title in rows
+            if len(normal(title or "")) >= 20 and normal(title or "") in query]
 
 class Service:
     def __init__(self, settings, db=None, rag=None, research_agent=None, claims_store=None, web_research=None):
@@ -745,6 +749,10 @@ class Service:
         return self._tool_statistics_answer(data, base_filters=trusted)
 
     def answer(self, question, filters, visitor, progress=None):
+        with QUESTIONS.question(visitor):
+            return self._answer_question(question, filters, visitor, progress)
+
+    def _answer_question(self, question, filters, visitor, progress=None):
         start = time.monotonic()
         # A default must never override a caller's explicit source-only choice.
         if "include_inferred_dates" not in filters.model_fields_set:
@@ -1539,7 +1547,7 @@ class Service:
         if not (scope.sponsors or scope.publishers or scope.accounts or scope.record_ids
                 or scope.date_from or scope.date_to) or not hasattr(self.db, "public_rows"):
             return 0
-        count = len(self.db.public_rows(scope))
+        count = self._scope_count(scope)
         return count if count <= SMALL_SCOPE_RECORDS else 0
 
     def _merge_article_passages(self, evidence, filters, limit):
@@ -1610,15 +1618,15 @@ class Service:
         from .question_policy import sources_content_request
 
         results, pool, cost, scopes, literal_only = [], [], 0.0, {}, pure_literal_question(question)
-        for _, scope in scoped:
-            dataset = scope.dataset
-            total = len(self.db.public_rows(scope))
-            scopes[dataset] = total
+
+        def screen_collection(scope):
+            dataset, found, spent, items = scope.dataset, [], 0.0, []
+            total = self._scope_count(scope)
             literal = (self._public_evidence(self.db.phrase_search(phrases, scope, limit_records=total + 1))
                        if phrases else [])
             if literal_only:
                 found = literal_results(literal, phrases[0])
-                pool.extend(literal)
+                items.extend(literal)
             else:
                 own = [e for e in evidence if getattr(e, "dataset", dataset) == dataset]
                 own = list({e.evidence_id: e for e in [*literal, *own]}.values())
@@ -1634,8 +1642,21 @@ class Service:
                 found, spent = screen_list(self.rag, question, own, visitor,
                                            limit=max(MAX_CANDIDATES, records), widen_to=max(MAX_WIDENED, records),
                                            reread=reread if hasattr(self.db, "record_passages") else None)
-                cost += spent
-                pool.extend([*own, *reread_passages])
+                items.extend([*own, *reread_passages])
+            return dataset, total, found, spent, items
+
+        # The collections are screened independently, so they run at the same time;
+        # results are combined in the original collection order.
+        collections = [scope for _, scope in scoped]
+        if len(collections) > 1:
+            with ThreadPoolExecutor(max_workers=len(collections)) as executor:
+                outcomes = list(executor.map(screen_collection, collections))
+        else:
+            outcomes = [screen_collection(scope) for scope in collections]
+        for dataset, total, found, spent, items in outcomes:
+            scopes[dataset] = total
+            cost += spent
+            pool.extend(items)
             results.extend({**item, "dataset": dataset} for item in found)
         pool = list({e.evidence_id: e for e in pool}.values())
         results = _with_accounts(results, pool)
@@ -1651,6 +1672,11 @@ class Service:
             result, writer_cost = self._summarize_list(question, result, results, pool, visitor, progress)
             cost += writer_cost
         return result, cost
+
+    def _scope_count(self, scope):
+        """Records in a scope; counted in the database when it can, not by reading every row."""
+        counter = getattr(self.db, "count_public", None)
+        return counter(scope) if callable(counter) else len(self.db.public_rows(scope))
 
     def _summarize_list(self, question, listed, results, evidence, visitor, progress=None):
         """Answer a list question in words before listing every matching ad.

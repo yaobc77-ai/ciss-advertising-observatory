@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import re
 from collections import Counter, defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from decimal import Decimal
 from typing import Literal
 
@@ -29,6 +30,10 @@ MAX_CANDIDATES = 40
 # ads read still had a match, up to MAX_WIDENED.
 MAX_WIDENED = 120
 WIDEN_WINDOW = 16
+# Batches are independent provider calls, so up to this many run at once.
+# Batch contents and the widening stop rule are unchanged: past `limit`, results
+# are applied in order and batches after the stop point are discarded.
+SCREEN_WORKERS = 8
 # Ads judged per call. Other ads in the batch sway a decision: replaying the
 # R round's 8-ad batches, 3 and 1 of 9 missed ads were found, alone 5; on 13
 # whole questions 4-ad batches listed every positive in 5, 8-ad ones in 2
@@ -312,6 +317,14 @@ def _reread_batches(groups):
         yield batch
 
 
+def _run_batches(calls):
+    """Run independent zero-argument calls, at most SCREEN_WORKERS at once, keeping order."""
+    if len(calls) <= 1:
+        return [call() for call in calls]
+    with ThreadPoolExecutor(max_workers=min(SCREEN_WORKERS, len(calls))) as pool:
+        return list(pool.map(lambda call: call(), calls))
+
+
 def screen(rag, question, evidence, visitor, limit=MAX_CANDIDATES, widen_to=None, reread=None, verify=None):
     """Return per-record decisions and the settled cost. One provider call per batch.
 
@@ -331,13 +344,24 @@ def screen(rag, question, evidence, visitor, limit=MAX_CANDIDATES, widen_to=None
     groups = candidates_by_record(evidence, max(limit, widen_to or 0))
     phrases = quoted_phrases(question)
     results, cost = [], Decimal("0")
-    for start in range(0, len(groups), BATCH_SIZE):
-        if start >= limit and not any(item["decision"] == "matches" for item in results[-WIDEN_WINDOW:]):
-            break
-        found, spent = _judge(rag, question, groups[start:start + BATCH_SIZE], start + 1, phrases, visitor,
-                              "list_screening")
-        results.extend(found)
-        cost += spent
+    starts = list(range(0, len(groups), BATCH_SIZE))
+    first_wave = max(1, sum(1 for start in starts if start < limit))
+    position, stopped = 0, False
+    while position < len(starts) and not stopped:
+        wave = starts[position:position + (first_wave if position == 0 else SCREEN_WORKERS)]
+        outcomes = _run_batches([
+            (lambda start=start: _judge(rag, question, groups[start:start + BATCH_SIZE], start + 1, phrases,
+                                        visitor, "list_screening"))
+            for start in wave
+        ])
+        for start, (found, spent) in zip(wave, outcomes):
+            cost += spent  # every dispatched call is paid, kept or not
+            if stopped or (start >= limit and not any(
+                    item["decision"] == "matches" for item in results[-WIDEN_WINDOW:])):
+                stopped = True
+                continue
+            results.extend(found)
+        position += len(wave)
     if reread is not None:
         shown = {group[0].record_id: {p.evidence_id for p in group} for group in groups}
         open_ids = [item["record_id"] for item in results if item["decision"] != "matches"]
@@ -347,10 +371,16 @@ def screen(rag, question, evidence, visitor, limit=MAX_CANDIDATES, widen_to=None
         partial = [whole[rid] for rid in open_ids
                    if whole.get(rid) and {p.evidence_id for p in whole[rid]} - shown.get(rid, set())]
         position = {item["record_id"]: n for n, item in enumerate(results)}
-        number = len(groups)
+        numbered, number = [], len(groups)
         for batch in _reread_batches(partial):
-            found, spent = _judge(rag, question, batch, number + 1, phrases, visitor, "list_screening_reread")
+            numbered.append((batch, number + 1))
             number += len(batch)
+        outcomes = _run_batches([
+            (lambda batch=batch, first=first: _judge(rag, question, batch, first, phrases, visitor,
+                                                     "list_screening_reread"))
+            for batch, first in numbered
+        ])
+        for found, spent in outcomes:
             cost += spent
             for item in found:
                 first = results[position[item["record_id"]]]["decision"]

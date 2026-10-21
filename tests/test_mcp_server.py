@@ -118,9 +118,9 @@ def test_protocol_published_claims_read_exposes_bounded_schema_and_exact_evidenc
 
 
 def test_protocol_reviewed_content_read_uses_actual_private_pins_and_public_evidence(tmp_path):
+    from observatory.evaluation_mask import EvaluationOnlyError
     from observatory.models import Filters
     from observatory.research_tools import ToolCatalog
-    from observatory.evaluation_mask import EvaluationOnlyError
 
     try:
         from tests.test_content_research import reviewed_service
