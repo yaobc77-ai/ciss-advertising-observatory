@@ -15,6 +15,8 @@
 | [来源附件](record_assets.md) | 原文、PDF 和截图的呈现 |
 | [运维说明](operations.md) | 环境配置、迁移和部署 |
 | [免费检查](test_gate.zh-CN.md) | 开发检查与隔离数据库 |
+| [组织身份](organization_identity.md) | 别名、原始字段与审核边界 |
+| [Git协作](git_collaboration.md) | 先同步远端、保留组员修改、分支审核上传 |
 
 ## 需求与记录
 
@@ -24,6 +26,7 @@
 | [用户目标](../user_goal.md) | 用户追加请求和完成情况 |
 | [总目标](../goal.md) | 项目范围和未完成事项 |
 | [计划](../plan.md) | 下一步与实施边界 |
+| [任务看板](task_board_20261008.md) | 10月8日五阶段进度快照 |
 | [工作记录](../work.md) | 实际改动、检查结果和具体问题 |
 | [交接说明](current_handoff.md) | 当前交接范围和材料要求 |
 
