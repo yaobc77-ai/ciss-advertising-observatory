@@ -1,8 +1,12 @@
 """Small PostgreSQL repository. Every public read follows records.current_version."""
 
+import copy
 import hashlib
 import json
 import re
+import threading
+import time
+from collections import OrderedDict
 
 import psycopg
 from pgvector.psycopg import register_vector
@@ -127,10 +131,20 @@ USABLE_INFERENCE = ("(d.review_state<>'rejected' AND (d.tier<>'C' OR d.review_st
 INFERRED_DATE = ("(SELECT d.inferred_date FROM date_inferences d WHERE d.version_id=v.version_id "
                  f"AND {USABLE_INFERENCE} AND d.precision='day' ORDER BY d.tier,d.method LIMIT 1)")
 
+# Whole-collection reads (the health digest, dashboard aggregates, filter options)
+# take seconds on the full collection, yet pages, callbacks and answers repeat them
+# many times per request. Reuse a result while no source table has been written.
+# Ledger tables change on every answer and feed none of these reads.
+READ_CACHE_VOLATILE_TABLES = ("usage_ledger", "answer_runs", "generation_outputs")
+READ_CACHE_SECONDS = 300
+READ_CACHE_ENTRIES = 32
+
 
 class Database:
-    def __init__(self, url: str):
+    def __init__(self, url: str, read_cache: bool = False):
         self.url = url
+        # Only the running application reuses reads; tools and tests read live.
+        self.read_cache = read_cache
 
     def connect(self, vector=False):
         if not self.url:
@@ -139,6 +153,48 @@ class Database:
         if vector:
             register_vector(conn)
         return conn
+
+    @staticmethod
+    def _write_marker(conn):
+        """Cumulative write counters; any committed source change moves them."""
+        row = conn.execute(
+            "SELECT COALESCE(sum(n_tup_ins+n_tup_upd+n_tup_del),0) AS writes,"
+            "count(*) AS tables FROM pg_stat_user_tables WHERE NOT relname = ANY(%s)",
+            (list(READ_CACHE_VOLATILE_TABLES),),
+        ).fetchone()
+        return (row["writes"], row["tables"])
+
+    def _cached_read(self, key, compute):
+        if not getattr(self, "read_cache", False):
+            return compute()
+        if not hasattr(self, "_read_cache"):
+            self._read_cache = OrderedDict()
+            self._read_cache_guard = threading.Lock()
+            self._read_cache_locks = {}
+        with self.connect() as conn:
+            marker = self._write_marker(conn)
+        with self._read_cache_guard:
+            key_lock = self._read_cache_locks.setdefault(key, threading.Lock())
+        # One computation per key; concurrent callers wait and reuse it.
+        with key_lock:
+            with self._read_cache_guard:
+                hit = self._read_cache.get(key)
+                if hit and hit[0] == marker and time.monotonic() - hit[1] < READ_CACHE_SECONDS:
+                    self._read_cache.move_to_end(key)
+                    return copy.deepcopy(hit[2])
+            try:
+                value = compute()
+            except BaseException:
+                with self._read_cache_guard:
+                    self._read_cache_locks.pop(key, None)
+                raise
+            with self._read_cache_guard:
+                self._read_cache[key] = (marker, time.monotonic(), value)
+                self._read_cache.move_to_end(key)
+                while len(self._read_cache) > READ_CACHE_ENTRIES:
+                    evicted, _ = self._read_cache.popitem(last=False)
+                    self._read_cache_locks.pop(evicted, None)
+            return copy.deepcopy(value)
 
     def initialize(self):
         from .indexing import bootstrap
@@ -692,6 +748,9 @@ class Database:
 
     def facets(self, dataset):
         """Fetch distinct filter options, without transferring article rows."""
+        return self._cached_read(("facets", dataset), lambda: self._compute_facets(dataset))
+
+    def _compute_facets(self, dataset):
         select, params = self._public_query(Filters(dataset=dataset))
         # This CTE is used twice and is materialized. Keep only facet fields
         # so PostgreSQL can prune body-bound social annotation validation and
@@ -723,6 +782,12 @@ class Database:
         """Read the full social source-state version, without rows or private data."""
         if filters.dataset != "social":
             raise ValueError("Historical social source versions require the social collection")
+        return self._cached_read(
+            ("social_source_state_version", filters.model_dump_json()),
+            lambda: self._compute_social_source_state_version(filters),
+        )
+
+    def _compute_social_source_state_version(self, filters: Filters):
         select, params = self._public_query(filters)
         with self.connect() as conn:
             return conn.execute(social_source_snapshot_sql(select), params).fetchone()["source_state_version"]
@@ -745,6 +810,14 @@ class Database:
 
     def dashboard(self, filters: Filters, offset=0, limit=20, sort_by="date", descending=True):
         """Aggregate in PostgreSQL; all charts share one read-only snapshot."""
+        self._page_bounds(offset, limit)
+        self._page_order(sort_by, descending)
+        key = ("dashboard", filters.model_dump_json(), offset, limit, sort_by, bool(descending))
+        return self._cached_read(
+            key, lambda: self._compute_dashboard(filters, offset, limit, sort_by, descending)
+        )
+
+    def _compute_dashboard(self, filters: Filters, offset=0, limit=20, sort_by="date", descending=True):
         from .analytics import LABEL_NOTE, sponsor_publisher_matrix_from_counts
 
         offset, limit = self._page_bounds(offset, limit)
@@ -958,6 +1031,9 @@ class Database:
         return {"relationships": rows, **totals, "truncated": len(rows) < totals["total_relationships"]}
 
     def health(self):
+        return self._cached_read(("health",), self._compute_health)
+
+    def _compute_health(self):
         from .indexing import profile_snapshot
 
         with self.connect() as conn:

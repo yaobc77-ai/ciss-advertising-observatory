@@ -129,7 +129,7 @@ def _plain_scope(scope, base):
 class Service:
     def __init__(self, settings, db=None, rag=None, research_agent=None, claims_store=None, web_research=None):
         self.settings = settings
-        self.db = db or Database(settings.database_url)
+        self.db = db or Database(settings.database_url, read_cache=True)
         self.rag = rag or Rag(self.db, settings)
         self.research_agent = research_agent
         self.claims_store = claims_store
