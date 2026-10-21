@@ -28,6 +28,8 @@ class Settings:
     research_agent_enabled: bool = False
     # One typed interpretation compiled to existing reads; opt in after validation.
     question_intent_enabled: bool = False
+    # /compare runs the same question with and without retrieval (paid); demo only.
+    compare_demo_enabled: bool = False
     # Planner reads may select social posts by X relations (mentions, hashtags,
     # replies to collected posts) and companies by source profile; opt in after
     # the A/C comparison.
@@ -73,6 +75,7 @@ class Settings:
             trusted_proxy=os.getenv("OBS_TRUSTED_PROXY", ""),
             research_agent_enabled=os.getenv("OBS_RESEARCH_AGENT_ENABLED", "false").lower() == "true",
             question_intent_enabled=os.getenv("OBS_QUESTION_INTENT_ENABLED", "false").lower() == "true",
+            compare_demo_enabled=os.getenv("OBS_COMPARE_DEMO_ENABLED", "false").lower() == "true",
             relation_selection_enabled=os.getenv("OBS_RELATION_SELECTION_ENABLED", "false").lower() == "true",
             claims_source_search_enabled=os.getenv("OBS_CLAIMS_SOURCE_SEARCH_ENABLED", "false").lower() == "true",
             web_search_enabled=os.getenv("OBS_WEB_SEARCH_ENABLED", "true").lower() == "true",

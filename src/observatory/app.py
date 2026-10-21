@@ -1941,6 +1941,9 @@ def create_app(service, settings, record_details=None) -> Dash:
     from observatory.knowledge_routes import register_knowledge_routes
 
     register_knowledge_routes(app.server, service, record_details)
+    from observatory.compare_demo import register_compare_demo
+
+    register_compare_demo(app.server, service, settings)
     if record_details is not None:
         from observatory.records import register_record_routes
 
