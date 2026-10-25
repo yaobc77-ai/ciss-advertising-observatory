@@ -108,6 +108,7 @@ class Filters(BaseModel):
     keywords: list[str] = Field(default_factory=list)
     labels: list[str] = Field(default_factory=list)
     record_ids: list[str] = Field(default_factory=list)
+    replies: list[Literal["reply", "not_marked"]] = Field(default_factory=list, description="Source post.is_reply marks in the social collection: 'reply' is marked true by the source; 'not_marked' is any other value, which is not a verified non-reply. Selecting both is no restriction.")
     date_from: date | None = None
     date_to: date | None = None
     include_unknown_dates: bool = True
@@ -118,6 +119,8 @@ class Filters(BaseModel):
     def validate_account_scope(self):
         if self.accounts and self.dataset != "social":
             raise ValueError("Account filters require the social collection")
+        if self.replies and self.dataset != "social":
+            raise ValueError("Reply filters require the social collection")
         validate_historical_label_scope(self.dataset, self.labels)
         return self
 
@@ -158,6 +161,9 @@ class Evidence(_ObservationSourceMetadata):
     title: str
     publisher: str = ""
     sponsor: str = ""
+    # A social post's own author; without it a post can only be attributed by guess.
+    account: str = ""
+    platform: str = ""
     url: str = ""
     archive_url: str = ""
     published_at: date | None = None

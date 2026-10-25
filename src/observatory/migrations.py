@@ -13,6 +13,9 @@ _NAME = re.compile(r"^(\d{4})_([a-z0-9_]+)\.sql$")
 _SCHEMA_STATEMENT = re.compile(
     # A transaction-local memory setting speeds index builds and changes no structure.
     r"^(?:CREATE\s+(?:EXTENSION|TABLE|(?:UNIQUE\s+)?INDEX)\b|ALTER\s+TABLE\b"
+    # Integrity triggers are structure: the trigger definition is compared below.
+    r"|CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+\w+\(\)\s+RETURNS\s+trigger\s+LANGUAGE\s+plpgsql\s+AS\s+\$\$\$\$$"
+    r"|CREATE\s+TRIGGER\b"
     r"|SET\s+LOCAL\s+maintenance_work_mem\s*=\s*'\d+MB'$)",
     re.IGNORECASE,
 )
@@ -184,6 +187,8 @@ def _adoptable_prefix(conn, migrations: list[Migration]) -> int:
         # Structural equality cannot prove that a data backfill already ran.
         # Fail closed for unsupported SQL instead of replaying it as evidence.
         without_comments = re.sub(r"/\*.*?\*/|--[^\n]*", "", migration.sql, flags=re.DOTALL)
+        # A function body is one statement; its inner semicolons do not split it.
+        without_comments = re.sub(r"\$\$.*?\$\$", "$$$$", without_comments, flags=re.DOTALL)
         statements = [statement.strip() for statement in without_comments.split(";") if statement.strip()]
         if any(not _SCHEMA_STATEMENT.match(statement)
                or re.search(r"\bAS\s+(?:SELECT|WITH|VALUES)\b", statement, re.IGNORECASE)
