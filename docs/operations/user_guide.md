@@ -1,6 +1,6 @@
 # Advertising Observatory user guide
 
-This guide describes the hosted **0.4.10** application, checked on **October 1, 2026**. The native collection contains 275 imported records, of which 263 appear in the default eligible selection and 226 have searchable text. Real social data is not connected. The [publication record](../reports/citation_v0_4_10_publication_20261001.json) identifies the tested code and unchanged source snapshot; it does not establish customer acceptance.
+This guide describes the hosted **0.4.10** application, checked on **October 1, 2026**. The native collection contains 275 imported records, of which 263 appear in the default eligible selection and 226 have searchable text. Real social data is not connected. The [publication record](../../reports/releases/citation_v0_4_10_publication_20261001.json) identifies the tested code and unchanged source snapshot; it does not establish customer acceptance.
 
 ## Navigate the application
 
@@ -50,7 +50,7 @@ Select a historical-label bar, or choose **Historical label** in **Read the labe
 
 ## Explore advertising relationships
 
-The hosted graph supports the following selection behavior. The [native walkthrough](../reports/NATIVE_DEMO_FOLLOWUP_20261001.en.md) records selected entity, matrix, label and article interactions; a customer usability review remains pending.
+The hosted graph supports the following selection behavior. The [native walkthrough](../../reports/data_audits/NATIVE_DEMO_FOLLOWUP_20261001.en.md) records selected entity, matrix, label and article interactions; a customer usability review remains pending.
 
 Open **Data → Knowledge graph**. The initial **Entities** view contains every source-listed sponsor/organization and outlet in the current filters, with every counted association between them. The default view has **27 entity nodes and 35 associations**, derived from 263 eligible records. Node size represents supporting record count; line width represents records co-listing that sponsor and outlet. There is no Top-N cutoff. One record lacks a sponsor and cannot produce a sponsor/outlet line; it remains available in Articles and Records. **Scope & missing fields** explains this coverage.
 
@@ -62,7 +62,7 @@ For an edge or article, the panel spells out the named **source → predicate �
 
 **Download selected counts** exports one data row when a category is selected, retaining the parent's denominator and share. With **All supporting records**, it exports every category. This CSV includes the selected focus, exact source value, count, share, denominator and missing-field flag; it differs from the complete-map JSON export.
 
-**Try a client question** provides direct Data shortcuts for ExxonMobil's publishers, Washington Post's sponsors and the New York Times record total, with no model call. They respect the current filters; an unavailable object produces an empty result rather than switching to all records. See the [second-iteration delivery report](../reports/GRAPH_DETAILS_V2_20260929.zh-CN.md) for the client requirement review.
+**Try a client question** provides direct Data shortcuts for ExxonMobil's publishers, Washington Post's sponsors and the New York Times record total, with no model call. They respect the current filters; an unavailable object produces an empty result rather than switching to all records. See the [second-iteration delivery report](../../reports/knowledge_graph/GRAPH_DETAILS_V2_20260929.zh-CN.md) for the client requirement review.
 
 1. Drag the canvas to pan, drag nodes to move them, and scroll or use **+ / −** to zoom. **Fit** fits the existing positions to the view. **Expand view** gives the graph more screen space; **Exit expanded view** or Escape returns. Opening or resizing the graph automatically fits its existing positions and preserves the selection; a Reset is not required. **Layout** starts with **By type**, placing sponsors and outlets in separate readable groups; Network, Circle and Grid are also available. Positions describe the layout, not a measured geographic or business distance. **Reset** clears the selected object and lays out the current graph again.
 2. Click a node or line, or use **Find a node or relationship** with the keyboard. The selection panel names the selected object or relationship, shows exact counts and connected names, and lists supporting articles. For example, The Washington Post has 18 supporting records across seven source-listed sponsors/organizations; ExxonMobil has 15 across four outlets. Other connections fade while the selected neighborhood is highlighted. In **Entities**, selection preserves manually moved positions and the viewport; record paging does so in both modes.
@@ -80,7 +80,7 @@ Open **Data → Records** for article titles, sponsors, outlets, publication dat
 
 **Download selected records** exports all records selected by the collection filters, including records on other pages. It includes record/version identifiers and historical labels for traceability. Sorting the grid changes display order, not collection membership. This record export differs from **Download counts** in Overview, which exports grouped sponsor/outlet counts.
 
-Dates missing from the source appear as **(Unknown)** in the records CSV. The [download check](../reports/native_export_reconciliation_20261001.json) reconciled the actual full-selection downloads: 263 distinct records and all 160 matrix cells. With ExxonMobil, The Washington Post, 2022 and unknown dates excluded, both downloads contained the same three records shown by the matrix. These checks do not resolve the company/association counting policy or validate sponsor identities.
+Dates missing from the source appear as **(Unknown)** in the records CSV. The [download check](../../reports/data_audits/native_export_reconciliation_20261001.json) reconciled the actual full-selection downloads: 263 distinct records and all 160 matrix cells. With ExxonMobil, The Washington Post, 2022 and unknown dates excluded, both downloads contained the same three records shown by the matrix. These checks do not resolve the company/association counting policy or validate sponsor identities.
 
 Original links, public online archive links and local PDF snapshots are distinct. The current native selection has **no public archive URL**, **one reviewed local PDF snapshot**, **254 other records with unverified candidate files**, and **eight without a reviewed or candidate mapping**. Candidate files associated only by title are not linked as verified copies. A row without a verified archive shows that limitation explicitly; the app does not invent a Wayback URL.
 
@@ -115,7 +115,7 @@ Free keyword search uses English word stems and **OR** matching: a passage may m
 
 Compare generated answers with their supporting passages; an advertising claim records what an advertiser said.
 
-Answer preparation preserves source locations and combines overlapping passages. The [two current development questions](../reports/NATIVE_DEMO_FOLLOWUP_20261001.en.md) returned located quotations about Baytown hydrogen/CCS and the Total/GoodPlanet biogas project. These examples and the citation-display check do not establish general answer accuracy. Independent frozen questions, human support review and real social/cross-collection answers remain pending.
+Answer preparation preserves source locations and combines overlapping passages. The [two current development questions](../../reports/data_audits/NATIVE_DEMO_FOLLOWUP_20261001.en.md) returned located quotations about Baytown hydrogen/CCS and the Total/GoodPlanet biogas project. These examples and the citation-display check do not establish general answer accuracy. Independent frozen questions, human support review and real social/cross-collection answers remain pending.
 
 Generated explanations follow the question's language; source quotations retain their original language. If a generated explanation clearly uses a different language, the app withholds it and keeps the evidence available. A short acronym or mixed-language question may be too ambiguous to check reliably. Use a full question in the language you want. Interface, count and service-status messages are currently in English.
 
@@ -125,4 +125,4 @@ If the source or retrieval index changes while an answer is being prepared, the 
 
 ## Current scope
 
-The application covers the two fossil fuel advertising collections. CLAIMS2 import and read-only evidence views are implemented; real results await reviewed publication. New classification batches and animal agriculture datasets remain future work. Availability of a social tab does not indicate that social data has already been connected. See [CLAIMS2 evidence](claims_read_views.md) for category filters, review states and source limitations.
+The application covers the two fossil fuel advertising collections. CLAIMS2 import and read-only evidence views are implemented; real results await reviewed publication. New classification batches and animal agriculture datasets remain future work. Availability of a social tab does not indicate that social data has already been connected. See [CLAIMS2 evidence](../data/claims_read_views.md) for category filters, review states and source limitations.

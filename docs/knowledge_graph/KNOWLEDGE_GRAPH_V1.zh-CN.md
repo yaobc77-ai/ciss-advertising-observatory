@@ -2,7 +2,7 @@
 
 本机入口：[Data → Relationships](http://127.0.0.1:8050/data)。此版本建立来源与历史标注层，尚不抽取新的广告主张，也不作外部事实核查。
 
-试用步骤与实际验证见[本轮交付报告](../reports/KNOWLEDGE_GRAPH_V1_20260925.zh-CN.md)。
+试用步骤与实际验证见[本轮交付报告](../../reports/knowledge_graph/KNOWLEDGE_GRAPH_V1_20260925.zh-CN.md)。
 
 ## 数据模型
 

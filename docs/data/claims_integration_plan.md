@@ -28,7 +28,7 @@ extracted directory. The ZIP contains 243 files and has SHA-256
 `d15f8e558c13d168c73edebdc65b490a3ed3e6c417aca7c64987da7202a14e2c`.
 All 61 files inspected under `CLAIMS_2.0_model/src/dashboard/` and `src/data/`
 match their ZIP entries. No upstream code or model request was executed.
-The [source-bundle inventory receipt](../reports/claims_source_bundle_audit_20260930.json)
+The [source-bundle inventory receipt](../../reports/data_audits/claims_source_bundle_audit_20260930.json)
 records the full file hashes, reference integrity and read-only SQLite counts.
 
 | Component | Actual role | Integration treatment |
@@ -148,7 +148,7 @@ analysis version; it does not overwrite the prior batch.
 
 | Stage | Work | Reviewable completion evidence |
 |---|---|---|
-| **1. Implemented: bundle and linkage audit** | Read-only SQLite and original-text snapshots; exact input joins; retained paragraph order; strict and explicit versioned ASCII-projection comparisons | [Actual audit](claims_source_audit.md) and [receipt](../reports/claims_source_linkage_20260930.json); private source/evidence review files, zero database writes and model calls |
+| **1. Implemented: bundle and linkage audit** | Read-only SQLite and original-text snapshots; exact input joins; retained paragraph order; strict and explicit versioned ASCII-projection comparisons | [Actual audit](claims_source_audit.md) and [receipt](../../reports/data_audits/claims_source_linkage_20260930.json); private source/evidence review files, zero database writes and model calls |
 | **2. Candidate adapter and importer implemented** | Strict decoding, file-bound review, original-quote/current-source checks, independent CLAIMS2 tables and append-only review revisions | [Import guide](claims_result_import.md). Synthetic transaction, repeat import, progressive review, promotion, stale-body and retraction checks; real candidates remain held pending authority/source/domain decisions |
 | **3. Read-only product integration implemented** | Show published NC/SC definitions, run and review status in record details; add claim filters, coverage and count exports; add typed article-to-claim and NC-to-SC graph edges | Counts reconcile to distinct current records; each selection opens the matching articles and exact evidence, not just a total |
 | **4. Offline processing for remaining articles** | Reuse the upstream extractor through a narrow frozen-taxonomy adapter in an isolated run directory; reserve cost and log usage; classify new or changed eligible bodies only | Saved bounded-batch results, per-input failures, source checks and an explicit publication report; new taxonomy proposals stay separate |

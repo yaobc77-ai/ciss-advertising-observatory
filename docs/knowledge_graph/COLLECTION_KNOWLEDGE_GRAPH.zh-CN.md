@@ -1,20 +1,20 @@
 # 原生广告集合知识图谱：使用流程与技术契约
 
-更新：2026-09-30。此文补充 0.4.2 的选取行为契约；发布及验证范围以[本轮选取修订报告](../reports/GRAPH_SELECTION_V0_4_2_20260930.zh-CN.md)为准，文档更新不代表生产已经升级。下文 9/29 的数字与核对证据保留原快照范围。
+更新：2026-09-30。此文补充 0.4.2 的选取行为契约；发布及验证范围以[本轮选取修订报告](../../reports/knowledge_graph/GRAPH_SELECTION_V0_4_2_20260930.zh-CN.md)为准，文档更新不代表生产已经升级。下文 9/29 的数字与核对证据保留原快照范围。
 
-**9/29 详情第二版：** 节点点阵与正文可检索性外环、公司／媒体的完整分类环图、可点击数量／占比名单、扇区对应文章、精确文章子集与对象计数 CSV。客户六项要求复核见 [第二版交付报告](../reports/GRAPH_DETAILS_V2_20260929.zh-CN.md)，对应真实数据核对见 [占比分母与范围检查](../reports/graph_breakdowns_smoke_20260929.json)。0.4.2 将当前选取、父级分布、文章展开与导出范围进一步区分，见下面使用流程。
+**9/29 详情第二版：** 节点点阵与正文可检索性外环、公司／媒体的完整分类环图、可点击数量／占比名单、扇区对应文章、精确文章子集与对象计数 CSV。客户六项要求复核见 [第二版交付报告](../../reports/knowledge_graph/GRAPH_DETAILS_V2_20260929.zh-CN.md)，对应真实数据核对见 [占比分母与范围检查](../../reports/knowledge_graph/graph_breakdowns_smoke_20260929.json)。0.4.2 将当前选取、父级分布、文章展开与导出范围进一步区分，见下面使用流程。
 
 ## 1. 这张图回答什么
 
 在 **Data → Native advertising → Knowledge graph** 中，用户可以先点公司／赞助方候选，看来源记录列出的媒体；也可以先点媒体，看来源记录列出的赞助方。点关系线后，在旁边查看支持该关系的广告记录。
 
-大图参考了 How Do They Lobby 的“全图 → 选定对象 → 关系计数与记录详情”流程，具体观察记录见[参考站核对报告](../reports/LOBBY_GRAPH_REFERENCE_20260929.zh-CN.md)。该站的游说关系与广告字段具有不同含义；本项目没有导入其数据或套用其政治关系定义。
+大图参考了 How Do They Lobby 的“全图 → 选定对象 → 关系计数与记录详情”流程，具体观察记录见[参考站核对报告](../../reports/knowledge_graph/LOBBY_GRAPH_REFERENCE_20260929.zh-CN.md)。该站的游说关系与广告字段具有不同含义；本项目没有导入其数据或套用其政治关系定义。
 
 图谱用于探索连接。**Overview** 的公司 × 媒体矩阵、数字与交叉表继续承担精确数量比较；**Records** 提供记录检索与详情。三个入口使用相同的集合筛选口径。
 
 ## 2. 当前完整范围与计数证据
 
-以下数字来自[集合图谱数据库核对记录](../reports/collection_graph_smoke_20260929.json)，对应当时的完整原生广告选择，包含缺日期记录。它们是存储集合的记录数，不是整个广告市场的投放量。
+以下数字来自[集合图谱数据库核对记录](../../reports/knowledge_graph/collection_graph_smoke_20260929.json)，对应当时的完整原生广告选择，包含缺日期记录。它们是存储集合的记录数，不是整个广告市场的投放量。
 
 | 项目 | 当前数量 | 含义 |
 | --- | ---: | --- |
@@ -137,7 +137,7 @@ Entities 中的直接线使用 **`derived_source_association`**，表示“同�
 
 ## 7. 与 MCP、社交数据和 CLAIMS 的边界
 
-本版新增的是网页的全选择关系图，**没有新增完整集合图谱 MCP 工具或修改现有 7 个工具 schema**。现有 `get_graph_schema` 与 `get_graph_neighborhood` 仍可读取图谱定义和最多 5 篇文章的来源邻域；邻域不能用于推算全库数量。统计继续使用 `record_statistics`。现有工具说明见 [MCP 研究工具文档](MCP_RESEARCH_TOOLS.zh-CN.md)。
+本版新增的是网页的全选择关系图，**没有新增完整集合图谱 MCP 工具或修改现有 7 个工具 schema**。现有 `get_graph_schema` 与 `get_graph_neighborhood` 仍可读取图谱定义和最多 5 篇文章的来源邻域；邻域不能用于推算全库数量。统计继续使用 `record_statistics`。现有工具说明见 [MCP 研究工具文档](../architecture/MCP_RESEARCH_TOOLS.zh-CN.md)。
 
 后续扩展仍需要以下材料与决定：
 

@@ -5,7 +5,7 @@
 ## 为什么选择这条安装路径
 
 - PostgreSQL 18.6 及依赖使用 conda-forge 的 win-64 包。`scripts/postgres-win64.lock.txt` 固定 **18 个包**的下载 URL 与 MD5；安装元数据保留在 `.runtime/postgres18/conda-meta/`。
-- 先前使用的 conda-forge pgvector 0.8.6 Windows 包要求 libpq 16，不能将其 DLL 直接用于 PostgreSQL 18。当前锁文件不包含该包，而由 [Install-Pgvector.ps1](../scripts/Install-Pgvector.ps1) 按 [pgvector 上游 Windows 构建说明](https://github.com/pgvector/pgvector#windows)从源码编译。
+- 先前使用的 conda-forge pgvector 0.8.6 Windows 包要求 libpq 16，不能将其 DLL 直接用于 PostgreSQL 18。当前锁文件不包含该包，而由 [Install-Pgvector.ps1](../../scripts/Install-Pgvector.ps1) 按 [pgvector 上游 Windows 构建说明](https://github.com/pgvector/pgvector#windows)从源码编译。
 - pgvector 源码固定为上游 `v0.8.6`，归档 SHA-256 为 `10bf9938906e5d643bbc4a7eea104b6f57ba4898e5b76b20e60484ea1d5a7f8f`。脚本核对归档、限制解包路径，再使用 **Visual Studio 2022 x64 C++ 工具**和上游 `Makefile.win`，以当前 PostgreSQL 18 的 `Library` 目录为 `PGROOT` 编译并安装。构建记录 `.runtime/postgres18/pgvector-build.json` 绑定源码、PostgreSQL 二进制、DLL、control 与安装 SQL 的哈希；一致时重复运行不重建。
 - [micromamba 官方安装说明](https://mamba.readthedocs.io/en/latest/installation/micromamba-installation.html)提供独立运行方式。使用 2.9.0 的 conda-forge Windows 归档，下载后核对发布元数据中的 SHA-256，仅提取 `micromamba.exe`。
 - Setup 负责新环境安装，不执行大版本迁移。已有旧集群标记或数据时会拒绝自动初始化；控制脚本在调用 `pg_ctl` 前核对 PostgreSQL 18 二进制与数据大版本，不能直接重用 PostgreSQL 16 数据目录。
@@ -60,7 +60,7 @@
 
 原 `.runtime/postgres/` 与 `.runtime/pgdata/` 均保留并停止使用，未执行 `delete_old_cluster.bat`。它们只代表升级时刻的 PG16 快照，后续 PG18 写入不会同步过去。若需要回退，先保留并处理升级后的数据变化，再按经过核对的恢复方案还原旧配置、集群标记及脚本运行时路由；不能直接复用数据目录或只切回旧二进制。
 
-证据见 [PG18 升级报告](../reports/LOCAL_POSTGRES18_UPGRADE_20261001.zh-CN.md)及 [JSON 回执](../reports/local_postgres18_upgrade_20261001.json)。这是当前本机集群升级与等价性核验，不表示已在全新机器完成从零安装，也不替代语义回答质量或公众部署验收。以下带日期和版本的 PG16 记录保留为历史证据。
+证据见 [PG18 升级报告](../../reports/releases/LOCAL_POSTGRES18_UPGRADE_20261001.zh-CN.md)及 [JSON 回执](../../reports/releases/local_postgres18_upgrade_20261001.json)。这是当前本机集群升级与等价性核验，不表示已在全新机器完成从零安装，也不替代语义回答质量或公众部署验收。以下带日期和版本的 PG16 记录保留为历史证据。
 
 ## 恢复：必须显式提供一个新数据库名
 
@@ -111,10 +111,10 @@
 
 主库备份前／后与恢复库一致：active records 268、current chunks 510、全部 record_versions 536、annotations 1072、usage_ledger 73、answer_runs 40、generation_outputs 35；data_version `652ed975bbd44ea06e20af19b6a6642d`。存储回答 run `1` 的引用在恢复后仍能按 chunk/version/字符位置定位。应用角色权限、`.env`、私有凭据文件及主库连接值均未改变；未打印凭据。
 
-详见 [本次备份恢复报告](../reports/backup_restore.md)。这是同一本机集群的新库恢复验证，单数据库归档不包含全局角色密码与应用运行环境。备份与恢复库均保留。
+详见 [本次备份恢复报告](../../reports/releases/backup_restore.md)。这是同一本机集群的新库恢复验证，单数据库归档不包含全局角色密码与应用运行环境。备份与恢复库均保留。
 
 ## 历史快照恢复验证（0.2.4，2026-09-16）
 
 以上268条记录属于早期快照。当前 `5114ebc1cf9afe59cdaa715e3ea45166` 已于2026-09-16再次备份并恢复到新库 `observatory_restore_v024_20260916`。主库前后与恢复库的275收录、263可计数、226可检索、558当前块，以及9张业务表逐行指纹、列/索引/约束/序列均一致；全部177条存储引用可定位，94条仍指向旧正文版本。主库连接与凭据文件未变，应用保持运行。
 
-本次直接执行 `python -X utf8 scripts/local_postgres.py backup/restore`；Windows PowerShell 5的 `Restricted` 策略阻止了最初的 `.ps1` 调用，未改变策略。当前备份路径、哈希、表行数、方法和命令见[当前快照恢复报告](../reports/backup_restore_v0_2_4.md)。仅证明同机独立库恢复，不包含异机环境和公众网络验收。
+本次直接执行 `python -X utf8 scripts/local_postgres.py backup/restore`；Windows PowerShell 5的 `Restricted` 策略阻止了最初的 `.ps1` 调用，未改变策略。当前备份路径、哈希、表行数、方法和命令见[当前快照恢复报告](../../reports/releases/backup_restore_v0_2_4.md)。仅证明同机独立库恢复，不包含异机环境和公众网络验收。

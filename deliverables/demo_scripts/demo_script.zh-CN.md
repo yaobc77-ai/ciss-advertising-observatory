@@ -1,14 +1,14 @@
 # Research preview 中文演示讲稿
 
-配套文件：[research_preview.pptx](research_preview.pptx)。快照日期：2026-09-16。
+配套文件：[research_preview.pptx](../slides/older_versions/research_preview.pptx)。快照日期：2026-09-16。
 
 本次展示 **Native corpus connected** 的研究预览。完整交付目标仍为双数据集 Dashboard 与 RAG。本文中的演示步骤是操作指引，已确认的数字单独标明；演示中出现的新结果以当时的数据版本为准。
 
 ## 演示前准备
 
-- 打开本机应用：[http://127.0.0.1:8050](http://127.0.0.1:8050)。如服务未运行，按 [README](../README.md) 和 [运行指南](../docs/operations.md) 启动 PostgreSQL 与应用。
+- 打开本机应用：[http://127.0.0.1:8050](http://127.0.0.1:8050)。如服务未运行，按 [README](../../README.md) 和 [运行指南](../../docs/operations/operations.md) 启动 PostgreSQL 与应用。
 - 保持 Native advertising，清除赞助方、日期与其他筛选，勾选 **Include unknown dates**。
-- 将下面三份已有模型结果放在本地阅读器中备用，无需为演示再次调用模型：[CCUS](../outputs/live_ccs_scoped.json)、[biogas](../outputs/live_biogas.json)、[资料不足](../outputs/live_no_evidence.json)。
+- 将下面三份已有模型结果放在本地阅读器中备用，无需为演示再次调用模型：[CCUS](../../outputs/live_ccs_scoped.json)、[biogas](../../outputs/live_biogas.json)、[资料不足](../../outputs/live_no_evidence.json)。
 - 先用 **Search keywords** 检索。只有讲解付费入口时才指向 **Generate paid answer**，默认不点击。再次调用会使用项目 API 预算，且结果可能变化。
 - 展示公众页面与导出文件即可。密钥、连接串及数据库内部原始字段不属于演示内容。
 
@@ -49,7 +49,7 @@
 | 按导航边界保留可用前缀 | 20 |
 | 疑似截断标记 | 94 |
 
-依据：[数据字典的本机导入快照](../docs/data_dictionary.md)。质量标记可能重叠，不用其总和计算语料规模。
+依据：[数据字典的本机导入快照](../../docs/data/data_dictionary.md)。质量标记可能重叠，不用其总和计算语料规模。
 
 ## 第 4 页：Implemented technical flow
 
@@ -61,7 +61,7 @@
 
 **边界**
 
-该流程以现有代码和 [架构文档](../docs/architecture.md) 为准。它不包含本次未实施的分类模型训练，也不代表已经完成 CLAIMS 后端重建。
+该流程以现有代码和 [架构文档](../../docs/architecture/architecture.md) 为准。它不包含本次未实施的分类模型训练，也不代表已经完成 CLAIMS 后端重建。
 
 ## 第 5 页：Native demonstration
 
@@ -110,7 +110,7 @@
 
 ### CCUS 样例
 
-- 保存结果：[live_ccs_scoped.json](../outputs/live_ccs_scoped.json)，状态 `answered`。该次调用限定到目标文章。
+- 保存结果：[live_ccs_scoped.json](../../outputs/live_ccs_scoped.json)，状态 `answered`。该次调用限定到目标文章。
 - 文章：[CCUS, the industry that will change industry](https://www.cnbc.com/advertorial/ccus-the-industry-that-will-change-industry-/)。
 - 原引句：`In some industries, CCUS can reduce carbon emissions by up to 90%.`
 - record ID：`e3701f9b-e7b3-5811-9282-da6b0ad776c3`。
@@ -120,7 +120,7 @@
 
 ### Biogas 样例
 
-- 保存结果：[live_biogas.json](../outputs/live_biogas.json)，状态 `answered`。
+- 保存结果：[live_biogas.json](../../outputs/live_biogas.json)，状态 `answered`。
 - 文章：[Biogas to offset air travel emissions](https://www.cnbc.com/advertorial/2018/11/09/biogas-to-offset-air-travel-emissions.html)。
 - 原引句：`from reducing the number of trips to offsetting flights that can't be avoided`。
 - record ID：`01374b51-3fae-5fe7-8c60-b4bffa2b7ba0`。
@@ -130,13 +130,13 @@
 
 ### 资料不足样例
 
-- 保存结果：[live_no_evidence.json](../outputs/live_no_evidence.json)。
+- 保存结果：[live_no_evidence.json](../../outputs/live_no_evidence.json)。
 - 问题主题：Mars 1890，当前集合缺少支持材料。
 - 返回 `insufficient_evidence`，`citations` 为空。
 
 **讲述**：“检索可能仍返回词义接近的片段，生成端需要承认这些材料不足以支持问题。一次成功拒答不代表所有无证据问题都能处理正确。”
 
-正式质量评价见 [evaluation_protocol.md](../docs/evaluation_protocol.md)。目前未完成人工语义支持率与完整双数据集评价。不要从三个展示案例计算‘准确率’，也不要使用早期 JSON 成本字段作当前账单。
+正式质量评价见 [evaluation_protocol.md](../../docs/evaluation/evaluation_protocol.md)。目前未完成人工语义支持率与完整双数据集评价。不要从三个展示案例计算‘准确率’，也不要使用早期 JSON 成本字段作当前账单。
 
 ## 第 7 页：Current handoff and reserved integrations
 
@@ -146,12 +146,12 @@
 
 **交接入口**
 
-- [README](../README.md)：安装与本机启动入口。
-- [用户指南](../docs/user_guide.md)：筛选、导出、检索和付费问答。
-- [数据字典](../docs/data_dictionary.md)：资格规则、版本和质量限制。
-- [运行指南](../docs/operations.md)：预算、备份恢复与预留公网配置。
-- [评价协议](../docs/evaluation_protocol.md)：问答评价边界和剩余人工工作。
-- [实施与验收状态](../docs/acceptance_status.md)：完整交付目标与待完成项。
+- [README](../../README.md)：安装与本机启动入口。
+- [用户指南](../../docs/operations/user_guide.md)：筛选、导出、检索和付费问答。
+- [数据字典](../../docs/data/data_dictionary.md)：资格规则、版本和质量限制。
+- [运行指南](../../docs/operations/operations.md)：预算、备份恢复与预留公网配置。
+- [评价协议](../../docs/evaluation/evaluation_protocol.md)：问答评价边界和剩余人工工作。
+- [实施与验收状态](../../docs/operations/acceptance_status.md)：完整交付目标与待完成项。
 
 ## 演示中断时
 

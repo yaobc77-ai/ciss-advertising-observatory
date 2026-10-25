@@ -1,9 +1,9 @@
 # Shared implementation contract
 
 Root owns models.py, config.py, db.py, service.py, rag.py, budget.py, cli.py, SQL and integration.
-Data contributor owns ingest.py, quality.py, chunking.py, tests/test_ingest.py, tests/test_quality.py, tests/test_chunking.py, docs/data_dictionary.md and config/social_mapping.example.json.
-UI contributor owns app.py, assets/, tests/test_app.py, docs/user_guide.md.
-Runtime contributor owns scripts/, docs/local_postgres.md and runtime evidence only.
+Data contributor owns ingest.py, quality.py, chunking.py, tests/test_ingest.py, tests/test_quality.py, tests/test_chunking.py, docs/data/data_dictionary.md and config/social_mapping.example.json.
+UI contributor owns app.py, assets/, tests/test_app.py, docs/operations/user_guide.md.
+Runtime contributor owns scripts/, docs/operations/local_postgres.md and runtime evidence only.
 
 Python imports use observatory.models contracts. Data functions:
 

@@ -64,7 +64,7 @@ use linear interpolation over the sorted measurements; raw samples are retained.
 
 The dated machine-readable receipt records actual inserted counts, repeats,
 payload sizes, PostgreSQL/Python/application versions, and successful cleanup.
-See [the September 30 receipt](../reports/dashboard_performance_baseline_20260930.json).
+See [the September 30 receipt](../../reports/releases/dashboard_performance_baseline_20260930.json).
 
 The September 30 run used Python 3.12.14, PostgreSQL 16.15 and application 0.4.0
 on Windows 11. It inserted 37,000 records, 37,000 immutable versions and 37,000

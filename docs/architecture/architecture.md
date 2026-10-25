@@ -1,22 +1,22 @@
 # System design and data flow
 
-Checked against local source on 8 October 2026. This page describes the implementation, not a deployment, semantic accuracy result or client acceptance. For dated progress and remaining work, use [goal.md](../goal.md), [plan.md](../plan.md) and [work.md](../work.md). The [earlier 0.2.3 design](architecture_0_2_3.md) retains its historical scope.
+Checked against local source on 8 October 2026. This page describes the implementation, not a deployment, semantic accuracy result or client acceptance. For dated progress and remaining work, use [goal.md](../../goal.md), [plan.md](../../plan.md) and [work.md](../../work.md). The [earlier 0.2.3 design](architecture_0_2_3.md) retains its historical scope.
 
-The required outcome is to explore native and social advertising and answer questions grounded in their records. Requirements and their sources remain in [client goals](../client_goal.md); implementation requests remain in [user goals](../user_goal.md). A collected company post is not automatically a verified paid advertisement.
+The required outcome is to explore native and social advertising and answer questions grounded in their records. Requirements and their sources remain in [client goals](../../client_goal.md); implementation requests remain in [user goals](../../user_goal.md). A collected company post is not automatically a verified paid advertisement.
 
 ## Modules and responsibilities
 
 | Module | Input → output | Implementation |
 | --- | --- | --- |
-| Source preparation and import | Supplied files and admission decisions → validated records, source observations and text versions | [ingest.py](../src/observatory/ingest.py), [social_archive.py](../src/observatory/social_archive.py), [social_admission.py](../src/observatory/social_admission.py) |
-| Storage and indexing | Versioned text and permitted ranges → SQL fields, sentence chunks, keyword index and embeddings | PostgreSQL, pgvector; [db.py](../src/observatory/db.py), [chunking.py](../src/observatory/chunking.py), [indexing.py](../src/observatory/indexing.py) |
-| Data exploration | Current filters and selected entities → counts, charts, typed relationships, records and CSV | Dash, Plotly, AG Grid, Cytoscape; [app.py](../src/observatory/app.py), [knowledge_graph.py](../src/observatory/knowledge_graph.py) |
-| Research tools | Question interpretation and trusted filters → bounded statistics, record, source or classification reads | [research_tools.py](../src/observatory/research_tools.py), [research_agent.py](../src/observatory/research_agent.py), optional [MCP transport](../src/observatory/mcp_server.py) |
-| Answer generation | Retrieved source passages and optional fixed media evidence → summary, cited statements and limitations | OpenAI Responses API; [service.py](../src/observatory/service.py), [rag.py](../src/observatory/rag.py), [media_reader.py](../src/observatory/media_reader.py) |
-| Offline classification | Versioned source text, taxonomy and saved or new model results → validated assignments with review state | [CLAIMS2 import](claims_result_import.md), [read-only views](claims_read_views.md), [semantic review](../src/observatory/semantic_review.py) |
-| Evaluation and handoff | Frozen code, data, questions and references → scoped checks, review records and reports | [test gate](test_gate.zh-CN.md), [evaluation methodology](evaluation_methodology.md), [current handoff](current_handoff.md) |
+| Source preparation and import | Supplied files and admission decisions → validated records, source observations and text versions | [ingest.py](../../src/observatory/ingest.py), [social_archive.py](../../src/observatory/social_archive.py), [social_admission.py](../../src/observatory/social_admission.py) |
+| Storage and indexing | Versioned text and permitted ranges → SQL fields, sentence chunks, keyword index and embeddings | PostgreSQL, pgvector; [db.py](../../src/observatory/db.py), [chunking.py](../../src/observatory/chunking.py), [indexing.py](../../src/observatory/indexing.py) |
+| Data exploration | Current filters and selected entities → counts, charts, typed relationships, records and CSV | Dash, Plotly, AG Grid, Cytoscape; [app.py](../../src/observatory/app.py), [knowledge_graph.py](../../src/observatory/knowledge_graph.py) |
+| Research tools | Question interpretation and trusted filters → bounded statistics, record, source or classification reads | [research_tools.py](../../src/observatory/research_tools.py), [research_agent.py](../../src/observatory/research_agent.py), optional [MCP transport](../../src/observatory/mcp_server.py) |
+| Answer generation | Retrieved source passages and optional fixed media evidence → summary, cited statements and limitations | OpenAI Responses API; [service.py](../../src/observatory/service.py), [rag.py](../../src/observatory/rag.py), [media_reader.py](../../src/observatory/media_reader.py) |
+| Offline classification | Versioned source text, taxonomy and saved or new model results → validated assignments with review state | [CLAIMS2 import](../data/claims_result_import.md), [read-only views](../data/claims_read_views.md), [semantic review](../../src/observatory/semantic_review.py) |
+| Evaluation and handoff | Frozen code, data, questions and references → scoped checks, review records and reports | [test gate](../evaluation/test_gate.zh-CN.md), [evaluation methodology](../evaluation/evaluation_methodology.md), [current handoff](../current_handoff.md) |
 
-Pydantic and Pandera validate inputs; pySBD and tiktoken support text boundaries. Waitress serves the Python application. Docker/Railway host the application; GitHub Pages hosts only the static introduction. Dependencies are declared in [pyproject.toml](../pyproject.toml) and resolved in [uv.lock](../uv.lock). The source graph is derived from stored records and assignments; it does not require a separate graph database.
+Pydantic and Pandera validate inputs; pySBD and tiktoken support text boundaries. Waitress serves the Python application. Docker/Railway host the application; GitHub Pages hosts only the static introduction. Dependencies are declared in [pyproject.toml](../../pyproject.toml) and resolved in [uv.lock](../../uv.lock). The source graph is derived from stored records and assignments; it does not require a separate graph database.
 
 ## 1. Data preparation
 
@@ -35,12 +35,12 @@ flowchart LR
 ```
 
 - Original files, row identities, hashes and earlier versions remain available. An accepted text replacement creates a new version; old classifications are not silently inherited.
-- Social post identity and saved source observations are separate. Conflicting observations remain separately attributable, rather than being joined into an invented body. See [source-observation retrieval](all_social_posts_retrieval.zh-CN.md).
+- Social post identity and saved source observations are separate. Conflicting observations remain separately attributable, rather than being joined into an invented body. See [source-observation retrieval](../data/all_social_posts_retrieval.zh-CN.md).
 - `countable` controls the statistical denominator; `retrievable` and permitted ranges control text access. Text completeness, vector coverage, media availability and classification coverage are separate properties.
 - Imports do not call a model. Embedding preparation and execution are separate operations; importing text does not establish that vectors exist.
 - Counts, chart selections, record pages and CSV use the same filters. A displayed page or bounded graph neighborhood is not the complete selection.
 
-Use the [data dictionary](data_dictionary.md) for field meanings and the [import contract](PROTOTYPE_DATA_PIPELINE.md) for commands and update semantics. Current counts and completed runs belong in dated status records, not in this architecture diagram.
+Use the [data dictionary](../data/data_dictionary.md) for field meanings and the [import contract](PROTOTYPE_DATA_PIPELINE.md) for commands and update semantics. Current counts and completed runs belong in dated status records, not in this architecture diagram.
 
 ## 2. Online questions
 
@@ -75,7 +75,7 @@ The web application uses function calling against a shared tool catalog. A separ
 
 **Missing information remains visible.** Clarification and ordinary evidence gaps may receive one external supplement when configuration and budget allow. Exact zero counts, source-integrity failures, changed data, service failures and budget limits are not repaired by inventing outside results. External findings retain their own sources and never become collection counts or stored source fields automatically. The MCP empty-search ticket has a narrower trigger than the web fallback.
 
-The answer layout is **Summary → Evidence → Scope and limitations**, followed by the tool/cost trace. Loading messages report actual stages. Calls reserve budget before execution; uncertain charges remain recorded. Dates preserve the selected source or supplemented basis. Detailed behavior is in the tool guide and [shared prompts](../src/observatory/prompts.py).
+The answer layout is **Summary → Evidence → Scope and limitations**, followed by the tool/cost trace. Loading messages report actual stages. Calls reserve budget before execution; uncertain charges remain recorded. Dates preserve the selected source or supplemented basis. Detailed behavior is in the tool guide and [shared prompts](../../src/observatory/prompts.py).
 
 ## 3. Offline classification and review
 
@@ -93,20 +93,20 @@ CLAIMS runs offline. Online questions read published assignments instead of reru
 
 Automatic and human-supported results retain different review states. A valid automatic result is not described as human-reviewed; an unresolved source, taxonomy or evidence conflict stays pending. Human review targets such conflicts and the required evaluation sample. An absent assignment is not a classified negative, and a reviewed assignment is not independent proof of greenwashing or factual truth.
 
-The client's full-context assessment route remains a requirement. Its implementation must use source-independent definitions for ordinary classification. Customer-question-specific historical preparation, review and membership tools are **evaluation-only** under the [masking rules](client24_masking.zh-CN.md); they are not an online tool, prompt catalog or development-example source.
+The client's full-context assessment route remains a requirement. Its implementation must use source-independent definitions for ordinary classification. Customer-question-specific historical preparation, review and membership tools are **evaluation-only** under the [masking rules](../evaluation/client24_masking.zh-CN.md); they are not an online tool, prompt catalog or development-example source.
 
 ## 4. Evaluation, updates and ownership
 
 Evaluation is a separate workflow: freeze the implementation and data, run the chosen evaluation questions, compare against explicitly identified references, and retain failures and human decisions. The client questions and their references, variants and per-question outputs remain outside development and ordinary prompts. Historical exposure is preserved; it does not become an unseen-test claim.
 
-Engineering checks, source traceability, semantic quality, usability and client acceptance measure different things. Use [evaluation methodology](evaluation_methodology.md) for definitions and [current accuracy](current_accuracy.zh-CN.md) for dated results. A new code change does not update an old score.
+Engineering checks, source traceability, semantic quality, usability and client acceptance measure different things. Use [evaluation methodology](../evaluation/evaluation_methodology.md) for definitions and [current accuracy](../evaluation/current_accuracy.zh-CN.md) for dated results. A new code change does not update an old score.
 
 | Information | Authoritative entry |
 | --- | --- |
-| Requirements, source and acceptance criteria | [Client goals](../client_goal.md), [user goals](../user_goal.md) and their original evidence |
-| Current tasks and dated execution evidence | [Goal](../goal.md), [plan](../plan.md), [work](../work.md) |
+| Requirements, source and acceptance criteria | [Client goals](../../client_goal.md), [user goals](../../user_goal.md) and their original evidence |
+| Current tasks and dated execution evidence | [Goal](../../goal.md), [plan](../../plan.md), [work](../../work.md) |
 | Tool parameters and transport limits | [MCP and research tools](mcp_research_tools.md) |
-| Import, operation and recovery procedures | [Import contract](PROTOTYPE_DATA_PIPELINE.md), [operations](operations.md), [handoff](current_handoff.md) |
-| Free checks and protected evaluation boundary | [Test gate](test_gate.zh-CN.md), [masking rules](client24_masking.zh-CN.md) |
+| Import, operation and recovery procedures | [Import contract](PROTOTYPE_DATA_PIPELINE.md), [operations](../operations/operations.md), [handoff](../current_handoff.md) |
+| Free checks and protected evaluation boundary | [Test gate](../evaluation/test_gate.zh-CN.md), [masking rules](../evaluation/client24_masking.zh-CN.md) |
 
 Preserve source baselines and dated receipts when changing the implementation. Paid runs, source adoption and publication have their own approval and completion records; documentation alone does not authorize them or complete the project.

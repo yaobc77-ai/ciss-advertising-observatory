@@ -1,12 +1,12 @@
 # MCP and research tools
 
-Checked against local source on 8 October 2026. This is the current tool contract; see [system design](architecture.md) for the complete pipeline and [work.md](../work.md) for dated execution evidence.
+Checked against local source on 8 October 2026. This is the current tool contract; see [system design](architecture.md) for the complete pipeline and [work.md](../../work.md) for dated execution evidence.
 
 The web application uses **Responses API function calling**. The optional **Model Context Protocol (MCP) server** exposes the same `ToolCatalog` through a separate process. Starting MCP does not start the web planner, migrate a database or import data. The public dashboard does not host a remote MCP endpoint.
 
 ## Shared read tools
 
-These tools do not call a language model. Inputs below show the main fields; the generated schemas in [research_tools.py](../src/observatory/research_tools.py) are authoritative and reject unknown fields.
+These tools do not call a language model. Inputs below show the main fields; the generated schemas in [research_tools.py](../../src/observatory/research_tools.py) are authoritative and reject unknown fields.
 
 | Tool | Input | Output and boundary |
 | --- | --- | --- |
@@ -77,7 +77,7 @@ The web planner does not select this tool directly: its service reads the fixed 
 
 ### Evaluation-only historical tools
 
-`get_content_matches` is not exposed in normal MCP or web operation and is always excluded from the general web planner. Its historical question-specific publication mechanism is retained only for explicit evaluation. The client-question catalog, references, variants and per-question outputs must not enter ordinary tool prompts or development examples. Source-independent CLAIMS taxonomies remain usable. See [masking rules](client24_masking.zh-CN.md).
+`get_content_matches` is not exposed in normal MCP or web operation and is always excluded from the general web planner. Its historical question-specific publication mechanism is retained only for explicit evaluation. The client-question catalog, references, variants and per-question outputs must not enter ordinary tool prompts or development examples. Source-independent CLAIMS taxonomies remain usable. See [masking rules](../evaluation/client24_masking.zh-CN.md).
 
 ## Optional external lookup
 
@@ -101,7 +101,7 @@ The ticket expires after five minutes and is consumed before dispatch, including
 
 ### CLAIMS source maintenance
 
-`find_claims_source_candidates` is a separate maintenance tool for legacy excerpts with unresolved source articles. It searches locally first, may make one paid external lookup, and returns candidates with pending review. It is hidden unless `OBS_CLAIMS_SOURCE_SEARCH_ENABLED=true`; it does not publish classifications or update source records. See [source discovery](claims_source_discovery.md).
+`find_claims_source_candidates` is a separate maintenance tool for legacy excerpts with unresolved source articles. It searches locally first, may make one paid external lookup, and returns candidates with pending review. It is hidden unless `OBS_CLAIMS_SOURCE_SEARCH_ENABLED=true`; it does not publish classifications or update source records. See [source discovery](../data/claims_source_discovery.md).
 
 ## Start the separate MCP server
 
@@ -112,7 +112,7 @@ uv sync --frozen --extra test --extra mcp
 uv run python -m observatory.mcp_server --dataset native
 ```
 
-Configure the private database and required application settings according to the [README](../README.md#run-locally). Keep credentials private. A client normally launches the stdio process; it may narrow the trusted scope with `--publisher` or `--sponsor` startup arguments.
+Configure the private database and required application settings according to the [README](../../README.md#run-locally). Keep credentials private. A client normally launches the stdio process; it may narrow the trusted scope with `--publisher` or `--sponsor` startup arguments.
 
 For a separate local HTTP endpoint:
 
@@ -132,13 +132,13 @@ These are configuration examples, not evidence that a running process loaded the
 
 ## Verification and source ownership
 
-Use the [free test gate](test_gate.zh-CN.md) for current permitted engineering checks. Paid model evaluation, independent semantic review and client acceptance require separate evidence; passing schemas or quote-position checks does not establish answer accuracy.
+Use the [free test gate](../evaluation/test_gate.zh-CN.md) for current permitted engineering checks. Paid model evaluation, independent semantic review and client acceptance require separate evidence; passing schemas or quote-position checks does not establish answer accuracy.
 
-- Tool schemas, selection and dispatch: [research_tools.py](../src/observatory/research_tools.py).
-- Model planning and prompt policy: [research_agent.py](../src/observatory/research_agent.py), [prompts.py](../src/observatory/prompts.py).
-- MCP transport: [mcp_server.py](../src/observatory/mcp_server.py).
-- Answer and fallback orchestration: [service.py](../src/observatory/service.py).
-- Retrieval, statistics and graph relationships: [db.py](../src/observatory/db.py), [knowledge_graph.py](../src/observatory/knowledge_graph.py).
-- Source restoration and presentation: [rag.py](../src/observatory/rag.py), [app.py](../src/observatory/app.py).
+- Tool schemas, selection and dispatch: [research_tools.py](../../src/observatory/research_tools.py).
+- Model planning and prompt policy: [research_agent.py](../../src/observatory/research_agent.py), [prompts.py](../../src/observatory/prompts.py).
+- MCP transport: [mcp_server.py](../../src/observatory/mcp_server.py).
+- Answer and fallback orchestration: [service.py](../../src/observatory/service.py).
+- Retrieval, statistics and graph relationships: [db.py](../../src/observatory/db.py), [knowledge_graph.py](../../src/observatory/knowledge_graph.py).
+- Source restoration and presentation: [rag.py](../../src/observatory/rag.py), [app.py](../../src/observatory/app.py).
 
 Current collection sizes, published-result coverage and test totals belong in dated execution records. This contract does not repeat them or imply that local source changes have been deployed.

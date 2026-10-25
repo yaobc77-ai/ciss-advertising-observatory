@@ -1,12 +1,12 @@
 # FA26 CISS Observatory 0.2.2 研究预览讲稿
 
-日期：2026-09-16。对应 [新版 PPTX](research_preview_v0_2_2.pptx)。这是当前原生语料已连接的研究预览，**最终验收仍待完成**。旧版演示保持原状。
+日期：2026-09-16。对应 [新版 PPTX](../slides/older_versions/research_preview_v0_2_2.pptx)。这是当前原生语料已连接的研究预览，**最终验收仍待完成**。旧版演示保持原状。
 
 ## 演示口径与准备
 
 - 数据版本固定为 `d85a98002e4493f0376c260ad82253ee`：275 条收录、263 条可计数、226 条可检索正文、554 个文本块。94 条疑似截断仍保留质量标记。
-- 保存的开发运行是 `d26eb540a6114cfe9672a755c43f39a7`，见 [完整输出](../outputs/development_claim_contract_20260916.json) 和 [0.2.2 报告](../reports/claim_contract_v0_2_2.md)。演示保存结果不产生 API 费用。
-- 本地服务入口为 `http://127.0.0.1:8050`。需启动时，在项目根目录运行 `./scripts/Start-Observatory.ps1`，再运行 `./scripts/Test-Observatory.ps1`。本机已经具备隔离的 PostgreSQL，无需重复下载。启动与停机细节以 [运行指南](../docs/operations.md) 为准。
+- 保存的开发运行是 `d26eb540a6114cfe9672a755c43f39a7`，见 [完整输出](../../outputs/development_claim_contract_20260916.json) 和 [0.2.2 报告](../../reports/rag_experiments/claim_contract_v0_2_2.md)。演示保存结果不产生 API 费用。
+- 本地服务入口为 `http://127.0.0.1:8050`。需启动时，在项目根目录运行 `./scripts/Start-Observatory.ps1`，再运行 `./scripts/Test-Observatory.ps1`。本机已经具备隔离的 PostgreSQL，无需重复下载。启动与停机细节以 [运行指南](../../docs/operations/operations.md) 为准。
 - 保持公众界面英文，中文口头解释。默认使用免费 Search keywords，并展示已保存的 paid run。只有需要实际重新生成时才点击 Generate paid answer，该动作会消耗预算。
 - 不将广告说法讲成经外部证明的事实，不将字符定位或 AI 辅助审阅讲成人工语义验收。
 
@@ -28,7 +28,7 @@
 
 “94 条记录带有疑似截断标记。当前系统可以从保留的可用正文回答，同时展示质量边界；我们没有声称全文已经恢复。已有结构化文件没有确认可直接恢复的全文，3 个 PDF 有续文候选，仍需核对身份、页面和正文边界。”
 
-依据：[数据修订](../reports/data_revision_v0_2.md)、[截断预检](../reports/truncation_recovery_preflight.md)。
+依据：[数据修订](../../reports/data_audits/data_revision_v0_2.md)、[截断预检](../../reports/data_audits/truncation_recovery_preflight.md)。
 
 ## 第 4 页：实际看板演示
 
@@ -43,7 +43,7 @@
 
 ## 第 5 页：带原文证据的回答
 
-先演示免费 Search keywords 搜索 `CCS`，查看记录、原文片段和来源。再在编辑器／文件预览中打开 [保存的 JSON](../outputs/development_claim_contract_20260916.json)，定位 `dev-07` 的 `answer` 与 `citations`，并对照本页引文。当前应用没有历史 run 选择器，保存输出通过文件展示；无需为了演示重复付费。
+先演示免费 Search keywords 搜索 `CCS`，查看记录、原文片段和来源。再在编辑器／文件预览中打开 [保存的 JSON](../../outputs/development_claim_contract_20260916.json)，定位 `dev-07` 的 `answer` 与 `citations`，并对照本页引文。当前应用没有历史 run 选择器，保存输出通过文件展示；无需为了演示重复付费。
 
 “这一原生广告说，设施建成后每天可能生产最多 10 亿立方英尺蓝氢。回答同时保留广告归因、蓝氢对象、每日单位，以及 could 和 once completed 的规划状态。它没有说明现实中的设施已经建成。”
 
@@ -77,7 +77,7 @@
 
 “AI 辅助阅读发现旧的广告归因和蓝氢对象缺口在本次输出中已经补齐。但 dev-03 经济挑战的完整性，以及 dev-05 额外 BIOMEM 背景是否应删减，仍需要判断。16 行人工意见为空，所以没有人工语义支持率，也没有 ≥95% 或整体通过结论。开发题已用于迭代，不能当独立盲测。”
 
-打开 [AI 辅助复核](../reports/assisted_semantic_review_v0_2_2.md) 和 [人工待审 CSV](../reports/citation_review_v0_2_2.csv) 说明如何逐条核对，而不是只看汇总数字。
+打开 [AI 辅助复核](../../reports/rag_experiments/assisted_semantic_review_v0_2_2.md) 和 [人工待审 CSV](../../reports/rag_experiments/citation_review_v0_2_2.csv) 说明如何逐条核对，而不是只看汇总数字。
 
 ## 第 8 页：交接和下一步
 
@@ -85,11 +85,11 @@
 
 入口：
 
-- [README](../README.md) 和 [交接说明](../docs/handoff.md)。
-- [运行指南](../docs/operations.md)、[用户指南](../docs/user_guide.md)、[数据字典](../docs/data_dictionary.md)、[架构](../docs/architecture.md)。
-- [评价协议](../docs/evaluation_protocol.md) 和 [汇总评价](../reports/evaluation.md)。
-- [模块化交付计划](../FA26_DELIVERY_PLAN.zh-CN.md) 与 [资源附录](../FA26_RESOURCE_APPENDIX.zh-CN.md)。
-- [生成脚本](../scripts/build_preview_v0_2_2.js)。脚本读取指定的保存运行，使用可选的 Node.js、`@oai/artifact-tool` 与 Presentations 校验工具，不访问数据库或模型。这些只是制作 PPTX 的依赖，不是运行观测站的依赖。项目根目录从脚本位置计算；本机默认查找用户目录中的 bundled runtime，其他机器可用 `ARTIFACT_NODE_MODULES`、`PRESENTATIONS_SKILL_DIR`、`ARTIFACT_PYTHON` 指定已有制作工具路径。
+- [README](../../README.md) 和 [交接说明](../../docs/operations/handoff.md)。
+- [运行指南](../../docs/operations/operations.md)、[用户指南](../../docs/operations/user_guide.md)、[数据字典](../../docs/data/data_dictionary.md)、[架构](../../docs/architecture/architecture.md)。
+- [评价协议](../../docs/evaluation/evaluation_protocol.md) 和 [汇总评价](../../reports/rag_experiments/evaluation.md)。
+- [模块化交付计划](../../docs/history/fa26_0916/FA26_DELIVERY_PLAN.zh-CN.md) 与 [资源附录](../../docs/history/fa26_0916/FA26_RESOURCE_APPENDIX.zh-CN.md)。
+- [生成脚本](../../scripts/build_preview_v0_2_2.js)。脚本读取指定的保存运行，使用可选的 Node.js、`@oai/artifact-tool` 与 Presentations 校验工具，不访问数据库或模型。这些只是制作 PPTX 的依赖，不是运行观测站的依赖。项目根目录从脚本位置计算；本机默认查找用户目录中的 bundled runtime，其他机器可用 `ARTIFACT_NODE_MODULES`、`PRESENTATIONS_SKILL_DIR`、`ARTIFACT_PYTHON` 指定已有制作工具路径。
 
 可选重建命令（在已有上述制作工具的机器执行）：
 

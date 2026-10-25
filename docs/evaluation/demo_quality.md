@@ -4,8 +4,8 @@
 
 ## 输出
 
-- [7 页英文 PowerPoint](../deliverables/research_preview.pptx)
-- [逐页中文演示讲稿](../deliverables/demo_script.zh-CN.md)
+- [7 页英文 PowerPoint](../../deliverables/slides/older_versions/research_preview.pptx)
+- [逐页中文演示讲稿](../../deliverables/demo_scripts/demo_script.zh-CN.md)
 
 封面为 **Research preview / Native corpus connected**。没有将社交数据、GitHub remote 或固定公网域名标为完成。采用现有应用的 ivory / teal 配色。数据图、表格及文字使用原生可编辑对象，未使用示意截图或模拟社交数据。
 
@@ -13,12 +13,12 @@
 
 | 内容 | 可回查证据 |
 |---|---|
-| 268 收录、256 可计数、221 可检索、510 块、20 日期未知、20 前缀边界、94 疑似截断 | [数据字典的已核验快照](data_dictionary.md) |
-| Python Dash、PostgreSQL / pgvector、免费关键词与 OpenAI 付费问答、引用检查 | [架构](architecture.md) 与 [运行指南](operations.md) |
+| 268 收录、256 可计数、221 可检索、510 块、20 日期未知、20 前缀边界、94 疑似截断 | [数据字典的已核验快照](../data/data_dictionary.md) |
+| Python Dash、PostgreSQL / pgvector、免费关键词与 OpenAI 付费问答、引用检查 | [架构](../architecture/architecture.md) 与 [运行指南](../operations/operations.md) |
 | ExxonMobil 15 条及 CSV 15 个不同 record_id | 2026-09-16 本机 Edge 验证及当次 `C:/Users/yaobc/Downloads/native-advertising.csv` |
-| CCUS 原句与成功生成 | [live_ccs_scoped.json](../outputs/live_ccs_scoped.json) |
-| Biogas 原句与成功生成 | [live_biogas.json](../outputs/live_biogas.json) |
-| 资料不足状态及空 citations | [live_no_evidence.json](../outputs/live_no_evidence.json) |
+| CCUS 原句与成功生成 | [live_ccs_scoped.json](../../outputs/live_ccs_scoped.json) |
+| Biogas 原句与成功生成 | [live_biogas.json](../../outputs/live_biogas.json) |
+| 资料不足状态及空 citations | [live_no_evidence.json](../../outputs/live_no_evidence.json) |
 
 幻灯片第 6 页的两条引句直接读取保存 JSON，并在最终 PPTX 中再次做字符串一致性检查。完整 record/version/evidence ID 与来源文件列在幻灯片备注。引句标明为广告表达；三个展示案例不产生准确率估计。制作预览期间没有新调用模型。
 

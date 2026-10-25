@@ -2,7 +2,7 @@
 
 **Draft demonstration script. Customer acceptance and the final dual-collection demonstration are pending.**
 
-Prepared: 30 September 2026. Use this with the [client review checklist](../docs/CLIENT_REVIEW_V0_4_2.md).
+Prepared: 30 September 2026. Use this with the [client review checklist](../../docs/client/CLIENT_REVIEW_V0_4_2.md).
 
 [Open Data](https://ciss-advertising-observatory-production.up.railway.app/data) · [Open Query](https://ciss-advertising-observatory-production.up.railway.app/query)
 

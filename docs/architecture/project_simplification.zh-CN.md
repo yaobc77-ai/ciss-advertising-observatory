@@ -41,10 +41,10 @@
 
 ## 检查记录
 
-三处代码清理前后，同一组6个来源独立的测试模块均为180项通过、0失败、0跳过；Ruff与精确差异检查通过。这是本轮定向工程检查，不是全项目测试、模型性能提高或客户验收。代码回执见本机[精确差异](../.runtime/simplify_code_20261008/exact.patch)与[测试记录](../.runtime/simplify_code_20261008/result.json)。
+三处代码清理前后，同一组6个来源独立的测试模块均为180项通过、0失败、0跳过；Ruff与精确差异检查通过。这是本轮定向工程检查，不是全项目测试、模型性能提高或客户验收。代码回执见本机[精确差异](../../.runtime/simplify_code_20261008/exact.patch)与[测试记录](../../.runtime/simplify_code_20261008/result.json)。
 
 文档检查：本轮主入口67个本地链接存在；客户目标ID、目标正文和来源列逐项保持一致；README保留R1–R18全部版本号。工具清单与源码定义对应；Markdown围栏、图的节点／连线结构通过静态检查，未声明Mermaid视觉渲染通过。README由191行减至111行，架构与MCP两文档合计457行减至256行。
 
-网页线框图另有91项独立离线UI检查通过，0失败、0跳过；AST确认仅修改展示函数，Ruff和差异检查通过。见本机[精确补丁](../.runtime/simplify_wireframe_20261008/exact.patch)和[检查回执](../.runtime/simplify_wireframe_20261008/result.json)。未做浏览器视觉检查、重启服务或部署；本机源码更新不等于已上线。
+网页线框图另有91项独立离线UI检查通过，0失败、0跳过；AST确认仅修改展示函数，Ruff和差异检查通过。见本机[精确补丁](../../.runtime/simplify_wireframe_20261008/exact.patch)和[检查回执](../../.runtime/simplify_wireframe_20261008/result.json)。未做浏览器视觉检查、重启服务或部署；本机源码更新不等于已上线。
 
 原文件修改前副本保留在本机 `.runtime/simplification_review_20261008/before`、`.runtime/simplify_docs_20261008` 和 `.runtime/simplify_code_20261008`。这些私有回执不保证随Git分发。主库、付费模型和远程发布不在本轮操作范围。

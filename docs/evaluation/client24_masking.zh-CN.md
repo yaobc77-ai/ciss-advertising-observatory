@@ -39,7 +39,7 @@ python -X utf8 scripts/run_masked_checks.py --report-dir .runtime/masked-check-n
 - 守卫是工作流和 Python 进程的读取控制，覆盖已知路径；不是操作系统安全沙箱，也无法消除对话历史中的信息。任意改名副本、绕过脚本的外部程序和历史记忆仍需遵守同一规则。
 - 工程通过不等于语义准确率提高、客户金标准审定或客户验收。下一次真实测试需要预先冻结评分规则，并明确模型运行授权。
 
-修复和审核入口：[本机目录](../.runtime/masked_repair_20261007/root/README.md)。
+修复和审核入口：[本机目录](../../.runtime/masked_repair_20261007/root/README.md)。
 
 ## 2026-10-08：参考保管与检查范围
 

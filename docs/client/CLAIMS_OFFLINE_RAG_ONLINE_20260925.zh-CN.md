@@ -67,7 +67,7 @@ flowchart TD
 - `claim_superclaim_map.json`：124 条子主张到上位主张映射，引用的类别均存在；另外 378 个子主张没有上位类映射。
 - `greenwashing_claim_history.json`：502 个主张、756 条定义变更、seed 和 matched 等历史事件；不能把每一条历史事件当成一条已裁决的文章标注。
 
-全量检查这些历史条目：740 条 `article_url="unknown"`、16 条 `N/A`，没有有效 HTTP URL；`metadata.article_id` 覆盖 42 个数字 ID。`source_article_id` 与 `metadata.article_id` 也不是同一编号。这些数字必须通过对应输入与原文确认，不能直接连接到当前数据库。现有目录内及其他目录的版本差异已在[历史源码审查](../reports/UPSTREAM_SOURCE_REVIEW_20260918.zh-CN.md)记录。
+全量检查这些历史条目：740 条 `article_url="unknown"`、16 条 `N/A`，没有有效 HTTP URL；`metadata.article_id` 覆盖 42 个数字 ID。`source_article_id` 与 `metadata.article_id` 也不是同一编号。这些数字必须通过对应输入与原文确认，不能直接连接到当前数据库。现有目录内及其他目录的版本差异已在[历史源码审查](../../reports/data_audits/UPSTREAM_SOURCE_REVIEW_20260918.zh-CN.md)记录。
 
 因此，首个接入产物应是“固定批次＋关联报告”：列出关联成功、歧义、原文不匹配、类别映射缺失和未处理数量。需要材料负责人指定正式分类规范／运行版本，并提供旧输入 ID 对应表；团队先准备候选和问题清单，不要求重新标注整个资料库。
 
@@ -85,4 +85,4 @@ flowchart TD
 
 原 FA26 文档将完整 CLAIMS 后端集成留给后续学期，同时要求 RAG 检索与回答。用户本次决定提前接入离线 CLAIMS 分析，属于新增工程方向，不改写课程原文或冒充客户已批准的验收标准。
 
-参考：[原文条款](../reports/fa26_requirements_source_20260916.md)、[现有导入契约](data_dictionary.md)、[现有评估协议](evaluation_protocol.md)。
+参考：[原文条款](../../reports/requirements/fa26_requirements_source_20260916.md)、[现有导入契约](../data/data_dictionary.md)、[现有评估协议](../evaluation/evaluation_protocol.md)。

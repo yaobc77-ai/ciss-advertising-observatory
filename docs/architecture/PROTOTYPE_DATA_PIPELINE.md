@@ -13,7 +13,7 @@ Run from the project root, with the existing server-only `OBS_DATABASE_URL` conf
 
 `init-db` remains supported and performs the same initialization. Both commands apply missing migrations before the existing retrieval bootstrap. Import commands do not silently upgrade the database: run `migrate` when deploying this code version.
 
-The authoritative migration inventory is the [ordered SQL directory](../src/observatory/migrations). Use `migration-status` against the intended database to distinguish available scripts from applied migrations. A migration present in source is not proof that production applied it. `schema.sql` is historical; future changes use new consecutive migrations. Migrations do not import corpus records or generate embeddings.
+The authoritative migration inventory is the [ordered SQL directory](../../src/observatory/migrations). Use `migration-status` against the intended database to distinguish available scripts from applied migrations. A migration present in source is not proof that production applied it. `schema.sql` is historical; future changes use new consecutive migrations. Migrations do not import corpus records or generate embeddings.
 
 The `schema_migrations` table records version, filename, SHA-256 checksum and application time. New migrations and their ledger entries commit together. The existing import advisory lock serializes upgrades with imports. Applied files must not be edited; changed checksums, gaps or a database newer than the installed code cause a failure before pending SQL is applied. Checksums normalize Windows/Unix line endings.
 
@@ -72,7 +72,7 @@ Important contract details:
 
 ## Verification and limits
 
-Use the [development gate](test_gate.zh-CN.md) for free offline checks and its private-database procedure for SQL integration checks. Do not run the full historical test tree directly: evaluation-dependent fixtures are isolated from development.
+Use the [development gate](../evaluation/test_gate.zh-CN.md) for free offline checks and its private-database procedure for SQL integration checks. Do not run the full historical test tree directly: evaluation-dependent fixtures are isolated from development.
 
 Import checks cover existing-schema adoption, repeat migrations, changed-checksum rejection, rollback, cross-year preservation, unchanged re-import, explicit snapshot retirement and cross-dataset ID rejection. A passing run applies only to its recorded code, database and selected checks.
 

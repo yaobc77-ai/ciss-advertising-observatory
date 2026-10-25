@@ -8,7 +8,7 @@ source contract. This does not recreate the current retrieval index or saved ans
 ## Contents
 
 The private ZIP preserves the seven source files listed in
-[Current handoff](current_handoff.md#b-import-from-approved-source-files), the
+[Current handoff](../current_handoff.md#b-import-from-approved-source-files), the
 three native review manifests, the fixed reference
 `outputs/pdf265_publication_validation_20260916.json`, and
 `eval/development.jsonl`. Its 12 payload files retain their original bytes and
@@ -23,7 +23,7 @@ The archive index retains its original 309 legacy absolute candidate paths.
 Those paths are not portable attachments and do not establish a correct article–PDF
 match. Do not rewrite this fixed source file. The reviewed PDF-265 has a relative
 path in the recovery manifest and is included. Other archive PDFs and previews are
-excluded; transfer the reviewed [record asset bundle](record_assets.md) separately.
+excluded; transfer the reviewed [record asset bundle](../architecture/record_assets.md) separately.
 
 ## Offline input check
 
@@ -60,9 +60,9 @@ After an offline pass, choose one documented data path:
 - For a fresh current-source import, use `import-native --root` and inspect its
   report before preparing the intended retrieval profile and embeddings.
 - To preserve old text versions, vectors, answers and the usage ledger, restore
-  the complete database backup using [the recovery guide](current_handoff.md#a-restore-a-complete-database-copy).
+  the complete database backup using [the recovery guide](../current_handoff.md#a-restore-a-complete-database-copy).
 
-The [current-package full import rehearsal](../reports/NATIVE_FULL_IMPORT_20261001.en.md)
+The [current-package full import rehearsal](../../reports/data_audits/NATIVE_FULL_IMPORT_20261001.en.md)
 used the installed 0.4.10 CLI and all fixed inputs in a new dedicated database.
 The first import created 275 versions; repeating it created none and retained
 275 unchanged records. The resulting counts were 275 stored, 263 countable and
@@ -76,7 +76,7 @@ Neither the ZIP nor the offline check transfers credentials or records customer 
 Another implementer's setup, real social data, reviewed CLAIMS2 publication and
 independent answer/client review remain pending.
 
-The [1 October handoff check](../reports/NATIVE_HANDOFF_20261001.en.md)
+The [1 October handoff check](../../reports/releases/NATIVE_HANDOFF_20261001.en.md)
 records the actual private ZIP, installed-package rehearsal and selected hosted UI observations.
-The [publication receipt](../reports/native_handoff_publication_20261001.json)
+The [publication receipt](../../reports/releases/native_handoff_publication_20261001.json)
 provides the two source commits, successful CI and separately verified source ZIP hashes.

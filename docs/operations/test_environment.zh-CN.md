@@ -50,6 +50,6 @@ Remove-Item Env:\OBS_TEST_DATABASE_URL -ErrorAction SilentlyContinue
 
 停止前核对私有标记、真实服务器数据目录、监听地址、端口、管理角色，以及 PID 文件所指进程的可执行文件和 `-D` 数据路径；身份不一致就拒绝。仅向通过检查的私有数据目录调用 `pg_ctl stop`，不执行按端口杀进程，不删除数据。临时库、日志和回执停止后保留。
 
-新入口不读取或改写项目 `.env`、主凭据、主数据目录；旧 `.env` 中的测试 URL 可能仍指向 55432，测试前应按上述命令显式装载私有连接。`docs/local_postgres.md` 的早期主集群测试库说明属于历史路径，本页说明当前开发入口。主集群的 start/stop/backup/restore 操作继续由原管理脚本负责。
+新入口不读取或改写项目 `.env`、主凭据、主数据目录；旧 `.env` 中的测试 URL 可能仍指向 55432，测试前应按上述命令显式装载私有连接。`docs/operations/local_postgres.md` 的早期主集群测试库说明属于历史路径，本页说明当前开发入口。主集群的 start/stop/backup/restore 操作继续由原管理脚本负责。
 
 这些检查验证测试环境隔离与基础 SQL/vector 操作；不证明真实模型效果、语义准确率或客户验收。

@@ -20,7 +20,7 @@
 | 已有语义审阅记录 | 工程定位和 AI 辅助审阅已记录 | 人工结论仍待补充；引文能定位不代表答案充分、归属正确或广告说法真实 |
 | 旧源码和 Claims2 | 背景知识、数据来源线索及可选工具 | 不增加本期模型重建、分类后端集成或动物农业交付义务 |
 
-本次连通证据见 [HTTP 检查](../reports/client_readiness_http_20260924.json)。263 条可计数、226 篇可检索、归档覆盖等数字来自此前同一源快照的审查，正式验收前由团队重新生成完整对账，不把健康接口的 275 条等同于全部可检索文章。
+本次连通证据见 [HTTP 检查](../../reports/requirements/client_readiness_http_20260924.json)。263 条可计数、226 篇可检索、归档覆盖等数字来自此前同一源快照的审查，正式验收前由团队重新生成完整对账，不把健康接口的 275 条等同于全部可检索文章。
 
 ## 二、先索要四类材料
 
@@ -93,7 +93,7 @@
 
 ## 六、沟通顺序与材料未到时的安排
 
-- **第一次沟通只优先收四类材料**：社交正式导出与字典、统计口径、原文／归档映射、真实问题与审阅人。可直接使用[英文邮件草稿](../deliverables/client_review_request_20260924.en.md)。
+- **第一次沟通只优先收四类材料**：社交正式导出与字典、统计口径、原文／归档映射、真实问题与审阅人。可直接使用[英文邮件草稿](../../deliverables/client_requests/client_review_request_20260924.en.md)。
 - **团队会前准备**：原生功能演示、16 条 sponsor 来源队列、少量日期／重复歧义例子、客户可读的验收题草案。把技术排错留给团队。
 - **讨论后记录**：每项决定、负责人、交付时间、公开展示范围，以及仍未知的事项。没有客户答复不自动按建议视为批准。
 - **交接前再确认**：指定 GitHub 及项目权限、Railway 和 API 的维护责任、数据更新周期、预计访问量和运行预算。由管理员通过平台分配权限，技术版本记录由团队完成。
@@ -103,8 +103,8 @@
 
 ## 参考与现有附件
 
-- [FA26 原始要求摘录](../analysis/FA26_project_brief.txt)
-- [现有评价协议](evaluation_protocol.md)、[开发题](../eval/development.jsonl)、[验收草案](../eval/acceptance.draft.jsonl)
-- [0.3.1 工程与界面证据](../reports/research_ui_v0_3_1_20260917.zh-CN.md)
-- [历史源码审查](../reports/UPSTREAM_SOURCE_REVIEW_20260918.zh-CN.md)、[16 条 sponsor 来源队列](../reports/upstream_sponsor_lineage_20260918.json)
-- [历史人工审阅表](../reports/citation_review_v0_2_4.csv)：绑定旧运行，不能直接当作新版模型答案的审阅结果。
+- [FA26 原始要求摘录](../../analysis/FA26_project_brief.txt)
+- [现有评价协议](../evaluation/evaluation_protocol.md)、[开发题](../../eval/development.jsonl)、[验收草案](../../eval/acceptance.draft.jsonl)
+- [0.3.1 工程与界面证据](../../reports/ui/research_ui_v0_3_1_20260917.zh-CN.md)
+- [历史源码审查](../../reports/data_audits/UPSTREAM_SOURCE_REVIEW_20260918.zh-CN.md)、[16 条 sponsor 来源队列](../../reports/data_audits/upstream_sponsor_lineage_20260918.json)
+- [历史人工审阅表](../../reports/rag_experiments/citation_review_v0_2_4.csv)：绑定旧运行，不能直接当作新版模型答案的审阅结果。

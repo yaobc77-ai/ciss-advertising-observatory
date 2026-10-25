@@ -83,7 +83,7 @@ output. They remain unprocessed. The candidate taxonomy has 502 subclaims,
 
 The installed 0.4.4 wheel passed 1,258 offline engineering tests, with one
 Windows symlink case skipped and 62 integration/live cases not run. Its separate
-[package reproduction check](../reports/current_release_offline_reproduction_v0_4_4_20260930.json)
+[package reproduction check](../../reports/releases/current_release_offline_reproduction_v0_4_4_20260930.json)
 also passed. These checks validate implementation and resources; they do not
 measure classification correctness or customer acceptance.
 
@@ -102,7 +102,7 @@ greenwashing counts. The decoder retained 762 category occurrences: 199 saved
 rows are structurally clean candidates, 605 require review, and two are
 quarantined because they contain multiple JSON blocks. Sixty-six occurrences
 have snippets absent from their own input. Mapping conflicts and changed
-definitions are reported separately. See the [audit receipt](../reports/claims_source_linkage_20260930.json).
+definitions are reported separately. See the [audit receipt](../../reports/data_audits/claims_source_linkage_20260930.json).
 
 ## Next integration gate
 

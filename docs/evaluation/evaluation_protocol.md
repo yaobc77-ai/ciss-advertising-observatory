@@ -1,16 +1,16 @@
 # M6：开发评估与验收草案
 
-**0.4.8 查询开发自测**：新增的 24 个统计问题和 7 个检索主题仅用于开发诊断，不属于独立冻结验收集。修订后的脚本核对状态、完整筛选、集合和分组维度；百分比题必须返回正确分子、分母和占比，故障和限流不会算通过。检索 gold 只来自当前 native、可计数、可检索且已接受的正文区间。回执绑定案例／脚本哈希并逐题保存。参见[自测范围](../eval/selftest/README.md)及[版本核验](../reports/QUERY_V0_4_8_20261001.en.md)；开发自测通过不证明人工引用支持率或客户验收。
+**0.4.8 查询开发自测**：新增的 24 个统计问题和 7 个检索主题仅用于开发诊断，不属于独立冻结验收集。修订后的脚本核对状态、完整筛选、集合和分组维度；百分比题必须返回正确分子、分母和占比，故障和限流不会算通过。检索 gold 只来自当前 native、可计数、可检索且已接受的正文区间。回执绑定案例／脚本哈希并逐题保存。参见[自测范围](../../eval/selftest/README.md)及[版本核验](../../reports/releases/QUERY_V0_4_8_20261001.en.md)；开发自测通过不证明人工引用支持率或客户验收。
 
 **0.4.5 冻结工程补充**：准备器已支持 native、social、cross 范围的 format-2 输入包；评估器通过显式 `--frozen-manifest` 验证逐文件哈希、人工声明、问题／文章分组隔离、完整选中记录、正文证据及来源／索引快照，然后才执行检索或付费调用。没有 manifest 的运行仍标 `draft_not_frozen`。冻结输入通过只标 `frozen_inputs_verified`，语义验收仍为 pending、`overall_pass=null`。本轮仅用合成夹具测试，没有填写真实人工批准、冻结客户题库或调用模型。用法见[英文冻结指南](frozen_evaluation.md)。下方较早“仅支持 native”的说明属于修订前状态。
 
 **2026-09-30 评价接口补充（未运行付费评价）**：默认计数题继续只核对数据库，历史开发／草案文件不改。新增显式 `--paid --answer-counts` 模式，计数题额外调用当前 `Service.answer`，保留模型／工具 trace、结构化统计、筛选、状态和账本费用；`answer_count_exact` 单独核对返回的数据库计数与原定筛选，不从生成文字解析数字，也不替代旧 `count_exact`。启用语言模型理解前须核对 `OBS_RESEARCH_AGENT_ENABLED` 与预算。失败题留在相应分母中，不能由数据库计数通过替模型路径记为通过。
 
-未来真实社交／跨集合 ready 题可显式附 `reviewed_release`：包含现有审核人的 `reviewer`、真实 `approval_record` 和审核时的 64 位 `data_version`。运行必须与该版本一致；来源必须属于 native／social／all 指定范围，跨集合支持题必须具有两套数据的必需支持记录。声明字段不能证明审核真实发生。当前 7 个 pending 题仍不执行，没有导入数据、填写 gold 或伪造审批；社交导入、人工审阅列为待办。现有冻结准备器仍只支持 native，正式双集合冻结需在真实材料准备好后另完成。当前客户 review 和演示草案见 [0.4.2 review](CLIENT_REVIEW_V0_4_2.md)。
+未来真实社交／跨集合 ready 题可显式附 `reviewed_release`：包含现有审核人的 `reviewer`、真实 `approval_record` 和审核时的 64 位 `data_version`。运行必须与该版本一致；来源必须属于 native／social／all 指定范围，跨集合支持题必须具有两套数据的必需支持记录。声明字段不能证明审核真实发生。当前 7 个 pending 题仍不执行，没有导入数据、填写 gold 或伪造审批；社交导入、人工审阅列为待办。现有冻结准备器仍只支持 native，正式双集合冻结需在真实材料准备好后另完成。当前客户 review 和演示草案见 [0.4.2 review](../client/CLIENT_REVIEW_V0_4_2.md)。
 
 **2026-09-25 新入口**：独立客户评价的材料检查与冻结流程见[评价准备说明](PROTOTYPE_EVALUATION.md)。`scripts/prepare_client_review.py` 复用现有评价契约和原文定位；缺问题、金标准或审阅确认时输出 pending，不连接模型、不制造新成绩。现有 development 与 acceptance.draft 两套题仍视为已见资料。新网络／分页工程测试不证明 RAG 语义正确。
 
-**状态补充（2026-09-24）**：Railway 预览已部署；本日仅核验数据页 HTTP 200 和健康接口，当前活动索引为 `sentence600-v1` / **556** 块。下面的 0.2.4“558 块”及其付费结果保留为历史快照。尚未完成线上端到端或客户语义验收；没有因本次文档整理新增评价成绩。当前测试分工、客户材料及冻结步骤见[客户测试沟通计划](CLIENT_TESTING_AND_MATERIALS_20260924.zh-CN.md)。
+**状态补充（2026-09-24）**：Railway 预览已部署；本日仅核验数据页 HTTP 200 和健康接口，当前活动索引为 `sentence600-v1` / **556** 块。下面的 0.2.4“558 块”及其付费结果保留为历史快照。尚未完成线上端到端或客户语义验收；没有因本次文档整理新增评价成绩。当前测试分工、客户材料及冻结步骤见[客户测试沟通计划](../client/CLIENT_TESTING_AND_MATERIALS_20260924.zh-CN.md)。
 
 两个题库各 **20 题**：10 个原生广告支持题（8 个检索／解释题、2 个完整筛选计数题）、4 个社交媒体题、3 个跨数据集题、3 个原生广告无证据题。当前每组 **13 ready、7 pending_social**。没有社交媒体实料，因此这 7 题不执行、不评分，也不以零条、假数据或原生广告代替。
 
@@ -37,7 +37,7 @@
 
 0.2.4 当时的原生数据版本为 `5114ebc1cf9afe59cdaa715e3ea45166`，275收录、263可计数、226可检索、558块。CLI 要求 `native_admissions.json`、`native_body_ranges.json`、`native_body_recoveries.json` 三份配置及其绑定的源文件。0.2.3增加了PDF-265的有限续文；该文仍为partial，原有94项截断限制没有整体解除。
 
-最近的付费开发记录来自0.2.4：原20题中13题运行、7题等待真实社交数据；19条生成引用可定位。另有独立两题PDF诊断；两者均待人工语义验收，不能以定位结果推出95%语义支持率。详见[0.2.4报告](../reports/quote_context_v0_2_4.md)。0.2.5仅修正Dashboard同次刷新的一致性和未知日期时间线，不改检索、生成、题库或数据，也未为此重复付费诊断。下文的数据变更及运行记录均保留其历史版本。
+最近的付费开发记录来自0.2.4：原20题中13题运行、7题等待真实社交数据；19条生成引用可定位。另有独立两题PDF诊断；两者均待人工语义验收，不能以定位结果推出95%语义支持率。详见[0.2.4报告](../../reports/rag_experiments/quote_context_v0_2_4.md)。0.2.5仅修正Dashboard同次刷新的一致性和未知日期时间线，不改检索、生成、题库或数据，也未为此重复付费诊断。下文的数据变更及运行记录均保留其历史版本。
 
 ## 0.2.0 历史数据变更的评估约束
 
@@ -47,7 +47,7 @@
 
 区间修复后每段分别分块，字符偏移和段落 ID 指回原始正文；评估器的单区间 gold 校验与该合同一致。20处导航审核是 AI 工程采纳，不是人工语义验收；94处疑似截断、源文缺失列表和被截断的结尾仍未恢复。对现存片段的命中不能支持“完整文章没有提到某事”或“全文已核实”的结论。
 
-[开发运行 `532453a7c43740ecbe5f4954d3522f41`](../outputs/development_reviewed_paid_final_20260916.json)绑定的是媒体简称对齐前的 `c5ad20ac2938e619e11fe1f8bfc26b97`，不是当前版本；其中3道英语题产生西班牙语／法语回答，按诊断保留。运行汇总以[评估报告](../reports/evaluation.md)为入口，不能把机械定位通过、检索命中或 AI 辅助审阅当成人工语义验收。初次结构迁移275个新版本、后续大小写修订7个新版本及各次275条 unchanged 是导入重复性证据，不是模型或标注质量指标。详见[数据合同](data_dictionary.md)。
+[开发运行 `532453a7c43740ecbe5f4954d3522f41`](../../outputs/development_reviewed_paid_final_20260916.json)绑定的是媒体简称对齐前的 `c5ad20ac2938e619e11fe1f8bfc26b97`，不是当前版本；其中3道英语题产生西班牙语／法语回答，按诊断保留。运行汇总以[评估报告](../../reports/rag_experiments/evaluation.md)为入口，不能把机械定位通过、检索命中或 AI 辅助审阅当成人工语义验收。初次结构迁移275个新版本、后续大小写修订7个新版本及各次275条 unchanged 是导入重复性证据，不是模型或标注质量指标。详见[数据合同](../data/data_dictionary.md)。
 
 ## 免费运行是默认值
 
@@ -105,7 +105,7 @@
 
 ## 定向恢复检查与正式题库
 
-0.2.3 的 `eval/pdf265_recovery_smoke.jsonl` 是两道限定到一篇文章的维护冒烟题，复用同一 runner。它的 `suite=development` 仅表示开发诊断模式，不属于原 `eval/development.jsonl` 的 20 题，也不替代 20 题验收草案。其支持原句在调用前固定，结果单独保存为 [PDF-265 smoke](../outputs/pdf265_recovery_paid_smoke_20260916.json)，绑定 `5114ebc1cf9afe59cdaa715e3ea45166`。定位有效仍不能掩盖回答中的主体措辞问题，见 [恢复报告](../reports/pdf265_body_recovery.md)。本轮没有重新调用原开发题或验收草案的生成接口。
+0.2.3 的 `eval/pdf265_recovery_smoke.jsonl` 是两道限定到一篇文章的维护冒烟题，复用同一 runner。它的 `suite=development` 仅表示开发诊断模式，不属于原 `eval/development.jsonl` 的 20 题，也不替代 20 题验收草案。其支持原句在调用前固定，结果单独保存为 [PDF-265 smoke](../../outputs/pdf265_recovery_paid_smoke_20260916.json)，绑定 `5114ebc1cf9afe59cdaa715e3ea45166`。定位有效仍不能掩盖回答中的主体措辞问题，见 [恢复报告](../../reports/data_audits/pdf265_body_recovery.md)。本轮没有重新调用原开发题或验收草案的生成接口。
 
 `tests/test_body_recoveries.py` 另外检查源 PDF／抽取文件漂移、页终止符与映射错位、旧标签依据、部分正文质量门槛，以及一个失效决定不能导致同批其他恢复半生效。测试用合成材料，真实数据的定位和旧引用保留另见发布记录。
 
@@ -121,6 +121,6 @@
 
 历史前置核验（0.2.0之前，2026-09-16）：数据库版本 `652ed975bbd44ea06e20af19b6a6642d`；development 的15段、acceptance draft 的17段原句归属、逐字匹配和当时 `retrieval_end` 范围全部有效，四道计数题的完整筛选集合一致。该次只读取原文和元数据，没有对 acceptance 执行检索或生成；当时评估程序的15个单元测试通过。这些数字保留为原快照证据，不代表当前版本已经冻结或正式验收。
 
-后续区间修订的[只读核验记录](../outputs/source_revision_validation_20260916.json)绑定中间版本 `b5b03ce0e60a1fccd003e1056236ad85`：development 15段、acceptance draft 17段原句定位通过，并检查79个历史证据定位及554个当前片段。该记录早于最终casefold修订，也保持原版本，不回填成最终版本核验。
+后续区间修订的[只读核验记录](../../outputs/source_revision_validation_20260916.json)绑定中间版本 `b5b03ce0e60a1fccd003e1056236ad85`：development 15段、acceptance draft 17段原句定位通过，并检查79个历史证据定位及554个当前片段。该记录早于最终casefold修订，也保持原版本，不回填成最终版本核验。
 
-媒体对齐中间版本 `612e20bbef3d0910ba94c0e4be84d10e` 的[只读核验](../outputs/source_revision_validation_final_20260916.json)另外确认：275条原始正文保持一致、554个片段与79个历史证据可定位、development 的15段和acceptance draft 的17段原句仍有效。该记录早于最终 keyword 源拼写恢复，不改写成当前版本验证；它不执行验收题的生成、不冻结草案，也不给出人工语义通过结论。
+媒体对齐中间版本 `612e20bbef3d0910ba94c0e4be84d10e` 的[只读核验](../../outputs/source_revision_validation_final_20260916.json)另外确认：275条原始正文保持一致、554个片段与79个历史证据可定位、development 的15段和acceptance draft 的17段原句仍有效。该记录早于最终 keyword 源拼写恢复，不改写成当前版本验证；它不执行验收题的生成、不冻结草案，也不给出人工语义通过结论。

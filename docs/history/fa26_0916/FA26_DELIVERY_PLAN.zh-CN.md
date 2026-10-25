@@ -1,6 +1,6 @@
 # FA26 项目交付计划与资料附录
 
-> **当前实施入口（2026-09-16）**：原生研究预览已在本机运行。查看 [实施与验收状态](docs/acceptance_status.md)、[交接说明](docs/handoff.md) 和 [README](README.md)。本页保留模块要求及编制时附录，不将历史“待建”当作当前状态；实际已实现内容和剩余验收以上述入口为准。社交、指定 GitHub、固定公网入口及人工语义验收仍有待完成。
+> **当前实施入口（2026-09-16）**：原生研究预览已在本机运行。查看 [实施与验收状态](../../operations/acceptance_status.md)、[交接说明](../../operations/handoff.md) 和 [README](../../../README.md)。本页保留模块要求及编制时附录，不将历史“待建”当作当前状态；实际已实现内容和剩余验收以上述入口为准。社交、指定 GitHub、固定公网入口及人工语义验收仍有待完成。
 
 本计划按模块实施与验收，不安排周次。附录依据最新版项目介绍逐项核对，区分已有输入、参考资料与待创建交付物。
 
@@ -312,17 +312,17 @@ P213 的 [geolim@bu.edu](mailto:geolim@bu.edu) 是联系方式，其他邮箱也
 | --- | --- | --- | --- | --- | --- |
 | P98–P101 | 项目定义、用例、范围、需求、成功标准、实施计划 | 本计划；`docs/requirements.md` | M1–M8 | 锁定交付内容，记录需求与验收对应关系。 | 本计划已保存；详细需求文档待建 |
 | P95、P100 | 数据、访问、来源与风险清单 | 本附录；`docs/data_inventory.md` | M1、M2 | 列来源、版本、访问依赖、质量问题和处理状态。 | 本附录已保存；实施期清单待维护 |
-| P67、P109、P117 | 字段级 schema mapping 与 dashboard data dictionary | `docs/data_dictionary.md`；`config/field_mapping.yml` | M1、M4 | 说明两类源字段到统一字段的映射、单位、缺失与实体含义。 | 待建；P67 明确由学生团队完成 |
-| P115、P149 | 系统架构、数据流、AI/ML 集成方案 | `docs/architecture.md` | M1、M5、M7 | 描述数据到页面/问答的处理关系、模块接口和运行配置。 | 待建 |
+| P67、P109、P117 | 字段级 schema mapping 与 dashboard data dictionary | `docs/data/data_dictionary.md`；`config/field_mapping.yml` | M1、M4 | 说明两类源字段到统一字段的映射、单位、缺失与实体含义。 | 待建；P67 明确由学生团队完成 |
+| P115、P149 | 系统架构、数据流、AI/ML 集成方案 | `docs/architecture/architecture.md` | M1、M5、M7 | 描述数据到页面/问答的处理关系、模块接口和运行配置。 | 待建 |
 | P116 | Dashboard wireframes and user flows | `docs/wireframes.md` 及引用的线框图 | M3、M4、M8 | 确认两类视图、筛选、明细、搜索和来源跳转。 | 待建 |
 | P118、P134 | RAG design、实施 backlog 与更新后的风险 | `docs/rag_design.md`；`docs/backlog.md` | M2、M5、M6 | 固定检索/引用设计，跟踪未完成工作和外部依赖。 | 待建 |
 | P131–P134 | R&D 发现、技术建议、已验证处理与检索方案 | `docs/technical_findings.md` | M1、M2、M5、M6 | 记录实际比较、选择依据、失败及证据，避免只写架构设想。 | 待建 |
-| P133、P144 | 代表性 RAG 问题集与评价计划 | `eval/questions.jsonl`；`docs/evaluation_protocol.md` | M6 | 保存问题、支持记录、判断标准、开发/验收分组和指标口径。 | 待建；计划为20开发＋20验收题 |
-| P148、P166 | RAG 评价、失败案例、功能与 RAG 测试结果 | `reports/evaluation.md`；`reports/failure_cases.csv`；测试结果 | M6 | 交代实际质量、分母、延迟、成本和未解决失败。 | 待建；旧 CLAIMS 指标不能替代 |
+| P133、P144 | 代表性 RAG 问题集与评价计划 | `eval/questions.jsonl`；`docs/evaluation/evaluation_protocol.md` | M6 | 保存问题、支持记录、判断标准、开发/验收分组和指标口径。 | 待建；计划为20开发＋20验收题 |
+| P148、P166 | RAG 评价、失败案例、功能与 RAG 测试结果 | `reports/rag_experiments/evaluation.md`；`reports/failure_cases.csv`；测试结果 | M6 | 交代实际质量、分母、延迟、成本和未解决失败。 | 待建；旧 CLAIMS 指标不能替代 |
 | P145、P150、P163 | 客户审阅的 RAG POC/产品及优先反馈 | `docs/client_review.md` 与对应演示版本 | M5、M6、M8 | 保存审阅版本、反馈和处理决定；不能先行写为已接受。 | 待建 |
 | P44–P46、P165、P180 | 最终源码、可复用组件、测试与部署配置 | `src/`、`tests/`、依赖锁定、`.env.example` 和部署配置 | M1–M8 | 让后续接手者从指定 GitHub 交付版本运行和维护系统。 | 待建；不是旧仓库链接或历史静态输出 |
-| P46、P173、P175、P181 | setup、部署、配置、数据库/嵌入工作流与更新说明 | `README.md`；`docs/operations.md` | M7、M8 | 说明安装、启动、数据更新、预算、公开入口、备份和故障恢复。 | 待建；示例配置不包含真实密钥 |
-| P49、P176、P181 | User guide | `docs/user_guide.md` | M3–M5、M8 | 指导非技术用户筛选、比较、搜索和核对证据。 | 待建 |
+| P46、P173、P175、P181 | setup、部署、配置、数据库/嵌入工作流与更新说明 | `README.md`；`docs/operations/operations.md` | M7、M8 | 说明安装、启动、数据更新、预算、公开入口、备份和故障恢复。 | 待建；示例配置不包含真实密钥 |
+| P49、P176、P181 | User guide | `docs/operations/user_guide.md` | M3–M5、M8 | 指导非技术用户筛选、比较、搜索和核对证据。 | 待建 |
 | P50、P176、P182 | 未来工作边界与建议 | `docs/future_work.md` | M8 | 说明 CLAIMS 后端、动物农业、更多平台和可选主题分析。 | 待建 |
 | P51、P177、P182 | Final presentation、demonstration、handoff materials | `deliverables/final_presentation.pptx`；演示脚本；交接索引 | M8 | 覆盖双数据集、统计、RAG、引用与运行限制，汇总所有交付入口。 | 待建；旧海报/汇报不算本期产物 |
 

@@ -32,7 +32,7 @@ This permits a later reviewed release, not automatic approval or synthetic subst
 pending cases and the historical question files remain unchanged. The client-packet freeze helper
 still supports native only; dual-collection freezing remains to be completed with real materials.
 
-The [current client review](CLIENT_REVIEW_V0_4_2.md) and demonstration are drafts. Real social
+The [current client review](../client/CLIENT_REVIEW_V0_4_2.md) and demonstration are drafts. Real social
 import and independent customer review are explicit TODOs. The customer's latest direction now
 schedules CLAIMS integration using the supplied upstream package; it is not already connected or
 accepted. Animal agriculture remains future work.
@@ -52,7 +52,7 @@ client questions and completed semantic reviews are still missing.
 
 ## Prepare an independent native review
 
-Start with the blank [client intake packet](../eval/client_review_20260925/README.md).
+Start with the blank [client intake packet](../../eval/client_review_20260925/README.md).
 The team collects real tasks, maps original records and quotes, prepares grouped holdouts and
 obtains an actual reviewer decision before recording approval in `review_plan.json`.
 
@@ -122,7 +122,7 @@ Free and paid modes measure different paths; they are not an isolated embedding 
 | Social/cross collection | Adapter tests using explicit fixtures | Formal released data and schema, scoped gold and evaluator support |
 | Speed and scale | Measured workload, latency, failures and cost | Expected data size, concurrency and acceptable waiting time |
 
-Use [answer_review.csv](../eval/client_review_20260925/answer_review.csv) to tie semantic review to
+Use [answer_review.csv](../../eval/client_review_20260925/answer_review.csv) to tie semantic review to
 the exact run and case. Report reviewed, failed, missing and not-run cases separately. No default
 accuracy threshold is invented here. Graph/interface and scale acceptance remain separate from
 RAG quality; a successful page load or a fast synthetic fixture does not settle those questions.

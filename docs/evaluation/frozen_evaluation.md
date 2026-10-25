@@ -10,7 +10,7 @@ paid API or production database evaluation was run for this change.
 ## Prepare the review packet
 
 A packet contains `review_plan.json`, `questions.jsonl` and `article_groups.csv`.
-The existing [client intake packet](../eval/client_review_20260925/README.md)
+The existing [client intake packet](../../eval/client_review_20260925/README.md)
 shows the fields. Its supplied questions and review declarations are incomplete;
 it remains pending. Existing development and acceptance-draft questions are
 treated as previously used material.
@@ -107,7 +107,7 @@ recorded service behavior, not proof that the corpus lacks relevant evidence.
 
 Quote location, version consistency and exact counts are engineering checks.
 Whether an answer is supported, correctly attributed, qualified, complete and
-useful still needs the [human answer review](../eval/client_review_20260925/answer_review.csv)
+useful still needs the [human answer review](../../eval/client_review_20260925/answer_review.csv)
 for the exact run and case. The runner leaves semantic review pending and does
 not create an overall acceptance verdict.
 

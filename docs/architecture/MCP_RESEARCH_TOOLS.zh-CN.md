@@ -2,7 +2,7 @@
 
 更新日期：2026-09-30。本文说明工具接口；具体部署版本以发布回执为准，接口实现不代表客户语义验收。
 
-**0.4.6 更新**：普通目录新增 `get_claims_matches`，共八个只读工具。网站／模型使用已发布且仍与当前正文精确匹配的 NC／SC 结果；实际 37 项候选仍待审。`find_claims_source_candidates` 是另外按需启用的维护工具，默认隐藏，先本地精确查找，再最多一次付费网页搜索；仅写费用账本，不绑定来源。见[只读视图](claims_read_views.md)与[来源补查](claims_source_discovery.md)。
+**0.4.6 更新**：普通目录新增 `get_claims_matches`，共八个只读工具。网站／模型使用已发布且仍与当前正文精确匹配的 NC／SC 结果；实际 37 项候选仍待审。`find_claims_source_candidates` 是另外按需启用的维护工具，默认隐藏，先本地精确查找，再最多一次付费网页搜索；仅写费用账本，不绑定来源。见[只读视图](../data/claims_read_views.md)与[来源补查](../data/claims_source_discovery.md)。
 
 ## 1. 这次修正什么
 
@@ -56,7 +56,7 @@ flowchart TD
 
 网页模型另有 `request_clarification` 控制工具，用于提出一句澄清问题；它不是 MCP 服务器暴露的数据读取工具。
 
-契约入口：[`research_tools.py`](../src/observatory/research_tools.py)。网页调用和 MCP 调用复用同一个执行器；前者提供严格的 Responses schema，后者提供 MCP `inputSchema`。
+契约入口：[`research_tools.py`](../../src/observatory/research_tools.py)。网页调用和 MCP 调用复用同一个执行器；前者提供严格的 Responses schema，后者提供 MCP `inputSchema`。
 
 ## 4. 范围、计数和来源契约
 
@@ -85,7 +85,7 @@ flowchart TD
 
 ## 5. 知识图谱与 CLAIMS 的扩展空间
 
-当前 schema 为 `advertising-source-graph-v2`，主要节点包括文章、文本版本、候选赞助方、媒体、来源材料、标注、标签和证据区间，并增加 CLAIMS2 赋值、NC 与 SC 节点。关系具有类型与出处；选择某项赋值仅显示该项的对应关系及原文，不混入其他赋值的来源说明。
+当前 schema 为 `advertising-source-graph-v4`，主要节点包括文章、文本版本、候选赞助方、媒体、来源材料、标注、标签和证据区间，并增加 CLAIMS2 赋值、NC 与 SC 节点。社交帖子另有账号、频道、@账号名、话题、被回复／引用／转发的帖子 ID 和来源自带的公司档案节点，帖子上记录采集时的互动数；公司关联不是付费赞助。`get_graph_neighborhood` 现在接受 native、social 和 all。关系具有类型与出处；选择某项赋值仅显示该项的对应关系及原文，不混入其他赋值的来源说明。
 
 `get_graph_schema` 让调用方先了解关系含义；`get_graph_neighborhood` 返回邻域和来源元数据。这个接口可以继续接更完整的图谱存储或来源适配器，而不用让模型直接接数据库查询语言。
 
@@ -99,7 +99,7 @@ flowchart TD
 | 外部事实核查 | 独立证据、时间、来源身份与核查结果；与“文章中出现某种说法”分开。 |
 | 社交记录的图谱及材料 | 正式导出和字段含义，以及与社交记录版本绑定的正文／素材详情适配器。 |
 
-现有历史 CLAIMS 标签是历史自动标注；部分缺正式 codebook 或与当前正文绑定的证据。因此不能直接回答“哪些广告已被验证为漂绿”。可以展示来源中保存了什么标签，或检索出现什么说法，但必须保留这个区别。详见[来源知识图谱说明](KNOWLEDGE_GRAPH_V1.zh-CN.md)。
+现有历史 CLAIMS 标签是历史自动标注；部分缺正式 codebook 或与当前正文绑定的证据。因此不能直接回答“哪些广告已被验证为漂绿”。可以展示来源中保存了什么标签，或检索出现什么说法，但必须保留这个区别。详见[来源知识图谱说明](../knowledge_graph/KNOWLEDGE_GRAPH_V1.zh-CN.md)。
 
 ## 6. 使用与费用
 
@@ -186,9 +186,9 @@ HTTP 只允许回环地址，端口独立于网页。它未挂载到公共 Railw
 
 | 部分 | 文件 |
 |---|---|
-| 模型理解、选择、预算和有限循环 | [`research_agent.py`](../src/observatory/research_agent.py) |
-| 工具 schema、范围与数据读取 | [`research_tools.py`](../src/observatory/research_tools.py) |
-| 官方 MCP SDK 服务 | [`mcp_server.py`](../src/observatory/mcp_server.py) |
-| 网页路由与统计／正文回答的连接 | [`service.py`](../src/observatory/service.py) |
-| 原文检索、生成与引文校验 | [`rag.py`](../src/observatory/rag.py) |
-| 类型化来源图谱 | [`knowledge_graph.py`](../src/observatory/knowledge_graph.py) |
+| 模型理解、选择、预算和有限循环 | [`research_agent.py`](../../src/observatory/research_agent.py) |
+| 工具 schema、范围与数据读取 | [`research_tools.py`](../../src/observatory/research_tools.py) |
+| 官方 MCP SDK 服务 | [`mcp_server.py`](../../src/observatory/mcp_server.py) |
+| 网页路由与统计／正文回答的连接 | [`service.py`](../../src/observatory/service.py) |
+| 原文检索、生成与引文校验 | [`rag.py`](../../src/observatory/rag.py) |
+| 类型化来源图谱 | [`knowledge_graph.py`](../../src/observatory/knowledge_graph.py) |

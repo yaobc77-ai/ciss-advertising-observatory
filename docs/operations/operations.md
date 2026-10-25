@@ -1,26 +1,51 @@
 # 本机与部署运行、预算及交接
 
-**2026-09-30 当前入口：** 线上 0.4.2 的发布证据见[选取关系回执](../reports/graph_selection_publication_v0_4_2_20260930.json)。新增[英文交接说明](current_handoff.md)、[私有附件配置](record_assets.md)和[固定快照完整恢复](../reports/DATABASE_RESTORE_20260930.en.md)。本机 15 表、向量、历史答案及用量账本已恢复对账；该结果不覆盖 Railway 的独立快照或异机恢复。本轮 0.4.3 维护代码尚须按新提交核对发布。下文 0.4.1 及旧阶段命令／数字按其历史范围阅读。
+## 2026-10-06 本机交接入口
 
-0.4.1 修复初次图谱加载可能为空的回调竞态；当前状态见[发布记录](../reports/RELEASE_V0_4_0_20260930.zh-CN.md)，独立制品回执见[0.4.1复现](../reports/current_release_database_reproduction_v0_4_1_20260930.json)。以下0.4.0测试与规模基准保持其版本范围。
+最新代码、资料与发布状态以[当前交接](../current_handoff.md)为准。本机已实现 Evaluation 页面和 Data → Overview 的 **Reviewed content questions** 入口；没有配置真实审定评价报告或内容发布，263条原生记录的6,312项判定仍全部pending。新功能尚未公开发布；旧版0.4.10的安装和部署回执不覆盖后续本机修订。真实社交准入、模型运行、人工审查和客户验收继续待办。
 
-更新日期：2026-09-30。当前发布运行契约为 **0.4.1**；Railway 的实际发布状态以本轮部署回执和线上 `/healthz` 为准。下面标注旧日期的测试、费用和恢复记录保留其历史范围。
+### 选择私有评价报告与审定内容
 
-## 当前状态 — 0.4.1
+两条路径均由服务器运维人员显式选择，参数见[.env.example](../../.env.example)；默认留空，浏览器不能上传报告或设定文件路径、审核人和批准。私有工件单独传递或挂载，不放入 Git、公开静态目录或代码镜像。以下只列出配置含义，没有应用实际路径或指纹。
 
-查询入口为 `/query`、数据入口为 `/data`，根路径 `/` 进入查询。Data 提供当前范围的公司／来源所列赞助方与媒体统计、集合知识图谱、点击实体后的占比与来源记录，以及历史标签下钻。图谱边表达记录支持的关系，不认证商业合作；历史标签不是经过核验的 CLAIMS 判断。界面与限制见 [用户指南](user_guide.md)及[图谱详情验证](../reports/GRAPH_DETAILS_V2_20260929.zh-CN.md)。
+| 服务器设置 | 所选工件与核对对象 |
+| --- | --- |
+| `OBS_EVALUATION_REPORT_PATH` | 符合[评价报告契约](../evaluation/customer_metric_report.md)的私有 JSON 文件路径。 |
+| `OBS_EVALUATION_REPORT_SHA256` | 该报告原始文件字节的 SHA-256。 |
+| `OBS_EVALUATION_PLAN_SHA256` | 独立保留的冻结评价计划指纹，按 `metric_plan_sha256` 的计划契约核对；不以未核实报告自己声明的指纹代替。 |
+| `OBS_CONTENT_PUBLICATION_PATH` | 由[审定内容准备流程](../data/content_publication.md)生成的私有 `publication.json` 路径。 |
+| `OBS_CONTENT_PUBLICATION_SHA256` | 该发布文件原始字节的 SHA-256。 |
+| `OBS_CONTENT_REVIEW_SHA256` | 对应审查文件原始字节的 SHA-256，与发布内保留的审查绑定一致。 |
+
+选择前由运维人员核对真实运行、来源、定义、审查权限和对应版本，并审阅公开投影。文件指纹和审核声明不认证人员身份或客户批准；合成测试工件不作为生产证据。不改写旧报告、审查文件或发布文件；更新使用新文件路径和新指纹，保留原始材料与回执。更改配置后重启应用以读取新选择，再检查页面的冻结范围与版本；开启这些读取不执行模型、导入、重算向量或客户验收。
+
+`/evaluation` 只展示聚合、范围、样本覆盖、失败、日期、方法与局限，不展示原始答案、个人审查记录、姓名和私有路径。报告读取发生在应用创建时，运行中不自动重载文件。所有设置留空时保持待评；设置不全、文件缺失、过大、指纹或契约失配时显示 unavailable，不补造分数或回显路径。已载入的分数只描述其冻结运行，页面不自动比对当前代码／数据／索引；部分算术仅为标明覆盖的已评子集，空分母不生成成绩。评价解读见[方法](../evaluation/evaluation_methodology.md)。
+
+内容名单在每次读取时校验所选发布和审查指纹，并比对当前记录、正文版本、哈希及允许区间。待审、不足正文和版本漂移保留 unknown；配置缺失或发布无效时返回 unavailable，不代入草案或报告零命中。翻页和导出会重读并检查问题、筛选、发布及来源范围；变化后须重新读取首页。页 JSON 只包含当页审定命中与全选择覆盖，仅当 `classification_complete` 与 `page_complete` 都为true才是完整命中名单。公开投影不包含审核人身份、批准引用和本地路径；操作与正文证据见[用户指南](guide.md#current-local-review-work)。
+
+## 历史发布与运行记录
+
+**2026-09-30 历史入口：** 线上 0.4.2 的发布证据见[选取关系回执](../../reports/knowledge_graph/graph_selection_publication_v0_4_2_20260930.json)。新增[英文交接说明](../current_handoff.md)、[私有附件配置](../architecture/record_assets.md)和[固定快照完整恢复](../../reports/releases/DATABASE_RESTORE_20260930.en.md)。本机 15 表、向量、历史答案及用量账本已恢复对账；该结果不覆盖 Railway 的独立快照或异机恢复。该次 0.4.3 维护代码尚须按新提交核对发布。下文 0.4.1 及旧阶段命令／数字按其历史范围阅读。
+
+0.4.1 修复初次图谱加载可能为空的回调竞态；当前状态见[发布记录](../../reports/releases/RELEASE_V0_4_0_20260930.zh-CN.md)，独立制品回执见[0.4.1复现](../../reports/releases/current_release_database_reproduction_v0_4_1_20260930.json)。以下0.4.0测试与规模基准保持其版本范围。
+
+历史更新日期：2026-09-30。该次发布运行契约为 **0.4.1**；Railway 的实际发布状态以对应部署回执和当时线上 `/healthz` 为准。下面标注旧日期的测试、费用和恢复记录保留其历史范围。
+
+## 历史状态 — 0.4.1
+
+查询入口为 `/query`、数据入口为 `/data`，根路径 `/` 进入查询。Data 提供当前范围的公司／来源所列赞助方与媒体统计、集合知识图谱、点击实体后的占比与来源记录，以及历史标签下钻。图谱边表达记录支持的关系，不认证商业合作；历史标签不是经过核验的 CLAIMS 判断。界面与限制见 [用户指南](user_guide.md)及[图谱详情验证](../../reports/knowledge_graph/GRAPH_DETAILS_V2_20260929.zh-CN.md)。
 
 共享筛选在浏览器 session 中保留，换页保留现有问答；问题或有效筛选改变时显示旧结果提示。导航和数据浏览不产生付费调用。启用 `OBS_RESEARCH_AGENT_ENABLED=true` 后，Generate answer 先付费理解问题，再选择共享只读工具；预算与模型访问仍在服务器控制。社交真实语料尚未接入，客户语义与易用性验收尚未完成。
 
-当前 `active_profile=sentence600-v1`，556 个片段；旧 `legacy600-v1` 的 558 个片段保留，可按下述流程回退。源数据版本 `source_data_version=5114ebc1cf9afe59cdaa715e3ea45166` 未变：275 收录、263 默认可统计、226 可检索。`health.data_version` 现在同时包含源版本和索引版本，不能再直接与旧版的源快照 MD5 比较。发布记录见 [0.3.0 报告](../reports/release_v0_3_0_20260917.zh-CN.md)。
+当前 `active_profile=sentence600-v1`，556 个片段；旧 `legacy600-v1` 的 558 个片段保留，可按下述流程回退。源数据版本 `source_data_version=5114ebc1cf9afe59cdaa715e3ea45166` 未变：275 收录、263 默认可统计、226 可检索。`health.data_version` 现在同时包含源版本和索引版本，不能再直接与旧版的源快照 MD5 比较。发布记录见 [0.3.0 报告](../../reports/releases/release_v0_3_0_20260917.zh-CN.md)。
 
 ## 当前构建、迁移与健康检查
 
-[Dockerfile](../Dockerfile)使用 Python 3.12，固定 `uv:0.12.7`，先以 `uv sync --frozen --no-dev --no-install-project` 安装锁定依赖，再以 `uv sync --frozen --no-dev --no-editable` 安装项目。运行入口为 `/app/.venv/bin/observatory serve`；包内包含浏览器资源与有序 SQL 迁移，不能依靠工作目录中的 editable 源码补齐缺失文件。容器构建不携带 `.env`、原始语料、运行目录或数据库备份；应用配置由部署平台环境变量提供。
+[Dockerfile](../../Dockerfile)使用 Python 3.12，固定 `uv:0.12.7`，先以 `uv sync --frozen --no-dev --no-install-project` 安装锁定依赖，再以 `uv sync --frozen --no-dev --no-editable` 安装项目。运行入口为 `/app/.venv/bin/observatory serve`；包内包含浏览器资源与有序 SQL 迁移，不能依靠工作目录中的 editable 源码补齐缺失文件。容器构建不携带 `.env`、原始语料、运行目录或数据库备份；应用配置由部署平台环境变量提供。
 
-[CI](../.github/workflows/ci.yml)固定 uv 0.12.7 和 Python 3.12，安装 `uv.lock` 中的 test／MCP 依赖，执行 Ruff 与浏览器 JavaScript 语法检查，再构建并安装 wheel。测试设置 `OBS_RELEASE_WHEEL` 后针对已安装制品运行 `not integration and not live` 用例，并核对静态资源、迁移与 CLI。工作流文件存在不等于本次提交的 CI 已通过；发布时保存对应提交的实际运行结果。CI 不连接生产数据库，也不调用付费模型。
+[CI](../../.github/workflows/ci.yml)固定 uv 0.12.7 和 Python 3.12，安装 `uv.lock` 中的 test／MCP 依赖，执行 Ruff 与浏览器 JavaScript 语法检查，再构建并安装 wheel。测试设置 `OBS_RELEASE_WHEEL` 后针对已安装制品运行 `not integration and not live` 用例，并核对静态资源、迁移与 CLI。工作流文件存在不等于本次提交的 CI 已通过；发布时保存对应提交的实际运行结果。CI 不连接生产数据库，也不调用付费模型。
 
-[2026-09-30 独立安装与测试库回执](../reports/current_release_database_reproduction_20260930.json)记录实际安装的 0.4.0 wheel 在 Python 3.12.14 中通过验证：本机 `obs_test` 内新随机 schema 的迁移升至版本 2，两年合成记录通过默认 upsert 保留，重复导入返回 1 条 unchanged；6 个句界片段均可定位，缺失 embedding 时激活被阻断。embedding、答案、用量和生成输出表均为空，模型调用为 0；仅清理该随机 schema。这验证了安装与合成工程路径，**没有复现生产语料、生产向量、历史答案或预算账本，也不代表客户验收或大规模性能已通过**。命令与完整边界见 [当前制品复现说明](CURRENT_RELEASE_REPRODUCTION.md)；原始快照复现仍需要授权源文件和完整备份。
+[2026-09-30 独立安装与测试库回执](../../reports/releases/current_release_database_reproduction_20260930.json)记录实际安装的 0.4.0 wheel 在 Python 3.12.14 中通过验证：本机 `obs_test` 内新随机 schema 的迁移升至版本 2，两年合成记录通过默认 upsert 保留，重复导入返回 1 条 unchanged；6 个句界片段均可定位，缺失 embedding 时激活被阻断。embedding、答案、用量和生成输出表均为空，模型调用为 0；仅清理该随机 schema。这验证了安装与合成工程路径，**没有复现生产语料、生产向量、历史答案或预算账本，也不代表客户验收或大规模性能已通过**。命令与完整边界见 [当前制品复现说明](CURRENT_RELEASE_REPRODUCTION.md)；原始快照复现仍需要授权源文件和完整备份。
 
 新建或升级运行环境时，先备份目标库，再运行 `observatory migration-status` 检查迁移，执行 `observatory migrate`，随后复查状态。迁移不等于导入资料或重算向量；不要把付费 `index` 放进普通启动流程。Railway 的部署前命令使用 `/app/.venv/bin/observatory migrate`，由同一部署环境的数据库变量选择目标库，不能填入本机测试连接。
 
@@ -30,7 +55,7 @@
 |---|---|
 | `status`、`record_counts`、`chunks`、`active_profile` | 服务状态、收录规模与当前检索索引；收录数不等于可统计或可检索数 |
 | `source_data_version`、`index_version`、`data_version` | 发布前后来源与索引是否变化 |
-| `application.version` | 实际安装包版本，应与本轮发布记录匹配（0.4.1） |
+| `application.version` | 实际安装包版本，应与所选部署的发布回执匹配 |
 | `application.commit` | 平台 `RAILWAY_GIT_COMMIT_SHA` 中有效的 40 位 Git SHA；无效或缺失时返回 `null` |
 | `application.features` | `collection_graph`、`graph_breakdowns`、`research_agent` 能力／开关状态；不代表数据完整或回答准确 |
 
@@ -107,9 +132,9 @@ print(rag.index(profile_id="sentence600-v1", visitor="index-maintenance"))
 
 ## 原生数据交接与复现
 
-正式导入必须带齐 [native_admissions.json](../config/native_admissions.json)、[native_body_ranges.json](../config/native_body_ranges.json)、[native_body_recoveries.json](../config/native_body_recoveries.json) 三份 manifest 及其固定哈希的私有源文件。第三份还要求源 PDF 和 [PDF-265 抽取文本](../sources/recovered_native/PDF-265.pypdf-6.10.0.txt)；缺文件或哈希、行号、身份、页界、区间不符会停止发布。不要以删除 manifest 或改用可选的库导入参数来绕过检查，这会改变快照语义。
+正式导入必须带齐 [native_admissions.json](../../config/native_admissions.json)、[native_body_ranges.json](../../config/native_body_ranges.json)、[native_body_recoveries.json](../../config/native_body_recoveries.json) 三份 manifest 及其固定哈希的私有源文件。第三份还要求源 PDF 和 [PDF-265 抽取文本](../../sources/recovered_native/PDF-265.pypdf-6.10.0.txt)；缺文件或哈希、行号、身份、页界、区间不符会停止发布。不要以删除 manifest 或改用可选的库导入参数来绕过检查，这会改变快照语义。
 
-抽取文本可由资料交付方提供。若需从固定 PDF 复现，使用可选依赖和[提取脚本](../scripts/extract_pdf_text.py)：
+抽取文本可由资料交付方提供。若需从固定 PDF 复现，使用可选依赖和[提取脚本](../../scripts/extract_pdf_text.py)：
 
 ```powershell
 uv run --extra pdf python scripts/extract_pdf_text.py `
@@ -120,15 +145,15 @@ uv run --extra pdf python scripts/extract_pdf_text.py `
 
 仅在输出文件不存在时运行；脚本拒绝覆盖。它用锁定的 `pypdf==6.10.0` 原样提取每页并追加 `U+000C`，不 OCR、不重写源 PDF。预期文本为7,098字符、SHA-256 `28110347b8b96cd32ac4b7bcac41d1f3b80c67798e220f9043382eb40a622b67`。常规应用和导入只读该文件，不需要安装 pypdf。
 
-恢复保留6个区间、4,767字符，仍为 `partial`；原来的94项 CSV 截断限制不能因此记作全文恢复。原正文和版本继续保存，该篇旧标签在新版本的 `raw.previous_body_annotations` 中供内部追溯，不参与当前标签过滤。具体遗漏及身份边界见[恢复报告](../reports/pdf265_body_recovery.md)。
+恢复保留6个区间、4,767字符，仍为 `partial`；原来的94项 CSV 截断限制不能因此记作全文恢复。原正文和版本继续保存，该篇旧标签在新版本的 `raw.previous_body_annotations` 中供内部追溯，不参与当前标签过滤。具体遗漏及身份边界见[恢复报告](../../reports/data_audits/pdf265_body_recovery.md)。
 
 ## 当前验证与历史发布基线
 
-0.4.1 的安装制品 956 项测试、生产首屏与互动验证见[发布记录](../reports/RELEASE_V0_4_0_20260930.zh-CN.md)及[本轮发布回执](../reports/release_v0_4_1_publication_20260930.json)；安装与合成测试库执行见[0.4.1 回执](../reports/current_release_database_reproduction_v0_4_1_20260930.json)。0.4.0 三道客户问题与 37,000 条合成记录基准保持其原版本范围。下面 0.3.x／0.2.x 的成绩不作为当前运行成绩，工程检查不构成客户语义验收。
+0.4.1 的安装制品 956 项测试、生产首屏与互动验证见[发布记录](../../reports/releases/RELEASE_V0_4_0_20260930.zh-CN.md)及[本轮发布回执](../../reports/releases/release_v0_4_1_publication_20260930.json)；安装与合成测试库执行见[0.4.1 回执](../../reports/releases/current_release_database_reproduction_v0_4_1_20260930.json)。0.4.0 三道客户问题与 37,000 条合成记录基准保持其原版本范围。下面 0.3.x／0.2.x 的成绩不作为当前运行成绩，工程检查不构成客户语义验收。
 
-[0.3.0 发布报告](../reports/release_v0_3_0_20260917.zh-CN.md)记录 366 项工程测试通过、三页面与 sentence600-v1 的本机发布。两次付费 smoke 只支持已记录的工程定位检查；中文回答仍有选定短引文之外的地点实体、重复使用引文等待审项，不能记作人工语义验收或整体质量提升。
+[0.3.0 发布报告](../../reports/releases/release_v0_3_0_20260917.zh-CN.md)记录 366 项工程测试通过、三页面与 sentence600-v1 的本机发布。两次付费 smoke 只支持已记录的工程定位检查；中文回答仍有选定短引文之外的地点实体、重复使用引文等待审项，不能记作人工语义验收或整体质量提升。
 
-历史 [0.2.3 发布验证](../outputs/pdf265_publication_validation_20260916.json)的源数据版本是 `5114ebc1cf9afe59cdaa715e3ea45166`：275收录、263可计数、226可检索、558个当时的当前片段。该轮只有1条新记录版本、274条不变；重复导入275条不变。已验证558个当时片段定位、86个历史引文定位及15个开发 gold 原句，完整测试209项通过（19.63秒）。这些数字保留历史口径。
+历史 [0.2.3 发布验证](../../outputs/pdf265_publication_validation_20260916.json)的源数据版本是 `5114ebc1cf9afe59cdaa715e3ea45166`：275收录、263可计数、226可检索、558个当时的当前片段。该轮只有1条新记录版本、274条不变；重复导入275条不变。已验证558个当时片段定位、86个历史引文定位及15个开发 gold 原句，完整测试209项通过（19.63秒）。这些数字保留历史口径。
 
 交接后核对实际源哈希、版本和定位，再使用应用。此前0.2.2的 `d85a98002e4493f0376c260ad82253ee`／554片段是历史基线；其付费开发输出、费用和成绩保持原样，不视作0.2.3新数据的评测。人工语义验收仍待完成。
 
@@ -144,9 +169,9 @@ uv run --extra pdf python scripts/extract_pdf_text.py `
 
 ## 数据库备份和恢复
 
-使用 `scripts/Backup-Postgres.ps1`。恢复使用 `scripts/Restore-Postgres.ps1` 并明确提供一个新的测试数据库名称；不要覆盖现有数据库。详细参数和已执行证据见 `docs/local_postgres.md`。验证恢复后的行数、数据版本和历史引文后再考虑切换运行配置。
+使用 `scripts/Backup-Postgres.ps1`。恢复使用 `scripts/Restore-Postgres.ps1` 并明确提供一个新的测试数据库名称；不要覆盖现有数据库。详细参数和已执行证据见 `docs/operations/local_postgres.md`。验证恢复后的行数、数据版本和历史引文后再考虑切换运行配置。
 
-历史 0.2.4 的 `5114…` 源快照已完成[独立新库恢复](../reports/backup_restore_v0_2_4.md)：275/263/226/558、当时全部9张业务表内容、序列及结构均相同；110个存储回答中的177条引用定位通过，其中94条指向旧正文。验证未切换应用连接，也没有付费调用。此证据不包含 0.3.0 新增的 profile、成员、准备和发布状态表，也不代表异机灾备完成；历史变更见 [0.3.0 报告](../reports/release_v0_3_0_20260917.zh-CN.md)。0.4.0 的完整备份须包含当前业务表、源版本、索引成员与发布状态、embedding、历史答案和预算账本，并在独立恢复库对账；新的合成测试库回执不替代这项恢复。PDF、预览缓存、源 manifest、授权源文件和私有环境配置需分别备份，不包含在纯源码制品中。
+历史 0.2.4 的 `5114…` 源快照已完成[独立新库恢复](../../reports/releases/backup_restore_v0_2_4.md)：275/263/226/558、当时全部9张业务表内容、序列及结构均相同；110个存储回答中的177条引用定位通过，其中94条指向旧正文。验证未切换应用连接，也没有付费调用。此证据不包含 0.3.0 新增的 profile、成员、准备和发布状态表，也不代表异机灾备完成；历史变更见 [0.3.0 报告](../../reports/releases/release_v0_3_0_20260917.zh-CN.md)。0.4.0 的完整备份须包含当前业务表、源版本、索引成员与发布状态、embedding、历史答案和预算账本，并在独立恢复库对账；新的合成测试库回执不替代这项恢复。PDF、预览缓存、源 manifest、授权源文件和私有环境配置需分别备份，不包含在纯源码制品中。
 
 若 Windows PowerShell 5 的默认执行策略阻止 `.ps1`，可直接使用包装脚本相同的 Python 入口，无需修改系统策略：
 
@@ -168,7 +193,7 @@ uv run --extra pdf python scripts/extract_pdf_text.py `
 | Pre-deploy command | `/app/.venv/bin/observatory migrate` | 部署前日志显示命令执行成功，应用启动使用迁移后的数据库 |
 | `OBS_RESEARCH_AGENT_ENABLED` | `true` | 已应用环境变量，线上 `application.features.research_agent=true` |
 
-[railway.json](../railway.json)记录 Dockerfile、健康检查和迁移目标配置。本轮平台界面出现 config-as-code deprecated 提示，因此不能仅凭文件存在、Git 推送成功或 staged UI 值认定它已生效。维护者应先核对提交、待应用变更和实际已应用设置，再查看构建、部署前迁移、启动与健康检查日志。若平台没有采用仓库配置，应通过项目设置应用同一契约，并保存实际生效记录；不要同时保留两个互相冲突的启动／迁移来源。
+[railway.json](../../railway.json)记录 Dockerfile、健康检查和迁移目标配置。本轮平台界面出现 config-as-code deprecated 提示，因此不能仅凭文件存在、Git 推送成功或 staged UI 值认定它已生效。维护者应先核对提交、待应用变更和实际已应用设置，再查看构建、部署前迁移、启动与健康检查日志。若平台没有采用仓库配置，应通过项目设置应用同一契约，并保存实际生效记录；不要同时保留两个互相冲突的启动／迁移来源。
 
 发布前保存线上健康白名单和备份；发布后核对 `/healthz` 的 `application.version=0.4.1`、`application.commit` 与部署提交一致，三个 feature 状态符合目标，且原生源版本、索引版本、活动 profile、收录数和片段数符合本次是否更新数据的预期。本轮代码发布不要求重导入语料、重算 embedding 或清空历史账本。`commit=null` 时需通过部署日志独立确认源码提交；缺少新版 `application` 字段表示尚不能由健康接口确认新版制品。
 
@@ -176,9 +201,9 @@ uv run --extra pdf python scripts/extract_pdf_text.py `
 
 源码中的 research-agent 开关默认关闭以保留旧基线，`.env.example` 给出启用样例。失败时保留实际费用和未决预留，升级与重启不得清账；应用／API 月预算与 Railway 平台费用上限分别核对。服务器密钥、数据库连接与稳定 cookie secret 通过平台环境配置，不提交仓库或写入公开回执。
 
-MCP 官方 SDK 是可选依赖，`uv sync --extra test --extra pdf --extra mcp` 安装后可用 `python -m observatory.mcp_server` 启动 stdio；MCP 客户端按需启动该进程。可选 HTTP 只在本机 8051 端口开放，未挂载到公开 Dash 应用。完整契约和配置见 [MCP 说明](MCP_RESEARCH_TOOLS.zh-CN.md)。
+MCP 官方 SDK 是可选依赖，`uv sync --extra test --extra pdf --extra mcp` 安装后可用 `python -m observatory.mcp_server` 启动 stdio；MCP 客户端按需启动该进程。可选 HTTP 只在本机 8051 端口开放，未挂载到公开 Dash 应用。完整契约和配置见 [MCP 说明](../architecture/MCP_RESEARCH_TOOLS.zh-CN.md)。
 
-数据导入与迁移规则见 [数据管道说明](PROTOTYPE_DATA_PIPELINE.md)。Cloudflare 模板作为可选方案保留，不是现有 Railway 预览的运行前提。源码更新不会自动部署原始 PDF／预览等私有素材；在目标环境逐条检查核验附件能否访问，缺失时保持明确缺失提示。
+数据导入与迁移规则见 [数据管道说明](../architecture/PROTOTYPE_DATA_PIPELINE.md)。Cloudflare 模板作为可选方案保留，不是现有 Railway 预览的运行前提。源码更新不会自动部署原始 PDF／预览等私有素材；在目标环境逐条检查核验附件能否访问，缺失时保持明确缺失提示。
 
 正式开放前核对：社交真实导出、API 凭据/模型访问、稳定 cookie secret、错误页、并发预算和故障降级；从另一网络检查 HTTPS、筛选、来源和问答。仅本机页面可打开不算公开部署完成。
 
@@ -186,4 +211,4 @@ MCP 官方 SDK 是可选依赖，`uv sync --extra test --extra pdf --extra mcp` 
 
 指定仓库为 [yaobc77-ai/ciss-advertising-observatory](https://github.com/yaobc77-ai/ciss-advertising-observatory)。源码、锁文件、配置样例、测试与文档需形成可定位的提交；源数据另行交付，`.env`、`.runtime` 和原始语料不进入公开提交。
 
-从本轮起，`import-native` 和 `import-social` 默认 `--mode upsert`，不会停用本批未出现的历史记录。仅在材料确实是整个数据集的完整替换时明确传入 `--mode snapshot`。新年份／新来源可以先转换为 canonical JSONL，运行 `import-records --dry-run` 检查后再增量导入；字段含义与源 ID 仍需要数据方确认。详见 [数据管道说明](PROTOTYPE_DATA_PIPELINE.md)。
+从本轮起，`import-native` 和 `import-social` 默认 `--mode upsert`，不会停用本批未出现的历史记录。仅在材料确实是整个数据集的完整替换时明确传入 `--mode snapshot`。新年份／新来源可以先转换为 canonical JSONL，运行 `import-records --dry-run` 检查后再增量导入；字段含义与源 ID 仍需要数据方确认。详见 [数据管道说明](../architecture/PROTOTYPE_DATA_PIPELINE.md)。
