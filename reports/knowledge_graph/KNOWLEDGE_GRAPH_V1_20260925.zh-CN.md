@@ -18,7 +18,7 @@ Overview 保留公司／组织 × 媒体完整矩阵，Records 保留记录浏�
 
 这是来源与标注层的知识图谱。候选赞助方表示原数据的字段值，不自动合并公司别名，也不证明付款关系。历史标签是标注记录，不直接成为广告主张已经成立的事实。普通网页链接与经核验的本地 PDF 分开表示。
 
-结构、API、维护入口见[设计说明](../docs/KNOWLEDGE_GRAPH_V1.zh-CN.md)。
+结构、API、维护入口见[设计说明](../../docs/knowledge_graph/KNOWLEDGE_GRAPH_V1.zh-CN.md)。
 
 ## 实际验证
 

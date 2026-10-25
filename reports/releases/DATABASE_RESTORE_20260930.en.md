@@ -2,7 +2,7 @@
 
 On 30 September 2026, the current local Observatory database was backed up from an exported PostgreSQL snapshot and restored to a new database in the same project cluster. The application connection and private configuration were unchanged. No model calls were made.
 
-[Complete verification receipt](database_restore_v0_4_2_complete_20260930.json) · [Verifier](../scripts/verify_database_restore.py)
+[Complete verification receipt](database_restore_v0_4_2_complete_20260930.json) · [Verifier](../../scripts/verify_database_restore.py)
 
 ## Verified result
 

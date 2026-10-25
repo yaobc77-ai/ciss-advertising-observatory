@@ -1,0 +1,1 @@
+run_id,attempt_id,is_primary,query_id,request_id,status,failure_stage,reason,metric_eligibility_json,eligibility_reason,ranking_ids_json,reference_origin,started_at_utc,elapsed_ms,timeout_seconds,cost_usd

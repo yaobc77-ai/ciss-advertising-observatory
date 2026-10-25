@@ -48,7 +48,7 @@ def main():
     assert before["data_version"] == after["data_version"]
     payload = {"status": "passed", "no_model_calls": True,
                "data_version": after["data_version"], "results": results}
-    destination = Path("reports/michelle_statistics_smoke_20260929.json")
+    destination = Path("reports/requirements/michelle_statistics_smoke_20260929.json")
     destination.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps(payload, ensure_ascii=False, indent=2))
 

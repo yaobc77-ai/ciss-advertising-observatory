@@ -10,8 +10,8 @@
 
 ## 核对依据与边界
 
-- 新要求：用户提供的 `DS549 9_25 Meeting Notes.docx`，SHA-256：`78b507a529f0e7f79f13804c6072688df727b921410a13c2f63d990b5e07d2b0`。下文“§”对应 [57 个非空段落的提取稿](../analysis/DS549_meeting_20260925.txt)，不是 DOCX 页码。
-- 原要求：[FA26 原始简述提取稿](../analysis/FA26_project_brief.txt)。纪要强调的新事项优先纳入差异分析；未提及的旧要求不自动作废。
+- 新要求：用户提供的 `DS549 9_25 Meeting Notes.docx`，SHA-256：`78b507a529f0e7f79f13804c6072688df727b921410a13c2f63d990b5e07d2b0`。下文“§”对应 [57 个非空段落的提取稿](../../analysis/DS549_meeting_20260925.txt)，不是 DOCX 页码。
+- 原要求：[FA26 原始简述提取稿](../../analysis/FA26_project_brief.txt)。纪要强调的新事项优先纳入差异分析；未提及的旧要求不自动作废。
 - 当前实现：GitHub `main` 与本地 HEAD 均为 `2fc65887f8f960d9dc14f73ebd7404020eca722a`，见 [提交](https://github.com/yaobc77-ai/ciss-advertising-observatory/commit/2fc65887f8f960d9dc14f73ebd7404020eca722a)。部分本地旧文档仍有未同步内容，因此以下以代码和当前只读证据判断实现状态。
 - 本次只读检查：本机及 Railway `/healthz` 均为 `ok`，活动记录仅报告 `native: 275`，活动索引 `sentence600-v1`、556 个片段；两个接口的数据与索引标识一致。它们不能证明全量内容相等、用户流程验收或大数据性能。
 - 本次没有实施新功能或运行付费评价。此前的 93 项应用/UI/记录测试是工程证据，不是 93 个真实研究问题回答正确。
@@ -43,7 +43,7 @@
 
 ### 1. 热图不是知识图谱
 
-当前 [app.py 的关系图](../src/observatory/app.py#L454) 调用的是 `add_heatmap`。数字代表当前筛选下 sponsor 与 publisher 的记录计数；它没有表达公司所有权、资金流或已核实的组织合作关系。
+当前 [app.py 的关系图](../../src/observatory/app.py#L454) 调用的是 `add_heatmap`。数字代表当前筛选下 sponsor 与 publisher 的记录计数；它没有表达公司所有权、资金流或已核实的组织合作关系。
 
 建议第一版网络只从可追溯的已有字段构建：
 
@@ -55,23 +55,23 @@
 
 点击节点看邻居，点击边看形成关系的记录列表；日期和集合筛选共同改变图。聚合边上的数字需要能回到完整的原始记录。每条关系绑定 `record_id`、`version_id` 和来源字段。广告文本提到某企业、企业付费赞助、账号属于某企业是不同关系，不能混用。
 
-这是建议的最小版本，尚不是客户批准的图谱结构。实体别名与 CERAWeek／行业协会等类型仍需口径确认；[analytics.py](../src/observatory/analytics.py) 的显示名称映射没有完成实体合并。可先利用 PostgreSQL 表和聚合结果提供网络数据，不必把引入图数据库或 GraphRAG 当作前置条件。
+这是建议的最小版本，尚不是客户批准的图谱结构。实体别名与 CERAWeek／行业协会等类型仍需口径确认；[analytics.py](../../src/observatory/analytics.py) 的显示名称映射没有完成实体合并。可先利用 PostgreSQL 表和聚合结果提供网络数据，不必把引入图数据库或 GraphRAG 当作前置条件。
 
 ### 2. 有表格分页，不等于大数据后端分页
 
-[db.py:175](../src/observatory/db.py#L175) 的 `public_rows()` 无分页限制，最后 `fetchall()`；[app.py:1072](../src/observatory/app.py#L1072) 将全部结果作为 `rowData`，再由浏览器每页展示 20 条。图表、交叉表和 facet 仍在 Python 中从完整集合计算。问答前的完整标题匹配也会取出当前范围的全部元数据，见 [service.py:148](../src/observatory/service.py#L148)。
+[db.py:175](../../src/observatory/db.py#L175) 的 `public_rows()` 无分页限制，最后 `fetchall()`；[app.py:1072](../../src/observatory/app.py#L1072) 将全部结果作为 `rowData`，再由浏览器每页展示 20 条。图表、交叉表和 facet 仍在 Python 中从完整集合计算。问答前的完整标题匹配也会取出当前范围的全部元数据，见 [service.py:148](../../src/observatory/service.py#L148)。
 
 建议优先做 SQL 聚合、服务端分页／排序、按数据版本缓存 facet，以及图谱按需展开。向量索引、重排和查询改写应在真实新数据的检索与延迟基线上比较，不预先保证收益。先向客户确认预计数据量、更新频率、并发与可接受等待时间，再测试首屏、筛选、网络展开、检索、生成的分阶段耗时、失败率、资源与成本。
 
 ### 3. 有日期筛选，不等于能安全追加下一年
 
-[cli.py:61](../src/observatory/cli.py#L61) 的 `import-native` 固定传入 `snapshot_dataset="native"`；[db.py:122](../src/observatory/db.py#L122) 会停用该快照中没有出现的旧记录。[ingest.py:32](../src/observatory/ingest.py#L32) 仍依赖特定历史文件路径。
+[cli.py:61](../../src/observatory/cli.py#L61) 的 `import-native` 固定传入 `snapshot_dataset="native"`；[db.py:122](../../src/observatory/db.py#L122) 会停用该快照中没有出现的旧记录。[ingest.py:32](../../src/observatory/ingest.py#L32) 仍依赖特定历史文件路径。
 
 因此，新来源必须先声明是追加、更新还是完整替换。不能把仅含新增年份的材料包装成整个 native 集合的快照导入。后续需要来源级范围、稳定源 ID、批次 manifest，以及跨年追加、重复导入、修订和撤回的回归测试。
 
 ## RAG：继续现有实现，补正式评价
 
-目前不是“还需要接一个 LLM”的阶段：[service.py:202](../src/observatory/service.py#L202) 已调用查询向量与生成，[rag.py:231](../src/observatory/rag.py#L231) 限制模型选择引用 ID，再由程序填写真实引文。
+目前不是“还需要接一个 LLM”的阶段：[service.py:202](../../src/observatory/service.py#L202) 已调用查询向量与生成，[rag.py:231](../../src/observatory/rag.py#L231) 限制模型选择引用 ID，再由程序填写真实引文。
 
 需要补的是一组独立、可审查的质量证据：
 
@@ -81,7 +81,7 @@
 4. 原生、社交和跨库单独统计；尚未接入的数据不得记为已通过。
 5. 记录修改前后质量、延迟、失败率和费用，以实验决定优化是否保留。
 
-[评价协议](../docs/evaluation_protocol.md) 明确开发题和 `acceptance.draft` 的草案性质；[评价汇总](evaluation.md) 的历史结果仍有人工审阅未完成项。已有句界切分比较改善了边界／重复情况，但没有提高那批词项开发题的召回，见 [比较报告](rag_chunking_review_20260916.zh-CN.md#L88)。不能把重复调过的少量题或 UI 测试写成新系统准确率证明。
+[评价协议](../../docs/evaluation/evaluation_protocol.md) 明确开发题和 `acceptance.draft` 的草案性质；[评价汇总](../rag_experiments/evaluation.md) 的历史结果仍有人工审阅未完成项。已有句界切分比较改善了边界／重复情况，但没有提高那批词项开发题的召回，见 [比较报告](../rag_experiments/rag_chunking_review_20260916.zh-CN.md#L88)。不能把重复调过的少量题或 UI 测试写成新系统准确率证明。
 
 ## 先向客户确认或索取什么
 
@@ -103,4 +103,4 @@
 4. **客户参与：** 冻结 RAG 保留题和网络任务，收集非技术用户的操作与语义反馈，修复并复测。
 5. **最终交付：** 对齐文档、部署证据、数据／代码版本和演示稿；明确仍受材料或验收阻塞的项目。
 
-特别注意当前文档漂移：[user_guide.md](../docs/user_guide.md#L11) 仍写线框图位于页脚及旧按钮名；[operations.md](../docs/operations.md#L128) 仍写待接公网和 GitHub；[verify_clean_import.py](../scripts/verify_clean_import.py#L1) 明确是旧版重建脚本。这些材料存在，并不等于当前交付说明已完成。
+特别注意当前文档漂移：[user_guide.md](../../docs/operations/user_guide.md#L11) 仍写线框图位于页脚及旧按钮名；[operations.md](../../docs/operations/operations.md#L128) 仍写待接公网和 GitHub；[verify_clean_import.py](../../scripts/verify_clean_import.py#L1) 明确是旧版重建脚本。这些材料存在，并不等于当前交付说明已完成。

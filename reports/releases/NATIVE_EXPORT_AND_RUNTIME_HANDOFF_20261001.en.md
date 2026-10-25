@@ -4,7 +4,7 @@ Checked: 1 October 2026. Application: **0.4.10**. These are team engineering che
 
 ## Actual hosted CSV downloads
 
-The [download reconciliation receipt](native_export_reconciliation_20261001.json) records four files downloaded through the hosted browser:
+The [download reconciliation receipt](../data_audits/native_export_reconciliation_20261001.json) records four files downloaded through the hosted browser:
 
 | Selection | Records CSV | Company–outlet cross-tab | Reconciliation |
 | --- | ---: | ---: | --- |
@@ -41,6 +41,6 @@ Windows termination returned exit code 1 for each owned child; the receipt prese
 
 ## Documentation and remaining acceptance
 
-The [setup and user guide](../docs/guide.md), detailed user guide, [current handoff](../docs/current_handoff.md) and [native demonstration](../deliverables/native_demo_v0_4_9.en.md) now describe the current hosted release, record pagination, citation numbers, export results and observed limits. Historical source archives retain their original contents and hashes.
+The [setup and user guide](../../docs/operations/guide.md), detailed user guide, [current handoff](../../docs/current_handoff.md) and [native demonstration](../../deliverables/demo_scripts/native_demo_v0_4_9.en.md) now describe the current hosted release, record pagination, citation numbers, export results and observed limits. Historical source archives retain their original contents and hashes.
 
 This rehearsal used the same implementer and machine. Another implementer's reproduction, another-machine or whole-service recovery, complete source/archive recovery, real social-data tasks, approved CLAIMS publication, independent frozen semantic review, customer counting/entity decisions and the final two-dataset demonstration remain pending. The hosted PDF download is still blocked by Edge with `ERR_BLOCKED_BY_CLIENT`; the preview and HTTP byte checks are separate evidence.

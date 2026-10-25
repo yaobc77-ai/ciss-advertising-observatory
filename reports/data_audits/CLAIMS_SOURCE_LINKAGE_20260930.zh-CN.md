@@ -29,11 +29,11 @@
 
 ## 审查入口和下一步
 
-- [命令、输出与实际结果说明](../docs/claims_source_audit.md)
+- [命令、输出与实际结果说明](../../docs/data/claims_source_audit.md)
 - [公开数字与文件哈希回执](claims_source_linkage_20260930.json)
-- [接入计划](../docs/claims_integration_plan.md)
+- [接入计划](../../docs/data/claims_integration_plan.md)
 - 私有逐项审核：`.runtime/claims-audit-canonical-20260930/upstream-ascii-v1/claims_evidence_review.csv`。身份确认、语义支持、审核者和日期均未预填审批。
 
 接下来确认来源关联和权威 taxonomy／批次，再做结果导入、网页／图谱读取与只读 MCP 查询。正式社交数据和客户验收材料仍是待办。本轮没有重跑分类或给出可靠性分数；新的 CLAIMS 标签尚未接入网页。
 
-安装的 0.4.4 wheel 回归通过 1,258 项工程测试；1 项 Windows 符号链接测试跳过，62 项 integration／live 未运行。[独立安装包核对](current_release_offline_reproduction_v0_4_4_20260930.json)通过。最初从 CRLF 工作区比较 LF 发布包的资源检查失败，改在与发布包一致的规范目录运行后通过；没有修改测试判断。该结果不替代分类正确率或客户验收。
+安装的 0.4.4 wheel 回归通过 1,258 项工程测试；1 项 Windows 符号链接测试跳过，62 项 integration／live 未运行。[独立安装包核对](../releases/current_release_offline_reproduction_v0_4_4_20260930.json)通过。最初从 CRLF 工作区比较 LF 发布包的资源检查失败，改在与发布包一致的规范目录运行后通过；没有修改测试判断。该结果不替代分类正确率或客户验收。

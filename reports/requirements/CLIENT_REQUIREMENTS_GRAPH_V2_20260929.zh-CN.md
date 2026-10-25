@@ -10,10 +10,10 @@
 
 ## 复核依据
 
-- 原始项目范围：[FA26 提取稿](../analysis/FA26_project_brief.txt)。其中原生广告数量／百分比、赞助方、日期与主题研究见第 27–34 行；社交见 35–38 行；RAG 见 39–42 行；CLAIMS 后端延期见第 16 行。
+- 原始项目范围：[FA26 提取稿](../../analysis/FA26_project_brief.txt)。其中原生广告数量／百分比、赞助方、日期与主题研究见第 27–34 行；社交见 35–38 行；RAG 见 39–42 行；CLAIMS 后端延期见第 16 行。
 - 客户邮件及上轮差异：[Michelle 反馈审计](MICHELLE_FEEDBACK_AUDIT_20260929.zh-CN.md)。
-- 已实现基础：[Michelle 修正报告](MICHELLE_IMPLEMENTATION_20260929.zh-CN.md)、[本机图谱报告](COLLECTION_KNOWLEDGE_GRAPH_20260929.zh-CN.md)、[模型／MCP 实施报告](MCP_RESEARCH_IMPLEMENTATION_20260929.zh-CN.md)。
-- 当前代码：[Data 分视图](../src/observatory/data_layout.py)、[图谱交互](../src/observatory/collection_graph_ui.py)、[图谱契约](../src/observatory/knowledge_map.py)、[双向统计入口](../src/observatory/research_explorer.py)、[统计与历史标签口径](../src/observatory/analytics.py)、[共享工具](../src/observatory/research_tools.py)。
+- 已实现基础：[Michelle 修正报告](MICHELLE_IMPLEMENTATION_20260929.zh-CN.md)、[本机图谱报告](../knowledge_graph/COLLECTION_KNOWLEDGE_GRAPH_20260929.zh-CN.md)、[模型／MCP 实施报告](../rag_experiments/MCP_RESEARCH_IMPLEMENTATION_20260929.zh-CN.md)。
+- 当前代码：[Data 分视图](../../src/observatory/data_layout.py)、[图谱交互](../../src/observatory/collection_graph_ui.py)、[图谱契约](../../src/observatory/knowledge_map.py)、[双向统计入口](../../src/observatory/research_explorer.py)、[统计与历史标签口径](../../src/observatory/analytics.py)、[共享工具](../../src/observatory/research_tools.py)。
 
 本报告读取的是上述代码的改版前状态。并行开发完成的功能、测试和截图应由本轮实施报告记录；不能把下表的建议预先写成已实现。
 

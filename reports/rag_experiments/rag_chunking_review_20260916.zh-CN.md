@@ -1,6 +1,6 @@
 # RAG 切分审查与候选实现
 
-> 历史候选实现记录（2026-09-16）。下文“主库继续使用旧 558 块”描述当时状态；2026-09-17 已在 [0.3.0](release_v0_3_0_20260917.zh-CN.md)有意启用 556 块句界索引。原比较结果保留，不改写为新模型性能。
+> 历史候选实现记录（2026-09-16）。下文“主库继续使用旧 558 块”描述当时状态；2026-09-17 已在 [0.3.0](../releases/release_v0_3_0_20260917.zh-CN.md)有意启用 556 块句界索引。原比较结果保留，不改写为新模型性能。
 
 日期：2026-09-16。目标是改善现有广告证据问答的检索上下文和引用输入，服务 FA26 Dashboard / RAG 交付。本文不把引用可定位当作回答正确，也不把旧开发题上的结果当作独立验收。
 
@@ -137,7 +137,7 @@ runner 在 `REPEATABLE READ READ ONLY` 事务中读取当前库，在内存派�
 .\.venv\Scripts\python.exe -m ruff check src tests scripts
 ```
 
-代码入口：[句界策略](../src/observatory/chunking.py)、[共享句界定位](../src/observatory/segmentation.py)、[引用目录](../src/observatory/rag.py)、[只读对比工具](../scripts/compare_retrieval_chunks.py)。测试入口：[切分](../tests/test_sentence_chunking.py)、[重叠](../tests/test_evidence_overlap.py)、[比较契约](../tests/test_retrieval_comparison.py)。
+代码入口：[句界策略](../../src/observatory/chunking.py)、[共享句界定位](../../src/observatory/segmentation.py)、[引用目录](../../src/observatory/rag.py)、[只读对比工具](../../scripts/compare_retrieval_chunks.py)。测试入口：[切分](../../tests/test_sentence_chunking.py)、[重叠](../../tests/test_evidence_overlap.py)、[比较契约](../../tests/test_retrieval_comparison.py)。
 
 ## 6. 后续优先级
 

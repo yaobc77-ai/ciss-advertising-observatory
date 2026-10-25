@@ -1,0 +1,234 @@
+{
+  "schema_version": 1,
+  "report_date": "2026-10-05",
+  "report_timezone": "America/New_York",
+  "captured_at_utc": "2026-10-05T07:34:42.593345+00:00",
+  "base_commit": "7e2fdcb08f9de435d3bd701afe888b3f74377b84",
+  "changes_are_uncommitted": true,
+  "changed_tracked_paths": [
+    "src/observatory/evaluate.py",
+    "src/observatory/research_tools.py",
+    "src/observatory/structured_queries.py",
+    "tests/test_answer_web_fallback_routes.py",
+    "tests/test_date_inference.py",
+    "tests/test_evaluate.py",
+    "tests/test_research_service.py",
+    "tests/test_research_tools.py",
+    "tests/test_structured_queries.py"
+  ],
+  "source_byte_sha256": {
+    "pyproject.toml": "e561dd42630cc7e6e53286a25f666a2c116d28166fe763231758cea7996777fc",
+    "src/observatory/research_agent.py": "290256d60b4a5f2e8932a799a487f8f0baeb634008457b469c3f792e082b78a2",
+    "src/observatory/research_tools.py": "54caa5e073f493473f9c52acab30dfaa1de6fc8ebbf9f0a92e70c3b2533f73a5",
+    "src/observatory/structured_queries.py": "bf8f8de02de555b193d89fecadfb4e1fd0510c99c0d47004c3b3c713102e5a9c",
+    "src/observatory/service.py": "723410c67415710f019a4503974d67a73cf07ed9caeda33597e6a04a1d5a1642",
+    "src/observatory/rag.py": "771bb7e410e961bbdfa1d1a8adcc604fa8128d79228775109a9467fa07299954",
+    "src/observatory/evaluate.py": "6bafa4ddebf5d79168e45351c2294443e621f6edbf570cf62a4185efdc928051",
+    "src/observatory/mcp_server.py": "99ed6b08f06711906de2d20d9a99f81fe6b8c506293c27faaa7dd2e6f8d9d8b1",
+    "scripts/prepare_client_review.py": "fefd3c3bc7e5fd4359f87fbe25c10aa8fa1f54b29083ba0ee6a7550860750c53",
+    "scripts/run_selftest.py": "00796de9e1f5fb6b2fd307cc77af4b08dad76bdd7a761e30fc94fcb7bd462183",
+    "tests/test_research_tools.py": "c60dbf53685c5dcda64d73d9415bf41146c50547a50a2f47d7304b90968060c1",
+    "tests/test_structured_queries.py": "a2ef9aa50898bec2a6c4f3540f50c594881a8a9996c31572f6d49df9d97841bc",
+    "tests/test_date_inference.py": "7162ef86d69baada6b4b5810bb0b00acd6421f55cd35544e109db941db6d8afc",
+    "tests/test_evaluate.py": "64ef109a566b049e1c26b7cc0e336e903a00699f6257a82be8f889c1e4c1c0f0",
+    "tests/test_research_service.py": "b3bc7e72a146f2da126ee7e765f106bcd20dc45e4a37f185d52ffbd94dd1c504",
+    "tests/test_answer_web_fallback_routes.py": "239a9f182adca08b511d584961ad1ba5694edddc502ecf5fce9237e9ab52574b",
+    "eval/user_questions/cases.json": "9dd1c6f5b1993d5ae9bb17e723970125ad63510aa49ac263ebcdd147ca2a6538",
+    "eval/selftest/cases.json": "150f9cdb3625daeae76b31866a6ee5b2796212e0df41d3e77ba05e0f6ac07831",
+    "eval/client_review_20260925/review_plan.json": "531ece10b399d497b25df54a34a44d05f5681da94448db0621de4ccc543f4a5f",
+    "eval/client_review_20260925/questions.jsonl": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "eval/client_review_20260925/article_groups.csv": "626a3414e8dcaaf03c6dfa7333463d55625deb67f0329197ab3b43fb9a770696",
+    "reports/agent_review_20261005_capture.py": "d2482c490bc00949ffdb62bc7562e21d042d7742aabd73fd821da0db45d5935e"
+  },
+  "environment": {
+    "python": "3.12.14",
+    "pytest": "9.1.1",
+    "pydantic": "2.13.5"
+  },
+  "tests": {
+    "baseline": {
+      "file": "reports/agent_review_20261005_baseline.junit.xml",
+      "sha256": "9cea1125ce67b8df92b795c75a6408a0aa3d2d2b63dcb394bbd77a179eafdb51",
+      "tests": 278,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "passed": 278,
+      "seconds": 3.402
+    },
+    "full_initial": {
+      "file": "reports/agent_review_20261005_full_initial.junit.xml",
+      "sha256": "ef3d425ce7297a488236e2c23cc2c8fce1de54f7e27905fb6754bce3fe5500d5",
+      "tests": 2260,
+      "failures": 10,
+      "errors": 0,
+      "skipped": 13,
+      "passed": 2237,
+      "seconds": 92.758
+    },
+    "full_retry1": {
+      "file": "reports/agent_review_20261005_full_retry1.junit.xml",
+      "sha256": "9467a64601f8e3db89fe1942aa1d92f3918a5d164467971a3dd71fd8b2794ea0",
+      "tests": 2265,
+      "failures": 2,
+      "errors": 0,
+      "skipped": 13,
+      "passed": 2250,
+      "seconds": 86.158
+    },
+    "asset_check": {
+      "file": "reports/agent_review_20261005_asset_check.junit.xml",
+      "sha256": "d598be3b65eb560b95db18feb9f6704467c9dde94fc211a0c8ad55bb0c75ca7a",
+      "tests": 34,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 1,
+      "passed": 33,
+      "seconds": 0.788
+    },
+    "final": {
+      "file": "reports/agent_review_20261005_final.junit.xml",
+      "sha256": "0102cd5d161134bd6a7ecee1e4b747696911872991dd5a0e4e9a0759927d979e",
+      "tests": 2265,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 13,
+      "passed": 2252,
+      "seconds": 91.86
+    }
+  },
+  "quality_checks": {
+    "ruff": {
+      "exit_code": 0,
+      "stdout": "All checks passed!"
+    },
+    "git_diff_check": {
+      "exit_code": 0,
+      "stdout": ""
+    }
+  },
+  "review_packet_check": {
+    "command": "python scripts/prepare_client_review.py --packet eval/client_review_20260925",
+    "exit_code": 2,
+    "result": {
+      "status": "pending",
+      "blockers": [
+        "missing_review:reviewer",
+        "missing_review:approval_record",
+        "missing_review:question_source_note",
+        "missing_review:acceptance_criteria",
+        "unconfirmed:representative_tasks_approved",
+        "unconfirmed:not_used_for_tuning",
+        "unconfirmed:article_groups_reviewed",
+        "missing_or_invalid_expected_data_version",
+        "no_client_questions_or_gold",
+        "missing_article_groups:50_records"
+      ],
+      "overall_pass": null,
+      "model_calls": 0,
+      "scope": "native",
+      "pending_collection_cases": 0,
+      "semantic_acceptance": "pending_human_review",
+      "formal_social_status": "pending_customer_data_and_release_review"
+    }
+  },
+  "review_sheets": [
+    {
+      "file": "eval/client_review_20260925/answer_review.csv",
+      "sha256": "36c08cf3f39b09efbccec1c01d8bee3454b6b17113c072ca9fa554a3a6566144",
+      "rows": 0,
+      "nonempty_fields": {
+        "reviewer": 0,
+        "verdict": 0
+      }
+    },
+    {
+      "file": "outputs/user-questions-review-20261001T154659Z.csv",
+      "sha256": "eb9765954cf54d3e57719f47ae093d9137913f998ad3c97effae10a3766558d6",
+      "rows": 38,
+      "nonempty_fields": {
+        "reviewer": 0,
+        "verdict": 0,
+        "correct": 0,
+        "no_overclaim": 0
+      }
+    },
+    {
+      "file": "outputs/user-questions-review-filled-20261001T160015Z.csv",
+      "sha256": "c208a501df119e87a0f959e0e02c0973c0ff1e7783417d12b2e9207ddb2fc7b3",
+      "rows": 38,
+      "nonempty_fields": {
+        "reviewer": 0,
+        "verdict": 0,
+        "correct": 31,
+        "no_overclaim": 0
+      }
+    },
+    {
+      "file": "reports/citation_review.csv",
+      "sha256": "e534e57e10d67731d86eae7ea7f076e313e43c5c0e3ba56ab807e9a5cf162a9e",
+      "rows": 25,
+      "nonempty_fields": {
+        "human_verdict": 0
+      }
+    },
+    {
+      "file": "reports/citation_review_citation_first.csv",
+      "sha256": "d0e89271437faf3c41c991b1e6ae4442537dee31f3950100ecbe5fb0d3039592",
+      "rows": 17,
+      "nonempty_fields": {
+        "human_verdict": 0
+      }
+    },
+    {
+      "file": "reports/citation_review_context.csv",
+      "sha256": "54b08708e986f80498603b6884ca78390cf5e26eecd05d31e263da79f841ec55",
+      "rows": 23,
+      "nonempty_fields": {
+        "human_verdict": 0
+      }
+    },
+    {
+      "file": "reports/citation_review_v0_2.csv",
+      "sha256": "62c5ab61f6ab7b6b646915ff3b04696647fd82f67894be1cc504d3ef0b1aeae6",
+      "rows": 14,
+      "nonempty_fields": {
+        "human_verdict": 0
+      }
+    },
+    {
+      "file": "reports/citation_review_v0_2_1.csv",
+      "sha256": "afbbf4cd9bee3b504c4b6151d06a481896b386f268d5eacd73f2b8dfaf9d953e",
+      "rows": 16,
+      "nonempty_fields": {
+        "human_verdict": 0
+      }
+    },
+    {
+      "file": "reports/citation_review_v0_2_2.csv",
+      "sha256": "80c452bff5556a7687c9143fe4453d06835465ab0ac1bef3a2df56731890575e",
+      "rows": 16,
+      "nonempty_fields": {
+        "human_verdict": 0
+      }
+    },
+    {
+      "file": "reports/citation_review_v0_2_4.csv",
+      "sha256": "68b230c69dae40c910cad61473df16d397fb203123a154c173e4c21ca34a1e26",
+      "rows": 21,
+      "nonempty_fields": {
+        "human_verdict": 0
+      }
+    }
+  ],
+  "paid_api_calls": 0,
+  "database_evaluation_run": false,
+  "deployment_performed": false,
+  "semantic_acceptance": "pending_human_review",
+  "overall_pass": null,
+  "limits": [
+    "JUnit counts describe engineering tests, not real model accuracy.",
+    "CSV completeness does not authenticate a reviewer or prove semantic support.",
+    "No current production or live-model acceptance was evaluated."
+  ]
+}

@@ -4,8 +4,8 @@
 
 ## 1. 绑定的输入与版本
 
-- [原始开发输出](../outputs/development_reviewed_paid_final_20260916.json)：run `532453a7c43740ecbe5f4954d3522f41`，创建于 `2026-09-16T18:27:47.823266+00:00`，数据版本 `c5ad20ac2938e619e11fe1f8bfc26b97`。
-- [未修改的开发题库及 rubric](../eval/development.jsonl)：`draft_not_frozen`，不是冻结的独立验收集。
+- [原始开发输出](../../outputs/development_reviewed_paid_final_20260916.json)：run `532453a7c43740ecbe5f4954d3522f41`，创建于 `2026-09-16T18:27:47.823266+00:00`，数据版本 `c5ad20ac2938e619e11fe1f8bfc26b97`。
+- [未修改的开发题库及 rubric](../../eval/development.jsonl)：`draft_not_frozen`，不是冻结的独立验收集。
 - [逐条 CSV](citation_review_v0_2.csv)：保留原 question、rubric、claim、quote、evidence/record/version ID、原文字符位置，AI 意见与空白人工输入分列。
 - [上一轮 AI 审阅](assisted_semantic_review_citation_first.md)只用于比较明确指出的旧问题，没有将旧答案的结论直接套到本轮。
 - 输出记录生成模型 `gpt-5.6-luna`、embedding 模型 `text-embedding-3-small`，短引文上限 60 词。模型名称与机械成绩均来自保存的运行记录，本轮没有再次调用模型。
@@ -20,7 +20,7 @@ eval/development.jsonl
 270acbf50d29cdccdcde563d29c8a3217ce90814782769fabcdcec9df14aaac4
 ```
 
-**后续版本边界：**生成完成后，主任务又规范了两条记录的 `WSJ` 媒体简称，并使新增关键词保持源字段拼写。当前数据与验证见 [0.2.0 数据修订报告](data_revision_v0_2.md)。以下语义结论仅绑定上述 `c5ad…` 运行快照，不代表后续数据版本的生成成绩。
+**后续版本边界：**生成完成后，主任务又规范了两条记录的 `WSJ` 媒体简称，并使新增关键词保持源字段拼写。当前数据与验证见 [0.2.0 数据修订报告](../data_audits/data_revision_v0_2.md)。以下语义结论仅绑定上述 `c5ad…` 运行快照，不代表后续数据版本的生成成绩。
 
 ## 2. 审阅范围与方法
 

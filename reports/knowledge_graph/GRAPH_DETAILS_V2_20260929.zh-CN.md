@@ -42,7 +42,7 @@
 | Q5 社交广告探索 | 独立页面／适配器与 not connected 状态 | 真实社交导出缺失，不能生成有意义的图表与验收结果；保持缺失说明与接口 |
 | Q6 有来源依据的双库 RAG | 既有模型理解 → 只读 MCP 数据工具 → SQL／正文引用路径 | 本次复核统计与来源入口，未调用付费模型。原生路径已有；社交真实输入和正式 CLAIMS 关联仍待接入 |
 
-“哪些文章包含漂绿声明”需要经过确认的 CLAIMS 版本、codebook、文章／正文版本映射与证据定位。历史标签页面不能替代该交付。实现前差异见 [六项要求审计](CLIENT_REQUIREMENTS_GRAPH_V2_20260929.zh-CN.md)；正式接入边界见 [离线 CLAIMS／实时 RAG 方案](../docs/CLAIMS_OFFLINE_RAG_ONLINE_20260925.zh-CN.md)。
+“哪些文章包含漂绿声明”需要经过确认的 CLAIMS 版本、codebook、文章／正文版本映射与证据定位。历史标签页面不能替代该交付。实现前差异见 [六项要求审计](../requirements/CLIENT_REQUIREMENTS_GRAPH_V2_20260929.zh-CN.md)；正式接入边界见 [离线 CLAIMS／实时 RAG 方案](../../docs/client/CLAIMS_OFFLINE_RAG_ONLINE_20260925.zh-CN.md)。
 
 ## 验证与可审查证据
 
@@ -61,12 +61,12 @@
 
 桌面响应式检查中的 Washington Post 详情：
 
-![Washington Post 的七个来源赞助方与对应文章](screenshots/graph_details_v2_washington_post_20260929.jpg)
+![Washington Post 的七个来源赞助方与对应文章](../ui/screenshots/graph_details_v2_washington_post_20260929.jpg)
 
-- [390×844 窄屏环图与分类](screenshots/graph_details_v2_mobile_20260929.jpg)
-- [正文与来源详情](screenshots/graph_details_v2_record_20260929.jpg)
-- [历史标签文章下钻](screenshots/graph_details_v2_historical_theme_20260929.jpg)
-- [当前默认窄侧栏窗口](screenshots/graph_details_v2_final_20260929.jpg)
+- [390×844 窄屏环图与分类](../ui/screenshots/graph_details_v2_mobile_20260929.jpg)
+- [正文与来源详情](../ui/screenshots/graph_details_v2_record_20260929.jpg)
+- [历史标签文章下钻](../ui/screenshots/graph_details_v2_historical_theme_20260929.jpg)
+- [当前默认窄侧栏窗口](../ui/screenshots/graph_details_v2_final_20260929.jpg)
 
 截图证明保存时的界面状态，不代替原文质量、附件内容或标签语义核验。
 
@@ -74,11 +74,11 @@
 
 | 文件 | 用处 |
 | --- | --- |
-| [collection_graph_breakdown.py](../src/observatory/collection_graph_breakdown.py) | 服务器端分区、分母、缺失类别、关系两端占比与 Plotly 环图 |
-| [collection_graph_visual.py](../src/observatory/collection_graph_visual.py) | 使用现有 Cytoscape 画布与 SVG 背景图，真实点阵、外环、类型和关系标签 |
-| [collection_graph_ui.py](../src/observatory/collection_graph_ui.py) | 规范 ID 选择、环图／名单／记录联动、范围和导出 |
-| [collection_graph.js](../src/observatory/assets/collection_graph.js) | 可见正尺寸观察、延迟适配与 Dash 公开状态接口；展开和隐藏视图不再产生零尺寸比例计算 |
-| [historical_theme_ui.py](../src/observatory/historical_theme_ui.py) | 当前筛选内历史标签的确切记录交集与分页 |
-| [check_graph_breakdowns.py](../scripts/check_graph_breakdowns.py) | 无模型调用的真实数据检查，可用于后续数据增量回归 |
+| [collection_graph_breakdown.py](../../src/observatory/collection_graph_breakdown.py) | 服务器端分区、分母、缺失类别、关系两端占比与 Plotly 环图 |
+| [collection_graph_visual.py](../../src/observatory/collection_graph_visual.py) | 使用现有 Cytoscape 画布与 SVG 背景图，真实点阵、外环、类型和关系标签 |
+| [collection_graph_ui.py](../../src/observatory/collection_graph_ui.py) | 规范 ID 选择、环图／名单／记录联动、范围和导出 |
+| [collection_graph.js](../../src/observatory/assets/collection_graph.js) | 可见正尺寸观察、延迟适配与 Dash 公开状态接口；展开和隐藏视图不再产生零尺寸比例计算 |
+| [historical_theme_ui.py](../../src/observatory/historical_theme_ui.py) | 当前筛选内历史标签的确切记录交集与分页 |
+| [check_graph_breakdowns.py](../../scripts/check_graph_breakdowns.py) | 无模型调用的真实数据检查，可用于后续数据增量回归 |
 
 没有新增图数据库、图形框架或多 agent 运行依赖。来源图谱、SQL 统计、既有记录详情及模型工具接口继续复用。

@@ -4,8 +4,8 @@
 
 ## 输入与范围
 
-- [运行输出](../outputs/development_language_guard_20260916.json)：run `612863daa16a48dcb3a2b1179eb3479d`，数据版本 `d85a98002e4493f0376c260ad82253ee`，创建于 `2026-09-16T18:58:33.111818+00:00`。
-- [开发题库与 rubric](../eval/development.jsonl)：未修改，仍为 `draft_not_frozen`。
+- [运行输出](../../outputs/development_language_guard_20260916.json)：run `612863daa16a48dcb3a2b1179eb3479d`，数据版本 `d85a98002e4493f0376c260ad82253ee`，创建于 `2026-09-16T18:58:33.111818+00:00`。
+- [开发题库与 rubric](../../eval/development.jsonl)：未修改，仍为 `draft_not_frozen`。
 - [逐条审阅 CSV](citation_review_v0_2_1.csv)：16 个带引文回答单元，保留原文、引用、ID、字符位置、必要上下文、AI 意见和空白人工列。
 
 ```text

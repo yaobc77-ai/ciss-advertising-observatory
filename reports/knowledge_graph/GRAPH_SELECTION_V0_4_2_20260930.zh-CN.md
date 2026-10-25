@@ -33,7 +33,7 @@ Articles 模式此前点击另一个节点或边，仅更新侧栏选取，却�
 
 最终提交的 [CI 36676562336](https://github.com/yaobc77-ai/ciss-advertising-observatory/actions/runs/36676562336) 为 **982 passed、62 deselected、3 warnings，80.44 秒**。Railway 部署 `5975060a-f6eb-400c-b27b-e26cc845da7a` 实际显示 ACTIVE，生产健康接口返回 0.4.2 与完整提交号；语料、索引、分块及数量签名与部署前一致。
 
-最终生产浏览器记录 8 条检查路径：公司具名媒体名单、媒体分项 5 条、画布选中媒体后扩展 18 条、单篇文章 1 条及两种来源关系、来源边切回 Entities 后 Fit、摘要边切换 Articles 后 Fit、文章切回 Entities 后 Fit，以及当前分项数量导出。三条跨视图路径都保留搜索下拉框和关系内容。实际下载 [CSV](graph_selection_v0_4_2_selected_counts_20260930.csv) 仅 1 行／5 条，父分母 15；仓库副本仅将 CRLF 转为 LF，原下载与副本哈希分别保存。实际页面见[生产截图](screenshots/graph-selection-v0-4-2-production-20260930.png)。截图和浏览器证据绑定此实现提交，后续文档发布提交可改变健康接口的提交号。
+最终生产浏览器记录 8 条检查路径：公司具名媒体名单、媒体分项 5 条、画布选中媒体后扩展 18 条、单篇文章 1 条及两种来源关系、来源边切回 Entities 后 Fit、摘要边切换 Articles 后 Fit、文章切回 Entities 后 Fit，以及当前分项数量导出。三条跨视图路径都保留搜索下拉框和关系内容。实际下载 [CSV](graph_selection_v0_4_2_selected_counts_20260930.csv) 仅 1 行／5 条，父分母 15；仓库副本仅将 CRLF 转为 LF，原下载与副本哈希分别保存。实际页面见[生产截图](../ui/screenshots/graph-selection-v0-4-2-production-20260930.png)。截图和浏览器证据绑定此实现提交，后续文档发布提交可改变健康接口的提交号。
 
 Ruff、浏览器 JavaScript 语法与差异格式检查通过。测试包含精确文章 ID、关系名和受控下拉框闭环，并不是只比较总数；未调用模型。
 

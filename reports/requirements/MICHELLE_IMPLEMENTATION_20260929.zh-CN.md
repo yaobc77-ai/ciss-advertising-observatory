@@ -33,9 +33,9 @@
 - 浏览器操作确认两个方向、Washington Post → ExxonMobil 的 5 条文章、三个 Query 示例、完整统计表及源记录入口。未发起真实模型请求。
 - 自动测试：完整回归 **732 项通过**（58.25 秒），Ruff 通过；详见[本轮验证回执](michelle_implementation_validation_20260929.json)。范围覆盖动态名称、日期、冲突筛选、未知值、非正文记录、跨库计数单位、超过 Top 10 的全量输出、链接开关和故障处理。它们是工程与统计验证，不证明领域标签、RAG 语义或用户体验已经通过客户验收。
 
-![纽约时报免费统计问答](screenshots/michelle_nyt_answer_20260929.jpg)
+![纽约时报免费统计问答](../ui/screenshots/michelle_nyt_answer_20260929.jpg)
 
-![媒体到赞助方的直接入口](screenshots/michelle_outlet_explorer_20260929.jpg)
+![媒体到赞助方的直接入口](../ui/screenshots/michelle_outlet_explorer_20260929.jpg)
 
 ## 仍需完成
 

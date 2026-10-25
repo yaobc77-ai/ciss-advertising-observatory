@@ -10,8 +10,8 @@
 
 | 范围 | 保存运行 | 本次阅读范围 |
 |---|---|---|
-| PDF-265 定向 smoke | [结果](../outputs/pdf265_quote_context_paid_20260916.json)，run `05077c5c92034712a711a4d74340683d`，`2026-09-16T19:55:41.544685+00:00`；题库 [pdf265_recovery_smoke.jsonl](../eval/pdf265_recovery_smoke.jsonl) | 2 个问题及回答、2 条引用、对应 2 个 evidence 全文，共 2,493 字符。 |
-| 原开发集 | [结果](../outputs/development_quote_context_20260916.json)，run `604a225bb0d647c58b90c1982476732a`，`2026-09-16T19:56:36.534487+00:00`；题库 [development.jsonl](../eval/development.jsonl) | 20 个题目与状态，其中 13 ready：8 个生成答案、2 个 SQL 计数、3 个拒答。逐条读 19 条引用及其 10 个不同的实际被引 evidence 全文，共 29,272 字符。 |
+| PDF-265 定向 smoke | [结果](../../outputs/pdf265_quote_context_paid_20260916.json)，run `05077c5c92034712a711a4d74340683d`，`2026-09-16T19:55:41.544685+00:00`；题库 [pdf265_recovery_smoke.jsonl](../../eval/pdf265_recovery_smoke.jsonl) | 2 个问题及回答、2 条引用、对应 2 个 evidence 全文，共 2,493 字符。 |
+| 原开发集 | [结果](../../outputs/development_quote_context_20260916.json)，run `604a225bb0d647c58b90c1982476732a`，`2026-09-16T19:56:36.534487+00:00`；题库 [development.jsonl](../../eval/development.jsonl) | 20 个题目与状态，其中 13 ready：8 个生成答案、2 个 SQL 计数、3 个拒答。逐条读 19 条引用及其 10 个不同的实际被引 evidence 全文，共 29,272 字符。 |
 
 没有声称读完全部 85 次开发集检索结果、原文章全文或 PDF 图像，也没有对拒答题所有检索 evidence 另作穷尽式语义审阅。开发集仍是 `draft_not_frozen`，已用于多轮开发迭代；7 道 social/cross 题继续 pending，不算通过。定向 smoke 虽在运行模板中标记 `suite=development`，其独立 case file 与用途不变。
 

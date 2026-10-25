@@ -50,10 +50,10 @@
 ## 使用入口和证据
 
 - [本机 Query](http://127.0.0.1:8050/query)；展开 **How this question was answered** 查看工具与费用。
-- [技术路线、七个契约及扩展](../docs/MCP_RESEARCH_TOOLS.zh-CN.md)。
+- [技术路线、七个契约及扩展](../../docs/architecture/MCP_RESEARCH_TOOLS.zh-CN.md)。
 - [工具与前两题真实模型记录](research_tools_smoke_20260929.json)。
 - [网页第三题记录](research_tools_browser_smoke_20260929.json)。
 - [真实 stdio／真实数据库协议记录](mcp_protocol_smoke_20260929.json)。
-- [问题及答案页面](screenshots/model_tools_query_20260929.jpg) · [展开费用和执行工具](screenshots/model_tools_washington_post_20260929.jpg)。
+- [问题及答案页面](../ui/screenshots/model_tools_query_20260929.jpg) · [展开费用和执行工具](../ui/screenshots/model_tools_washington_post_20260929.jpg)。
 
 采用 [OpenAI 官方工具调用接口](https://developers.openai.com/api/docs/guides/function-calling)及 [MCP 官方 Python SDK](https://github.com/modelcontextprotocol/python-sdk)，没有自行重写 MCP 协议或增加大型调度框架。

@@ -10,7 +10,7 @@
 
 重点阅读了采集、清洗、标签定义、分类和验证脚本、2.0 抽取与审核界面，并对随附 CSV/JSON/SQLite 做了只读计数和关联核验。没有逐页审阅所有 Notebook 图表，也没有执行原仓库脚本、加载 pickle、安装依赖、联网采集、调用模型或改变当前应用数据库。
 
-当前比较基准为本项目 0.3.1 的源码和输入契约，而不是把旧仓库 README 的目标当成已实现功能。原始要求见[FA26 摘录](../analysis/FA26_project_brief.txt)，本期边界见[要求核对](FA26_REQUIREMENTS_AUDIT.zh-CN.md)。
+当前比较基准为本项目 0.3.1 的源码和输入契约，而不是把旧仓库 README 的目标当成已实现功能。原始要求见[FA26 摘录](../../analysis/FA26_project_brief.txt)，本期边界见[要求核对](../requirements/FA26_REQUIREMENTS_AUDIT.zh-CN.md)。
 
 ## 2. 先列不好直接做的部分
 

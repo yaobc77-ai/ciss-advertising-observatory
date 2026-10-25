@@ -1,8 +1,8 @@
 # Native input handoff and current demonstration
 
 Checked 1 October 2026. [Machine receipt](native_handoff_20261001.json) ·
-[Input instructions](../docs/native_source_handoff.md) ·
-[Current demonstration script](../deliverables/native_demo_v0_4_9.en.md)
+[Input instructions](../../docs/data/native_source_handoff.md) ·
+[Current demonstration script](../../deliverables/demo_scripts/native_demo_v0_4_9.en.md)
 
 [Publication receipt](native_handoff_publication_20261001.json): both repositories'
 installed-wheel CI passed 1,926 tests. Railway deployed the source follow-up and the
@@ -58,7 +58,7 @@ were made in this session.
 
 The selected-count export displayed “Prepared 1 categories for 5 supporting records”
 with parent denominator 15. The browser automation's download event timed out after
-ten seconds. A later [filesystem check](native_demo_export_20261001.json) found
+ten seconds. A later [filesystem check](../data_audits/native_demo_export_20261001.json) found
 the resulting 225-byte CSV written at 04:19:53 UTC: one Washington Post row,
 5 records, denominator 15 and share 1/3. Its SHA-256 is
 `be814013d0198c5b163d40b2cddb4cd8e004b6926c8d81d5c5e536a0e88fef90`.

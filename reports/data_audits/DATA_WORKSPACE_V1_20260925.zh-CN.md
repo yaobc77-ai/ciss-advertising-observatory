@@ -47,4 +47,4 @@
 - `src/observatory/app.py`：共享筛选、统计图与页面入口。
 - `src/observatory/assets/`：页面样式、标题链接、Tools 快捷入口。
 
-使用说明已同步到 `docs/user_guide.md`。设计依据见 [展示方案调研](DATA_DISPLAY_DESIGN_RESEARCH_20260925.zh-CN.md)。
+使用说明已同步到 `docs/operations/user_guide.md`。设计依据见 [展示方案调研](../ui/DATA_DISPLAY_DESIGN_RESEARCH_20260925.zh-CN.md)。

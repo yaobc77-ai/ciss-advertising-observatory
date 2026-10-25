@@ -8,7 +8,7 @@
 
 | 项目 | 记录 |
 |---|---|
-| 源码包 | `deliverables/observatory-research-preview-20260916.zip` |
+| 源码包 | `deliverables/releases_20260916/observatory-research-preview-20260916.zip` |
 | 包 SHA-256 | `eda956bd644f466f2c71ba1b936cfece9c8448e60f9b89780e9a7f24553895ab` |
 | 包大小 | 659,006 bytes |
 | ZIP 条目 | 80，包含 `CONTENTS.sha256` |
@@ -67,15 +67,15 @@ README 第 32、86 行明确说明新机器需要另行提供数据字典列出�
 
 ### A. 演示拒答结果未随包
 
-- `deliverables/demo_script.zh-CN.md:11` 和 `:133` 引用 `../outputs/live_no_evidence.json`。
-- `docs/demo_quality.md:21` 同样引用该文件。
+- `deliverables/demo_scripts/demo_script.zh-CN.md:11` 和 `:133` 引用 `../outputs/live_no_evidence.json`。
+- `docs/evaluation/demo_quality.md:21` 同样引用该文件。
 - ZIP 只纳入了 `live_biogas.json` 和 `live_ccs_scoped.json`，缺少拒答结果。因此脱离原工作区后，演示脚本的第三个备用案例无法打开。
 - 建议：把 `live_no_evidence.json` 加入显式允许清单并重建新版本，或将对应文档明确标为包外材料。已即时通知主任务。
 
 ### B. 已随包文件仍有原电脑绝对链接
 
 - Markdown 中有 **16 个**绝对链接指向实际已经随包的目标；在不同用户名或目录中不会自动指向解压文件。
-- 当前审阅的具体例子为 `reports/assisted_semantic_review_context.md:13`（复核 CSV）、`:56`（当前运行 JSON）、`:57`（development 题库）。旧轮审阅也有同类 3 处。
+- 当前审阅的具体例子为 `reports/rag_experiments/assisted_semantic_review_context.md:13`（复核 CSV）、`:56`（当前运行 JSON）、`:57`（development 题库）。旧轮审阅也有同类 3 处。
 - 另有 **449 个**绝对工作区链接指向未随包的原始来源或历史审计。这类包外依赖已在交接说明中声明，应保留来源边界，不能通过制造空文件使链接“通过”。此外有 6 个工作区以外的绝对附件链接，总绝对链接数为 471。
 - 建议：仅将“目标确实在包内”的绝对链接改为相对路径，或在打包时按允许清单转换；保留包外来源的明确说明。已即时通知主任务。
 

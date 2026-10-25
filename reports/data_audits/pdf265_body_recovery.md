@@ -18,7 +18,7 @@
 
 ## 可检查的区间
 
-坐标为 [抽取文本](../sources/recovered_native/PDF-265.pypdf-6.10.0.txt) 中的 Python Unicode 字符半开区间。每个区间独立分块；不是 PDF 字节坐标，也不会把被删除的导航两侧拼成一条连续引文。
+坐标为 [抽取文本](../../sources/recovered_native/PDF-265.pypdf-6.10.0.txt) 中的 Python Unicode 字符半开区间。每个区间独立分块；不是 PDF 字节坐标，也不会把被删除的导航两侧拼成一条连续引文。
 
 | 页 | 抽取文本区间 | 保留内容 |
 |---|---|---|
@@ -33,8 +33,8 @@
 
 ## 可复现的工程处理
 
-- [恢复 manifest](../config/native_body_recoveries.json)固定旧 CSV 哈希、源行、记录 ID／URL、旧正文哈希、PDF 哈希、抽取文件哈希、页码映射及区间。
-- [提取脚本](../scripts/extract_pdf_text.py)复用 `pypdf 6.10.0`，按页保留原始文字与换行，每页追加一个 `U+000C` 分页符，不改字、不 OCR、不重写 PDF。维护环境可安装 `uv sync --extra test --extra pdf`；运行观测站本身不需要 PDF 提取器。
+- [恢复 manifest](../../config/native_body_recoveries.json)固定旧 CSV 哈希、源行、记录 ID／URL、旧正文哈希、PDF 哈希、抽取文件哈希、页码映射及区间。
+- [提取脚本](../../scripts/extract_pdf_text.py)复用 `pypdf 6.10.0`，按页保留原始文字与换行，每页追加一个 `U+000C` 分页符，不改字、不 OCR、不重写 PDF。维护环境可安装 `uv sync --extra test --extra pdf`；运行观测站本身不需要 PDF 提取器。
 - 在旧 CSV 区间审核之后应用恢复；所有文件、身份和区间先验证，成功后才改内存 batch。正式导入要求 manifest 存在，避免配置丢失后悄悄回退到旧正文。
 - 数据库继续使用既有版本与 chunk 机制。新正文使用新坐标；旧版本与旧引用保存。该记录旧 CLAIMS 标签移到内部 `previous_body_annotations`，当前正文不继承未经重标的标签过滤。
 - 其他记录、原始 CSV/PDF、元数据和计数资格不变。`body_partial_recovery` 保存具体限制；原 CSV 截断历史也继续保留。
@@ -56,7 +56,7 @@ uv run --extra pdf python scripts/extract_pdf_text.py `
 
 ## 验证状态
 
-已发布到本机数据库，见 [入库与定位验证](../outputs/pdf265_publication_validation_20260916.json)、[首次导入](../outputs/native_import_pdf265_20260916.json) 与 [重复导入](../outputs/native_import_pdf265_repeat_20260916.json)。
+已发布到本机数据库，见 [入库与定位验证](../../outputs/pdf265_publication_validation_20260916.json)、[首次导入](../../outputs/native_import_pdf265_20260916.json) 与 [重复导入](../../outputs/native_import_pdf265_repeat_20260916.json)。
 
 | 检查 | 实际结果 |
 |---|---|
@@ -76,9 +76,9 @@ uv run --extra pdf python scripts/extract_pdf_text.py `
 
 ## 两道定向付费冒烟题
 
-复用已有评测器，新增独立的 [smoke 题文件](../eval/pdf265_recovery_smoke.jsonl)，在调用前固定问题、所需原句和说明。两题都限定到该文章，验证恢复后的“持续时间”和“河口待验证”内容能进入问答；它们不替代项目原有的 20 开发题和 20 验收草案，也不衡量跨文章检索泛化。
+复用已有评测器，新增独立的 [smoke 题文件](../../eval/pdf265_recovery_smoke.jsonl)，在调用前固定问题、所需原句和说明。两题都限定到该文章，验证恢复后的“持续时间”和“河口待验证”内容能进入问答；它们不替代项目原有的 20 开发题和 20 验收草案，也不衡量跨文章检索泛化。
 
-[保存输出](../outputs/pdf265_recovery_paid_smoke_20260916.json)：run `6c250056841b47feab178ffcc95bf2bd`，绑定本次 `5114…` 数据版本。两题回答、支持片段 2/2、返回证据定位 6/6、引文定位 2/2，语言启发式检查 2 match；人工语义支持率未测量，`overall_pass=null`。这组没有计数／无证据题，不能从零分母推断它们通过。
+[保存输出](../../outputs/pdf265_recovery_paid_smoke_20260916.json)：run `6c250056841b47feab178ffcc95bf2bd`，绑定本次 `5114…` 数据版本。两题回答、支持片段 2/2、返回证据定位 6/6、引文定位 2/2，语言启发式检查 2 match；人工语义支持率未测量，`overall_pass=null`。这组没有计数／无证据题，不能从零分母推断它们通过。
 
 保存输出 SHA-256：`6c74b93fe093c9491e729cfefda23a2d7d94d11369de466e775b351dd617548e`；题文件 SHA-256：`ffeb40fc421196b233f7e3a1178831dfff48574f7ffc99c0be3d8f2464d7ee18`。运行记录中的 Python 模块哈希已与本次源文件核对一致。
 

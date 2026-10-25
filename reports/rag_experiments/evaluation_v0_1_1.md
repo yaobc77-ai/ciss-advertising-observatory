@@ -11,7 +11,7 @@
 
 ## 新的真实开发运行
 
-[完整结果](../outputs/development_paid_citation_first_20260916.json)，run_id `0369cb87f07648359dccd28687598a6b`，时间 `2026-09-16T17:47:34.470860+00:00`。
+[完整结果](../../outputs/development_paid_citation_first_20260916.json)，run_id `0369cb87f07648359dccd28687598a6b`，时间 `2026-09-16T17:47:34.470860+00:00`。
 
 | 项目 | 结果 |
 |---|---:|
@@ -40,8 +40,8 @@
 
 - 全套 **93 passed**，Ruff通过；[故障报告](failure_path_checks.md)记录专用测试库中的超时、筛选约束、预算和错误降级。
 - 0.1.1 wheel在单独环境重新安装后，健康、布局及CSS均返回HTTP 200；本机应用已重启使用当前代码。
-- [原源码包独立验证](handoff_validation.md)：按锁文件隔离安装，阻断网络运行离线测试74通过、9项数据库测试未执行。这属于0.1.0原包，不冒称0.1.1全新机器验收；发现的拒答JSON遗漏与包内文件绝对链接已在v2打包流程修复。
-- 新备份为 `.runtime/backups/observatory-20260916T175734954103Z.dump`。已有 [恢复证明](backup_restore.md)仍对应前一备份时刻；本轮schema未变，没有把旧证明改写成新备份已恢复。
-- [新增12个URL审核](additional_url_review.md)已完成集中阅读：7项建议纳入（5项正文、2项仅元数据，其中1项取决于CERAWeek范围）、4项排除、1项待核。建议尚未应用，未据关键词或PDF标题匹配改变主库。
+- [原源码包独立验证](../releases/handoff_validation.md)：按锁文件隔离安装，阻断网络运行离线测试74通过、9项数据库测试未执行。这属于0.1.0原包，不冒称0.1.1全新机器验收；发现的拒答JSON遗漏与包内文件绝对链接已在v2打包流程修复。
+- 新备份为 `.runtime/backups/observatory-20260916T175734954103Z.dump`。已有 [恢复证明](../releases/backup_restore.md)仍对应前一备份时刻；本轮schema未变，没有把旧证明改写成新备份已恢复。
+- [新增12个URL审核](../data_audits/additional_url_review.md)已完成集中阅读：7项建议纳入（5项正文、2项仅元数据，其中1项取决于CERAWeek范围）、4项排除、1项待核。建议尚未应用，未据关键词或PDF标题匹配改变主库。
 
-当前交接包见 [handoff.md](../docs/handoff.md)。完整M1–M8目标继续保留，尚需真实社交输入、指定仓库、公网配置和人工评价。
+当前交接包见 [handoff.md](../../docs/operations/handoff.md)。完整M1–M8目标继续保留，尚需真实社交输入、指定仓库、公网配置和人工评价。

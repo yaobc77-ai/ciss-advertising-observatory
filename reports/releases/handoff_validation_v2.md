@@ -6,7 +6,7 @@
 
 | 项目 | 结果 |
 |---|---|
-| 文件 | `deliverables/observatory-research-preview-20260916-v2.zip` |
+| 文件 | `deliverables/releases_20260916/observatory-research-preview-20260916-v2.zip` |
 | 项目版本 | `0.1.1`，读取包内 `pyproject.toml` |
 | 文件大小 | 795,586 bytes |
 | SHA-256 | `b4e0e64eb80755dbf39280b1407be2751ed30b65ef71584e3736e9f6a3bdec5d` |
@@ -22,9 +22,9 @@
 | 材料 | 包内检查 |
 |---|---|
 | 最新开发运行 | `outputs/development_paid_citation_first_20260916.json` 存在，run_id `0369cb87f07648359dccd28687598a6b` |
-| 最新 AI 审阅 | `reports/assisted_semantic_review_citation_first.md` 存在 |
-| 最新引用复核表 | `reports/citation_review_citation_first.csv` 为 17 行，与新运行的 17 条 citation 数一致，全部 `human_verdict` 为空 |
-| 12 个额外 URL 审核 | `reports/additional_url_review.md` 与 `.csv` 均存在，CSV 12 行 |
+| 最新 AI 审阅 | `reports/rag_experiments/assisted_semantic_review_citation_first.md` 存在 |
+| 最新引用复核表 | `reports/rag_experiments/citation_review_citation_first.csv` 为 17 行，与新运行的 17 条 citation 数一致，全部 `human_verdict` 为空 |
+| 12 个额外 URL 审核 | `reports/data_audits/additional_url_review.md` 与 `.csv` 均存在，CSV 12 行 |
 | 缺失拒答样例 | `outputs/live_no_evidence.json` 已纳入，状态 `insufficient_evidence` |
 | 开发/验收草案 | 两个 `eval/*.jsonl` 各 20 题，路径存在 |
 | 代码与资源 | `schema.sql`、UI CSS/JS、启动/停止脚本、`Setup-TestDatabase.ps1`、`uv.lock` 均存在 |

@@ -2,7 +2,7 @@
 
 The 0.4.7 local database was exported from one PostgreSQL snapshot and restored to a new database in the same project cluster. All 21 user tables, row-content fingerprints, schema, sequences, extensions and retrieval state matched. The main database and private application configuration stayed unchanged. No model requests were made.
 
-[Full restore receipt](database_restore_v0_4_7_complete_20260930.json) · [Migration and scope checks](database_restore_v0_4_7_scope_20260930.json) · [Verifier](../scripts/verify_database_restore.py)
+[Full restore receipt](database_restore_v0_4_7_complete_20260930.json) · [Migration and scope checks](database_restore_v0_4_7_scope_20260930.json) · [Verifier](../../scripts/verify_database_restore.py)
 
 ## What was preserved
 

@@ -27,7 +27,7 @@
 | Michelle 邮件 | 使用用户在本对话粘贴的英文内容 | 编号 **E01–E13**；未提供原邮件头或发送日期，不把本次核对日期写成邮件日期。 |
 | 当前实现 | 读取本机代码和已有回执；访问两个实例的 health/layout | 区分代码存在、历史测试结果、本次 HTTP 可达和客户验收。 |
 
-可审查的本地原文副本：[FA26 编号全文](../analysis/FA26_project_brief_v1_numbered_20260929.txt)、[会议编号全文](../analysis/DS549_meeting_20260925_numbered_20260929.txt)、[邮件相关英文摘录](../analysis/MICHELLE_FEEDBACK_EMAIL_EXCERPT_UNDATED.txt)。这些是本地辅助输入，`analysis/` 不随代码仓库自动交付。摘录保留相关反馈，省略问候、转发请求和重复中文翻译；转发请求不是本次发送邮件的授权。
+可审查的本地原文副本：[FA26 编号全文](../../analysis/FA26_project_brief_v1_numbered_20260929.txt)、[会议编号全文](../../analysis/DS549_meeting_20260925_numbered_20260929.txt)、[邮件相关英文摘录](../../analysis/MICHELLE_FEEDBACK_EMAIL_EXCERPT_UNDATED.txt)。这些是本地辅助输入，`analysis/` 不随代码仓库自动交付。摘录保留相关反馈，省略问候、转发请求和重复中文翻译；转发请求不是本次发送邮件的授权。
 
 原件 SHA-256、链接、批注、版本比较、本机／线上响应见[机器可读核对证据](requirements_consolidated_evidence_20260929.json)。FA26 (1) 原件 SHA-256 为 `dcf83544b3b289e789aef93741765df96c5afacafe6c85c41b2ce986dac59ef2`；会议为 `78b507a529f0e7f79f13804c6072688df727b921410a13c2f63d990b5e07d2b0`。
 
@@ -66,7 +66,7 @@
 
 ## 四、按客户六问核对当前实现
 
-下列记录数量来自本日既有真实库核对回执，本次未重新计数。当前 health 另确认 275 条收录、`sentence600-v1` 和 556 个片段。可统计 263、可检索正文 226 的分母来自[现有记录与图谱验证](GRAPH_DETAILS_V2_20260929.zh-CN.md)，不是全部互联网广告数量。
+下列记录数量来自本日既有真实库核对回执，本次未重新计数。当前 health 另确认 275 条收录、`sentence600-v1` 和 556 个片段。可统计 263、可检索正文 226 的分母来自[现有记录与图谱验证](../knowledge_graph/GRAPH_DETAILS_V2_20260929.zh-CN.md)，不是全部互联网广告数量。
 
 | 客户研究问题 | 三份材料的对应 | 本机现在能做什么 | 判定和仍需完成 |
 |---|---|---|---|
@@ -104,7 +104,7 @@
 | 图谱和记录到来源（M020） | 文章／版本／材料／历史标注分层；证据边保留 `record_id/version_id/source_edge_ids` | 可追溯路径已实现；文件候选和字段关联不是已核实归档／商业身份。 |
 | 自己研发、测试、优化 RAG（M031–M035） | 受限数据工具、混合检索、引用约束、评价准备；既有有限真实 API 检查 | 工程有证据；没有独立回答准确率／人工支持率。参考 INDRA 不意味着客户要求直接集成该网站。 |
 
-实施依据可查：[图谱详情第二版](GRAPH_DETAILS_V2_20260929.zh-CN.md)、[MCP 实施报告](MCP_RESEARCH_IMPLEMENTATION_20260929.zh-CN.md)、[数据管道雏形](../docs/PROTOTYPE_DATA_PIPELINE.md)。本次读取既有测试回执，**未重跑**工程测试；最近回执为 926 项非 integration／非 live 通过、62 项排除，修复后另有 118 项相关检查通过。两组有重叠，不能相加，也不是 926 道研究问题回答正确。
+实施依据可查：[图谱详情第二版](../knowledge_graph/GRAPH_DETAILS_V2_20260929.zh-CN.md)、[MCP 实施报告](../rag_experiments/MCP_RESEARCH_IMPLEMENTATION_20260929.zh-CN.md)、[数据管道雏形](../../docs/architecture/PROTOTYPE_DATA_PIPELINE.md)。本次读取既有测试回执，**未重跑**工程测试；最近回执为 926 项非 integration／非 live 通过、62 项排除，修复后另有 118 项相关检查通过。两组有重叠，不能相加，也不是 926 道研究问题回答正确。
 
 ## 六、原始材料与交付缺口
 

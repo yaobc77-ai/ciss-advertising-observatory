@@ -19,7 +19,7 @@
 
 真实本机数据库验证见 [michelle_statistics_smoke_20260929.json](michelle_statistics_smoke_20260929.json)：状态 `passed`、`no_model_calls=true`，NYT 问题返回 19 条，ExxonMobil 问题返回 4 个媒体／15 条，Washington Post 问题返回 7 个来源所列组织／18 条；`NYT in 2021` 返回当前集合的 0 条，默认全集返回 263 条。漂绿计数问题保留澄清／未充分支持的状态，没有产生替代标签判定。本轮计数验证没有模型调用；它不代替生成答案的语义评价或客户操作验收。
 
-最新操作说明见 [user_guide.md](../docs/user_guide.md)。**Railway 本轮未更新**；下方线上检查仍反映旧部署。下方差异表和错误原因保留修正前基线，便于追踪这次反馈如何改变实现。
+最新操作说明见 [user_guide.md](../../docs/operations/user_guide.md)。**Railway 本轮未更新**；下方线上检查仍反映旧部署。下方差异表和错误原因保留修正前基线，便于追踪这次反馈如何改变实现。
 
 ## 六个问题逐项对照：修正前基线
 
@@ -59,7 +59,7 @@
 
 ## 客户示例的当日数据库答案
 
-以下通过当日本机 `Service.dashboard()` 与公开记录集合重新读取，默认范围是 native、所有日期、保留未知日期、无其他筛选。完整记录 ID、版本及过滤条件保存在只读回执中；读取前后 data／index 标识未变化。另从 [2026-09-17 交叉表](sponsor_outlet_crosstab_20260917.csv) 对照，以下计数一致。
+以下通过当日本机 `Service.dashboard()` 与公开记录集合重新读取，默认范围是 native、所有日期、保留未知日期、无其他筛选。完整记录 ID、版本及过滤条件保存在只读回执中；读取前后 data／index 标识未变化。另从 [2026-09-17 交叉表](../data_audits/sponsor_outlet_crosstab_20260917.csv) 对照，以下计数一致。
 
 | 客户任务 | 当日只读查询结果 |
 | --- | --- |

@@ -6,8 +6,8 @@
 
 ## 输入与边界
 
-- [原始运行](../outputs/development_claim_contract_20260916.json)：run `d26eb540a6114cfe9672a755c43f39a7`，数据版本 `d85a98002e4493f0376c260ad82253ee`，创建于 `2026-09-16T19:10:07.387051+00:00`。
-- [未修改的 question/rubric](../eval/development.jsonl)：仍是开发草案，`draft_not_frozen`。
+- [原始运行](../../outputs/development_claim_contract_20260916.json)：run `d26eb540a6114cfe9672a755c43f39a7`，数据版本 `d85a98002e4493f0376c260ad82253ee`，创建于 `2026-09-16T19:10:07.387051+00:00`。
+- [未修改的 question/rubric](../../eval/development.jsonl)：仍是开发草案，`draft_not_frozen`。
 - [逐条 CSV](citation_review_v0_2_2.csv)：沿用 28 列，保留原答案、引用、ID、offset、必要上下文及独立 AI 意见。
 
 ```text

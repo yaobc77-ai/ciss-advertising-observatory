@@ -8,7 +8,7 @@
 
 主要差距是：真实社交数据及其验收、失效原文链接的公开归档替代、面向客户的部署、指定 GitHub 提交、回答语义与客户验收，以及最终版本演示。还有一项具体代码待办：评价器当前主动阻止正式社交及跨库题目，取得数据后仍需扩展评价契约。
 
-本报告以[用户本次提供的 Word 原件](<C:/Users/yaobc/Downloads/[FA26] DS 549_ CISS Fossil Fuel and Animal Agriculture Advertising Observatory (1).docx>)为基准。原件 SHA-256 为 `dcf83544b3b289e789aef93741765df96c5afacafe6c85c41b2ce986dac59ef2`。[原文条款摘录](<D:/Projects/549 native ads/reports/fa26_requirements_source_20260916.md>)保留 P 编号和全部 16 个 HTTP(S) 资料链接；P 是 OOXML 段落编号，不是 Word 页码。
+本报告以[用户本次提供的 Word 原件](<C:/Users/yaobc/Downloads/[FA26] DS 549_ CISS Fossil Fuel and Animal Agriculture Advertising Observatory (1).docx>)为基准。原件 SHA-256 为 `dcf83544b3b289e789aef93741765df96c5afacafe6c85c41b2ce986dac59ef2`。[原文条款摘录](<D:/Projects/549 native ads/reports/requirements/fa26_requirements_source_20260916.md>)保留 P 编号和全部 16 个 HTTP(S) 资料链接；P 是 OOXML 段落编号，不是 Word 页码。
 
 本次读取了文档、代码、现有运行和交付证据，查询了数据库，检查了实际页面并重跑离线测试。没有改动应用实现或业务数据，没有调用付费模型，没有执行附件中的联系、申请权限或发布指令。此前用户同意暂缓提供的外部资料继续预留，但预留不计作最终交付完成。
 
@@ -57,7 +57,7 @@
 | P050 | CLAIMS 与动物农业未来边界 | 已记录 | 当前文档明确其为未来工作；扩展接口仍需给出具体迁移路线，而非声称已能直接配置接入。 |
 | P051 | 最终展示、演示和未来建议 | 部分 | 已有 v0.2.2 research preview PPTX/讲稿；不是当前 v0.2.5 双库最终演示，也没有客户最终验收记录。 |
 
-关键实现入口：[Dashboard](<D:/Projects/549 native ads/src/observatory/app.py:20>)、[配置](<D:/Projects/549 native ads/src/observatory/config.py:31>)、[输入模型](<D:/Projects/549 native ads/src/observatory/models.py:17>)、[数据库 schema](<D:/Projects/549 native ads/src/observatory/schema.sql:1>)、[数据字典](<D:/Projects/549 native ads/docs/data_dictionary.md>)、[用户指南](<D:/Projects/549 native ads/docs/user_guide.md>)。
+关键实现入口：[Dashboard](<D:/Projects/549 native ads/src/observatory/app.py:20>)、[配置](<D:/Projects/549 native ads/src/observatory/config.py:31>)、[输入模型](<D:/Projects/549 native ads/src/observatory/models.py:17>)、[数据库 schema](<D:/Projects/549 native ads/src/observatory/schema.sql:1>)、[数据字典](<D:/Projects/549 native ads/docs/data/data_dictionary.md>)、[用户指南](<D:/Projects/549 native ads/docs/operations/user_guide.md>)。
 
 ## 三 这次核实出的具体差距
 
@@ -71,15 +71,15 @@
 
 本轮主库全部 275 条活动记录的公开 archive_url 均为空。原生导入保留的是内部归档候选及来源信息，没有把它们变成面向用户的归档 URL。已有 PDF 文件、一个 Archive 链接 renderer、一个功能开关，都不能证明用户遇到死链时已有可用替代入口。
 
-应建立经过身份核对的 record → archive URL 映射，确认允许提供的访问方式，至少验证一个原文失效的端到端案例；链接开关关闭时也要覆盖替代入口。不能仅靠标题相似就绑定另一份 PDF。[数据字典说明](<D:/Projects/549 native ads/docs/data_dictionary.md:12>)、[链接输出](<D:/Projects/549 native ads/src/observatory/app.py:270>)。
+应建立经过身份核对的 record → archive URL 映射，确认允许提供的访问方式，至少验证一个原文失效的端到端案例；链接开关关闭时也要覆盖替代入口。不能仅靠标题相似就绑定另一份 PDF。[数据字典说明](<D:/Projects/549 native ads/docs/data/data_dictionary.md:12>)、[链接输出](<D:/Projects/549 native ads/src/observatory/app.py:270>)。
 
 ### 3 数量口径与回答正确性需要客户或独立审阅
 
 当前主库有 275 条活动记录、263 条可统计记录、226 条可检索正文、558 个当前块；558 个块均有 `text-embedding-3-small` 缓存。263 条可统计记录中，22 条缺日期、1 条缺 sponsor，其余六字段无缺失。缺失字段被保留为未知，不应自动补猜。
 
-12 条资源类 URL 被排除出统计，正文及新增候选也有工程采纳规则。[数据字典](<D:/Projects/549 native ads/docs/data_dictionary.md:41>)明确这些是 AI 工程决定；未找到客户批准统计资格和所有来源匹配的证据。需集中审阅会改变研究计数或证据资格的决定，避免重新逐条机械标注全部资料。
+12 条资源类 URL 被排除出统计，正文及新增候选也有工程采纳规则。[数据字典](<D:/Projects/549 native ads/docs/data/data_dictionary.md:41>)明确这些是 AI 工程决定；未找到客户批准统计资格和所有来源匹配的证据。需集中审阅会改变研究计数或证据资格的决定，避免重新逐条机械标注全部资料。
 
-现有 v0.2.4 原开发集运行了 13 个原生题：8 个回答、2 个计数、3 个拒答；7 个社交/跨库题 pending。19/19 引文可定位、2/2 计数正确、3/3 无证据拒答，不等于所有生成内容语义正确。另两题 PDF 诊断仍有行动主体归因错误；21 行人工审查表的人审列为空，`overall_pass=null`。[结果报告](<D:/Projects/549 native ads/reports/quote_context_v0_2_4.md>)、[人工审查表](<D:/Projects/549 native ads/reports/citation_review_v0_2_4.csv>)、[评价协议](<D:/Projects/549 native ads/docs/evaluation_protocol.md:6>)。
+现有 v0.2.4 原开发集运行了 13 个原生题：8 个回答、2 个计数、3 个拒答；7 个社交/跨库题 pending。19/19 引文可定位、2/2 计数正确、3/3 无证据拒答，不等于所有生成内容语义正确。另两题 PDF 诊断仍有行动主体归因错误；21 行人工审查表的人审列为空，`overall_pass=null`。[结果报告](<D:/Projects/549 native ads/reports/rag_experiments/quote_context_v0_2_4.md>)、[人工审查表](<D:/Projects/549 native ads/reports/rag_experiments/citation_review_v0_2_4.csv>)、[评价协议](<D:/Projects/549 native ads/docs/evaluation/evaluation_protocol.md:6>)。
 
 ### 4 四类数据的扩展能力需要明确设计
 
@@ -89,7 +89,7 @@
 
 ### 5 部署和交接材料要与最终状态一致
 
-[现有运维文档](<D:/Projects/549 native ads/docs/operations.md:61>)把 Cloudflare Named Tunnel 写为正式方案；原文 Preferred Tech Stack 则列 Railway。这是需求来源需要区分的地方，不能据此擅自切换用户之前选择的方案。交付说明应记录最终选定环境及理由，完成客户端可访问性、数据库持久化、密钥配置、embedding 更新和故障恢复验证。
+[现有运维文档](<D:/Projects/549 native ads/docs/operations/operations.md:61>)把 Cloudflare Named Tunnel 写为正式方案；原文 Preferred Tech Stack 则列 Railway。这是需求来源需要区分的地方，不能据此擅自切换用户之前选择的方案。交付说明应记录最终选定环境及理由，完成客户端可访问性、数据库持久化、密钥配置、embedding 更新和故障恢复验证。
 
 最新源码 ZIP 已复核：168 个条目，其中 167 个 payload 的 SHA-256 全部匹配，CRC 无错；整包 SHA-256 为 `a96042a364933201372c91b6e1170c82a0696fe5204933451771a00e50d5675e`。这证明本地交接包完整，不证明已提交指定 GitHub 或已完成部署。
 
@@ -141,4 +141,4 @@
 - 历史 v0.2.5 的 253 项工程测试记录与本轮结果分开保留。`outputs/tests_20260916.xml` 是更早的 73 项结果，不能拿它证明 253 项。
 - 未重新运行数据库集成套件、付费模型或正式验收草案；未重新核验所有外部网页。历史 404/受限访问记录不冒称当前网络状态。
 
-[本轮证据摘要](<D:/Projects/549 native ads/reports/fa26_requirements_audit_evidence_20260916.json>) · [原文条款](<D:/Projects/549 native ads/reports/fa26_requirements_source_20260916.md>) · [当前项目入口](<D:/Projects/549 native ads/README.md>) · [已有资源附录](<D:/Projects/549 native ads/FA26_RESOURCE_APPENDIX.zh-CN.md>)。
+[本轮证据摘要](<D:/Projects/549 native ads/reports/requirements/fa26_requirements_audit_evidence_20260916.json>) · [原文条款](<D:/Projects/549 native ads/reports/requirements/fa26_requirements_source_20260916.md>) · [当前项目入口](<D:/Projects/549 native ads/README.md>) · [已有资源附录](<D:/Projects/549 native ads/FA26_RESOURCE_APPENDIX.zh-CN.md>)。

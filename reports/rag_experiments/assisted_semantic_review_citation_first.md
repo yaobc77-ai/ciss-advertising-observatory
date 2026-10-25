@@ -4,8 +4,8 @@
 
 ## 输入与审阅范围
 
-- [本次原始开发输出](../outputs/development_paid_citation_first_20260916.json)：run ID `0369cb87f07648359dccd28687598a6b`，创建于 `2026-09-16T17:47:34.470860+00:00`。
-- [开发题库与 rubric](../eval/development.jsonl)。题库仍为 draft，没有冻结为独立验收金标准。
+- [本次原始开发输出](../../outputs/development_paid_citation_first_20260916.json)：run ID `0369cb87f07648359dccd28687598a6b`，创建于 `2026-09-16T17:47:34.470860+00:00`。
+- [开发题库与 rubric](../../eval/development.jsonl)。题库仍为 draft，没有冻结为独立验收金标准。
 - [逐条引文审阅 CSV](citation_review_citation_first.csv)：保留原 question、rubric、claim、quote、evidence/record ID，以及独立的 AI 检查意见和空白人工输入列。
 - 数据版本：`652ed975bbd44ea06e20af19b6a6642d`；输出记录生成模型 `gpt-5.6-luna`、embedding 模型 `text-embedding-3-small`，短引文上限 60 词。
 

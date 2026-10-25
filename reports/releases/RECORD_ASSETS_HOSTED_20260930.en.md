@@ -38,7 +38,7 @@ No CLAIMS source identity or classification was approved or published. Real
 social data and independent client review remain pending. No model was called
 for these deployment checks.
 
-For repeatable operation, see [attachment deployment and HTTP checks](../docs/record_assets.md).
+For repeatable operation, see [attachment deployment and HTTP checks](../../docs/architecture/record_assets.md).
 
 The checker passed 76 new offline engineering tests; the combined checker,
 bundle and record-route tests passed 143 cases with one skipped case. These

@@ -1,6 +1,6 @@
 # 当前原生快照的备份与恢复 — 0.2.4
 
-2026-09-16 使用现有 `scripts/local_postgres.py backup/restore`，把主库 `observatory` 的当前快照恢复到新库 `observatory_restore_v024_20260916`。没有覆盖旧库或备份，也没有切换应用连接。完整结果见 [验证记录](../outputs/backup_restore_v0_2_4_20260916.json)。
+2026-09-16 使用现有 `scripts/local_postgres.py backup/restore`，把主库 `observatory` 的当前快照恢复到新库 `observatory_restore_v024_20260916`。没有覆盖旧库或备份，也没有切换应用连接。完整结果见 [验证记录](../../outputs/backup_restore_v0_2_4_20260916.json)。
 
 ## 备份及一致性
 

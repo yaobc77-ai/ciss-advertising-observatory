@@ -26,7 +26,7 @@ contains the actual checks and their scope.
 - `claims_version` tracks analysis changes separately from source/retrieval
   versions. No match is a negative classification or proof of complete coverage.
 
-See the [import workflow](../docs/claims_result_import.md).
+See the [import workflow](../../docs/data/claims_result_import.md).
 
 ## Delivery checks
 
@@ -37,12 +37,12 @@ the existing ordered migration/import regressions. Test data and reviewer
 assertions are explicitly synthetic; every test used a new owned schema in an
 explicit `obs_test` database.
 
-The [independent package check](current_release_offline_reproduction_v0_4_5_20260930.json)
+The [independent package check](../releases/current_release_offline_reproduction_v0_4_5_20260930.json)
 also passed without model calls. Local migration 3 added six empty CLAIMS2 tables
 after a private backup. Native records, source/data/index identifiers and the
 556-passage `sentence600-v1` profile stayed unchanged.
 
-Format-2 [frozen evaluation inputs](../docs/frozen_evaluation.md) now support
+Format-2 [frozen evaluation inputs](../../docs/evaluation/frozen_evaluation.md) now support
 native, social and cross-collection scopes. Files, review declarations, selected
 record/version/body sets and source/index identities are checked before query
 dispatch. Duplicate JSON keys, nonfinite values and ambiguous CSV are rejected.
@@ -69,9 +69,9 @@ these local engineering checks.
 ## Publication and archive evidence
 
 Both repositories passed CI for the bound code commits. The [publication
-receipt](release_v0_4_5_publication_20260930.json) records production 0.4.5,
+receipt](../releases/release_v0_4_5_publication_20260930.json) records production 0.4.5,
 successful deployment and observed migration 3, unchanged collection/index
 identities and HTTP-200 routes. It does not assert a new product-flow or semantic
-acceptance check. The [source archive receipt](source_handoff_v0_4_5_20260930.json)
+acceptance check. The [source archive receipt](../releases/source_handoff_v0_4_5_20260930.json)
 records both actual clean-commit archives and their checked deployment files,
 manifest, payload and ZIP hashes. Private materials remain a separate transfer.

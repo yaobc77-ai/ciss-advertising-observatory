@@ -29,9 +29,9 @@
 | [native_ad_dataset.xlsx](<D:/Projects/549 native ads/sources/Native Advertising Data/native_ad_dataset.xlsx>) | 提供广告披露文字、质量备注等元数据，以唯一精确 URL 关联。 | 保留未知及冲突，不把格式化空行计入样本；不能把检索关键词当赞助方。 |
 | [combined_ads_12-4-25.csv](<D:/Projects/549 native ads/sources/pdf_archive_20260915/nested_unique/native-ads-download/combined_ads_12-4-25.csv>) | 280 行，供主表之外的 URL 增补候选。现有准入配置为 7 纳入、4 排除、1 待定。 | 不能直接用 280 行覆盖经过清理和裁决的主表。 |
 | [predictions_calibrated.csv](<D:/Projects/549 native ads/sources/FA25_SP26/CLAIMS 1.0 Runs/CSVS/predictions_calibrated.csv>) | 静态历史 CLAIMS 标签；支持标签展示和历史方法说明。 | 按 URL 与完整正文同时匹配，不依赖跨运行 `doc_id`；不是人工金标准，也不自动适用于修复后的正文。 |
-| [PDF 访问目录](<D:/Projects/549 native ads/PDF_SOURCE_INDEX.zh-CN.md>)、[对应索引](<D:/Projects/549 native ads/analysis/pdf_archive/source_index.json>) | 提供原网页快照候选、原文位置核对与正文修复线索。 | 大多仍是未确认的文章—PDF 候选关系；本地文件不等于可供公众访问的归档 URL。 |
+| [PDF 访问目录](<D:/Projects/549 native ads/docs/history/fa26_0916/PDF_SOURCE_INDEX.zh-CN.md>)、[对应索引](<D:/Projects/549 native ads/analysis/pdf_archive/source_index.json>) | 提供原网页快照候选、原文位置核对与正文修复线索。 | 大多仍是未确认的文章—PDF 候选关系；本地文件不等于可供公众访问的归档 URL。 |
 
-实际读取依据：[导入实现](<D:/Projects/549 native ads/src/observatory/ingest.py:32>)、[输入契约](<D:/Projects/549 native ads/docs/data_dictionary.md:5>)、[增补准入配置](<D:/Projects/549 native ads/config/native_admissions.json>)、[正文恢复配置](<D:/Projects/549 native ads/config/native_body_recoveries.json>)。现有 PDF-265 部分正文恢复已使用归档，不能说 PDF 全部未使用。
+实际读取依据：[导入实现](<D:/Projects/549 native ads/src/observatory/ingest.py:32>)、[输入契约](<D:/Projects/549 native ads/docs/data/data_dictionary.md:5>)、[增补准入配置](<D:/Projects/549 native ads/config/native_admissions.json>)、[正文恢复配置](<D:/Projects/549 native ads/config/native_body_recoveries.json>)。现有 PDF-265 部分正文恢复已使用归档，不能说 PDF 全部未使用。
 
 ## 三、值得进一步使用，但需要明确用途的文件
 
@@ -98,7 +98,7 @@
 
 本轮完整枚举三个 ZIP 及 PDF 包内层 ZIP，对有效文件做 SHA-256 和本地副本比较；读取关键 CSV/工作表、两份 DOCX、字段说明和源码文本，并核对当前导入实现。没有逐页重新精读全部 PDF；PDF 质量解释复用既有阅读记录，原文件一致性已在本轮重新核验。没有执行附件代码、调用付费 API、修改数据库或对外发布。
 
-- [FA25 精确清点与阅读证据](<D:/Projects/549 native ads/reports/archive_review_fa25_20260916.json>)
-- [Native 数据包清点与字段比对](<D:/Projects/549 native ads/reports/archive_review_native_20260916.json>)
-- [PDF 包全量哈希核对](<D:/Projects/549 native ads/reports/archive_review_pdfs_20260916.json>)
-- [当前 FA26 要求核对](<D:/Projects/549 native ads/reports/FA26_REQUIREMENTS_AUDIT.zh-CN.md>)
+- [FA25 精确清点与阅读证据](<D:/Projects/549 native ads/reports/data_audits/archive_review_fa25_20260916.json>)
+- [Native 数据包清点与字段比对](<D:/Projects/549 native ads/reports/data_audits/archive_review_native_20260916.json>)
+- [PDF 包全量哈希核对](<D:/Projects/549 native ads/reports/data_audits/archive_review_pdfs_20260916.json>)
+- [当前 FA26 要求核对](<D:/Projects/549 native ads/reports/requirements/FA26_REQUIREMENTS_AUDIT.zh-CN.md>)

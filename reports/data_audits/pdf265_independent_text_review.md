@@ -4,9 +4,9 @@
 
 ## 审阅对象
 
-- [区间配置](../config/native_body_recoveries.json)，`review_id: pdf265-text-continuation-20260916-v1`，record `d340f887-efa7-5746-aaf8-14aabba6b63f`。
-- [原始文本层提取](../sources/recovered_native/PDF-265.pypdf-6.10.0.txt)：7,098 个字符，保留区间合计 4,767 个字符。
-- [原始六页 PDF](../sources/pdf_archive_20260915/pdfs/summer_2025_run/CNBC/2018-12-28T10_21_52-0500_Usingmolluskstomonitorindustrialsites.pdf)。已查看指定的六张逐页渲染图，结合抽取文本核对版式、脚注和断句。
+- [区间配置](../../config/native_body_recoveries.json)，`review_id: pdf265-text-continuation-20260916-v1`，record `d340f887-efa7-5746-aaf8-14aabba6b63f`。
+- [原始文本层提取](../../sources/recovered_native/PDF-265.pypdf-6.10.0.txt)：7,098 个字符，保留区间合计 4,767 个字符。
+- [原始六页 PDF](../../sources/pdf_archive_20260915/pdfs/summer_2025_run/CNBC/2018-12-28T10_21_52-0500_Usingmolluskstomonitorindustrialsites.pdf)。已查看指定的六张逐页渲染图，结合抽取文本核对版式、脚注和断句。
 
 本报告所有位置为原始 UTF-8 解码后的 Python 字符半开区间 `[start,end)`，没有规范化换行或跨页拼接。核对时的 SHA-256：
 

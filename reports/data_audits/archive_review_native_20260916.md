@@ -67,8 +67,8 @@
 
 - `src/observatory/ingest.py:32–38`：当前各输入路径；`:467–543`：历史预测按 URL＋全文匹配；`:547`：合并 CSV 备用路径；`:879–909`：XLSX 来源及 `raw.metadata` 保留。
 - `src/observatory/db.py:182–195`：公众字段投影不包含媒体辅助列或 disclosure。
-- `FA26_RESOURCE_APPENDIX.zh-CN.md:54–64`：历史四文件目录记录；本次新增的是字节一致性确认。
-- `FA26_EXISTING_QUALITY_AND_IO.zh-CN.md:41–55`：已知 XLSX/CSV、披露及字段问题；其中早期“未找到应用”等建设前状态不能代替当前实现状态。
+- `docs/history/fa26_0916/FA26_RESOURCE_APPENDIX.zh-CN.md:54–64`：历史四文件目录记录；本次新增的是字节一致性确认。
+- `docs/history/fa26_0916/FA26_EXISTING_QUALITY_AND_IO.zh-CN.md:41–55`：已知 XLSX/CSV、披露及字段问题；其中早期“未找到应用”等建设前状态不能代替当前实现状态。
 - `analysis/prior_methods_review.md:15–36`：手标与历史句子预测的用途和跨文件数字 ID 限制。
 
 尚缺的真实社交导出、其字段说明、Miami 原型访问及公众部署资料，不能由这四个原生广告表格补齐。本轮只写本报告和机器 JSON，没有创建/修改工作簿或运行附件代码。

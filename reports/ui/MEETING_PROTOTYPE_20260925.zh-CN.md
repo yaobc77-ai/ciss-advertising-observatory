@@ -47,11 +47,11 @@
 
 ## 维护入口
 
-- [数据管道与迁移操作](../docs/PROTOTYPE_DATA_PIPELINE.md)
-- [独立评价准备](../docs/PROTOTYPE_EVALUATION.md)
-- [客户材料空白模板](../eval/client_review_20260925/README.md)
-- [英文用户指南](../docs/user_guide.md)
-- [会议差异原始核对](MEETING_REQUIREMENTS_GAP_20260925.zh-CN.md)
+- [数据管道与迁移操作](../../docs/architecture/PROTOTYPE_DATA_PIPELINE.md)
+- [独立评价准备](../../docs/evaluation/PROTOTYPE_EVALUATION.md)
+- [客户材料空白模板](../../eval/client_review_20260925/README.md)
+- [英文用户指南](../../docs/operations/user_guide.md)
+- [会议差异原始核对](../requirements/MEETING_REQUIREMENTS_GAP_20260925.zh-CN.md)
 
 迁移后本机数据备份保存在忽略目录 `.runtime/backups/observatory-20260925T201307064764Z.dump`，不进入公开仓库。代码复用了现有 Dash、Plotly、AG Grid 和 PostgreSQL，无新增图数据库或前端框架依赖。
 

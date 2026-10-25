@@ -20,7 +20,7 @@
 
 `tests/test_service.py`、`test_failure_paths.py`、`test_language.py` 共 **52 passed / 10.11 秒**；Ruff 通过。这些测试覆盖引用、来源开关、费用、失败和语言处理，不证明新提示的内容准确性。上期 0.2.1 的完整 164 项测试作为历史证据保留，本轮没有将其改称重新跑过的全套测试。
 
-只运行一轮原开发集付费诊断：[完整输出](../outputs/development_claim_contract_20260916.json)。
+只运行一轮原开发集付费诊断：[完整输出](../../outputs/development_claim_contract_20260916.json)。
 
 | 项目 | 结果 |
 |---|---|
@@ -47,6 +47,6 @@
 
 ## 正文与交接工作
 
-[94 项截断预检](truncation_recovery_preflight.md)检查已有本地结构化来源和少量 PDF 续文候选。预检结果不直接修改正文，不把更多字符或相似标题当作已找回完整文章。
+[94 项截断预检](../data_audits/truncation_recovery_preflight.md)检查已有本地结构化来源和少量 PDF 续文候选。预检结果不直接修改正文，不把更多字符或相似标题当作已找回完整文章。
 
-新研究预览见 [演示稿](../deliverables/research_preview_v0_2_2.pptx) 和 [中文讲稿](../deliverables/demo_script_v0_2_2.zh-CN.md)。旧预览继续保存。真实社交导出、指定 GitHub、固定域名／Tunnel、独立人工语义验收和最终双数据集演示仍按项目要求预留；没有宣称完整 M1–M8 已完成。
+新研究预览见 [演示稿](../../deliverables/slides/older_versions/research_preview_v0_2_2.pptx) 和 [中文讲稿](../../deliverables/demo_scripts/demo_script_v0_2_2.zh-CN.md)。旧预览继续保存。真实社交导出、指定 GitHub、固定域名／Tunnel、独立人工语义验收和最终双数据集演示仍按项目要求预留；没有宣称完整 M1–M8 已完成。

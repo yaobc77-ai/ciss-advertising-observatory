@@ -30,7 +30,7 @@
 - `evaluate.py:79–91,103–143` 已有题库解析、完整筛选集合和 gold 原句/范围校验。Gold 必须完整位于一个 accepted interval；导航两侧不能拼成一句。
 - 默认 `evaluate.py:269–291` 只调用免费检索；支持句覆盖的含义是**完整 gold quote 出现在某一个返回块中**。同一句分散在两个块，当前指标仍记未覆盖。保留该原指标，再单列区间并集覆盖或重复率，不能悄悄改评分让新切法赢。
 - `evaluate.py:272–275` 的 Hit@5 是所有 required records 是否均在前5个不同记录中；计数题直接 SQL 全集合，不能被 chunk 数改变。
-- `docs/evaluation_protocol.md:3–22` 明确两组各20题、13 ready/7 pending。开发题多次用于修复，验收草案尚未冻结且来源重叠，二者都不构成未见文章泛化证明。
+- `docs/evaluation/evaluation_protocol.md:3–22` 明确两组各20题、13 ready/7 pending。开发题多次用于修复，验收草案尚未冻结且来源重叠，二者都不构成未见文章泛化证明。
 - `eval/pdf265_recovery_smoke.jsonl:1–2` 显式指定单篇 record_id，是两题分句/归因 smoke，不可当独立开放检索集。
 - `required_record_ids` 和支持句只进入评分，搜索仍只接问题与显式 filters。不要把 gold ID 塞入原无该筛选的题。中文翻译对照应另标成配对诊断，不称新的独立题目。
 

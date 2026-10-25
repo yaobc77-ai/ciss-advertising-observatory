@@ -36,7 +36,7 @@
 
 独立安装的 `0.2.1` wheel 使用 `python -I` 冒烟验证：语言库可加载，`/healthz`、`/_dash-layout`、`/assets/observatory.css` 均为 200。这不代替另一台干净机器的从零部署验收。
 
-随后仅运行一轮原开发题的付费诊断：[完整输出](../outputs/development_language_guard_20260916.json)。
+随后仅运行一轮原开发题的付费诊断：[完整输出](../../outputs/development_language_guard_20260916.json)。
 
 | 项目 | 实际结果 |
 |---|---|

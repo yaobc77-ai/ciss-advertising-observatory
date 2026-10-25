@@ -12,10 +12,10 @@
 |---|---|---|
 | 完整本机数据库恢复 | [恢复说明](DATABASE_RESTORE_20260930.en.md)及[完整回执](database_restore_v0_4_2_complete_20260930.json)：固定导出快照，15 张表、结构／序列／扩展／profile／完整内容及检索对账通过 | 同机独立数据库，不代表 Railway 快照或异机恢复 |
 | 历史证据保留 | 828 个正文版本、2,071 个已存片段、1,051 条向量、121 个回答、176 条账本记录保留；729 个证据、189 条引文定位有效，包括 94 条旧正文引文 | 定位检查不是语义评价；活动片段仍为 556 |
-| 私有 PDF／预览接入 | [附件说明](../docs/record_assets.md)：独立目录、整体 manifest 和逐文件哈希、当前记录 URL／正文哈希核对。唯一已核验材料实际构建／检查通过 | 未公开上传 PDF 或设置服务器挂载；254 条标题候选没有升格 |
-| 评价接口修正 | [评价说明](../docs/PROTOTYPE_EVALUATION.md)：支持版本绑定的社交／跨集合来源；整套缺失数据不作为零结果；显式 `--paid --answer-counts` 可额外检查真正模型／工具计数路径 | 默认免费数据库对账不变；未调用付费模型、冻结独立题库或填写人工审批 |
-| 当前英文交接和试用 | [交接](../docs/current_handoff.md)、[客户审查草案](../docs/CLIENT_REVIEW_V0_4_2.md)、[原生演示](../deliverables/native_demo_v0_4_2.en.md)、[材料请求草案](../deliverables/client_materials_request_v0_4_2.en.md) | 未发送邮件，未获得客户签收；原生演示不冒充双集合最终展示 |
-| CLAIMS 源码审查与顺序 | [接入计划](../docs/claims_integration_plan.md)：ZIP 与 61 个相关文件核对；分开分类管线、后端评分、浏览器启发式和不同 taxonomy 批次 | 未执行附件中的代码、修改 taxonomy、调用上游模型或导入新分类 |
+| 私有 PDF／预览接入 | [附件说明](../../docs/architecture/record_assets.md)：独立目录、整体 manifest 和逐文件哈希、当前记录 URL／正文哈希核对。唯一已核验材料实际构建／检查通过 | 未公开上传 PDF 或设置服务器挂载；254 条标题候选没有升格 |
+| 评价接口修正 | [评价说明](../../docs/evaluation/PROTOTYPE_EVALUATION.md)：支持版本绑定的社交／跨集合来源；整套缺失数据不作为零结果；显式 `--paid --answer-counts` 可额外检查真正模型／工具计数路径 | 默认免费数据库对账不变；未调用付费模型、冻结独立题库或填写人工审批 |
+| 当前英文交接和试用 | [交接](../../docs/current_handoff.md)、[客户审查草案](../../docs/client/CLIENT_REVIEW_V0_4_2.md)、[原生演示](../../deliverables/demo_scripts/native_demo_v0_4_2.en.md)、[材料请求草案](../../deliverables/client_requests/client_materials_request_v0_4_2.en.md) | 未发送邮件，未获得客户签收；原生演示不冒充双集合最终展示 |
+| CLAIMS 源码审查与顺序 | [接入计划](../../docs/data/claims_integration_plan.md)：ZIP 与 61 个相关文件核对；分开分类管线、后端评分、浏览器启发式和不同 taxonomy 批次 | 未执行附件中的代码、修改 taxonomy、调用上游模型或导入新分类 |
 
 维护代码 0.4.3 已同步两个 GitHub 仓库并部署到 Railway。安装的最终 wheel 回归 1,056 项通过、1 项 Windows 符号链接测试跳过、62 项 integration／live 未运行；两个仓库 Linux CI 各 1,057 项通过、62 项未运行。Ruff、锁文件检查和[独立安装包核对](current_release_offline_reproduction_v0_4_3_20260930.json)通过。[发布回执](release_v0_4_3_publication_20260930.json)绑定实际提交、CI、健康端点和静态页；本机 Query／Data 也恢复可访问。此前 0.4.2 线上关系选择回执仍属于其明确版本，未把它改写为 0.4.3 浏览器验收。
 

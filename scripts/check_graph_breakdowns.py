@@ -28,7 +28,7 @@ from observatory.models import Filters
 from observatory.service import Service
 
 FROZEN_DATA_VERSION = "f19d4d697f4e6d2699d2c58b3ce80620b03e02c7e9447f24e012123adcb00f53"
-REPORT = Path(__file__).resolve().parents[1] / "reports/graph_breakdowns_smoke_20260929.json"
+REPORT = Path(__file__).resolve().parents[1] / "reports/knowledge_graph/graph_breakdowns_smoke_20260929.json"
 
 
 class NoModel:

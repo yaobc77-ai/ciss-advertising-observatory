@@ -1,0 +1,1 @@
+query_id,qrels_scope_id,unit_type,eval_unit_id,record_id,version_id,body_hash,source_type,chunk_id,evidence_locator_json,relevance,judgment_status,judgment_method,assessor_id,rationale,pool_id,pool_complete,corpus_relevance_complete,review_status

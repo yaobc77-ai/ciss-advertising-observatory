@@ -75,9 +75,9 @@ ExxonMobil 对应四家媒体、15 条记录；Washington Post 对应七个赞�
 
 ## 截图与下一步边界
 
-- [ExxonMobil 关联四家媒体](screenshots/collection_graph_exxonmobil_20260929.jpg)
-- [Washington Post 关联赞助方](screenshots/collection_graph_washington_post_20260929.jpg)
-- [窄屏页面](screenshots/collection_graph_mobile_20260929.jpg)
-- [使用与技术契约](../docs/COLLECTION_KNOWLEDGE_GRAPH.zh-CN.md)
+- [ExxonMobil 关联四家媒体](../ui/screenshots/collection_graph_exxonmobil_20260929.jpg)
+- [Washington Post 关联赞助方](../ui/screenshots/collection_graph_washington_post_20260929.jpg)
+- [窄屏页面](../ui/screenshots/collection_graph_mobile_20260929.jpg)
+- [使用与技术契约](../../docs/knowledge_graph/COLLECTION_KNOWLEDGE_GRAPH.zh-CN.md)
 
 需要客户继续裁决组织身份、协会／会议是否进入公司口径、统计的去重单位和真实社交材料；正式 CLAIMS 结果必须绑定文章与正文版本。新能力上线及客户操作测试也仍待后续执行。
