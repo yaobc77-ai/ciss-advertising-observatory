@@ -310,7 +310,7 @@ def test_usage_audit_binds_media_versions_hashes_and_derived_ranges_without_priv
 def test_media_context_is_included_in_utf8_prompt_cap_before_provider_dispatch():
     # A valid body-only context fits. Adding bounded derived media crosses the
     # same input cap; it cannot be excluded from reservation sizing.
-    body = body_evidence(title="B" * 78_000)  # sentence context now adds prompt overhead
+    body = body_evidence(title="B" * 74_000)  # prompt v12 (plain style, examples) adds about 4 KB of instructions
     baseline, baseline_provider, _, _ = adapter(selected_output([], status="insufficient_evidence"))
     baseline.generate("What do these materials describe?", [body], "offline-test", "reserved")
     baseline_provider.assert_called_once()

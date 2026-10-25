@@ -12,6 +12,7 @@ from datetime import date
 
 import pytest
 from psycopg.types.json import Jsonb
+from record_version_bypass import out_of_band_edit
 from test_social_accounts_integration import isolated_db as isolated_db
 from test_social_accounts_integration import post
 
@@ -182,7 +183,8 @@ def test_source_version_detects_annotation_changes_without_pointer_change(label_
     assert db.versioned_record(filters, item.record_id)["version_id"] == current["version_id"]
     assert next(row for row in second["items"] if row["key"] == "renewable_energy")["source_true"] == 1
     with db.connect() as conn:
-        conn.execute("UPDATE record_versions SET body=body || %s WHERE version_id=%s", (" Changed", current["version_id"]))
+        with out_of_band_edit(conn):
+            conn.execute("UPDATE record_versions SET body=body || %s WHERE version_id=%s", (" Changed", current["version_id"]))
     third = db.dashboard(filters)["social_historical_labels"]
     assert third["source_state_version"] != second["source_state_version"]
     assert third["valid_annotation_records"] == 0 and third["unknown_annotation_records"] == 1

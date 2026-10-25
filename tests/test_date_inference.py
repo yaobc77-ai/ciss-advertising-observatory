@@ -21,10 +21,10 @@ def test_url_dates_need_a_full_valid_path_date():
 def test_label_says_dates_are_supplemented_and_names_the_method():
     assert _date_inference_note(False, {}) == ""
     unused = _date_inference_note(False, {"A": 19})
-    assert "19 of these records have no publication date in the source data" in unused and "not used here" in unused
+    assert "19 of these ads have no publication date in the source" in unused and "not counted by date" in unused
     used = _date_inference_note(True, {"A": 19, "C": 2})
-    assert "supplemented" in used
-    assert "19 from a date in the article URL (tier A)" in used and "2 from a web search (tier C)" in used
+    assert "estimated (19 from the article link, 2 from a web search) and may be wrong" in used
+    assert "tier" not in used  # plain words for readers (2026-10-19)
     assert "supplemented" in BASIS_NOTE
 
 
@@ -44,10 +44,10 @@ def test_statistics_answer_always_carries_the_server_disclosure():
                         scope_notes=("Stored records only.",))
     answer = service._statistics_answer(plan)
     assert answer.structured_result["date_inference"]["tiers"] == {"A": 1}
-    assert "1 of these records have no publication date in the source data but have a supplemented date" in answer.answer
+    assert "1 of these ads have no publication date in the source, so they are not counted by date here." in answer.answer
     # The research-agent path rebuilds the text from tool data and keeps the note.
     rebuilt = Service._tool_statistics_answer(answer.structured_result, base_filters=Filters(dataset="native"))
-    assert "supplemented date" in rebuilt.answer
+    assert "not counted by date" in rebuilt.answer
 
 
 def test_records_expose_date_basis_to_tools():

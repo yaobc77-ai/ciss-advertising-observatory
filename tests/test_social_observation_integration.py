@@ -18,6 +18,7 @@ from postgres_fixtures import (
 from psycopg import sql
 from psycopg.conninfo import make_conninfo
 from psycopg.types.json import Jsonb
+from record_version_bypass import out_of_band_edit
 
 from observatory.db import Database, ImportPreconditionFailed
 from observatory.indexing import (
@@ -263,13 +264,15 @@ def test_in_place_payload_drift_is_rejected_then_exactly_restored(scenario):
     changed["title"] += " changed in place"
     try:
         with db.connect() as conn:
-            conn.execute("UPDATE record_versions SET payload=%s WHERE version_id=%s", (Jsonb(changed), evidence.version_id))
+            with out_of_band_edit(conn):
+                conn.execute("UPDATE record_versions SET payload=%s WHERE version_id=%s", (Jsonb(changed), evidence.version_id))
         assert db.validate_evidence(evidence) is False
         with pytest.raises(ValueError, match="payload version"):
             db.versioned_record(Filters(dataset="social"), record.record_id)
     finally:
         with db.connect() as conn:
-            conn.execute("UPDATE record_versions SET payload=%s WHERE version_id=%s", (Jsonb(original), evidence.version_id))
+            with out_of_band_edit(conn):
+                conn.execute("UPDATE record_versions SET payload=%s WHERE version_id=%s", (Jsonb(original), evidence.version_id))
     assert db.validate_evidence(evidence)
 
 
@@ -421,11 +424,13 @@ def test_literal_source_payload_drift_is_rejected(literal_scenario):
     changed["title"] += " unauthorized in-place change"
     try:
         with db.connect() as conn:
-            conn.execute("UPDATE record_versions SET payload=%s WHERE version_id=%s", (Jsonb(changed), evidence.version_id))
+            with out_of_band_edit(conn):
+                conn.execute("UPDATE record_versions SET payload=%s WHERE version_id=%s", (Jsonb(changed), evidence.version_id))
         assert db.validate_evidence(evidence) is False
         with pytest.raises(ValueError, match="enclosing record version"):
             db.search("How about this?", Filters(dataset="social", record_ids=[record.record_id]))
     finally:
         with db.connect() as conn:
-            conn.execute("UPDATE record_versions SET payload=%s WHERE version_id=%s", (Jsonb(original), evidence.version_id))
+            with out_of_band_edit(conn):
+                conn.execute("UPDATE record_versions SET payload=%s WHERE version_id=%s", (Jsonb(original), evidence.version_id))
     assert db.validate_evidence(evidence)

@@ -201,11 +201,13 @@ def test_summarize_accounts_only_social_with_unknown_and_independent_denominator
     assert summarize([row for row in rows if row["dataset"] == "native"])["accounts"] == []
 
 
-def test_all_scope_requires_explicit_social_narrowing_for_filter_group_and_resolution():
+def test_all_scope_requires_explicit_social_narrowing_for_filters_and_groups():
     tools, _, _ = catalog(Filters(dataset="all"))
     assert tools.call("record_statistics", {"filters": {"accounts": ["Shared Name"]}})["status"] == "clarify"
     assert tools.call("record_statistics", {"group_by": "accounts"})["status"] == "clarify"
-    assert tools.call("resolve_entity", {"entity_type": "account", "query": "Shared Name"})["status"] == "clarify"
+    # Resolving an account name is a lookup in the only collection that has accounts.
+    resolved = tools.call("resolve_entity", {"entity_type": "account", "query": "Shared Name"})
+    assert {item["dataset"] for item in resolved["candidates"]} == {"social"}
     scoped = tools.call("record_statistics", {"group_by": "accounts", "filters": {"dataset": "social"}})
     assert scoped["status"] == "ok" and scoped["collections"][0]["total"] == 4
     assert {row["dataset"] for row in scoped["records"]} == {"social"}
@@ -232,7 +234,7 @@ def test_exact_resolver_does_not_borrow_outlet_aliases_or_merge_case_variants():
     tools, db, _ = catalog()
     db.rows.extend([post("nyt", "The New York Times"), post("case", "shared name")])
     result = tools.call("resolve_entity", {"entity_type": "account", "query": "NYT"})
-    assert result["candidate_count"] == 0 and result["status"] == "clarify"
+    assert result["candidate_count"] == 0 and result["status"] == "not_found"
     names = tools.call("resolve_entity", {"entity_type": "account", "query": "Shared Name"})
     assert names["candidate_count"] == 2 and names["status"] == "clarify"
     assert {item["source_value"] for item in names["candidates"]} == {"Shared Name", "shared name"}

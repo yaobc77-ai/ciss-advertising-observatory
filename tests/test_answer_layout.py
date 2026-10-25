@@ -123,9 +123,10 @@ def test_retrieved_ad_list_limits_are_visible_without_model_disclosure(structure
             citations=[{"evidence_id": "e", "quote": "future project"}],
         )
     text = serialized(html.Div(_grounded_answer_content(result, result["answer"])))
-    assert "not a complete list of matching ads" in text
-    assert "Missing results do not establish absence" in text
-    assert "does not independently verify" in text
+    # Plain wording (2026-10-19); the same three limits stay visible.
+    assert "may not be every matching ad" in text
+    assert "an ad missing here may still exist in the collection" in text
+    assert "does not check whether their claims are true" in text
     assert "not a complete list" not in result["answer"]
 
 

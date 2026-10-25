@@ -7,7 +7,7 @@ import pytest
 from test_research_fallback import Web, harness
 from test_research_tools import make_catalog, source
 
-from observatory.models import Answer, Filters
+from observatory.models import Answer, Citation, Filters
 
 
 def test_comparison_queries_have_distinct_canonical_targets_and_preserve_date_scope():
@@ -40,7 +40,10 @@ def test_invalid_or_duplicate_comparison_never_returns_partial_first_target(grou
 
 
 def test_hybrid_comparison_embeddings_and_reads_cover_both_targets_and_missing_target_triggers_web():
-    service, db, web, _ = harness(has_evidence=True, generated=lambda p: Answer(status="answered", answer="Supported first-company statement.", evidence=p))
+    service, db, web, _ = harness(has_evidence=True, generated=lambda p: Answer(
+        status="answered", answer="Supported first-company statement.", evidence=p,
+        citations=[Citation(evidence_id=p[0].evidence_id, quote=p[0].text)],
+    ))
     original_search = db.search
     db.search = lambda query, filters, **kwargs: original_search(query, filters, **kwargs) if filters.sponsors == ["exxonmobil"] else []
     groups = [{"label": name, "query": name + " emissions", "filters": Filters(sponsors=[name.casefold()]).model_dump(mode="json")}

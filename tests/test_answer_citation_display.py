@@ -148,7 +148,8 @@ def test_numbered_citations_respect_disabled_source_links():
     ]
 
     assert item.url not in links and item.archive_url not in links
-    assert links == ["/records/record-one"]
+    # The quote link and the record link both open the record with the quote highlighted.
+    assert links == ["/records/record-one?v=version-one&hl=12-28#quote-1"] * 2
     assert "Source links are disabled" in list(descendants(cards[0]))
     assert citation_labels(cards[0]) == ["Citation [1]"]
 

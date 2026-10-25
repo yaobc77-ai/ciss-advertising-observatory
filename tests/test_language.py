@@ -194,15 +194,15 @@ def test_english_proper_names_do_not_cause_a_false_language_rejection():
         "According to Patrick Pouyanné, TotalEnergies proposes a carbon capture "
         "project at Lacq."
     )
-    # This detector version finds the short proper-name-heavy sentence ambiguous.
+    # Names are removed before detection, so the remaining prose reads as English.
     audit = check_claim_languages([text], language_hint(ENGLISH_QUESTION))
-    assert audit["status"] == "inconclusive"
+    assert audit["status"] in {"match", "inconclusive"}
     ev = evidence(ENGLISH_QUOTE)
     result = validate_answer(
         model_answer(text, ev), [ev], target=language_hint(ENGLISH_QUESTION)
     )
     assert result.status == "answered"
-    assert result.language_check["status"] == "inconclusive"
+    assert result.language_check["status"] in {"match", "inconclusive"}
 
 
 def test_chinese_prose_with_english_company_names_keeps_its_language():
@@ -356,3 +356,62 @@ def test_short_inconclusive_claims_fall_back_to_the_joined_text():
     combined = result["combined"]["code"]
     expected = "inconclusive" if combined is None else ("match" if combined == "en" else "mismatch")
     assert result["status"] == expected
+
+
+def test_a_names_heavy_english_summary_is_not_read_as_another_language():
+    text = ("Episode 1 guests: Bernard Looney of bp and Alison Rose of NatWest Group. "
+            "Episode 2 guests: Søren Skou of Maersk and Charles Haskell of Lloyd's Register.")
+    assert check_claim_languages([text], language_hint(ENGLISH_QUESTION))["status"] != "mismatch"
+
+
+def test_prose_in_another_language_is_still_rejected_after_names_are_removed():
+    text = "La publicité de TotalEnergies dit que le gaz naturel est important pour la transition énergétique."
+    assert check_claim_languages([text], language_hint(ENGLISH_QUESTION))["status"] == "mismatch"
+    chinese = "这则由 Chevron 赞助的原生广告说，女性占美国劳动力的百分之四十八，但只占科学技术工程数学岗位的四分之一左右。"
+    assert check_claim_languages([chinese], language_hint(ENGLISH_QUESTION))["status"] == "mismatch"
+
+
+def test_inconclusive_latin_question_requires_the_english_interface_default(monkeypatch):
+    from observatory.language import answer_language
+
+    question = "Which posters show tidal kites as cheap power?"
+    original = language_module.language_hint
+    monkeypatch.setattr(language_module, "language_hint",
+                        lambda text: {**original(text), "code": None, "name": None} if text == question else original(text))
+    target = answer_language(question)
+    assert target["basis"] == "interface_default"
+    assert target["code"] == "en"
+    spanish = "El cartel presenta las cometas de marea como una fuente de energía barata para la ciudad."
+    assert check_claim_languages([spanish], target)["status"] == "mismatch"
+
+
+def test_inconclusive_non_latin_question_is_not_forced_into_english(monkeypatch):
+    from observatory.language import answer_language
+
+    monkeypatch.setattr(language_module, "language_hint",
+                        lambda text: {"code": None, "name": None, "letters": 9, "margin": None})
+    assert answer_language("哪些海报提到潮汐风筝？")["code"] is None
+
+
+@pytest.mark.parametrize("source, quote", [
+    ("Harbor kites &amp; ferry lines carry the whole town every summer.",
+     "Harbor kites & ferry lines carry the whole town every summer."),
+    ("The partnership is establishing theNorth Canal Kite Centre for the whole region.",
+     "The partnership is establishing the North Canal Kite Centre for the whole region."),
+    ("This content is custom content commissioned by Pineglass Energy for the harbor.",
+     "This content is custom content commissioned by [赞助商] for the harbor."),
+])
+def test_a_verbatim_english_source_quote_in_a_chinese_answer_is_source_text(source, quote):
+    # B1K: entities, a lost space or a bracketed edit made a quoted source sentence read as generated English.
+    claim = f"这篇广告说港口风筝线路覆盖全镇，并且明确写道：“{quote}”这句话说明了它的定位。"
+    audit = check_claim_languages([claim], language_hint(CHINESE_QUESTION), source_texts=[source])
+    assert audit["quoted_prose"] == [] and audit["title_spans_ignored"] == 1
+    assert audit["status"] != "mismatch"
+
+
+def test_an_altered_english_quote_is_still_checked_as_generated_prose():
+    source = "Harbor kites will carry the whole town every summer, the pilots say."
+    claim = "这篇广告说港口风筝覆盖全镇：“Harbor kites will carry every village and the whole region in winter.”"
+    audit = check_claim_languages([claim], language_hint(CHINESE_QUESTION), source_texts=[source])
+    assert audit["quoted_prose"][0]["code"] == "en"
+    assert audit["status"] == "mismatch"

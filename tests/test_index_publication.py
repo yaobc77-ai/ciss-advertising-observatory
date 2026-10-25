@@ -5,6 +5,7 @@ import os
 import numpy as np
 import pytest
 from psycopg.conninfo import conninfo_to_dict
+from record_version_bypass import out_of_band_edit
 
 from observatory.config import Settings
 from observatory.db import Database
@@ -183,7 +184,8 @@ def test_in_place_source_metadata_edit_cannot_be_published(db):
     prepared = manager.prepare(SENTENCE_PROFILE)
     embed_profile(db, SENTENCE_PROFILE)
     with db.connect() as conn:
-        conn.execute("UPDATE record_versions SET payload=jsonb_set(payload,'{title}','\"Changed title\"')")
+        with out_of_band_edit(conn):
+            conn.execute("UPDATE record_versions SET payload=jsonb_set(payload,'{title}','\"Changed title\"')")
     with pytest.raises(ValueError, match="modified in place"):
         manager.activate(SENTENCE_PROFILE, expected_source_data_version=prepared["source_data_version"])
     assert db.health()["active_profile"] == LEGACY_PROFILE

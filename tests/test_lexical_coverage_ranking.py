@@ -225,3 +225,31 @@ def test_supplied_synthetic_vectors_still_fuse_with_lexical_channel(sample):
     assert set(row.record_id for row in rows) == set(axes)
     assert next(row for row in rows if row.record_id == 'vector-only').retrieval_sources == ['vector']
     assert all(sample.validate_evidence(row) for row in rows)
+
+
+@pytest.mark.integration
+def test_record_passages_return_whole_articles_in_order_within_scope(sample):
+    rows = sample.record_passages(['multi-b', 'ferry-target', 'out-of-scope', 'withdrawn', 'unknown'],
+                                  Filters(dataset='native', publishers=['Harbor Bulletin']))
+    ids = [row.record_id for row in rows]
+    # Requested order, whole articles, nothing outside the filters or inactive.
+    assert ids[0] == 'multi-b' and set(ids) == {'multi-b', 'ferry-target'}
+    article = [row for row in rows if row.record_id == 'multi-b']
+    assert len(article) > 1 and [row.start for row in article] == sorted(row.start for row in article)
+    assert ids.index('ferry-target') > max(i for i, rid in enumerate(ids) if rid == 'multi-b')
+    assert all(sample.validate_evidence(row) for row in rows)
+    assert len(sample.record_passages(['multi-b'], Filters(dataset='native'), per_record=2)) == 2
+    # per_record=None reads the whole article before an ad is ruled out (R1).
+    whole = sample.record_passages(['multi-b'], Filters(dataset='native'), per_record=None)
+    assert whole == sample.record_passages(['multi-b'], Filters(dataset='native'), per_record=10_000)
+    assert len(whole) >= len(sample.record_passages(['multi-b'], Filters(dataset='native'), per_record=1)) + 1
+    assert sample.record_passages([], Filters(dataset='native')) == []
+
+
+@pytest.mark.integration
+def test_a_large_record_request_is_not_cut_at_fifty_passages(sample):
+    # B1K-Q: a 120-ad list read stopped near 50 ads because every channel
+    # returned at most 50 passages. 60 fixture ads all contain "ferry".
+    many = {row.record_id for row in sample.search('ferry', Filters(), limit=120, chunks_per_record=2)}
+    assert {f'ferry-density-{i:02}' for i in range(60)} <= many
+    assert len({row.record_id for row in sample.search('ferry', Filters(), limit=5)}) == 5

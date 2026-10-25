@@ -14,6 +14,7 @@ from mcp import Client, StdioServerParameters
 from test_claims_research import QUOTE, VERSION, claims_catalog
 from test_research_tools import make_catalog
 
+from observatory.knowledge_graph import SCHEMA_VERSION
 from observatory.mcp_server import build_mcp_server, loopback_host, parser, port_number
 
 
@@ -116,6 +117,36 @@ def test_protocol_published_claims_read_exposes_bounded_schema_and_exact_evidenc
     asyncio.run(check())
 
 
+def test_protocol_reviewed_content_read_uses_actual_private_pins_and_public_evidence(tmp_path):
+    from observatory.evaluation_mask import EvaluationOnlyError
+    from observatory.models import Filters
+    from observatory.research_tools import ToolCatalog
+
+    try:
+        from tests.test_content_research import reviewed_service
+    except EvaluationOnlyError:
+        pytest.skip("Depends on customer holdout fixtures; runs only in an explicit evaluation session")
+
+    service, _, private_path = reviewed_service(tmp_path)
+    server = build_mcp_server(ToolCatalog(service, Filters()))
+
+    async def check():
+        async with Client(server, mode="legacy") as client:
+            result = await client.call_tool("get_content_matches", {"question_id": "Q06", "limit": 1})
+            assert not result.is_error
+            payload = result.structured_content
+            assert payload["totals"] == {"scope_records": 3, "relevant": 1, "not_relevant": 1, "unknown": 1}
+            assert payload["records"][0]["support_evidence"][0]["quote"] == "CCS"
+            assert payload["page_complete"] and not payload["coverage"]["classification_complete"]
+            assert json.loads(result.content[0].text) == payload
+            for private in (str(private_path), "C:/private", "Synthetic named reviewer", "review_json_utf8"):
+                assert private not in result.content[0].text
+            rejected = await client.call_tool("get_content_matches", {"question_id": "Q06", "reviewer": "actor"})
+            assert rejected.is_error
+
+    asyncio.run(check())
+
+
 def test_protocol_claims_rejects_legacy_category_sql_and_review_shortcuts():
     catalog, _, store = claims_catalog()
     server = build_mcp_server(catalog)
@@ -140,10 +171,10 @@ def test_standalone_stdio_process_lists_tools_and_reads_schema_without_a_databas
         )
         async with Client(parameters, mode="legacy", read_timeout_seconds=10) as client:
             listed = await client.list_tools()
-            assert len(listed.tools) == 8
+            assert len(listed.tools) == 11  # 10 research tools + get_media_evidence
             result = await client.call_tool("get_graph_schema", {})
             assert not result.is_error
-            assert result.structured_content["schema_version"] == "advertising-source-graph-v2"
+            assert result.structured_content["schema_version"] == SCHEMA_VERSION
             assert result.structured_content["adapters"]["external_fact_check"] == "not_connected"
 
     asyncio.run(check())

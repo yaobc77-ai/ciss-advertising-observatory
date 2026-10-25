@@ -157,6 +157,9 @@ def test_sql_membership_totals_and_date_groups_match_independent_enumeration(ind
         assert collection["retrievable"] == sum(row["retrievable"] for row in selected)
         assert collection["unknown_dates"] == sum(row["effective_day"] is None for row in selected)
         assert collection["source_unknown_dates"] == sum(not row["source_day"] for row in selected)
+        days = sorted(row["effective_day"] for row in selected if row["effective_day"])
+        assert (collection["earliest_date"], collection["latest_date"]) == (
+            (days[0].isoformat(), days[-1].isoformat()) if days else (None, None))
     expected_groups = Counter((row["dataset"], str(row["effective_day"].year)) for row in members if row["effective_day"])
     assert {(row["dataset"], row["name"]): row["count"] for row in actual["groups"]} == dict(expected_groups)
 
