@@ -19,7 +19,7 @@ from werkzeug.exceptions import HTTPException
 
 from .models import Filters
 from .quote_links import citation_locations, mark_segments, parse_highlights
-from .topic_compare import compare_topics, company_choices, topic_table
+from .topic_compare import company_choices, compare_topics, topic_table
 from .year_drilldown import UNKNOWN, year_filters, year_records
 
 log = logging.getLogger(__name__)

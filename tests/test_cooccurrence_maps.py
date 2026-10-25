@@ -102,7 +102,14 @@ def test_the_panel_reads_the_latest_build_and_explains_an_edge(tmp_path):
 
 
 def test_name_similarity_word_cloud_sizes_by_use_and_never_overlaps():
-    from observatory.cooccurrence_ui import CLOUD_H, CLOUD_W, cloud_figure, detail_for, figure_for, word_cloud
+    from observatory.cooccurrence_ui import (
+        CLOUD_H,
+        CLOUD_W,
+        cloud_figure,
+        detail_for,
+        figure_for,
+        word_cloud,
+    )
 
     names = [f"#kite{i}" for i in range(40)]
     view = {"view": "semantic", "nodes": [{"id": n, "label": n, "kind": "hashtag", "x": (i % 7) / 7, "y": (i % 5) / 5,

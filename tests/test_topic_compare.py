@@ -6,7 +6,14 @@ import pytest
 
 from observatory import api as api_module
 from observatory.api import create_api
-from observatory.topic_compare import MAX_TOPICS, ask_question, first_match, topic_pattern, topic_table, topics_by_id
+from observatory.topic_compare import (
+    MAX_TOPICS,
+    ask_question,
+    first_match,
+    topic_pattern,
+    topic_table,
+    topics_by_id,
+)
 from observatory.topic_compare_ui import render
 
 
