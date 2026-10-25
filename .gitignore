@@ -21,3 +21,14 @@ deliverables/*.zip.sha256
 # Customer evaluation references remain local.
 24_answer.md
 eval/customer_metrics/
+# Answer norms and worked examples built from client questions stay private.
+config/private/
+# Client requirements folder and documents quoting the client's private questions stay local
+# (previously only in .git/info/exclude, which a fresh clone does not have).
+/客户需求/
+docs/evaluation/rag_validation_requirements.md
+docs/data/content_assessment.md
+docs/data/content_publication.md
+# Built release packages in any deliverables subfolder.
+deliverables/**/*.zip
+deliverables/**/*.zip.sha256
