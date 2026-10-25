@@ -13,9 +13,11 @@ from dash.exceptions import PreventUpdate
 from flask import session
 
 from .analytics import csv_safe_cell, sponsor_display
+from .topic_compare_ui import compare_panel, register_topic_compare
+from .year_drilldown import register_year_drilldown, year_panel
 
 COMPANY_PREFIX = "company:"
-FILTER_NAMES = ("publishers", "sponsors", "platforms", "keywords", "labels", "accounts")
+FILTER_NAMES = ("publishers", "sponsors", "platforms", "keywords", "labels", "accounts", "replies")
 FILTER_COUNT = len(FILTER_NAMES) + 3
 COLLECTION_NAMES = {"native": "Native advertisements", "social": "Company social posts"}
 COLORS = {"native": "#456992", "social": "#168477"}
@@ -131,7 +133,9 @@ def combined_panel(links_enabled, empty_figure):
         chart("companies", "Source-listed sponsors and company affiliations",
               "Separate counts of native ads and company social posts. Click a company to browse both record types."),
         chart("timeline", "Publication dates across the two collections",
-              "Annual counts by record type. Unknown publication dates remain a separate category."),
+              "Annual counts by record type. Unknown publication dates remain a separate category. "
+              "Click a year to list its articles and posts below."),
+        year_panel("all"),
         html.P("Counts describe this collected corpus, not all advertising by a company. News outlets and social "
                "platforms have different roles; neither shared names nor record counts prove financial ties.", className="scope-note"),
     ], id="all-overview", className="data-view")
@@ -173,10 +177,11 @@ def combined_panel(links_enabled, empty_figure):
             dcc.Tabs(id="all-view", value="overview", mobile_breakpoint=0, className="data-tabs",
                      parent_className="data-tabs-container", children=[
                          dcc.Tab(label=label, value=value, className="data-tab", selected_className="data-tab-selected")
-                         for label, value in (("Overview", "overview"), ("Records", "records"))
+                         for label, value in (("Overview", "overview"), ("Records", "records"), ("Compare", "compare"))
                      ]),
             overview, records,
         ]), type="circle"),
+        compare_panel(),
     ], id="all-panel", style={"display": "none"})
 
 
@@ -334,9 +339,10 @@ def register_combined(app, service, links_enabled, record_details=None):
                 return result, combined, rows, before, bool(attempt)
         raise RuntimeError("Collections changed during the read")
 
-    @app.callback(Output("all-overview", "hidden"), Output("all-records", "hidden"), Input("all-view", "value"))
+    @app.callback(Output("all-overview", "hidden"), Output("all-records", "hidden"), Output("all-compare", "hidden"),
+                  Input("all-view", "value"))
     def show_view(view):
-        return view == "records", view != "records"
+        return view != "overview", view != "records", view != "compare"
 
     @app.callback(*[Output(f"all-{name}", "value") for name in FILTER_NAMES],
                   Output("all-dates", "start_date"), Output("all-dates", "end_date"),
@@ -498,3 +504,7 @@ def register_combined(app, service, links_enabled, record_details=None):
             )
         except Exception:
             return None, "Download is unavailable. Refresh the selection and retry; your filters are preserved."
+
+    register_year_drilldown(app, service, "all", lambda dependency: _filter_inputs("all", dependency),
+                            lambda *values: filters_from(values), "all-view")
+    register_topic_compare(app, service)

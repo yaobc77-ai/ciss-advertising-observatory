@@ -28,6 +28,16 @@ from observatory.analytics import (
 from observatory.evaluation_report import published_report
 from observatory.evaluation_ui import evaluation_panel
 from observatory.models import Filters
+from observatory.quote_links import record_quote_href
+from observatory.relevance_eval_ui import (
+    criterion_card,
+    judge_numbers,
+    register_reviews,
+    review_section,
+    route_badge,
+    validation_section,
+    vote_buttons,
+)
 from observatory.social_annotations import SCHEME, STATUS, social_state_options
 from observatory.social_label_ui import (
     clicked_social_state,
@@ -45,9 +55,13 @@ from observatory.social_source_ui import (
 UNKNOWN = "(Unknown)"
 NATIVE_COLUMNS = ("url", "publisher", "title", "date", "sponsor", "keyword")
 SOCIAL_COLUMNS = ("platform", "account", "sponsor", "title", "date", "url")
-FILTER_NAMES = ("publishers", "sponsors", "platforms", "keywords", "labels", "accounts")
+FILTER_NAMES = ("publishers", "sponsors", "platforms", "keywords", "labels", "accounts", "replies")
 FILTER_VALUE_COUNT = len(FILTER_NAMES) + 3
+REPLY_OPTIONS = ({"label": "Marked as reply", "value": "reply"},
+                 {"label": "Not marked as reply", "value": "not_marked"})
 COLORS = {"ink": "#202633", "teal": "#003262", "muted": "#687587", "amber": "#a86b25"}
+# A list over both collections: native ads and company posts, told apart by colour.
+LIST_SERIES_COLORS = {"native": COLORS["teal"], "social": COLORS["amber"]}
 QUERY_EXAMPLES = (
     ("example-outlet-count", "Count ads at an outlet", "How many native ads are from the New York Times?"),
     ("example-company-outlets", "Explore a company's publishers", "Which publishers is ExxonMobil working with?"),
@@ -371,6 +385,7 @@ def _public_rows(rows, links_enabled):
         row["url"] = _url(item.get("url")) if links_enabled else ""
         row["archive_url"] = _url(item.get("archive_url")) if links_enabled else ""
         if row["dataset"] == "social":
+            row["reply_status"] = str(item.get("reply_status") or "not_marked")
             row["collection_scope"] = str(item.get("collection_scope") or "collected_company_posts")
             row["count_unit"] = str(item.get("count_unit") or "source_record")
             row["paid_ad_status"] = "not_verified"
@@ -427,7 +442,7 @@ def _filters(dataset, *values):
     if dataset == "all":
         from .combined_ui import decode_company_selection
 
-        if any(selections[name] for name in ("publishers", "platforms", "labels", "accounts")):
+        if any(selections[name] for name in ("publishers", "platforms", "labels", "accounts", "replies")):
             raise ValueError("Collection-specific filters require a specific collection")
         selections["sponsors"] = decode_company_selection(selections["sponsors"] or [])
     date_from, date_to, unknown_dates = values[len(FILTER_NAMES):]
@@ -514,6 +529,132 @@ def _bars(items, metric="count"):
                         ticktext=[_wrap_label(item.get("name") or UNKNOWN) for item in items])
     figure.update_layout(height=max(320, len(items) * 36 + 65), margin={"l": 16, "r": 50, "t": 18, "b": 45})
     return figure
+
+
+SCREENING_DECISIONS = {"matches": "Listed", "does_not_match": "Not listed", "unclear": "Unclear"}
+
+
+def _relevance_reasoning(result):
+    """Collapsed record of how each screened ad was judged: decision, quote and the model's reasoning.
+
+    Screening reads four ads per model call, so decisions are grouped by call and each
+    call's reasoning is printed once. With a triage (relevance_triage), each ad also
+    shows its route and the Decisions judge's numbers, and ads the judge excluded
+    without screening are listed apart. Titles come from the decisions or the evidence.
+    """
+    trace = (result.get("research_trace") or {}).get("list_screening") or {}
+    decisions, question = trace.get("decisions") or [], trace.get("question")
+    if not decisions:
+        return []
+    titles = {}
+    for item in result.get("evidence") or []:
+        item = _mapping(item)
+        titles.setdefault(item.get("record_id"), item.get("title") or item.get("account") or item.get("record_id"))
+
+    def title(decision):
+        return decision.get("title") or titles.get(decision.get("record_id")) or decision.get("record_id")
+
+    apart = {"triage_excluded", "not_screened"}
+    screened = [d for d in decisions if d.get("reason") not in apart]
+    excluded = [d for d in decisions if d.get("reason") == "triage_excluded"]
+    calls, current = [], []
+    for decision in screened:
+        # A new call starts every four ads, or when the reasoning text changes.
+        if current and (len(current) == 4 or decision.get("screening_reasoning") != current[0].get("screening_reasoning")):
+            calls.append(current)
+            current = []
+        current.append(decision)
+    if current:
+        calls.append(current)
+    blocks, number = [], 0
+    for call in calls:
+        rows = []
+        for decision in call:
+            number += 1
+            label = SCREENING_DECISIONS.get(decision.get("decision"), decision.get("decision") or "")
+            rows.append(html.Li([
+                html.Span(f"A{number}. "), html.Strong(title(decision)),
+                html.Span(f" · {label}", className=f"screen-decision screen-{decision.get('decision')}"),
+                html.Span(" "), route_badge(decision.get("route")),
+                html.Blockquote(decision["quote"], className="screen-quote") if decision.get("quote") else None,
+                html.Div(judge_numbers(decision.get("triage"))) if "triage" in decision else None,
+                vote_buttons(question, decision.get("record_id"), decision.get("route"))
+                if decision.get("route") == "pass" and decision.get("decision") == "matches" else None,
+            ]))
+        reasoning = call[0].get("screening_reasoning")
+        blocks.append(html.Div([
+            html.Ul(rows, className="screen-call-list"),
+            html.P(["Reasoning: ", reasoning] if reasoning else "No reasoning text came back for this call.",
+                   className="screen-reasoning" if reasoning else "scope-note"),
+        ], className="screen-call"))
+    if excluded:
+        blocks.append(html.Details([
+            html.Summary(f"Excluded by the judge without screening ({len(excluded)})"),
+            html.Ul([html.Li([html.Strong(title(d)), html.Div(judge_numbers(d.get("triage")))]) for d in excluded],
+                    className="screen-call-list"),
+        ], className="screen-call"))
+    listed = sum(d.get("decision") == "matches" and d.get("route", "pass") == "pass" for d in decisions)
+    return [html.Details([
+        html.Summary(f"How relevance was judged ({len(decisions)} ads read, {listed} listed)"),
+        html.P("The model read four ads per call. A listed ad needs a sentence copied from it, which the server "
+               "checked against the stored text. A1, A2… are the reading order the reasoning refers to. "
+               "Judge numbers come from the Decisions API reading the whole ad against the rules above.",
+               className="scope-note"),
+        *blocks,
+    ], className="relevance-reasoning")]
+
+
+def _list_chart_cards(data):
+    """Bar charts of a screened list (counts of the listed ads, computed by the server)."""
+    charts = [chart for chart in (data.get("charts") or []) if isinstance(chart, dict) and chart.get("labels")]
+    if not charts:
+        return []
+    cards = []
+    for chart in charts:
+        labels, values = [str(label) for label in chart["labels"]], list(chart.get("values") or [])
+        series = [item for item in (chart.get("series") or []) if isinstance(item, dict) and item.get("values")]
+        if series:
+            # Ads and posts on one category axis, one colour each, stacked.
+            figure = _figure()
+            year = chart.get("id") == "by_year"
+            order = labels if year else list(reversed(labels))
+            for item in series:
+                counts = dict(zip(labels, item["values"]))
+                axis = [counts.get(label, 0) for label in order]
+                name = str(item.get("name") or item.get("dataset") or "")
+                figure.add_bar(**({"x": order, "y": axis} if year else {"y": order, "x": axis, "orientation": "h"}),
+                               name=name, marker_color=LIST_SERIES_COLORS.get(item.get("dataset"), COLORS["muted"]),
+                               text=[value or "" for value in axis], textposition="inside",
+                               hovertemplate=(f"%{{x}}: %{{y:,}} {escape(name)}<extra></extra>" if year else
+                                              f"%{{y}}: %{{x:,}} {escape(name)}<extra></extra>"))
+            figure.update_layout(barmode="stack", showlegend=True,
+                                 legend={"orientation": "h", "y": 1.12, "x": 0, "font": {"size": 12}})
+            if year:
+                figure.update_xaxes(type="category", showgrid=False)
+                figure.update_yaxes(title="Listed items", rangemode="tozero")
+            else:
+                figure.update_xaxes(title="Listed items", rangemode="tozero")
+                figure.update_yaxes(automargin=True, showgrid=False)
+        elif chart.get("id") == "by_year":
+            figure = _figure()
+            figure.add_bar(x=labels, y=values, marker_color=COLORS["teal"], text=values, textposition="outside",
+                           cliponaxis=False, hovertemplate="%{x}: %{y:,} listed ads<extra></extra>")
+            figure.update_xaxes(type="category", showgrid=False)
+            figure.update_yaxes(title="Listed ads", rangemode="tozero")
+        else:
+            figure = _bars([{"name": label, "count": value} for label, value in zip(labels, values)])
+            figure.update_xaxes(title="Listed ads")
+        note = (f"{chart['omitted_categories']} more categories not shown."
+                if chart.get("omitted_categories") else "")
+        cards.append(html.Div([
+            html.H6(chart.get("title") or "Listed ads"),
+            dcc.Graph(figure=figure, config={"displayModeBar": False}, style={"width": "100%"}),
+            *([html.P(note, className="scope-note")] if note else []),
+        ], className="chart-card list-chart"))
+    both = any(chart.get("series") for chart in charts)
+    return [html.H5("Charts of the listed ads and posts" if both else "Charts of the listed ads",
+                    className="answer-evidence-title"),
+            html.Div(cards, className="list-charts")]
 
 
 def _timeline(items):
@@ -852,7 +993,7 @@ def _rag_scope_notes(result):
     from observatory.date_inference import BASIS_NOTE, UNCHECKED_NOTE
 
     notes = [html.P(
-        "This answer uses the retrieved advertisements within the current filters. Listed advertisements are retrieved candidates, not a complete list of matching ads. Missing results do not establish absence. It describes what those sources say; it does not independently verify their claims or establish full-collection totals.",
+        "Based on the ads found within your filters, which may not be every matching ad. It reports what those ads say and does not check whether their claims are true; an ad missing here may still exist in the collection.",
         className="scope-note",
     )]
     if result.get("media_evidence"):
@@ -879,6 +1020,31 @@ def _rag_scope_notes(result):
     return notes
 
 
+def _claim_with_quotes(claim, citations):
+    """A claim followed by its exact cited words in bold (user, 2026-10-19).
+
+    A listed line already carries its quote in curly quotes: that part is set
+    in bold where it stands. Otherwise each cited quote follows the claim.
+    Quotes are the server-validated citation text, never model prose.
+    """
+    text = str(claim.get("text") or "")
+    quotes = []
+    for number in claim.get("citation_indices") or []:
+        if isinstance(number, int) and 0 < number <= len(citations):
+            quote = str(_mapping(citations[number - 1]).get("quote") or "").strip()
+            if quote and quote not in quotes:
+                quotes.append(quote)
+    for quote in quotes:
+        inline = f"“{quote}”"
+        if inline in text:
+            before, after = text.split(inline, 1)
+            return [before, html.Strong(inline, className="exact-quote"), after]
+    if not quotes:
+        return [text]
+    return [text, " — ", *[part for n, quote in enumerate(quotes) for part in (
+        ([" "] if n else []) + [html.Strong(f"“{quote}”", className="exact-quote")])]]
+
+
 def _grounded_answer_parts(result, message):
     """Use validated structure for any content question; never resummarize old prose."""
     citations = result.get("citations") or []
@@ -898,7 +1064,7 @@ def _grounded_answer_parts(result, message):
             continue
         refs = set(section.get("citation_indices") or [])
         paragraphs = [html.P([
-            str(claim.get("text") or ""), " ",
+            *_claim_with_quotes(claim, citations), " ",
             *_answer_references(claim.get("citation_indices") or [], citations, available_indices),
         ]) for claim in claims if isinstance(claim, dict) and claim.get("text")
             and refs.intersection(claim.get("citation_indices") or [])]
@@ -1252,7 +1418,11 @@ def _render_answer_result(result, links_enabled, service):
             return [_tools_card(result, links_enabled)]
     external = _external_research_card(result, links_enabled)
     if status == "answered" and mode == "web_supplement":
-        cards = []
+        cards = [_answer_status(
+            "Collection answer incomplete",
+            "The web sources below add context. They do not complete the answer from this collection.",
+            "Any available collection evidence is shown separately below.",
+        )]
         collection = (result.get("external_research") or {}).get("collection_answer") or {}
         local = {**result, "status": collection.get("status", "insufficient_evidence"),
                  "answer_mode": collection.get("answer_mode", "tools" if data.get("kind") in {"original_metadata", "composite"} else "rag"),
@@ -1269,11 +1439,25 @@ def _render_answer_result(result, links_enabled, service):
     partial = _partial_collection_answer(result)
     if mode == "rag" and (status == "answered" or partial):
         summary, findings = _grounded_answer_parts(result, str(result.get("answer") or ""))
-        evidence = [_answer_section("Findings", findings)] if findings else []
-        if result.get("evidence"):
+        screening = (result.get("research_trace") or {}).get("list_screening") or {}
+        # The rules a listed record meets come first, then the findings (relevance_triage).
+        evidence = criterion_card(screening)
+        evidence.extend([_answer_section("Findings", findings)] if findings else [])
+        evidence.extend(_list_chart_cards(data))
+        evidence.extend(review_section(screening))
+        evidence.extend(_relevance_reasoning(result))
+        shown_evidence = result.get("evidence") or []
+        if isinstance(data.get("display_citations"), list):
+            # A list answer shows the passages of the citations it displays
+            # (the first matches and the key points), not every passage screened.
+            cited = result.get("citations") or []
+            keep = {_mapping(cited[n - 1]).get("evidence_id") for n in data["display_citations"]
+                    if isinstance(n, int) and 0 < n <= len(cited)}
+            shown_evidence = [e for e in shown_evidence if _mapping(e).get("evidence_id") in keep]
+        if shown_evidence:
             evidence.extend([
                 html.H5("Records and quoted evidence", className="answer-evidence-title"),
-                *_evidence_cards(result["evidence"], links_enabled, result.get("citations") or []),
+                *_evidence_cards(shown_evidence, links_enabled, result.get("citations") or []),
             ])
         media_cards = _media_evidence_cards(result.get("media_evidence") or [], links_enabled,
                                              result.get("citations") or [])
@@ -1476,6 +1660,8 @@ def _evidence_cards(evidence, enabled, citations=()):
                     [
                         html.Span(f"Citation [{number}]", className="evidence-code"),
                         html.Blockquote(quote),
+                        html.A("Show this quote in the full text →", href=record_quote_href(item, [quote]),
+                               target="_blank", rel="noopener", className="quote-link"),
                     ],
                     className="citation-quote",
                     id=f"answer-citation-{number}",
@@ -1556,7 +1742,7 @@ def _evidence_cards(evidence, enabled, citations=()):
                     ),
                     html.A(
                         "View record and archived materials →",
-                        href="/records/" + str(item.get("record_id") or ""),
+                        href=record_quote_href(item, [quote for _, quote in supported]),
                         target="_blank",
                         rel="noopener",
                     ),
@@ -1705,18 +1891,20 @@ def _filter_panel(dataset, facets):
         "keywords": "Collection search term",
         "labels": "Historical automated label" if native else "Historical source state (OR)",
         "accounts": "Account",
+        "replies": "Reply status",
     }
     controls = {}
     for field in FILTER_NAMES:
-        hidden = (native and field in {"platforms", "accounts"}) or (
+        hidden = (native and field in {"platforms", "accounts", "replies"}) or (
             not native and field == "publishers"
-        )
+        ) or (dataset == "all" and field == "replies")
         controls[field] = html.Div(
                 [
                     html.Label(names[field], htmlFor=f"{dataset}-{field}"),
                     dcc.Dropdown(
                         id=f"{dataset}-{field}",
-                        options=social_state_options() if not native and field == "labels" else [
+                        options=list(REPLY_OPTIONS) if field == "replies"
+                        else social_state_options() if not native and field == "labels" else [
                             {
                                 "label": sponsor_display(value)
                                 if field == "sponsors"
@@ -1767,7 +1955,7 @@ def _filter_panel(dataset, facets):
                 html.P(
                     "Historical labels come from earlier automated classification runs. Collection search terms describe how records were collected; they are not sponsor identities or article themes."
                     if native else
-                    "Accounts group the source channel.name values, not unique channel IDs. Use Platform with Account to narrow names shared across platforms; names can also be shared within a platform. Company affiliation comes from the source and does not verify paid sponsorship. Unknown values remain selectable. Historical source states use OR: a post matches any selected state. Source True/False are unreviewed automated outputs, not verified themes or greenwashing judgments. Unknown annotation does not mean Source False."
+                    "Accounts group the source channel.name values, not unique channel IDs. Use Platform with Account to narrow names shared across platforms; names can also be shared within a platform. Company affiliation comes from the source and does not verify paid sponsorship. Unknown values remain selectable. Reply status uses the source post.is_reply mark: 'Not marked as reply' includes posts whose mark is unknown, so it is not a verified list of original posts. Historical source states use OR: a post matches any selected state. Source True/False are unreviewed automated outputs, not verified themes or greenwashing judgments. Unknown annotation does not mean Source False."
                 ),
             ],
             className="filter-note",
@@ -1780,7 +1968,8 @@ def _filter_panel(dataset, facets):
                    className="scope-note") if not native else None,
             html.Details([
                 html.Summary("More filters"),
-                html.Div([controls["keywords"], controls["labels"], controls["platforms"] if native else controls["publishers"]], className="advanced-filter-fields"),
+                html.Div([controls["keywords"], controls["labels"], controls["platforms"] if native else controls["publishers"],
+                          controls["replies"]], className="advanced-filter-fields"),
                 about_filters,
             ], className="advanced-filters"),
             html.Button("Clear filters", id=f"{dataset}-clear-filters", n_clicks=0, className="button button-quiet clear-filters"),
@@ -1842,6 +2031,9 @@ def create_app(service, settings, record_details=None) -> Dash:
     from observatory.knowledge_routes import register_knowledge_routes
 
     register_knowledge_routes(app.server, service, record_details)
+    from observatory.compare_demo import register_compare_demo
+
+    register_compare_demo(app.server, service, settings)
     if record_details is not None:
         from observatory.records import register_record_routes
 
@@ -2171,7 +2363,7 @@ def create_app(service, settings, record_details=None) -> Dash:
                             **{"aria-label": "Project wireframe"},
                         ),
                         html.Section(
-                            evaluation_panel(published_report(settings)),
+                            [evaluation_panel(published_report(settings)), validation_section()],
                             id="evaluation-page",
                             hidden=True,
                             **{"aria-label": "Evaluation"},
@@ -2725,7 +2917,7 @@ def create_app(service, settings, record_details=None) -> Dash:
                 ) + ["record_id", "version_id", "labels", "retrievable"]
                 if dataset == "social":
                     fields[fields.index("sponsor")] = "company_affiliation"
-                    fields.extend(["collection_scope", "count_unit", "paid_ad_status", "social_historical_states", "social_historical_scheme", "social_historical_status"])
+                    fields.extend(["reply_status", "collection_scope", "count_unit", "paid_ad_status", "social_historical_states", "social_historical_scheme", "social_historical_status"])
                 if enabled:
                     fields.append("archive_url")
                 output = StringIO(newline="")
@@ -2823,6 +3015,9 @@ def create_app(service, settings, record_details=None) -> Dash:
     from observatory.knowledge_ui import register_knowledge_graph
 
     register_knowledge_graph(app, service, enabled, record_details=record_details, require_open=True)
+    from observatory.cooccurrence_ui import register_cooccurrence_maps
+
+    register_cooccurrence_maps(app)
     from observatory.collection_graph_ui import register_collection_graph
 
     register_collection_graph(app, service, enabled)
@@ -2989,4 +3184,15 @@ def create_app(service, settings, record_details=None) -> Dash:
                 *_evidence_cards(evidence, enabled),
             ]
 
+    # Registered last: tests and Dash look up the original owners of the shared outputs first.
+    from observatory.year_drilldown import register_year_drilldown
+
+    for dataset in ("native", "social"):
+        register_year_drilldown(app, service, dataset,
+                                lambda dependency, dataset=dataset: _filter_inputs(dataset, dependency),
+                                lambda *values, dataset=dataset: _filters(dataset, *values), f"{dataset}-view")
+    from observatory.topic_compare_ui import register_compare_ask
+
+    register_compare_ask(app)
+    register_reviews(app, service)
     return app

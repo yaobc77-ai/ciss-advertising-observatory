@@ -1,10 +1,11 @@
 """Read-only, escaped article detail pages alongside the Dash application."""
 
-from flask import abort, render_template_string
+from flask import abort, render_template_string, request
 
 from .analytics import sponsor_display, sponsor_metadata
 from .claims_ui import COVERAGE, MEANING, public_claims
 from .models import Filters
+from .quote_links import mark_segments, parse_highlights
 from .social_annotations import social_annotation_details
 
 TEMPLATE = """<!doctype html>
@@ -57,15 +58,15 @@ TEMPLATE = """<!doctype html>
 <p>{{ record.social_admission.count_unit }}. {{ record.social_admission.member_count }} supplied source observation{% if record.social_admission.member_count != 1 %}s{% endif %}.</p>
 {% if record.social_admission.conflicting_fields %}<p class="scope-note"><strong>Unresolved source differences:</strong> {{ record.social_admission.conflicting_fields | join(', ') }}. Conflicting company/account fields are unknown; {% if source_observations_enabled %}differing text is searchable as separate saved observations. The source differences have not been adjudicated.{% else %}differing text is paused for retrieval.{% endif %} These are observed source differences, not new factual judgments.</p>{% endif %}
 <p class="scope-note">{% if source_observations_enabled %}<strong>Retrieval is enabled for every preserved source observation.</strong> Quotes identify their saved source observation; images, audio and referenced post contents remain unverified.{% elif record.social_admission.retrieval_status == 'enabled_source_post_text_only' %}Retrieval reads supplied post text only; images, audio and referenced posts remain separate.{% elif record.social_admission.retrieval_status == 'paused_body_disagreement' %}<strong>RAG retrieval is paused because source observations contain different text.</strong>{% else %}RAG retrieval is paused for source-text quality review.{% endif %}</p>
-{% for variant in record.social_admission.variants %}<details {% if record.social_admission.conflicting_fields %}open{% endif %}><summary>Source observation {{ loop.index }} · {{ variant.source_record_id }} · {{ variant.account or 'Unknown account' }} · {{ variant.company or 'Unknown company affiliation' }}</summary>
+{% for variant in record.social_admission.variants %}{% set variant_marks = highlight.variant if highlight.observation and highlight.observation == variant.source_record_id else None %}<details {% if record.social_admission.conflicting_fields or variant_marks %}open{% endif %}><summary>Source observation {{ loop.index }} · {{ variant.source_record_id }} · {{ variant.account or 'Unknown account' }} · {{ variant.company or 'Unknown company affiliation' }}</summary>
 <h3>{{ variant.title or 'Supplied post observation' }}</h3>
 <dl class="record-meta"><div class="record-meta-item"><dt>Company affiliation</dt><dd>{{ variant.company or 'Unknown' }}</dd></div><div class="record-meta-item"><dt>Source account</dt><dd>{{ variant.account or 'Unknown' }}</dd></div><div class="record-meta-item"><dt>Publication date</dt><dd>{{ variant.published_at or 'Unknown' }}</dd></div></dl>
 <div class="source-links">{% if variant.url %}<a href="{{ variant.url }}" target="_blank" rel="noopener noreferrer">Original post ↗</a>{% endif %}{% if variant.archive_url %}<a href="{{ variant.archive_url }}" target="_blank" rel="noopener noreferrer">Supplied archive ↗</a>{% endif %}</div>
-<div class="stored-body">{{ variant.body }}</div>
+{% if variant_marks %}<p class="scope-note quote-note">{{ highlight.label }}</p><div class="stored-body">{% for part in variant_marks %}{% if part.mark %}<mark class="cited-quote" id="quote-{{ part.mark }}">{{ part.text }}</mark>{% else %}{{ part.text }}{% endif %}{% endfor %}</div>{% else %}<div class="stored-body">{{ variant.body }}</div>{% endif %}
 <details><summary>Historical source labels · unreviewed</summary><p class="scope-note">These source-export values are retained separately and are not verified greenwashing or factual judgments.</p><dl>{% for state in variant.historical_states %}<dt>{{ state.label }}</dt><dd>{% if state.state == 'source_true' %}Source export: True{% elif state.state == 'source_false' %}Source export: False{% else %}Unknown source annotation{% endif %}</dd>{% endfor %}</dl></details>
 <details><summary>Observation reference</summary><p class="record-reference">Source record {{ variant.source_record_id }} · Body SHA-256 {{ variant.body_sha256 }}</p></details></details>{% endfor %}</section>{% endif %}<section class="records-panel record-body-panel"><h2>{{ record.body_label }}</h2><p class="scope-note">{{ record.body_note }}</p>
 {% if record.quality_notes %}<ul>{% for note in record.quality_notes %}<li>{{ note }}</li>{% endfor %}</ul>{% endif %}
-{% if record.body %}<div class="stored-body">{{ record.body }}</div>{% else %}<p>{% if social %}No post text is available.{% else %}No article text is available.{% endif %}</p>{% endif %}
+{% if highlight.note %}<p class="scope-note quote-note">{{ highlight.note }}</p>{% endif %}{% if highlight.body %}<p class="scope-note quote-note">{{ highlight.label }}</p><div class="stored-body">{% for part in highlight.body %}{% if part.mark %}<mark class="cited-quote" id="quote-{{ part.mark }}">{{ part.text }}</mark>{% else %}{{ part.text }}{% endif %}{% endfor %}</div>{% elif record.body %}<div class="stored-body">{{ record.body }}</div>{% else %}<p>{% if social %}No post text is available.{% else %}No article text is available.{% endif %}</p>{% endif %}
 <details><summary>Technical details</summary><div class="record-reference"><span>Record {{ record.record_id }}</span><span>Version {{ record.version_id }}</span><span>Body SHA-256 {{ record.body_hash }}</span><span>{{ record.body_characters }} stored characters. {% if social %}Retrieval enabled{% else %}Eligible for retrieval{% endif %}: {{ record.retrievable }}.</span></div></details></section>
 </main><script src="/assets/toolbox.js" defer></script>
 </body></html>"""
@@ -123,7 +124,33 @@ def register_record_page(server, details, *, service=None):
             sponsor=sponsor_display(record.get("sponsor")) if not social else None,
             sponsor_note=sponsor_metadata(record.get("sponsor"))["note"] if not social else None,
             claims=_record_claims(service, record) if not social else None,
+            highlight=_highlight(record, request.args),
         )
+
+
+def _highlight(record, args):
+    """Cited-quote marks requested by an answer link (C17); never guesses a position."""
+    ranges = parse_highlights(args.getlist("hl"))
+    if not ranges:
+        return {}
+    if args.get("v") != record.get("version_id"):
+        return {"note": "This record has changed since the answer was written, so the quoted passage is not marked. "
+                        "The cited text is still shown in the answer."}
+    count = f"{len(ranges)} cited passage{'s' if len(ranges) != 1 else ''}"
+    label = f"Highlighted: {count} from the answer, at the exact characters the answer quoted."
+    observation = args.get("obs")
+    if observation:
+        variants = (record.get("social_admission") or {}).get("variants") or []
+        variant = next((v for v in variants if v.get("source_record_id") == observation), None)
+        segments = mark_segments(variant.get("body"), ranges) if variant else None
+        if segments is None:
+            return {"note": "The cited source observation could not be matched, so the quoted passage is not marked."}
+        return {"observation": observation, "variant": segments,
+                "label": label + " The quote comes from the source observation opened below."}
+    segments = mark_segments(record.get("body"), ranges)
+    if segments is None:
+        return {"note": "The quoted position does not match the stored text, so the passage is not marked."}
+    return {"body": segments, "label": label}
 
 
 def _social_value(value, unknown):

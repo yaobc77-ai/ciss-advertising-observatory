@@ -157,6 +157,9 @@ summary { cursor: pointer; color: var(--teal); }
 .record-page .records-panel > details { font-size: 12px; }
 .record-page ul { padding-left: 24px; }
 .stored-body { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.9; max-width: 76ch; margin: 26px auto; color: #273d52; }
+.stored-body mark.cited-quote { background: #ffe58a; color: inherit; padding: 1px 0; border-radius: 2px; box-shadow: 0 0 0 2px #ffe58a; scroll-margin-top: 120px; }
+.stored-body mark.cited-quote:target { background: #ffd23f; box-shadow: 0 0 0 3px #ffd23f; }
+.quote-note { background: #fff8d6; border-left: 3px solid #e0b100; padding: 6px 10px; }
 .snapshot-preview { width: 100%; height: 650px; border: 1px solid var(--line); }
 .snapshot-card { margin: 26px 0; }
 .snapshot-image { display: block; width: 100%; max-width: 900px; height: auto; margin: auto; border: 1px solid var(--line); }
@@ -627,3 +630,55 @@ summary { cursor: pointer; color: var(--teal); }
   .knowledge-canvas { max-height: 560px; }
   .knowledge-inspector { max-height: 500px; }
 }
+.year-drilldown h3 { margin-top: 0; }
+.year-collections { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 18px; }
+.year-record-list { padding-left: 22px; margin: 6px 0; }
+.year-record-list li { margin-bottom: 8px; line-height: 1.45; }
+.year-record-meta { display: block; font-size: 0.85em; }
+.citation-quote .quote-link { display: inline-block; margin-top: 4px; font-size: 0.9em; }
+
+/* C15 Compare tab: one company, keyword topics, native ads vs. social posts. */
+.compare-controls { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(240px, 2fr) minmax(120px, 0.6fr); gap: 12px; margin: 12px 0; }
+.compare-topic { margin: 12px 0; }
+.compare-topic h4 { margin: 0 0 6px; }
+.compare-snippet { margin: 4px 0 8px; padding-left: 10px; border-left: 3px solid #d7dde4; font-size: 0.9em; color: #3b4652; }
+.compare-ask { margin: 14px 0; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.compare-topic-list li { margin-bottom: 4px; }
+@media (max-width: 720px) { .compare-controls { grid-template-columns: 1fr; } }
+
+/* How relevance was judged: screening decisions, quotes and reasoning under a list answer. */
+.relevance-reasoning { margin: 12px 0; }
+.relevance-reasoning summary { cursor: pointer; font-weight: 600; }
+.screen-call { border-left: 3px solid #d7dde4; padding: 4px 0 4px 10px; margin: 10px 0; }
+.screen-call-list { margin: 0 0 6px; padding-left: 18px; }
+.screen-call-list li { margin-bottom: 4px; }
+.screen-decision { color: #5b6672; }
+.screen-matches { color: #1f7a3a; font-weight: 600; }
+.screen-unclear { color: #a06000; }
+.screen-quote { margin: 2px 0 4px; font-size: 0.9em; color: #3b4652; }
+.screen-reasoning { font-size: 0.9em; color: #3b4652; background: #f5f7f9; padding: 6px 8px; border-radius: 4px; }
+.screen-call-list { list-style: none; padding-left: 0; }
+/* Independent relevance judge and the human-label validation (relevance_eval_ui). */
+.judge-panel { margin: 14px 0; padding: 12px 14px; border: 1px solid #dfe3ea; border-radius: 6px; }
+.judge-panel h5 { margin: 0 0 6px; }
+.judge-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 12px 0; }
+.judge-tile { display: flex; flex-direction: column; padding: 8px 12px; border-left: 5px solid #8a94a3; background: #f6f7f9; border-radius: 4px; }
+.judge-tile-number { font-size: 1.6rem; font-weight: 700; line-height: 1.2; }
+.judge-tile-label { font-size: 0.85rem; color: #4a5566; }
+.judge-summary { margin: 6px 0; }
+.judge-flag { font-weight: 600; white-space: nowrap; }
+.relevance-grid td.grid-cell { text-align: center; font-size: 0.8rem; min-width: 38px; }
+.grid-hit { background: #d8eedf; }
+.grid-false-alarm { background: #f6d5cf; }
+.grid-miss { background: #f8e6c2; }
+.grid-correct-out { background: #ffffff; }
+.criterion-card { margin: 0 0 14px; padding: 12px 14px; border-left: 4px solid #003262; background: #f4f7fb; border-radius: 4px; }
+.criterion-card h5 { margin: 0 0 4px; }
+.criterion-rules, .criterion-exclusions { margin: 4px 0 8px; padding-left: 22px; }
+.route-badge { display: inline-block; font-size: 0.75rem; border: 1px solid; border-radius: 10px; padding: 0 7px; }
+.judge-numbers { font-size: 0.8rem; color: #4a5566; }
+.review-section { margin: 12px 0; }
+.review-section summary { cursor: pointer; font-weight: 600; }
+.vote-row { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 4px; }
+.vote-button { font-size: 0.75rem; padding: 1px 8px; border: 1px solid #b9c0ca; border-radius: 10px; background: #fff; cursor: pointer; }
+.vote-button:hover { border-color: #003262; }
