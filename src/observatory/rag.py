@@ -11,9 +11,10 @@ from openai import OpenAI
 from psycopg.types.json import Jsonb
 from pydantic import BaseModel, Field, StrictInt, create_model
 
+from .answer_norms import general_norm, load_norms
 from .budget import Budget, price
 from .db import digest
-from .language import POLICY_VERSION, check_claim_languages, language_hint
+from .language import POLICY_VERSION, answer_language, check_claim_languages
 from .models import (
     Answer,
     AnswerSection,
@@ -24,12 +25,56 @@ from .models import (
 )
 from .prompts import ANSWER_SYSTEM as SYSTEM
 from .prompts import PROMPT_POLICY_VERSION
-from .question_policy import question_contract
+from .question_policy import (
+    in_stated_period,
+    question_contract,
+    several_sources_requested,
+    stated_periods,
+)
 from .segmentation import sentence_spans, text_regions
 from .source_text_quality import text_quality_context
 
 MAX_QUOTE_WORDS = 60
 MAX_SUPPORT_PASSAGES = 5
+MAX_CLAIMS = 6
+MAX_SUMMARY_POINTS = 3
+MAX_ANSWER_SECTIONS = 6
+
+
+class AnswerValidationError(ValueError):
+    """A completed provider response rejected by local answer validation.
+
+    Keep the original exception for local callers, but expose only fixed codes
+    and stages through the service. A parseable response is not a valid answer.
+    """
+
+    def __init__(self, error, *, stage):
+        """Map a validation message to a stable failure reason code and keep audit details."""
+        super().__init__(str(error))
+        reasons = {
+            "Contradictory answer status": "answer_status_contradictory",
+            "Incomplete answer structure": "answer_structure_incomplete",
+            "Invalid passage support": "passage_support_invalid",
+            "Unrelated passage support": "passage_support_unrelated",
+            "Incomplete sentence support": "sentence_support_incomplete",
+            "Unverifiable citation": "citation_mismatch",
+            "Citation exceeds short-quote limit": "quote_too_long",
+            "Missing or excessive claims": "invalid_claim_count",
+            "Unverifiable answer-structure citation": "answer_structure_mismatch",
+            "Empty or excessive summary point": "answer_summary_invalid",
+            "Citation numbers must use structured references": "answer_inline_citation_invalid",
+            "Invalid answer-section heading": "answer_section_heading_invalid",
+            "Summary omits an answer section": "answer_summary_coverage_mismatch",
+            "Answer sections must cover each claim exactly once": "answer_section_coverage_mismatch",
+            "Empty claim": "answer_claim_empty",
+            "Duplicate answer evidence identity": "duplicate_evidence_identity",
+        }
+        self.reason = reasons.get(str(error), "answer_validation_failed")
+        self.details = {
+            "stage": stage, "reason": self.reason, "provider_status": "completed",
+            "parsed_output_available": True, "usage_settled": True,
+            "error_type": type(error).__name__,
+        }
 
 
 class GroundedQuote(BaseModel):
@@ -47,6 +92,9 @@ class ModelAnswer(BaseModel):
     claims: list[GroundedClaim]
     summary: list[CitedStatement] = Field(default_factory=list)
     sections: list[AnswerSection] = Field(default_factory=list)
+    # Claims removed because their own support could not be verified (reason per
+    # claim); every remaining claim is still checked.
+    dropped_claims: list[str] = Field(default_factory=list)
 
 
 
@@ -74,6 +122,7 @@ _OBSERVATION_FIELDS = (
 
 
 def _observation_metadata(source):
+    """Source-observation fields for a social passage, or {} for ordinary article text (re-validated)."""
     defaults = {
         "source_observation_id": None, "source_version_id": None, "source_body_hash": None,
         "source_observation_count": 1, "source_conflicts": [], "source_quality_codes": [],
@@ -308,6 +357,12 @@ def _attach_quote_context(catalog):
 
 def selection_schema(catalog):
     # Structured Outputs can restrict identifiers to real passages at generation time.
+    """Structured-output schema in which the model can only pick passage ids that exist in the catalog.
+
+    The model writes paraphrases and chooses Q-numbered passages; it never types quote text.
+    Limits: MAX_CLAIMS claims, MAX_SUPPORT_PASSAGES supports each, MAX_SUMMARY_POINTS summary
+    points and MAX_ANSWER_SECTIONS sections.
+    """
     choices = Literal.__getitem__(tuple(catalog))
     claim = create_model(
         "SelectedClaim",
@@ -363,11 +418,11 @@ def selection_schema(catalog):
             "coverage or factual truth. Use insufficient_evidence when no requested part is "
             "supportable; nonempty evidence or a shared topic does not justify answered."
         ))),
-        claims=(list[claim], ...),
+        claims=(list[claim], Field(max_length=MAX_CLAIMS)),
         # Defaults preserve historical local fixtures. Responses' strict schema
         # conversion still makes these fields required for new API requests.
-        summary=(list[summary], Field(default_factory=list)),
-        sections=(list[section], Field(default_factory=list)),
+        summary=(list[summary], Field(default_factory=list, max_length=MAX_SUMMARY_POINTS)),
+        sections=(list[section], Field(default_factory=list, max_length=MAX_ANSWER_SECTIONS)),
     )
 
 
@@ -469,6 +524,7 @@ def evidence_inventory(evidence, media, catalog):
 
 
 def _selection_supports(selection, source, catalog):
+    """Check a claim's support passages: same source view, no repeats, and the full sentence covered."""
     support_ids = getattr(selection, "support_passage_ids", [])
     if (not isinstance(support_ids, list) or len(support_ids) > MAX_SUPPORT_PASSAGES
             or any(not isinstance(pid, str) or pid not in catalog or pid == selection.passage_id for pid in support_ids)
@@ -498,6 +554,9 @@ def _selection_supports(selection, source, catalog):
     return [GroundedQuote(evidence_id=item["evidence_id"], quote=item["quote"]) for item in supports]
 
 
+DROPPABLE_SUPPORT_ERRORS = {"Unrelated passage support", "Incomplete sentence support"}
+
+
 def _check_answer_state(parsed):
     """Contradictory abstentions are invalid output, not silently empty answers."""
     if parsed.status == "insufficient_evidence" and any(
@@ -506,7 +565,20 @@ def _check_answer_state(parsed):
         raise ValueError("Contradictory answer status")
 
 
+# Passage IDs (Q1, Q4–Q6) select quotes; they are not reader-facing citations.
+# The model sometimes copies them into prose (P65: "...Statoil. [Q4–Q6]").
+_PASSAGE_ID_MARK = re.compile(r"\s*\[\s*Q\d+(?:\s*[–—-]\s*Q?\d+)?(?:\s*[,;]\s*Q\d+(?:\s*[–—-]\s*Q?\d+)?)*\s*\]")
+
+
+def _without_passage_ids(text):
+    return _PASSAGE_ID_MARK.sub("", text).strip()
+
+
 def materialize_selections(parsed, catalog):
+    """Turn chosen passage ids into exact quotes; drop claims whose support is unrelated or clips a sentence.
+
+    If any claim is dropped, summary and sections are cleared because they refer to claims by position.
+    """
     _check_answer_state(parsed)
     # Historical replay fixtures may omit the new fields. New strict API output
     # includes them, and an answered response cannot silently omit its overview.
@@ -515,20 +587,39 @@ def materialize_selections(parsed, catalog):
         not getattr(parsed, "summary", []) or not getattr(parsed, "sections", [])
     ):
         raise ValueError("Incomplete answer structure")
-    claims = []
+    claims, dropped = [], []
     for selection in parsed.claims:
         source = catalog.get(selection.passage_id)
         if not source:
             raise ValueError("Unverifiable citation")
+        try:
+            supports = _selection_supports(selection, source, catalog)
+        except ValueError as exc:
+            # A claim whose extra passages come from another source, or do not
+            # complete its clipped sentence, is not verified. Drop that claim,
+            # not the other verified claims; with none left, the answer fails.
+            if str(exc) not in DROPPABLE_SUPPORT_ERRORS:
+                raise
+            dropped.append(str(exc))
+            continue
         claims.append(GroundedClaim(
-            text=selection.text, evidence_id=source["evidence_id"], quote=source["quote"],
-            support_quotes=_selection_supports(selection, source, catalog),
+            text=_without_passage_ids(selection.text), evidence_id=source["evidence_id"], quote=source["quote"],
+            support_quotes=supports,
         ))
+    if dropped and not claims:
+        raise ValueError(dropped[0])
+    # Summary and sections cite claims by position; once a claim is removed they
+    # no longer point at the right claims, so they are removed as well.
+    keep_structure = not dropped
     return ModelAnswer(
         status=parsed.status,
         claims=claims,
-        summary=[CitedStatement.model_validate(s.model_dump()) for s in getattr(parsed, "summary", [])],
-        sections=[AnswerSection.model_validate(s.model_dump()) for s in getattr(parsed, "sections", [])],
+        summary=[CitedStatement.model_validate({**s.model_dump(), "text": _without_passage_ids(s.text)})
+                 for s in getattr(parsed, "summary", [])]
+        if keep_structure else [],
+        sections=[AnswerSection.model_validate(s.model_dump()) for s in getattr(parsed, "sections", [])]
+        if keep_structure else [],
+        dropped_claims=dropped,
     )
 
 
@@ -549,6 +640,7 @@ class Rag:
         return self._client
 
     def embed(self, texts, visitor="maintenance", cost_sink=None):
+        """Embed texts with text-embedding-3-small, reusing vectors cached by text hash in `embeddings`."""
         model = self.settings.embedding_model
         if model != "text-embedding-3-small":
             raise ValueError("Unconfigured embedding price/dimension")
@@ -617,7 +709,17 @@ class Rag:
         }
 
     def generate(self, question, evidence, visitor, reservation=None, *, progress=None,
-                 media_evidence=(), validate_media=None):
+                 media_evidence=(), validate_media=None, one_claim_per_source=False):
+        """Write a grounded answer from the given passages, then check every quote.
+
+        1. Validate evidence against current versions; no evidence means insufficient_evidence.
+        2. Build the quote catalog (<= 60-word passages Q1..Qn with sentence context) and inventory.
+        3. System prompt: ANSWER_SYSTEM + general norm + social, one-claim-per-source, period and
+           language rules as they apply.
+        4. Reserve budget unless the caller passed a reservation; refuse inputs over 100,000 bytes.
+        5. responses.parse with the selection schema, no reasoning, max_output_tokens; no retries.
+        6. Settle cost, store the raw output, materialise quotes and run validate_answer.
+        """
         try:
             media = [MediaAnswerEvidence.model_validate(item) for item in media_evidence]
         except Exception as exc:
@@ -651,19 +753,44 @@ class Rag:
                 self.budget.cancel_unsent(reservation)
             raise ValueError("Media evidence failed source validation")
         try:
+            # The model can only cite these numbered passages; it never writes quote text itself.
             catalog = answer_quote_catalog(evidence, media)
             inventory = evidence_inventory(evidence, media, catalog)
             source_refs = {eid: source["source_ref"] for source in inventory["sources"]
                            for eid in source["evidence_ids"]}
             output_schema = selection_schema(catalog)
-            target = language_hint(question)
-            system = SYSTEM
+            target = answer_language(question)
+            system = SYSTEM + general_norm(load_norms(), question)
             if any(_observation_metadata(item) for item in evidence):
                 system += (
                     "\nFor supplied social source observations, attribute claims to the specific observation. "
                     "Preserve source_conflicts and source_quality_codes. Extra captured text or a linked "
                     "preview is not an adjudicated original post. Do not resolve differing observations, "
                     "infer a complete thread, or treat company affiliation as paid advertising or verified classification."
+                )
+            if one_claim_per_source:
+                # The caller already selected every supplied source as matching;
+                # extra claims on one source crowded others out (B1K-S).
+                system += (
+                    "\nEvery supplied source was selected as answering the question. Write exactly one claim "
+                    "for each supplied source, in the order the sources are given, and no second claim about "
+                    "the same source. Put further detail from that source into the same claim, citing its "
+                    "other passages as support passages."
+                )
+            elif several_sources_requested(question) and len({getattr(e, "record_id", None) for e in evidence}) > 1:
+                system += (
+                    "\nThe question asks about several sources. First give at least one claim from "
+                    "every supplied source that supports the asked point, including short ones, "
+                    "then add further detail. Leave out sources that do not mention the asked topic; "
+                    "do not write claims saying a source does not mention it."
+                )
+            periods = stated_periods(question)
+            if periods:
+                system += (
+                    "\nThe question states a time period (stated_periods). Cite every supplied source "
+                    "with in_stated_period true that supports the asked point. Prefer them over "
+                    "sources outside the period. If only a source outside the period supports it, "
+                    "say so and give its date."
                 )
             if target["code"]:
                 system += (
@@ -688,6 +815,7 @@ class Rag:
                 "question": question,
                 "task_contract": task_contract,
                 "retrieval_scope": retrieval_scope,
+                **({"stated_periods": periods} if periods else {}),
                 "evidence_inventory": inventory,
                 "evidence": [
                     {
@@ -701,10 +829,14 @@ class Rag:
                         "dataset": e.dataset,
                         "publisher": e.publisher,
                         "sponsor": e.sponsor,
+                        **({"account": e.account, "platform": getattr(e, "platform", "")}
+                           if getattr(e, "account", "") else {}),
                         "url": getattr(e, "url", ""),
                         "archive_url": getattr(e, "archive_url", ""),
                         "published_at": (e.published_at.isoformat()
                                          if getattr(e, "published_at", None) is not None else None),
+                        **({"in_stated_period": flag} if (flag := in_stated_period(
+                            getattr(e, "published_at", None), periods)) is not None else {}),
                         "source_text_quality": text_quality_context(getattr(e, "source_text_quality_codes", [])),
                         **_observation_context(e),
                         "quote_catalog": {
@@ -764,6 +896,7 @@ class Rag:
             estimate, visitor, "generation", self.settings.generation_model
         )
         try:
+            # One structured call, no reasoning and no retries (client max_retries=0).
             response = self.client.responses.parse(
                 model=self.settings.generation_model,
                 input=[
@@ -794,6 +927,7 @@ class Rag:
                 "prompt_policy": PROMPT_POLICY_VERSION,
                 "task_contract": task_contract,
                 "retrieval_scope": retrieval_scope,
+                "stated_periods": periods,
                 "evidence_inventory": inventory,
                 "payload_sha256": digest(payload),
                 "target_language": target,
@@ -826,6 +960,14 @@ class Rag:
                     evidence=evidence,
                     media_evidence=media,
                     cost_usd=float(actual),
+                    failure_reason="generation_response_incomplete",
+                    research_trace={"generation_failure": {
+                        "stage": "provider_output", "reason": "generation_response_incomplete",
+                        "provider_status": response.status if response.status in {
+                            "completed", "incomplete", "failed", "cancelled", "queued", "in_progress"
+                        } else "unknown",
+                        "parsed_output_available": parsed is not None, "usage_settled": True,
+                    }},
                 )
             if progress:
                 try:
@@ -834,16 +976,66 @@ class Rag:
                     # Progress is optional UI observation. A disconnected
                     # browser cannot turn a settled answer into an API failure.
                     pass
-            return validate_answer(
-                materialize_selections(parsed, catalog), evidence, float(actual),
-                target=target, media_evidence=media,
-            )
+            try:
+                grounded = materialize_selections(parsed, catalog)
+            except ValueError as exc:
+                raise AnswerValidationError(exc, stage="selection_materialization") from exc
+            try:
+                return validate_answer(grounded, evidence, float(actual), target=target, media_evidence=media)
+            except ValueError as exc:
+                raise AnswerValidationError(exc, stage="answer_validation") from exc
         except Exception as exc:
             self.budget.uncertain(rid, type(exc).__name__)
             raise
 
 
+def _check_answer_structure(parsed, summary, sections):
+    """Raise ValueError when summary/sections do not navigate the claims exactly."""
+    if not (summary or sections):
+        return
+    if not 1 <= len(summary) <= MAX_SUMMARY_POINTS or not 1 <= len(sections) <= MAX_ANSWER_SECTIONS:
+        raise ValueError("Incomplete answer structure")
+    valid_refs = set(range(1, len(parsed.claims) + 1))
+
+    def checked_refs(item):
+        refs = item.citation_indices
+        if (
+            not refs
+            or any(type(ref) is not int or ref not in valid_refs for ref in refs)
+            or len(refs) != len(set(refs))
+        ):
+            raise ValueError("Unverifiable answer-structure citation")
+        return set(refs)
+
+    summary_refs = set()
+    for point in summary:
+        if not point.text.strip() or len(point.text) > 1200:
+            raise ValueError("Empty or excessive summary point")
+        if re.search(r"\[\d+\]", point.text):
+            raise ValueError("Citation numbers must use structured references")
+        summary_refs.update(checked_refs(point))
+    grouped_refs = []
+    headings = set()
+    for section in sections:
+        title = section.title.strip()
+        if not title or len(title) > 100 or title.casefold() in headings:
+            raise ValueError("Invalid answer-section heading")
+        headings.add(title.casefold())
+        refs = checked_refs(section)
+        if not refs & summary_refs:
+            raise ValueError("Summary omits an answer section")
+        grouped_refs.extend(section.citation_indices)
+    if len(grouped_refs) != len(set(grouped_refs)) or set(grouped_refs) != valid_refs:
+        raise ValueError("Answer sections must cover each claim exactly once")
+
+
 def validate_answer(parsed, evidence, cost=0.0, *, target=None, media_evidence=()):
+    """Final checks before an answer is shown, and the Answer object built from them.
+
+    Every quote must be a verbatim substring of its evidence and at most MAX_QUOTE_WORDS words;
+    1-MAX_CLAIMS claims are required; a bad summary/section structure is dropped (claims kept);
+    a confident language mismatch returns service_unavailable. Citations are numbered by first use.
+    """
     _check_answer_state(parsed)
     media = [MediaAnswerEvidence.model_validate(item) for item in media_evidence]
     by_id = {e.evidence_id: e for e in evidence}
@@ -859,45 +1051,18 @@ def validate_answer(parsed, evidence, cost=0.0, *, target=None, media_evidence=(
             media_evidence=media,
             cost_usd=cost,
         )
-    if not 1 <= len(parsed.claims) <= 6:
+    if not 1 <= len(parsed.claims) <= MAX_CLAIMS:
         raise ValueError("Missing or excessive claims")
     summary = getattr(parsed, "summary", [])
     sections = getattr(parsed, "sections", [])
-    if summary or sections:
-        if not 1 <= len(summary) <= 3 or not 1 <= len(sections) <= 6:
-            raise ValueError("Incomplete answer structure")
-        valid_refs = set(range(1, len(parsed.claims) + 1))
-
-        def checked_refs(item):
-            refs = item.citation_indices
-            if (
-                not refs
-                or any(type(ref) is not int or ref not in valid_refs for ref in refs)
-                or len(refs) != len(set(refs))
-            ):
-                raise ValueError("Unverifiable answer-structure citation")
-            return set(refs)
-
-        summary_refs = set()
-        for point in summary:
-            if not point.text.strip() or len(point.text) > 1200:
-                raise ValueError("Empty or excessive summary point")
-            if re.search(r"\[\d+\]", point.text):
-                raise ValueError("Citation numbers must use structured references")
-            summary_refs.update(checked_refs(point))
-        grouped_refs = []
-        headings = set()
-        for section in sections:
-            title = section.title.strip()
-            if not title or len(title) > 100 or title.casefold() in headings:
-                raise ValueError("Invalid answer-section heading")
-            headings.add(title.casefold())
-            refs = checked_refs(section)
-            if not refs & summary_refs:
-                raise ValueError("Summary omits an answer section")
-            grouped_refs.extend(section.citation_indices)
-        if len(grouped_refs) != len(set(grouped_refs)) or set(grouped_refs) != valid_refs:
-            raise ValueError("Answer sections must cover each claim exactly once")
+    structure_dropped = ""
+    try:
+        _check_answer_structure(parsed, summary, sections)
+    except ValueError as exc:
+        # Summary and sections only navigate the verified claims. A malformed
+        # structure loses the navigation, not the answer: claims, quotes and
+        # citations are still checked one by one below.
+        summary, sections, structure_dropped = [], [], str(exc)
     citations = []
     citation_numbers = {}
     sentences = []
@@ -944,6 +1109,7 @@ def validate_answer(parsed, evidence, cost=0.0, *, target=None, media_evidence=(
     language_check = check_claim_languages(
         [c.text for c in parsed.claims] + [s.text for s in summary], target,
         source_titles=[e.title for e in [*evidence, *media]],
+        source_texts=[e.text for e in evidence] + [getattr(m, "evidence_text", "") for m in media],
     )
     if language_check["status"] == "mismatch":
         return Answer(
@@ -969,4 +1135,8 @@ def validate_answer(parsed, evidence, cost=0.0, *, target=None, media_evidence=(
         ],
         cost_usd=cost,
         language_check=language_check,
+        **({"research_trace": {key: value for key, value in (
+            ("answer_structure_dropped", structure_dropped),
+            ("unverified_claims_dropped", list(getattr(parsed, "dropped_claims", []) or []))) if value}}
+           if structure_dropped or getattr(parsed, "dropped_claims", None) else {}),
     )

@@ -1,0 +1,630 @@
+{
+ "version": "relevance-validation-v1",
+ "run_date": "2026-10-23",
+ "screening_run": "2026-10-23 run 3 (list-screening-v18)",
+ "judge_model": "gpt-6-luna",
+ "threshold": 0.5,
+ "articles": [
+  {
+   "doc": 0,
+   "title": "Biogas to offset air travel emissions"
+  },
+  {
+   "doc": 1,
+   "title": "Exelon supports 'carbon dividends' plan to address climate change - POLITICO"
+  },
+  {
+   "doc": 2,
+   "title": "How Carbon-Free Nuclear Energy Helps Bridge the Gap to Net-Zero"
+  },
+  {
+   "doc": 3,
+   "title": "Renewable diesel for our changing world"
+  },
+  {
+   "doc": 4,
+   "title": "From Zero to a Trillion: The Mobility Revolution"
+  },
+  {
+   "doc": 5,
+   "title": "Natural gas infrastructure and hydrogen will help create a clean energy future - POLITICO"
+  },
+  {
+   "doc": 6,
+   "title": "Why Net Zero Isn't Zero-Sum"
+  },
+  {
+   "doc": 7,
+   "title": "Bridging to a sustainable and secure energy future"
+  },
+  {
+   "doc": 8,
+   "title": "Oil refiners and petrochemical producers are critical in the drive to save energy"
+  },
+  {
+   "doc": 9,
+   "title": "Real climate solutions won't happen without natural gas and oil"
+  },
+  {
+   "doc": 11,
+   "title": "Why Pipelines and Production are pathways to progress"
+  },
+  {
+   "doc": 12,
+   "title": "Learning to Say 'Yes' - POLITICO"
+  },
+  {
+   "doc": 169,
+   "title": "In the Sweet Spot: The Key to Shale"
+  },
+  {
+   "doc": 179,
+   "title": "How Arctic Exploration Is Putting Local Communities On The Map"
+  },
+  {
+   "doc": 255,
+   "title": "How shale brought new growth to the petrochemical manufacturing industry - POLITICO"
+  }
+ ],
+ "questions": [
+  {
+   "label": "green_labels.decreasing_emissions",
+   "short": "Reducing emissions",
+   "question": "Which ads describe reducing or decreasing greenhouse gas emissions?",
+   "human_positive": [
+    0,
+    1,
+    2,
+    3,
+    5,
+    6,
+    7,
+    9,
+    12
+   ],
+   "screening_listed": [
+    0,
+    1,
+    2,
+    3,
+    5,
+    6,
+    7,
+    9,
+    12
+   ],
+   "judge_probability": {
+    "0": 1.0,
+    "1": 1.0,
+    "2": 1.0,
+    "3": 1.0,
+    "4": 0.0,
+    "5": 1.0,
+    "6": 1.0,
+    "7": 1.0,
+    "8": 0.07,
+    "9": 1.0,
+    "11": 0.0,
+    "12": 1.0,
+    "169": 0.0,
+    "179": 0.0,
+    "255": 0.0
+   },
+   "screening": {
+    "tp": 9,
+    "fp": 0,
+    "fn": 0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1": 1.0
+   },
+   "judge": {
+    "tp": 9,
+    "fp": 0,
+    "fn": 0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1": 1.0
+   },
+   "judge_cost_usd": 0.002422
+  },
+  {
+   "label": "green_labels.policies_programs",
+   "short": "Policies & programs",
+   "question": "Which ads mention environmental or climate policies, regulations or programs?",
+   "human_positive": [
+    0,
+    1,
+    2,
+    4,
+    5,
+    6,
+    7,
+    9,
+    12
+   ],
+   "screening_listed": [
+    0,
+    1,
+    2,
+    4,
+    5,
+    6,
+    7,
+    9,
+    11,
+    12
+   ],
+   "judge_probability": {
+    "0": 0.99,
+    "1": 1.0,
+    "2": 1.0,
+    "3": 0.5,
+    "4": 1.0,
+    "5": 1.0,
+    "6": 1.0,
+    "7": 1.0,
+    "8": 0.0,
+    "9": 1.0,
+    "11": 1.0,
+    "12": 1.0,
+    "169": 0.0,
+    "179": 0.0,
+    "255": 0.0
+   },
+   "screening": {
+    "tp": 9,
+    "fp": 1,
+    "fn": 0,
+    "precision": 0.9,
+    "recall": 1.0,
+    "f1": 0.9473684210526316
+   },
+   "judge": {
+    "tp": 9,
+    "fp": 2,
+    "fn": 0,
+    "precision": 0.8181818181818182,
+    "recall": 1.0,
+    "f1": 0.9
+   },
+   "judge_cost_usd": 0.002442
+  },
+  {
+   "label": "ff_labels.infrastructure_and_production",
+   "short": "Fossil infrastructure",
+   "question": "Which ads mention fossil fuel infrastructure or production, such as drilling, pipelines, refineries or power plants?",
+   "human_positive": [
+    2,
+    5,
+    7,
+    11,
+    169,
+    179,
+    255
+   ],
+   "screening_listed": [
+    2,
+    3,
+    5,
+    7,
+    8,
+    9,
+    11,
+    12,
+    169,
+    179,
+    255
+   ],
+   "judge_probability": {
+    "0": 0.0,
+    "1": 0.99,
+    "2": 0.06,
+    "3": 1.0,
+    "4": 0.0,
+    "5": 1.0,
+    "6": 0.82,
+    "7": 1.0,
+    "8": 1.0,
+    "9": 1.0,
+    "11": 1.0,
+    "12": 1.0,
+    "169": 1.0,
+    "179": 1.0,
+    "255": 1.0
+   },
+   "screening": {
+    "tp": 7,
+    "fp": 4,
+    "fn": 0,
+    "precision": 0.6363636363636364,
+    "recall": 1.0,
+    "f1": 0.7777777777777778
+   },
+   "judge": {
+    "tp": 6,
+    "fp": 6,
+    "fn": 1,
+    "precision": 0.5,
+    "recall": 0.8571428571428571,
+    "f1": 0.631578947368421
+   },
+   "judge_cost_usd": 0.00251
+  },
+  {
+   "label": "green_labels.recycling_waste_management",
+   "short": "Recycling & waste",
+   "question": "Which ads mention recycling or waste management?",
+   "human_positive": [
+    0,
+    9
+   ],
+   "screening_listed": [
+    0,
+    9
+   ],
+   "judge_probability": {
+    "0": 0.0,
+    "1": 0.0,
+    "2": 0.0,
+    "3": 0.0,
+    "4": 0.0,
+    "5": 0.0,
+    "6": 0.0,
+    "7": 0.0,
+    "8": 0.0,
+    "9": 1.0,
+    "11": 0.0,
+    "12": 0.0,
+    "169": 0.0,
+    "179": 0.0,
+    "255": 0.0
+   },
+   "screening": {
+    "tp": 2,
+    "fp": 0,
+    "fn": 0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1": 1.0
+   },
+   "judge": {
+    "tp": 1,
+    "fp": 0,
+    "fn": 1,
+    "precision": 1.0,
+    "recall": 0.5,
+    "f1": 0.6666666666666666
+   },
+   "judge_cost_usd": 0.002255
+  },
+  {
+   "label": "green_labels.nature_animal_references",
+   "short": "Nature & animals",
+   "question": "Which ads refer to nature or animals?",
+   "human_positive": [
+    12,
+    179
+   ],
+   "screening_listed": [
+    0,
+    5,
+    9,
+    12,
+    179
+   ],
+   "judge_probability": {
+    "0": 1.0,
+    "1": 0.99,
+    "2": 0.53,
+    "3": 0.78,
+    "4": 0.0,
+    "5": 0.08,
+    "6": 0.75,
+    "7": 0.23,
+    "8": 0.0,
+    "9": 0.41,
+    "11": 0.55,
+    "12": 1.0,
+    "169": 0.35,
+    "179": 1.0,
+    "255": 0.0
+   },
+   "screening": {
+    "tp": 2,
+    "fp": 3,
+    "fn": 0,
+    "precision": 0.4,
+    "recall": 1.0,
+    "f1": 0.5714285714285715
+   },
+   "judge": {
+    "tp": 2,
+    "fp": 6,
+    "fn": 0,
+    "precision": 0.25,
+    "recall": 1.0,
+    "f1": 0.4
+   },
+   "judge_cost_usd": 0.002322
+  }
+ ],
+ "micro": {
+  "screening": {
+   "tp": 29,
+   "fp": 8,
+   "fn": 0,
+   "precision": 0.7837837837837838,
+   "recall": 1.0,
+   "f1": 0.8787878787878788
+  },
+  "judge": {
+   "tp": 27,
+   "fp": 14,
+   "fn": 2,
+   "precision": 0.6585365853658537,
+   "recall": 0.9310344827586207,
+   "f1": 0.7714285714285715
+  },
+  "agreement": 0.84,
+  "kappa": 0.6803977272727272,
+  "ndcg10": 0.76,
+  "disagreements": 12,
+  "disagreements_screening_right": 10,
+  "both_listed": 33,
+  "both_listed_human_yes": 27
+ },
+ "cost_usd": 0.011951,
+ "note": "Human labels: Spark team hand coding (sentence level). The judge is a model and can be wrong; it is scored here so its flags can be trusted to the measured degree. NDCG@10 is from the 2026-10-15 retrieval run, judged by AI, not by these human labels.",
+ "triage": {
+  "run_date": "2026-10-24",
+  "pairs": 75,
+  "human_positive": 29,
+  "pass": 30,
+  "pass_human_yes": 25,
+  "review": 21,
+  "review_human_yes": 4,
+  "exclude": 24,
+  "exclude_human_yes": 0,
+  "cost_usd": 0.07894,
+  "questions": [
+   {
+    "label": "green_labels.decreasing_emissions",
+    "question": "Which ads describe reducing or decreasing greenhouse gas emissions?",
+    "criterion": {
+     "counts": [
+      "The ad explicitly states that a product, service, action, or organization reduces, decreases, cuts, lowers, or otherwise limits greenhouse gas emissions.",
+      "The ad explicitly states that a product, service, action, or organization helps prevent, avoid, or eliminate greenhouse gas emissions.],"
+     ],
+     "does_not_count": [
+      "The ad only mentions greenhouse gas emissions, climate change, carbon neutrality, or sustainability without describing a reduction or decrease in emissions.",
+      "The ad describes reducing energy use, fuel use, pollution, or carbon emissions without indicating that the reduction concerns greenhouse gas emissions.",
+      "The ad makes a general environmental benefit claim without stating that greenhouse gas emissions are reduced or decreased."
+     ]
+    },
+    "human_positive": [
+     0,
+     1,
+     2,
+     3,
+     5,
+     6,
+     7,
+     9,
+     12
+    ],
+    "routes": {
+     "0": "pass",
+     "1": "pass",
+     "2": "pass",
+     "3": "pass",
+     "4": "exclude",
+     "5": "pass",
+     "6": "review",
+     "7": "pass",
+     "8": "exclude",
+     "9": "pass",
+     "11": "review",
+     "12": "review",
+     "169": "exclude",
+     "179": "exclude",
+     "255": "exclude"
+    },
+    "cost_usd": 0.014928130000000001,
+    "seconds": 28.5,
+    "pass": 7,
+    "pass_human_yes": 7,
+    "review": 3,
+    "review_human_yes": 2,
+    "exclude": 5,
+    "exclude_human_yes": 0
+   },
+   {
+    "label": "green_labels.policies_programs",
+    "question": "Which ads mention environmental or climate policies, regulations or programs?",
+    "criterion": {
+     "counts": [
+      "The ad’s text explicitly mentions an environmental or climate policy, regulation, or program.",
+      "The mention may refer to a specific or general government, institutional, or organizational policy, regulation, or program.",
+      "A statement about implementing, supporting, opposing, complying with, or benefiting from such a policy, regulation, or program counts."
+     ],
+     "does_not_count": [
+      "General environmental or climate claims without mentioning a policy, regulation, or program.",
+      "Mentions of environmental conditions, impacts, or technologies that do not identify or refer to a policy, regulation, or program.",
+      "Policies, regulations, or programs unrelated to environmental or climate issues."
+     ]
+    },
+    "human_positive": [
+     0,
+     1,
+     2,
+     4,
+     5,
+     6,
+     7,
+     9,
+     12
+    ],
+    "routes": {
+     "0": "pass",
+     "1": "pass",
+     "2": "pass",
+     "3": "exclude",
+     "4": "pass",
+     "5": "pass",
+     "6": "pass",
+     "7": "pass",
+     "8": "exclude",
+     "9": "pass",
+     "11": "pass",
+     "12": "pass",
+     "169": "exclude",
+     "179": "review",
+     "255": "review"
+    },
+    "cost_usd": 0.02364341,
+    "seconds": 22.0,
+    "pass": 10,
+    "pass_human_yes": 9,
+    "review": 2,
+    "review_human_yes": 0,
+    "exclude": 3,
+    "exclude_human_yes": 0
+   },
+   {
+    "label": "ff_labels.infrastructure_and_production",
+    "question": "Which ads mention fossil fuel infrastructure or production, such as drilling, pipelines, refineries or power plants?",
+    "criterion": {
+     "counts": [
+      "The ad’s text mentions fossil fuel production activities or sites, such as drilling or extraction.",
+      "The ad’s text mentions fossil fuel infrastructure, such as pipelines, refineries, or power plants."
+     ],
+     "does_not_count": [
+      "Mentions of fossil fuels only as a general energy source, without referring to production or infrastructure.",
+      "Mentions of unrelated infrastructure or energy facilities that are not associated with fossil fuels."
+     ]
+    },
+    "human_positive": [
+     2,
+     5,
+     7,
+     11,
+     169,
+     179,
+     255
+    ],
+    "routes": {
+     "0": "exclude",
+     "1": "review",
+     "2": "review",
+     "3": "pass",
+     "4": "review",
+     "5": "pass",
+     "6": "review",
+     "7": "pass",
+     "8": "pass",
+     "9": "pass",
+     "11": "pass",
+     "12": "review",
+     "169": "pass",
+     "179": "pass",
+     "255": "pass"
+    },
+    "cost_usd": 0.01830717,
+    "seconds": 19.5,
+    "pass": 9,
+    "pass_human_yes": 6,
+    "review": 5,
+    "review_human_yes": 1,
+    "exclude": 1,
+    "exclude_human_yes": 0
+   },
+   {
+    "label": "green_labels.recycling_waste_management",
+    "question": "Which ads mention recycling or waste management?",
+    "criterion": {
+     "counts": [
+      "The ad’s text explicitly mentions recycling.",
+      "The ad’s text explicitly mentions waste management, such as managing, reducing, collecting, treating, or disposing of waste."
+     ],
+     "does_not_count": [
+      "Ads that mention environmental protection or sustainability without mentioning recycling or waste management.",
+      "Ads that mention reusable, recyclable, or recycled products without referring to recycling as an activity or waste management."
+     ]
+    },
+    "human_positive": [
+     0,
+     9
+    ],
+    "routes": {
+     "0": "review",
+     "1": "exclude",
+     "2": "exclude",
+     "3": "exclude",
+     "4": "exclude",
+     "5": "exclude",
+     "6": "exclude",
+     "7": "exclude",
+     "8": "exclude",
+     "9": "pass",
+     "11": "exclude",
+     "12": "exclude",
+     "169": "exclude",
+     "179": "exclude",
+     "255": "exclude"
+    },
+    "cost_usd": 0.0059957199999999995,
+    "seconds": 13.6,
+    "pass": 1,
+    "pass_human_yes": 1,
+    "review": 1,
+    "review_human_yes": 1,
+    "exclude": 13,
+    "exclude_human_yes": 0
+   },
+   {
+    "label": "green_labels.nature_animal_references",
+    "question": "Which ads refer to nature or animals?",
+    "criterion": {
+     "counts": [
+      "The ad’s text explicitly refers to nature, such as the natural world, landscapes, plants, forests, rivers, or other nonhuman natural environments.",
+      "The ad’s text explicitly refers to animals or specific animal species.‌"
+     ],
+     "does_not_count": [
+      "An ad that uses imagery of nature or animals without referring to them in its text.",
+      "An ad that uses words such as “natural” only to describe a product, without referring to nature itself."
+     ]
+    },
+    "human_positive": [
+     12,
+     179
+    ],
+    "routes": {
+     "0": "pass",
+     "1": "review",
+     "2": "review",
+     "3": "review",
+     "4": "exclude",
+     "5": "review",
+     "6": "review",
+     "7": "review",
+     "8": "exclude",
+     "9": "review",
+     "11": "review",
+     "12": "pass",
+     "169": "review",
+     "179": "pass",
+     "255": "review"
+    },
+    "cost_usd": 0.01606596,
+    "seconds": 18.6,
+    "pass": 3,
+    "pass_human_yes": 2,
+    "review": 10,
+    "review_human_yes": 0,
+    "exclude": 2,
+    "exclude_human_yes": 0
+   }
+  ]
+ }
+}

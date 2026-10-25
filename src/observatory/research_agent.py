@@ -9,6 +9,7 @@ web application's transport, so no remote MCP server or account is required.
 import hashlib
 import json
 import re
+from copy import deepcopy
 from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import Any, Literal
@@ -16,6 +17,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from .budget import LimitReached, price
+from .language import language_hint
 from .models import Filters
 from .prompts import RESEARCH_SYSTEM as SYSTEM
 from .question_policy import (
@@ -23,15 +25,30 @@ from .question_policy import (
     entity_dates_used_as_filters,
     metadata_content_clarification,
     question_contract,
+    question_source_scope,
+    restricts_to_named_source,
     statistics_request_preserves_question,
+    strip_citation_clauses,
 )
 
-POLICY_VERSION = "research-tools-v14"
+_SHARED_PLAN_TEXT = re.compile(
+    r"^\s*for\s+(?:the\s+)?[\w&.' -]{1,60}?,"
+    r"|\b(?:in|across|from)\s+(?:the\s+)?(?:current|selected|two|both)\s+(?:collections?|datasets?)\b"
+    r"|^\s*(?:please\s+)?(?:use|using|search|check)\s+(?:the\s+)?(?:two|both|all)\s+(?:collections?|datasets?)\b"
+    r"|^\s*(?:请)?(?:同时)?(?:使用|检索|查)(?:两个|全部)(?:数据集|集合)"
+    r"|\b(?:are|were|is)\s+(?:there\s+)?(?:in\s+(?:the\s+)?(?:current|selected)\s+(?:collections?|datasets?))?"
+    r"|\b(?:report|give|show|list|state)\s+(?:the\s+)?(?:two|both|each|all)?\s*(?:datasets?|collections?|counts?|totals?|numbers?)"
+    r"\s*(?:separately|each|individually)?\b"
+    r"|分别(?:报告|给出|列出)?|分开(?:报告|统计)", re.I)
+
+POLICY_VERSION = "research-tools-v16"
 MAX_INPUT_BYTES = 60_000
 MAX_ARGUMENT_BYTES = 8_000
 MAX_INTERMEDIATE_BYTES = 16_000
 MAX_RESULT_BYTES = 120_000
 
+# Plan routes whose task may be satisfied by a text search of the source.
+CONTENT_ROUTES = {"record", "sources", "claims", "metadata"}
 TERMINAL_ROUTES = {
     "record_statistics": "statistics",
     "search_records": "evidence",
@@ -41,7 +58,7 @@ TERMINAL_ROUTES = {
     "get_record_metadata": "metadata",
     "get_claims_matches": "claims",
 }
-INTERMEDIATE_TOOLS = {"resolve_entity", "get_graph_schema", "find_records"}
+INTERMEDIATE_TOOLS = {"resolve_entity", "get_graph_schema", "find_records", "select_by_company_profile"}
 
 # The compound renderer combines checked read data, not generated content.
 # Evidence remains a single search_records read followed by grounded generation.
@@ -67,7 +84,162 @@ PLAN_TOOL = {
 }
 
 
+PLAN_REPAIR_HINT = (
+    "A question that asks one thing, such as what an advertisement or post says, needs no plan: "
+    "call search_records once with the topic and any named company. Declare a plan only for two or "
+    "three distinct, non-overlapping verbatim parts of the question, in order.")
+STATISTICS_REPAIR_HINTS = {
+    "period_comparison_mismatch": (
+        "The question compares separate periods. Call record_statistics again with periods: one entry "
+        "per named period (label, date_from, date_to), group_by 'none', and no single overall date range."),
+    None: (
+        "The request dropped or changed a name, date range, grouping or comparison stated in the "
+        "question. Call record_statistics again keeping every stated condition."),
+}
+READ_FIRST_HINT = (
+    "Nothing has been read yet, so there is no ambiguity to ask about. Read the collection first: "
+    "search_records for what an ad or post says (a company and topic are enough; no title or record "
+    "ID is needed), record_statistics for counts, with periods for a comparison of dates. Ask for "
+    "clarification only if a read returns several matching candidates.")
+# Tools that read the collection; any of them makes a later clarification informed.
+COLLECTION_READS = set(TERMINAL_ROUTES) | {"find_records", "resolve_entity", "get_graph_schema",
+                                           "select_by_company_profile"}
+SCOPE_REPAIR_HINT = (
+    "Correct the filters and call the read again: filters hold exact stored values only (keywords are "
+    "collection search terms, not topics; put topics in query). Accounts exist only in the social "
+    "collection: for a question about both collections, use comparison_scopes with a social scope for "
+    "the account and a native scope for the advertisement.")
+COMPOSITE_NAME_HINT = (
+    "This query joins several names. Resolve each sponsor, publisher or account separately, then pass "
+    "all resolved values together in one filter list.")
+# "PETRONAS; INDIANOIL PETRONAS PRIVATE LIMITED; Forbes" is three names (B1K-U0081).
+_COMPOSITE_NAME = re.compile(r"\s(?:or|and|&)\s|[,;/、；]|或|和|及|与", re.IGNORECASE)
+UNGROUNDED_NAMES_HINT = (
+    "These source names are not in the question or the active selection: {names}. Do not add a sponsor, "
+    "publisher or account the user did not name; call the read again without them.")
+COLLECTION_REPAIR_HINT = (
+    "The question names these collections: {datasets}. Call the read again covering each of them: for "
+    "both collections set filters.dataset to 'all' and use comparison_scopes with one native scope and "
+    "one social scope; for one collection set filters.dataset to it.")
+ENGLISH_QUERY_HINT = (
+    "Search terms must be English, the language of the stored ad and post text: translate the "
+    "user's words into concise English search terms and keep company and product names as written. "
+    "The answer is still written in the user's language. Call search_records again.")
+_CJK = re.compile(r"[぀-ヿ㐀-䶿一-鿿가-힯]")
+
+
+def _cjk_dominant_query(args):
+    """True when a search query is mostly CJK text rather than English terms."""
+    queries = [args.get("query") or ""] + [
+        (scope or {}).get("query") or "" for scope in args.get("comparison_scopes") or []
+        if isinstance(scope, dict)]
+    for query in queries:
+        if not isinstance(query, str):
+            continue
+        cjk = len(_CJK.findall(query))
+        words = len(re.findall(r"[A-Za-z][A-Za-z'-]*", query))
+        # Latin words beside CJK text are mostly company names; the topic terms
+        # are then CJK and cannot match the English index.
+        if cjk >= 2 and (words <= 2 or cjk >= 2 * words):
+            return True
+    return False
+
+
+FIND_RECORDS_REPAIR_HINT = (
+    "No stored title matched. Social posts have no meaningful titles, and an ad's facts are in its "
+    "text. To find what an ad or post says, call search_records with the topic and named company.")
+
+
+_CLARIFICATION_TEMPLATES = {
+    "ambiguous_entity": ("Several stored names match this question. Please name the exact company, outlet or account.",
+                         "问题中的名称对应多个来源名称，请指明确切的公司、媒体或账号。"),
+    "missing_context": ("The question needs one more detail to read the collection, such as the company, outlet, title or date range.",
+                        "需要补充一个条件才能读取资料，例如公司、媒体、标题或日期范围。"),
+    "unsupported_analysis": ("This kind of analysis is not available for the collection as asked. Please rephrase or narrow the request.",
+                             "资料暂不支持这种分析方式，请换一种问法或缩小范围。"),
+    "compound_question": ("Please split this into separate questions so each can be read from the collection.",
+                          "请把问题拆成几个单独的问题，以便分别读取资料。"),
+}
+
+
+_NAME_DIMENSIONS = {"sponsors": "sponsor", "publishers": "publisher", "accounts": "account"}
+_GENERIC_NAME_WORDS = {"the", "inc", "ltd", "llc", "plc", "co", "corp", "corporation", "company", "companies",
+                       "group", "limited", "energy", "resources", "holdings", "and", "of"}
+_EXCLUSION = re.compile(r"\b(?:other\s+than|except|excluding|not\s+sponsored\s+by|besides)\b|除了|以外|之外|除.{1,40}外",
+                        re.IGNORECASE)
+
+
+# Names that are social relations or kinds of company rather than stored names.
+_RELATION_NAME = re.compile(
+    r"^\s*[@#]|\b(?:state[- ]owned|trade associations?|investor[- ]owned|industry (?:groups?|associations?)|"
+    r"national oil compan(?:y|ies))\b|国有|行业协会", re.IGNORECASE)
+RELATION_NAME_HINT = (
+    "Not a stored source name. For an @handle use filters.mentions, for a #hashtag filters.hashtags; for a kind "
+    "of company call select_by_company_profile and filter by the sponsors it returns.")
+
+
+def _relation_name(query, question):
+    """A kind of company, or a name the question writes as @name or #name: the
+    planner strips the sign before resolving it (B1K-REL3: "worldcoal")."""
+    name = query.strip().lstrip("@#")
+    return bool(_RELATION_NAME.search(query) or name and re.search(
+        r"[@#]" + re.escape(name) + r"\b", question, re.IGNORECASE))
+
+
+def _ungrounded_source_names(name, args, question, base_filters, resolved):
+    """Sponsor/publisher/account names the read would use that nobody supplied.
+
+    A name is supplied when the question names it (any recorded alias, any
+    language), the active selection holds it, or it came back from resolving a
+    name the question contains. The model once filtered "which ads mention
+    safety?" to one sponsor taken from the entity context (B1K-P027).
+    """
+    from .entities import mentioned_in
+
+    asked = set(re.findall(r"[^\W_]+", re.sub(r"['’]s\b", "", question).casefold()))
+
+    def supplied(value, dimension):
+        value = str(value)
+        # "Suncor’s post" names the account "Suncor Energy"; "(ONGC)" its "ONGC".
+        core = set(re.findall(r"[^\W_]+", value.casefold())) - _GENERIC_NAME_WORDS
+        return (value.casefold() in resolved
+                or value.casefold() in {item.casefold() for item in getattr(base_filters, dimension)}
+                or mentioned_in(value, question, dimension)
+                or bool(core) and core <= asked)
+
+    # "Sponsored by companies other than X" is answered by listing the others.
+    excluding = bool(_EXCLUSION.search(question))
+    invented = []
+    if name == "resolve_entity":
+        dimension = {v: k for k, v in _NAME_DIMENSIONS.items()}.get(args.get("entity_type"))
+        query = str(args.get("query") or "")
+        if dimension and query and not supplied(query, dimension):
+            invented.append(query)
+    scopes = [args.get("filters") or {}, *[(item or {}).get("filters") or item or {}
+                                            for item in args.get("comparison_scopes") or []]]
+    for filters in scopes:
+        if not isinstance(filters, dict):
+            continue
+        for dimension in _NAME_DIMENSIONS:
+            if excluding and dimension == "sponsors":
+                continue
+            invented.extend(str(value) for value in filters.get(dimension) or [] if not supplied(value, dimension))
+    return list(dict.fromkeys(invented))
+
+
+def _clarification_in_question_language(clarification, question):
+    """A clarification in another language than the question is replaced by a fixed one."""
+    target, actual = language_hint(question), language_hint(clarification.message)
+    if not target["code"] or not actual["code"] or actual["code"] == target["code"]:
+        return clarification.message
+    english, chinese = _CLARIFICATION_TEMPLATES[clarification.reason]
+    return chinese if target["code"] == "zh" else english
+
+
 def _validate_plan(args, question, scope):
+    """Check a set_research_plan call: 2-3 verbatim, ordered, non-overlapping question parts whose
+    datasets match the selection; any uncovered text may only be connectives or shared wording.
+    """
     plan = _ResearchPlan.model_validate(args)
     covered = [False] * len(question)
     seen = set()
@@ -89,7 +261,12 @@ def _validate_plan(args, question, scope):
         for index in range(start, start + len(task.question_part)):
             covered[index] = True
     unused = ''.join(char if not covered[index] else ' ' for index, char in enumerate(question))
+    unused = strip_citation_clauses(unused)
     unused = re.sub(r"\b(?:and|also|then|as|well|plus)\b|以及|并且|同时|还有|和|及", "", unused, flags=re.I)
+    # Text outside every part may only be a leading shared scope ("For API,"), a
+    # collection phrase, or an output instruction ("Report the two datasets
+    # separately"). Anything else, such as another operation, keeps the part missing.
+    unused = _SHARED_PLAN_TEXT.sub(" ", unused)
     if any(char.isalnum() for char in unused):
         raise ValueError("Plan omitted part of the question")
     return plan.tasks
@@ -109,14 +286,47 @@ def _step_definitions(definitions, contract, tasks, completed, selected_record=N
         allowed.update({"resolve_entity", "find_records", "request_clarification"})
         if route == "graph":
             allowed.add("get_graph_schema")
+        if route in CONTENT_ROUTES and contract.get("content_search"):
+            # What a source says lives in its text: a title lookup is optional.
+            allowed.add("search_records")
+    elif contract.get("record_fields_lookup"):
+        # Fields of one record named by its title: locate it, then read its
+        # stored metadata. A plan would split one record across parts and
+        # lose the bound record between them.
+        allowed = {"find_records", "get_record_metadata", "resolve_entity", "request_clarification"}
+    elif contract.get("content_search"):
+        # A question about what an advertisement or post says is one text
+        # search; a plan, a count or a stored-field read cannot answer it.
+        allowed = {"search_records", "resolve_entity", "request_clarification"}
+        if contract.get("quoted_title"):
+            allowed.update({"find_records", "get_record"})
     elif contract.get("compound_read_request"):
         allowed = {"set_research_plan", "resolve_entity", "find_records",
                    "get_graph_schema", "request_clarification"}
     elif contract.get("original_metadata_only"):
         allowed = {"find_records", "resolve_entity", "get_record_metadata", "request_clarification"}
-    return [item for item in definitions if (allowed is None or item["name"] in allowed)
+    if allowed is None and not contract.get("compound_read_request"):
+        # A plan exists to split several read tasks; a single read has none to split.
+        allowed = {item["name"] for item in definitions} - {"set_research_plan"}
+    if allowed is not None and "resolve_entity" in allowed:
+        # A company profile is an entity lookup like resolve_entity; it is
+        # advertised only when relation reads are enabled.
+        allowed.add("select_by_company_profile")
+    definitions = [item for item in definitions if (allowed is None or item["name"] in allowed)
             and not (selected_record and item["name"] == "find_records")
             and not (item["name"] == "get_record_metadata" and not (selected_record or trusted_record_id))]
+    if selected_record or trusted_record_id:
+        definitions = deepcopy(definitions)
+        for item in definitions:
+            if item["name"] in {"get_record_metadata", "get_record", "get_record_sources"}:
+                # The executor owns this identity once a unique source is bound.
+                # Keep other parameters available; never make the model recopy IDs.
+                schema = item["parameters"]
+                schema["properties"].pop("record_id", None)
+                schema["required"] = [key for key in schema.get("required", []) if key != "record_id"]
+                item["description"] = (item.get("description", "")
+                                       + " The executor supplies the already bound record ID; do not provide record_id.")
+    return definitions
 
 
 def _selected_record(result):
@@ -170,6 +380,13 @@ def _complete_plan(run, tasks, completed, reason="", *, failure_status=None):
 
 
 def _result_dataset(result):
+    # A comparison reads each target in its own scope; the shared top-level
+    # filters keep the active selection ("all"), so the targets' common
+    # collection is the read's collection (the "Compare emissions claims"
+    # example failed on an all-collections selection).
+    groups = {(group.get("filters") or {}).get("dataset") for group in result.get("retrieval_groups") or []}
+    if len(groups) == 1 and None not in groups:
+        return groups.pop()
     return ((result.get("filters") or {}).get("dataset")
             or (result.get("record") or {}).get("dataset"))
 
@@ -249,6 +466,7 @@ class ResearchRun:
     interpretation: dict[str, Any] | None = None
 
     def audit(self):
+        """Research trace for this run: route, cost, model calls, tool calls and the plan."""
         audit = {
             "policy": POLICY_VERSION,
             "transport": "responses_function_calling",
@@ -351,8 +569,9 @@ class ResearchAgent:
     def __init__(
         self, rag, catalog, *, entity_context=None, reference_date=None,
         max_steps=4, max_tool_calls=4, max_output_tokens=900,
-        intent_enabled=False,
+        intent_enabled=False, repairs=0,
     ):
+        """Planner over a ToolCatalog; at most four model steps and four tool calls per question."""
         if not 1 <= max_steps <= 4 or not 1 <= max_tool_calls <= 4:
             raise ValueError("Research agent permits at most four steps and tool calls")
         if not 100 <= max_output_tokens <= 1_600:
@@ -365,10 +584,17 @@ class ResearchAgent:
         self.max_tool_calls = max_tool_calls
         self.max_output_tokens = max_output_tokens
         self.intent_enabled = intent_enabled
+        # How many correctable rejections are returned to the model per question.
+        if repairs not in (0, 1):
+            raise ValueError("At most one correctable rejection is returned per question")
+        self.repairs = repairs
 
     def _definitions(self):
         # Held-out question-specific tools are never sent to the general planner,
         # including during evaluation of one query. No full test catalog is used.
+        """Tool definitions the planner may see: the catalog's terminal and intermediate tools plus the
+        plan and clarification tools, each with a strict JSON schema.
+        """
         definitions = [item for item in self.catalog.definitions()
                        if item.get("name") != "get_content_matches"]
         names = set()
@@ -386,7 +612,39 @@ class ResearchAgent:
             names.add(name)
         return [*definitions, PLAN_TOOL, CLARIFICATION_TOOL]
 
+    def _complete_search_scope(self, question, args, dataset, trace):
+        """Add the named source and stated period a content search left out.
+
+        "What did Chevron's October 2020 posts say" read every company's
+        October posts when the model filtered only the date (B1K-Q009). Only
+        sources in a source role and one stated past period are added, and a
+        field the model already filled is left to the other checks. The
+        trusted selection still bounds the read in the tool executor.
+        """
+        try:
+            context = (self.catalog.statistics_validation_context()
+                       if hasattr(self.catalog, "statistics_validation_context")
+                       else self.entity_context or self.catalog.entity_context())
+            scope = question_source_scope(question, context, dataset or "all")
+        except Exception:
+            return args
+        filters, added = dict(args.get("filters") or {}), {}
+        for dimension in ("sponsors", "accounts"):
+            if scope.get(dimension) and not filters.get(dimension):
+                filters[dimension] = added[dimension] = scope[dimension]
+        if scope.get("date_from") and not (filters.get("date_from") or filters.get("date_to")):
+            filters["date_from"], filters["date_to"] = scope["date_from"], scope["date_to"]
+            added.update(date_from=scope["date_from"], date_to=scope["date_to"])
+        if not added:
+            return args
+        args = {**args, "filters": filters}
+        trace.update(scope_completed_from_question=added, execution_arguments=args)
+        return args
+
     def _dispatch(self, inputs, definitions, visitor, step, *, policy=POLICY_VERSION):
+        """One planner call: reserve budget (estimate x 1.25), call the Responses API with one required
+        tool call and no reasoning, settle the actual cost. Inputs over MAX_INPUT_BYTES are refused.
+        """
         model = self.rag.settings.generation_model
         # A UTF-8-byte tokenizer upper bound plus schema/message overhead. This
         # covers the entire conversation resent with store=False on every turn.
@@ -529,6 +787,16 @@ class ResearchAgent:
         return execute_intent(run, compiled, self.catalog, progress)
 
     def run(self, question: str, base_filters: Filters, visitor: str, progress=None):
+        """Choose a route by letting the model call tools, with guards between steps.
+
+        Each step offers only the tools the question contract allows (_step_definitions), requires
+        exactly one function call, and checks it before running: dataset named in the question,
+        content questions must not use statistics, statistics must keep the question's conditions,
+        search queries must be English, filters may only use names grounded in the question. Some
+        failures get one repair hint; the rest end in 'clarify'. The first successful terminal tool
+        fixes the route (TERMINAL_ROUTES); with a plan, every part must finish (route 'composite').
+        Evidence passages found here only choose the route; service._answer_evidence retrieves again.
+        """
         if self.intent_enabled:
             return self._run_intent(question, base_filters, visitor, progress)
         run = ResearchRun(
@@ -560,6 +828,20 @@ class ResearchAgent:
         seen_calls = set()
         tasks, completed = [], []
         selected_record = None
+        # One correctable rejection per question is returned to the model with
+        # its reason instead of ending the run; integrity checks never are.
+        repairs = self.repairs
+        # A clarification before any collection read is returned once with a
+        # read-first hint; it is separate from the one correctable rejection.
+        read_first_hint = self.repairs > 0
+        english_query_hint = self.repairs > 0
+        # The content part a search completes when the plan has other parts.
+        content_part = None
+        scope_hint = self.repairs > 0
+        collection_hint = self.repairs > 0
+        names_hint = self.repairs > 0
+        composite_hint = self.repairs > 0
+        resolved_names = set()
         trusted_record_id = base_filters.record_ids[0] if len(base_filters.record_ids) == 1 else None
         for step in range(1, self.max_steps + 1):
             try:
@@ -636,8 +918,15 @@ class ResearchAgent:
                     inputs.extend(_dump(item) for item in outputs)
                     inputs.append({"type": "function_call_output", "call_id": call_id, "output": _json(result)})
                     continue
-                except ValueError:
+                except ValueError as exc:
                     trace["status"] = "invalid_request"
+                    if repairs and step < self.max_steps:
+                        repairs -= 1
+                        trace["repair"] = "returned_to_model"
+                        inputs.extend(_dump(item) for item in outputs)
+                        inputs.append({"type": "function_call_output", "call_id": call_id, "output": _json(
+                            {"status": "invalid_request", "message": f"Plan rejected: {exc}. {PLAN_REPAIR_HINT}"})})
+                        continue
                     run.route, run.failure_reason = "clarify", "research_plan_invalid"
                     run.result = {"status": "clarify", "message":
                         "I could not form a valid reading plan that preserves every requested task, its wording, order and collection. Please clarify the separate read tasks."}
@@ -649,9 +938,20 @@ class ResearchAgent:
                     trace["status"] = "invalid_request"
                     run.failure_reason = "research_clarification_invalid"
                     return _complete_plan(run, tasks, completed, run.failure_reason or "research_plan_interrupted") if tasks else run
+                if read_first_hint and step < self.max_steps and not any(item.get("tool") in COLLECTION_READS
+                                               for item in run.tool_trace[:-1]):
+                    # Nothing has been read yet, so no ambiguity has been observed:
+                    # the clarification would ask the user for what a read finds.
+                    read_first_hint = False
+                    trace.update(status="invalid_request", repair="read_before_clarifying")
+                    inputs.extend(_dump(item) for item in outputs)
+                    inputs.append({"type": "function_call_output", "call_id": call_id, "output": _json(
+                        {"status": "invalid_request", "message": READ_FIRST_HINT})})
+                    continue
                 trace["status"] = "clarify"
                 run.route = "clarify"
-                run.result = {"status": "clarify", **clarification.model_dump()}
+                run.result = {"status": "clarify", **clarification.model_dump(),
+                              "message": _clarification_in_question_language(clarification, question)}
                 return _complete_plan(run, tasks, completed, "research_plan_clarification") if tasks else run
 
             explicit = contract.get("explicit_datasets", [])
@@ -660,6 +960,17 @@ class ResearchAgent:
             expected_dataset = tasks[len(completed)].dataset if tasks else supplied_dataset
             if (name in TERMINAL_ROUTES and explicit
                     and supplied_dataset != ("all" if len(explicit) > 1 else explicit[0])):
+                if collection_hint and step < self.max_steps:
+                    # The model dropped a collection the question names. Return
+                    # the error for one corrected read instead of ending in a web
+                    # lookup (B1K: 8 of 13 cross-collection failures).
+                    collection_hint = False
+                    trace.update(status="invalid_request", repair="collection_scope_returned_to_model")
+                    inputs.extend(_dump(item) for item in outputs)
+                    inputs.append({"type": "function_call_output", "call_id": call_id, "output": _json({
+                        "status": "invalid_request", "message": COLLECTION_REPAIR_HINT.format(
+                            datasets=" and ".join(explicit))})})
+                    continue
                 trace.update(status="clarify", blocked_by="explicit_collection_scope_missing")
                 run.route, run.failure_reason = "clarify", "explicit_collection_scope_missing"
                 run.result = {"status": "clarify", "message": "The read must preserve the collection named in your question and the active selection."}
@@ -707,8 +1018,21 @@ class ResearchAgent:
                     trace.update(status="unavailable", blocked_by="statistics_scope_validation_unavailable")
                     run.failure_reason = "statistics_scope_validation_unavailable"
                     return _complete_plan(run, tasks, completed, run.failure_reason) if tasks else run
+            scope_diagnostic = {}
             if name == "record_statistics" and not statistics_request_preserves_question(
-                    current_question, validation_context, args, run.base_filters):
+                    current_question, validation_context, args, run.base_filters,
+                    diagnostics=scope_diagnostic, shared_question=question if tasks else None):
+                trace["scope_validation"] = {"stage": "request", **scope_diagnostic}
+                if repairs and step < self.max_steps:
+                    repairs -= 1
+                    trace.update(status="invalid_request", blocked_by="statistics_question_scope_missing",
+                                 repair="returned_to_model")
+                    inputs.extend(_dump(item) for item in outputs)
+                    inputs.append({"type": "function_call_output", "call_id": call_id, "output": _json({
+                        "status": "invalid_request", "reason": scope_diagnostic.get("reason", ""),
+                        "message": STATISTICS_REPAIR_HINTS.get(scope_diagnostic.get("reason"),
+                                                               STATISTICS_REPAIR_HINTS[None])})})
+                    continue
                 trace.update(status="clarify", blocked_by="statistics_question_scope_missing")
                 run.route = "clarify"
                 run.failure_reason = "research_plan_predicate_missing" if tasks else "statistics_question_scope_missing"
@@ -716,20 +1040,75 @@ class ResearchAgent:
                     "The statistics request omitted or changed a named source, date range, grouping or comparison. Clarify the complete scope before reading counts."}
                 return _complete_plan(run, tasks, completed, run.failure_reason) if tasks else run
 
+            if (name == "search_records" and english_query_hint and step < self.max_steps
+                    and _cjk_dominant_query(args)):
+                # The stored texts and the keyword index are English; a query in
+                # another script matches little and pushes sources out of the
+                # final passages. The answer language is unaffected.
+                english_query_hint = False
+                trace.update(status="invalid_request", repair="english_search_terms")
+                inputs.extend(_dump(item) for item in outputs)
+                inputs.append({"type": "function_call_output", "call_id": call_id, "output": _json(
+                    {"status": "invalid_request", "message": ENGLISH_QUERY_HINT})})
+                continue
+
             if tasks and name in TERMINAL_ROUTES:
                 expected = tasks[len(completed)]
-                if TERMINAL_ROUTES[name] != expected.route or supplied_dataset != expected.dataset:
+                if (name == "search_records" and expected.route in CONTENT_ROUTES
+                        and contract.get("content_search") and supplied_dataset == expected.dataset):
+                    # The search covers the content parts of the plan. Parts on
+                    # another route (a count, a graph read) are separate tasks
+                    # and stay in the plan: a search must not drop them.
+                    remaining = tasks[len(completed):]
+                    covered = [task for task in remaining if task.route in CONTENT_ROUTES]
+                    others = [task for task in remaining if task.route not in CONTENT_ROUTES]
+                    if others:
+                        tasks = [*tasks[:len(completed)], covered[0], *others]
+                        content_part = {"question_part": " ".join(task.question_part for task in covered),
+                                        "dataset": expected.dataset, "route": "evidence"}
+                        trace["plan"] = "content_part_searched"
+                    else:
+                        tasks, completed = [], []
+                        trace["plan"] = "replaced_by_content_search"
+                elif TERMINAL_ROUTES[name] != expected.route or supplied_dataset != expected.dataset:
                     trace.update(status="invalid_request", blocked_by="research_plan_scope_mismatch")
                     return _complete_plan(run, tasks, completed, "research_plan_scope_mismatch")
 
             if name in {"get_record_metadata", "get_record", "get_record_sources"}:
                 bound_id = selected_record["record_id"] if selected_record else trusted_record_id
-                if bound_id and args.get("record_id") != bound_id:
+                filter_ids = (args.get("filters") or {}).get("record_ids")
+                if bound_id and ("record_id" in args and args["record_id"] != bound_id
+                                 or filter_ids and filter_ids != [bound_id]):
                     trace.update(status="clarify", blocked_by="research_record_binding_mismatch")
                     run.route, run.failure_reason = "clarify", "research_record_binding_mismatch"
                     run.result = {"status": "clarify", "message":
                         "The source read changed the matched record. Select the intended record before continuing."}
                     return _complete_plan(run, tasks, completed, run.failure_reason) if tasks else run
+                if bound_id:
+                    args = {**args, "record_id": bound_id}
+                    trace["execution_arguments"] = args
+                    trace["record_binding"] = {
+                        "source": "unique_title_match" if selected_record else "active_record_filter",
+                        "record_id": bound_id,
+                    }
+
+            if name == "search_records":
+                args = self._complete_search_scope(current_question, args, supplied_dataset, trace)
+            invented = _ungrounded_source_names(name, args, run.original_question, base_filters, resolved_names)
+            if invented:
+                if names_hint and step < self.max_steps:
+                    names_hint = False
+                    trace.update(status="invalid_request", repair="ungrounded_names_returned_to_model",
+                                 ungrounded=invented)
+                    inputs.extend(_dump(item) for item in outputs)
+                    inputs.append({"type": "function_call_output", "call_id": call_id, "output": _json({
+                        "status": "invalid_request", "message": UNGROUNDED_NAMES_HINT.format(names=", ".join(invented))})})
+                    continue
+                # Read the user's own scope instead of a company nobody named (B1K-P027).
+                trace.update(status="clarify", blocked_by="ungrounded_source_names", ungrounded=invented)
+                run.route, run.failure_reason = "clarify", "research_filter_not_in_question"
+                run.result = {"status": "clarify", "message": "The read used a source name the question does not contain."}
+                return _complete_plan(run, tasks, completed, run.failure_reason) if tasks else run
 
             try:
                 if progress:
@@ -744,6 +1123,16 @@ class ResearchAgent:
                 return _complete_plan(run, tasks, completed, run.failure_reason) if tasks else run
 
             status = result.get("status")
+            if name == "resolve_entity":
+                # Candidates of a name the question contains may be used as filters.
+                resolved_names.update(str(item.get("source_value") or "").casefold()
+                                      for item in result.get("candidates") or [] if isinstance(item, dict))
+                if isinstance(result.get("selected"), str):
+                    resolved_names.add(result["selected"].casefold())
+            if name == "select_by_company_profile":
+                # Companies selected by a profile the question states may be filters.
+                for values in (result.get("sponsors") or {}).values():
+                    resolved_names.update(str(value).casefold() for value in values)
             trace.update(
                 status=status,
                 effective_filters=result.get("filters"),
@@ -759,15 +1148,76 @@ class ResearchAgent:
                 scope_notes=result.get("scope_notes", []),
                 result_sha256=_digest(encoded),
             )
+            if status == "not_found" and name == "find_records" and repairs and step < self.max_steps:
+                repairs -= 1
+                trace["repair"] = "returned_to_model"
+                inputs.extend(_dump(item) for item in outputs)
+                inputs.append({"type": "function_call_output", "call_id": call_id, "output": _json(
+                    {**result, "message": FIND_RECORDS_REPAIR_HINT})})
+                continue
             if status in {"ambiguous", "not_found"} and name == "find_records":
                 run.route, run.result = "clarify", {**result, "message": result.get("message") or
                     "The stored title has no unique match. Select an exact record; no outside page will substitute for its stored fields."}
                 run.failure_reason = "original_source_record_unresolved"
                 return _complete_plan(run, tasks, completed, run.failure_reason or "research_plan_interrupted") if tasks else run
+            if (status == "clarify" and scope_hint and step < self.max_steps
+                    and "candidates" not in result and isinstance(result.get("message"), str)):
+                # A filter the model chose does not fit the collection (a topic in
+                # a field filter, an account under both collections). That is the
+                # model's error to correct, not a question for the user. Real
+                # ambiguity carries candidates and still ends here.
+                scope_hint = False
+                trace["repair"] = "scope_returned_to_model"
+                inputs.extend(_dump(item) for item in outputs)
+                inputs.append({"type": "function_call_output", "call_id": call_id, "output": _json(
+                    {"status": "invalid_request", "message": result["message"] + " " + SCOPE_REPAIR_HINT})})
+                continue
             if status == "clarify":
                 run.route, run.result = "clarify", result
                 return _complete_plan(run, tasks, completed, "research_plan_clarification") if tasks else run
-            if status != "ok":
+            if (status == "not_found" and name == "resolve_entity"
+                    and _COMPOSITE_NAME.search(str(args.get("query") or "")) and composite_hint and step < self.max_steps):
+                # "Shell or BP" is two names, not an absent sponsor (B1K-N004).
+                composite_hint = False
+                trace["repair"] = "composite_name_returned_to_model"
+                inputs.extend(_dump(item) for item in outputs)
+                inputs.append({"type": "function_call_output", "call_id": call_id, "output": _json(
+                    {"status": "invalid_request", "message": COMPOSITE_NAME_HINT})})
+                continue
+            relation_name = (status == "not_found" and name == "resolve_entity"
+                             and getattr(self.catalog, "_relations_enabled", lambda: False)()
+                             and _relation_name(str(args.get("query") or ""), run.original_question))
+            if relation_name:
+                # "@worldcoal" or "UK trade associations" is a relation, not a
+                # stored name; answering "no such sponsor" was wrong (B1K-REL2).
+                result = {**result, "message": RELATION_NAME_HINT}
+            if (status == "not_found" and name == "resolve_entity" and not relation_name
+                    and not _COMPOSITE_NAME.search(str(args.get("query") or ""))
+                    # Stored as another source type ("RWE AG" is an account): the
+                    # model resolves it again instead of answering "none" (B1K-Q059).
+                    and not result.get("stored_as_other_entity_type")
+                    and (args.get("restricts_read") is True
+                         or restricts_to_named_source(run.original_question, str(args.get("query") or "")))):
+                # The question limits the read to this sponsor/account/publisher
+                # and the collection has none: that is the answer. Searching on
+                # without the filter cited other companies' ads (B1K-0544).
+                named = str(args["query"])
+                entity = str(args.get("entity_type") or "source")
+                zh = {"sponsor": "赞助方", "account": "账号", "publisher": "媒体"}.get(entity, "来源")
+                run.route, run.result = "clarify", {**result, "message": (
+                    f"该集合中没有名为“{named}”的{zh}，因此没有可引用的记录。"
+                    if re.search(r"[一-鿿]", run.original_question) else
+                    f"The collection has no {entity} named “{named}”, so there are no records to cite.")}
+                run.failure_reason = "named_source_not_in_collection"
+                return _complete_plan(run, tasks, completed, run.failure_reason) if tasks else run
+            if status == "not_found" and name == "resolve_entity" and step < self.max_steps:
+                # An absent stored name is information for the next read (the name
+                # may be in ad text), not a question for the user.
+                pass
+            elif status == "not_found" and name == "resolve_entity":
+                run.route, run.result = "clarify", result
+                return _complete_plan(run, tasks, completed, "research_plan_clarification") if tasks else run
+            elif status != "ok":
                 run.result = result
                 run.failure_reason = "research_tool_" + (
                     status if status in {"unavailable", "invalid_request"} else "invalid_result"
@@ -793,16 +1243,29 @@ class ResearchAgent:
                 # Canonical source scope comes from the executor, never the
                 # model's arguments. Search query is retrieval-only, not answer text.
                 if run.route == "evidence":
-                    result = {**result, "search_query": args.get("query", question)}
+                    result = {**result, "search_query": args.get("query", question),
+                              "answer_shape": args.get("answer_shape")}
+                    if result.get("relation_selections"):
+                        result["relation_listing"] = {"selections": result["relation_selections"],
+                                                      "list_all": args.get("list_selected_posts") is True}
                 if (tasks or name == "record_statistics" or explicit) and _result_dataset(result) != expected_dataset:
                     trace.update(status="invalid_result", blocked_by="research_result_scope_mismatch")
+                    # The rejected read is not an answer route: the service must not
+                    # read its result as evidence (it raised KeyError and the page
+                    # showed "Answer service unavailable").
+                    run.route, run.result = "unavailable", {}
                     run.failure_reason = "research_plan_result_scope_mismatch" if tasks else "research_result_scope_mismatch"
                     return _complete_plan(run, tasks, completed, run.failure_reason) if tasks else run
+                scope_diagnostic = {}
+                active_preserved = name != "record_statistics" or _result_preserves_active_filters(
+                    result.get("filters"), run.base_filters, args.get("filters") or {})
                 if name == "record_statistics" and (
-                        not _result_preserves_active_filters(result.get("filters"), run.base_filters, args.get("filters") or {})
-                        or not statistics_request_preserves_question(
+                        not active_preserved or not statistics_request_preserves_question(
                             current_question, validation_context,
-                            {**args, "filters": result.get("filters") or {}}, run.base_filters)):
+                            {**args, "filters": result.get("filters") or {}}, run.base_filters,
+                            diagnostics=scope_diagnostic, shared_question=question if tasks else None)):
+                    trace["scope_validation"] = {"stage": "result", **scope_diagnostic} if active_preserved else {
+                        "stage": "result", "reason": "active_filters_changed"}
                     trace.update(status="invalid_result", blocked_by="statistics_result_scope_missing")
                     run.failure_reason = "research_plan_result_predicate_missing" if tasks else "statistics_result_scope_missing"
                     return _complete_plan(run, tasks, completed, run.failure_reason) if tasks else run
@@ -810,7 +1273,8 @@ class ResearchAgent:
                     run.result = result
                     return _complete_plan(run, tasks, completed, run.failure_reason or "research_plan_interrupted") if tasks else run
                 expected = tasks[len(completed)]
-                completed.append({**expected.model_dump(), "result": result})
+                completed.append({**(content_part or expected.model_dump()), "result": result})
+                content_part = None
                 selected_record = None
                 if len(completed) == len(tasks):
                     return _complete_plan(run, tasks, completed)

@@ -33,6 +33,8 @@ from pydantic import (
 from .analytics import LABEL_NOTE, sponsor_display
 from .chunking import retrieval_spans
 from .date_inference import BASIS_NOTE
+from .entities import expand as expand_entity
+from .entities import registry as entity_registry
 from .evaluation_mask import evaluation_active
 from .knowledge_graph import (
     IDENTITY_POLICY,
@@ -82,7 +84,7 @@ class FiltersRequest(Request):
     sponsors: OptionalNames = None
     platforms: OptionalNames = None
     accounts: OptionalNames = Field(default=None, description="Exact social channel.name values, not unique identities; '(Unknown)' means missing. Requires dataset='social'.")
-    keywords: OptionalNames = None
+    keywords: OptionalNames = Field(default=None, description="Exact stored collection search terms recorded when an ad was gathered (for example a company acronym), not topics. Put topics in query.")
     labels: OptionalNames = Field(default=None, description="OR over supplied historical IDs, never AND. Social IDs require dataset='social'; unverified, Unknown is not False.")
     record_ids: Annotated[list[RecordId], Field(max_length=20)] | None = None
     date_from: date | None = None
@@ -90,6 +92,23 @@ class FiltersRequest(Request):
     include_unknown_dates: StrictBool | None = None
     date_presence: Literal["any", "known", "missing"] | None = Field(default=None, description="Publication-date presence; missing is null/empty. Intersects active dates, never widens unknown-date exclusion.")
     include_inferred_dates: StrictBool | None = Field(default=None, description="Must match the active source/inferred date basis; omission preserves it. Results label supplemented dates.")
+    # X relations of social posts, read from each post's source row; any listed
+    # value matches. The server turns them into the matching post IDs.
+    mentions: OptionalNames = Field(default=None, description="Social posts whose source lists any of these @handles as mentioned (case-insensitive). Requires dataset='social'. A mention is not endorsement or affiliation.")
+    hashtags: OptionalNames = Field(default=None, description="Social posts whose source lists any of these hashtags (case-insensitive, with or without #). Requires dataset='social'.")
+    references: list[Literal["replied_to", "quoted", "retweeted"]] | None = Field(default=None, description="Social posts that reply to, quote or repost one post that is itself in the collection. Requires dataset='social'.")
+
+
+RELATION_FILTERS = ("mentions", "hashtags", "references")
+# Shown with search_records only when relation reads are enabled (B1K-REL: the
+# planner never used mentions, and resolved "UK trade associations" as a name).
+RELATION_GUIDE = (
+    " Social: @handle mentioned -> filters.mentions (often absent from text); #hashtag -> filters.hashtags; "
+    "replies/quotes/reposts of collected posts -> filters.references, only the types the question names "
+    "(quoting -> quoted); set list_selected_posts when that is the whole condition. A kind of company (state-owned, trade association, investor-owned, by country) is not a "
+    "name: use select_by_company_profile, not resolve_entity.")
+# The posts one relation filter may select; larger matches are cut and reported.
+RELATION_POSTS = 600
 
 
 class ScopedRequest(Request):
@@ -102,9 +121,20 @@ class ContentMatchesRequest(ScopedRequest):
     limit: Annotated[StrictInt, Field(ge=1, le=20)] | None = None
 
 
+class CompanyProfileRequest(Request):
+    organization_type: Literal["Investor-owned Company", "State-owned Entity", "Trade Association"] | None = None
+    region: Annotated[str, Field(min_length=2, max_length=60)] | None = None
+    commodity: Annotated[str, Field(min_length=2, max_length=60)] | None = None
+
+
 class ResolveEntityRequest(ScopedRequest):
     query: Annotated[str, Field(min_length=1, max_length=200)]
     entity_type: Literal["sponsor", "publisher", "account"]
+    # Declared by the planner; with no stored match the server answers that the
+    # collection has no such source (B1K-M057 slipped past the phrase rule).
+    restricts_read: bool | None = Field(default=None, description=(
+        "true when the user asks only about this sponsor's, publisher's or account's own ads or posts "
+        "(its ads, what it said, posts from it); false when the name is something ads may mention."))
     limit: Annotated[StrictInt, Field(ge=1, le=10)] | None = None
 
 
@@ -148,9 +178,28 @@ class ComparisonSearch(ScopedRequest):
     query: Question
 
 
+AnswerShape = Literal["every_matching_source", "named_sources", "examples"]
+
+
 class SearchRequest(ScopedRequest):
     query: Question
+    # Declared by the planner, which reads any wording or language; the server
+    # takes it together with its own surface rule (B1K-N: 17 of 50 list
+    # questions were missed by phrase rules under new wording).
+    answer_shape: AnswerShape | None = Field(default=None, description=(
+        "Decide by meaning, not wording. every_matching_source: the user wants to know WHICH ads or posts "
+        "meet a condition: to have them found, listed, pointed to or shown, however it is phrased (a "
+        "question, a request or a search; \"which ads ...\", \"ads that ...?\", \"找出……的广告\"). The server "
+        "then checks each one. named_sources: the question already identifies particular ads or posts (by "
+        "title, or as a described source such as \"X's ad about Y\" or \"X's May 2023 post\") and asks what "
+        "they say. examples: the user asks what or how ads say about a topic (their arguments, themes, "
+        "framing) and does not ask which ads."))
     limit: Annotated[StrictInt, Field(ge=1, le=10)] | None = None
+    list_selected_posts: StrictBool | None = Field(default=None, description=(
+        "Only with filters.mentions, filters.hashtags or filters.references: true when that relation is the "
+        "question's whole condition ('which posts mention @X', 'posts using #Y', 'posts quoting another "
+        "collected post'), so every selected post is listed without reading its content. False or omitted "
+        "when the question adds a topic or other content condition."))
     comparison_scopes: Annotated[list[ComparisonSearch], Field(min_length=2, max_length=3)] | None = Field(
         default=None, description="Compare 2–3 separate company/outlet scopes; each narrows one sponsor/publisher. Keep shared topic qualifiers; no target substitution."
     )
@@ -229,10 +278,12 @@ TOOLS = {
         "Read stored original title/publisher/sponsor/URL/publication date/collection search term/disclosure language and location by an already selected exact record ID, within all current filters. Use find_records first when only a title is given; never guess an ID. Request only the user's fields, together in one read: disclosure wording needs disclosure_language, while disclosure_location is separate and needed only when requested. Omit fields only for an explicit all-fields request. Returns exact original cells with origin, payload-field location and current record/version/body-hash; normalized display values are separate. Return recorded requested fields even if another requested field is unknown, and preserve each field's status. Excel metadata outranks cleaned CSV copies; conflicting original values require review. Missing/blank cells and missing row/hash provenance remain unknown/not_recorded, never substitute body search or an external page. Stored values do not establish current online truth. No arbitrary URL, source path, full raw payload, model call or write."),
     "get_record_sources": (RecordRequest,
         "Read version-bound public original/archive references for native articles or social posts, company-affiliation basis and historical annotation limitations. Social source labels distinguish old True/False values from unknown; they are unverified, separate from native labels and never reviewed greenwashing findings. No file access or arbitrary URL fetching."),
+    "select_by_company_profile": (CompanyProfileRequest,
+        "Companies by the social source's own profile: type, region (e.g. USA, UK) or commodity (e.g. Coal). Returns social and native sponsor names to use as sponsors filters. Source-supplied, unverified; an affiliation is not paid sponsorship."),
     "get_graph_schema": (Request,
         "Read graph node/predicate definitions, source identity policy and adapter limitations. The graph expresses recorded provenance, not verified greenwashing."),
     "get_graph_neighborhood": (GraphRequest,
-        "Read a paged typed source graph for at most five selected native articles. This bounded neighborhood is not the complete graph or a basis for corpus totals."),
+        "Read a paged typed source graph for at most five selected records: native articles, social posts, or both. Social posts add channels, handles, hashtags, referenced posts and engagement counts; an affiliation is not a paid sponsorship. This bounded neighborhood is not the complete graph or a basis for corpus totals."),
     "get_claims_matches": (ClaimsRequest,
         "Read published CLAIMS2 NC_/SC_ assignments, definitions, review states and exact version-bound quotes. IDs/taxonomy fingerprint/review state narrow current scope. Counts are published positives only; unmatched is not negative. Assignments do not verify greenwashing or factual truth. No classification or writes."),
 }
@@ -247,6 +298,7 @@ def strict_schema(schema):
     schema = deepcopy(schema)
 
     def walk(node):
+        """Strip schema defaults and titles and require every object property (strict mode)."""
         if not isinstance(node, dict):
             return
         node.pop("default", None)
@@ -284,9 +336,16 @@ def _filter_policy():
     }
 
 
-def _planner_schema(model):
+def _planner_schema(model, relations=False):
     schema = strict_schema(model.model_json_schema())
     filters = schema.get("$defs", {}).get("FiltersRequest", {})
+    if not relations or model.__name__ not in ("SearchRequest", "StatisticsRequest"):
+        # Without relation reads the planner sees the earlier filter schema.
+        for node, names in ((filters, RELATION_FILTERS), (schema, ("list_selected_posts",))):
+            for name in names:
+                node.get("properties", {}).pop(name, None)
+            if "required" in node:
+                node["required"] = [name for name in node["required"] if name not in names]
     for item in filters.get("properties", {}).values():
         item.pop("description", None)
     return schema
@@ -383,6 +442,10 @@ class ToolCatalog:
         self.record_details = record_details
         # Audit of aliases mapped to exact source values during this request.
         self.alias_resolutions = []
+        # Topic words a text search received as collection keywords (P66-08).
+        self.keywords_as_text = []
+        # Social posts selected by X relation filters during this request.
+        self.relation_selections = []
         self._web_ticket = None
         self._web_lock = threading.Lock()
 
@@ -390,10 +453,18 @@ class ToolCatalog:
     def base_filters(self):
         return self._base.model_copy(deep=True)
 
+    def _relations_enabled(self):
+        # A service without settings (test doubles, adapters) has relation reads off.
+        settings = getattr(self.service, "settings", None)
+        return bool(getattr(settings, "relation_selection_enabled", False))
+
     def definitions(self):
-        return [{"type": "function", "name": name, "description": description,
-                 "parameters": _planner_schema(model), "strict": True}
+        relations = self._relations_enabled()
+        return [{"type": "function", "name": name,
+                 "description": description + (RELATION_GUIDE if relations and name == "search_records" else ""),
+                 "parameters": _planner_schema(model, relations=relations), "strict": True}
                 for name, (model, description) in TOOLS.items()
+                if relations or name != "select_by_company_profile"
                 # Web content answers read fixed media internally after search_records.
                 # Direct media results remain a separate MCP read, rather than a
                 # terminal route for the web planner; tool counts remain explicit.
@@ -404,7 +475,8 @@ class ToolCatalog:
         return [{"name": name, "description": description,
                  "inputSchema": model.model_json_schema()}
                 for name, (model, description) in TOOLS.items()
-                if name != "get_content_matches" or evaluation_active()]
+                if (name != "get_content_matches" or evaluation_active())
+                and (name != "select_by_company_profile" or self._relations_enabled())]
 
     def statistics_validation_context(self):
         """Complete server-only source namespaces for checking omitted scope.
@@ -494,8 +566,33 @@ class ToolCatalog:
             }
         return _bounded_entity_context(result, self._base)
 
+    @staticmethod
+    def _shared_filters(request):
+        """Top-level filters of a request; with comparison scopes, only what they share.
+
+        Each comparison scope carries its own collection and source filters (a
+        social account, a native outlet). Repeating one scope's collection-specific
+        values at the top level would apply them to every scope, so those values
+        and any dimension a scope sets itself are left to the scopes.
+        """
+        requested = getattr(request, "filters", None)
+        scopes = getattr(request, "comparison_scopes", None) or []
+        if requested is None or not scopes:
+            return requested
+        own = set()
+        for scope in scopes:
+            if scope.filters is not None:
+                own |= set(scope.filters.model_dump(exclude_none=True))
+        cleared = own | {"dataset", "accounts", "platforms"}
+        return requested.model_copy(update={key: None for key in cleared})
+
     def narrow(self, requested: FiltersRequest | None, *, base: Filters | None = None):
         # ``base`` lets a share numerator narrow its own trusted denominator.
+        """Intersect the model's filters with the trusted selection; a tool can only narrow, never widen.
+
+        Names are canonicalised through the entity registry, dates take the tighter bound (and then
+        exclude unknown dates), and dataset may only go from 'all' to one collection.
+        """
         filters = base.model_copy(deep=True) if base is not None else self.base_filters
         if requested is None:
             if filters.accounts and filters.dataset != "social":
@@ -503,6 +600,7 @@ class ToolCatalog:
             self._label_scope(filters)
             return filters
         updates = requested.model_dump(exclude_none=True)
+        relations = {name: updates.pop(name) for name in RELATION_FILTERS if updates.get(name)}
         dataset = updates.pop("dataset", None)
         if dataset and dataset != "all":
             if filters.dataset not in ("all", dataset):
@@ -556,8 +654,27 @@ class ToolCatalog:
             filters.include_unknown_dates = filters.include_unknown_dates and include_unknown
         if filters.date_presence == "missing" and not filters.include_unknown_dates:
             raise ScopeConflict("The active selection excludes missing publication dates; their count cannot be read by widening the date filter.")
+        if relations:
+            self._relation_scope(filters, relations)
         self._label_scope(filters)
         return filters
+
+    def _relation_scope(self, filters, relations):
+        """Narrow to the social posts with the requested X relations, in place."""
+        if not self._relations_enabled():
+            raise ScopeConflict("Mention, hashtag and reply-relation filters are not available.")
+        if filters.dataset == "all":
+            filters.dataset = "social"
+        if filters.dataset != "social":
+            raise ScopeConflict("Mention, hashtag and reply-relation filters select social posts; use dataset='social'.")
+        ids, total = self.service.db.relation_record_ids(filters, **relations, limit=RELATION_POSTS)
+        record = {"relations": relations, "matched_posts": total, "selected_posts": len(ids),
+                  "truncated": total > len(ids), "basis": "each post's source-row fields; a mention or hashtag "
+                  "is not endorsement or affiliation, and only references to collected posts are matched"}
+        if record not in self.relation_selections:
+            self.relation_selections.append(record)
+        # The selection already lies inside every active filter; no match selects nothing.
+        filters.record_ids = ids or ["no-relation-match"]
 
     def _combined_sponsors(self, values, *, selected):
         """Expand same-spelling company requests within the trusted union scope."""
@@ -598,6 +715,24 @@ class ToolCatalog:
             known.update(v for v in self.service.facets(name).get(dimension, []) if v and v != "(Unknown)")
         result = []
         for value in values:
+            if value in result:
+                continue  # already included by an earlier organization expansion
+            # A registry organization expands to every spelling it lists within
+            # this scope, so native "exxonmobil" and social "ExxonMobil" are
+            # filtered together; the mapping and registry version are recorded.
+            entity, spellings = expand_entity(value, dimension, known)
+            if selected and spellings:
+                # An explicit active selection is never widened by the registry.
+                spellings = [spelling for spelling in spellings if spelling in selected]
+            if entity is not None and spellings:
+                if spellings != [value]:
+                    item = {"field": dimension, "requested": value, "source_values": spellings,
+                            "organization": entity.id, "organization_type": entity.type,
+                            "review_status": entity.review_status, "registry_version": entity_registry().version}
+                    if item not in self.alias_resolutions:
+                        self.alias_resolutions.append(item)
+                result.extend(spelling for spelling in spellings if spelling not in result)
+                continue
             query = _normal(value).removeprefix("the ")
             related = sorted(candidate for candidate in known if _related_name(query, {
                 _normal(candidate), _normal(candidate).removeprefix("the ")})
@@ -616,6 +751,24 @@ class ToolCatalog:
             result.append(value)
         return result
 
+    def _text_keywords(self, filters, query):
+        """A text search keeps a topic word, not a collection-keyword filter.
+
+        `keywords` are the stored terms an ad was gathered under. A value that
+        is not one of them but already appears in the search text is a topic;
+        the text search covers it, so it is dropped from the filter instead of
+        failing the read. Counts never use this: statistics still clarify.
+        """
+        if not filters.keywords:
+            return filters
+        known = set(self.service.facets(filters.dataset).get("keywords", []))
+        text = (query or "").casefold()
+        moved = [value for value in filters.keywords if value not in known and value.casefold() in text]
+        if not moved:
+            return filters
+        self.keywords_as_text.extend(value for value in moved if value not in self.keywords_as_text)
+        return filters.model_copy(update={"keywords": [value for value in filters.keywords if value not in moved]})
+
     def _known_filters(self, filters):
         facets = self.service.facets(filters.dataset)
         for dimension in _DIMENSIONS[:-1]:
@@ -632,6 +785,8 @@ class ToolCatalog:
         context = {"tool": name, "filters": selected.model_dump(mode="json"), "scope_notes": notes}
         if self.alias_resolutions:
             context["alias_resolutions"] = [dict(item) for item in self.alias_resolutions]
+        if self.relation_selections:
+            context["relation_selections"] = [dict(item) for item in self.relation_selections]
         return context
 
     def _availability(self, filters):
@@ -649,11 +804,19 @@ class ToolCatalog:
                 "missing_datasets": missing}
 
     def call(self, name, arguments):
+        """Run one tool: validate arguments, narrow filters, and refuse results read across a data change.
+
+        health() is read before and after; if data_version (or statistics_version) moved, the result
+        is 'unavailable'. ScopeConflict becomes 'clarify'; any other error becomes 'unavailable'.
+        """
         if name == "get_content_matches" and not evaluation_active():
             return {"status": "invalid_request", "tool": "unknown",
                     "message": "This read is available only in the isolated local evaluation context."}
         if name not in TOOLS or not isinstance(arguments, dict):
             return {"status": "invalid_request", "tool": name if name in TOOLS else "unknown",
+                    "message": "Unknown tool or invalid argument object."}
+        if name == "select_by_company_profile" and not self._relations_enabled():
+            return {"status": "invalid_request", "tool": "unknown",
                     "message": "Unknown tool or invalid argument object."}
         model = TOOLS[name][0]
         try:
@@ -662,7 +825,9 @@ class ToolCatalog:
             return {**self._context(name), "status": "invalid_request",
                     "message": "Arguments must match the bounded tool schema; extra fields are not accepted."}
         try:
-            filters = self.narrow(getattr(request, "filters", None))
+            filters = self.narrow(self._shared_filters(request))
+            if name == "search_records":
+                filters = self._text_keywords(filters, request.query)
             context = self._context(name, filters)
             if name == "record_statistics" and request.paid_ad_status == "verified_paid":
                 return {**context, "status": "clarify", "reason": "paid_ad_evidence_missing",
@@ -727,6 +892,8 @@ class ToolCatalog:
             if self.alias_resolutions:
                 # Include aliases resolved while reading, e.g. in a comparison group.
                 result["alias_resolutions"] = [dict(item) for item in self.alias_resolutions]
+            if self.keywords_as_text and name == "search_records":
+                result["keywords_as_text"] = list(self.keywords_as_text)
             json.dumps(result, ensure_ascii=False, allow_nan=False)
             return result
         except ScopeConflict as exc:
@@ -743,9 +910,12 @@ class ToolCatalog:
         )
 
     def _resolve_entity(self, request, filters):
-        if request.entity_type == "account" and filters.dataset != "social":
+        """Match a sponsor, publisher or account name against stored facet values and registry aliases."""
+        if request.entity_type == "account" and filters.dataset not in {"social", "all"}:
             raise ScopeConflict("Account resolution requires the social collection.")
-        datasets = ("native", "social") if filters.dataset == "all" else (filters.dataset,)
+        # Accounts exist only in the social collection, also under a combined selection.
+        datasets = (("social",) if request.entity_type == "account" else ("native", "social")) \
+            if filters.dataset == "all" else (filters.dataset,)
         dimension = request.entity_type + "s"
         query = _normal(request.query)
         candidates = []
@@ -780,13 +950,62 @@ class ToolCatalog:
         candidates.sort(key=lambda item: (item["match"] != "exact_or_display",
                                            item["dataset"], item["source_value"]))
         limit = request.limit or 10
+        organizations = set()
+        if request.entity_type != "account":
+            for candidate in candidates:
+                owner = entity_registry().owner(candidate["source_value"], request.entity_type)
+                candidate["organization"] = owner.public() if owner else None
+                organizations.add(owner.id if owner else None)
+        one_organization = len(candidates) > 1 and len(organizations) == 1 and None not in organizations
         spelling_groups = _source_spelling_groups(candidate["source_value"] for candidate in candidates)
         combined_single_group = filters.dataset == "all" and request.entity_type == "sponsor" and len(spelling_groups) == 1
-        unambiguous = len(candidates) == 1 or combined_single_group
+        # An account named exactly is that account; longer names that merely
+        # contain it ("Equinor UK" for "Equinor") are other accounts, not ambiguity.
+        # Case-only variants ("shared name") stay ambiguous: they may be one channel.
+        exact_account = (request.entity_type == "account"
+                         and sum(candidate["match"] == "exact_or_display" for candidate in candidates) == 1
+                         and sum(candidate["source_value"].casefold() == request.query.casefold()
+                                 for candidate in candidates) == 1)
+        unambiguous = len(candidates) == 1 or combined_single_group or one_organization or exact_account
+        if exact_account and len(candidates) > 1:
+            return {"status": "ok", "candidates": candidates[:limit], "candidate_count": len(candidates),
+                    "truncated": len(candidates) > limit, "selected": candidates[0]["source_value"],
+                    "message": "One account matches the name exactly; use it. Accounts whose names only contain "
+                               "it are different accounts and are not included."}
+        if not candidates:
+            # The name may be stored as another kind of source: "RWE AG" and
+            # "bp America" are accounts of the sponsors RWE and BP (B1K-Q059/Q094
+            # answered "no sponsor named" for them).
+            elsewhere = []
+            for entity_type in ("sponsor", "account", "publisher"):
+                if entity_type == request.entity_type:
+                    continue
+                for dataset in (("social",) if entity_type == "account" else ("native", "social")):
+                    if filters.dataset not in ("all", dataset):
+                        continue
+                    for value in self.service.facets(dataset).get(entity_type + "s", []):
+                        if value and value != "(Unknown)" and _normal(value) == query:
+                            elsewhere.append({"entity_type": entity_type, "dataset": dataset, "source_value": value})
+            if elsewhere:
+                kinds = sorted({item["entity_type"] for item in elsewhere})
+                return {"status": "not_found", "candidates": [], "candidate_count": 0, "truncated": False,
+                        "stored_as_other_entity_type": elsewhere,
+                        "message": (f"No {request.entity_type} has this name, but it is stored as "
+                                    f"{' and '.join(kinds)}. Resolve it again with that entity_type "
+                                    "and filter by it; the collection does have records under this name.")}
+            # No stored sponsor/account/publisher has this name. That is a fact
+            # about the collection, not an ambiguity for the user to resolve:
+            # the name may still occur in ad text (a subsidiary, project, person).
+            return {"status": "not_found", "candidates": [], "candidate_count": 0, "truncated": False,
+                    "message": (f"No {request.entity_type} named like this is stored in the selected collection. "
+                                "If the question asks what sources say about this name, search the text with "
+                                "search_records without a filter for it. If the question restricts the read to this "
+                                f"{request.entity_type}, the collection has no records for it; say so.")}
         result = {"status": "ok" if unambiguous else "clarify",
                 "candidates": candidates[:limit], "candidate_count": len(candidates),
                 "truncated": len(candidates) > limit,
-                "message": "Use the exact source value in filters." if unambiguous
+                "message": ("All candidates are spellings of one registry organization; filter by its name to include every spelling."
+                            if one_organization else "Use the exact source value in filters.") if unambiguous
                 else "Choose a source candidate; ambiguous names are never merged." if candidates
                 else "No matching source candidate was found. Clarify the name or collection."}
         if filters.dataset == "all" and request.entity_type == "sponsor":
@@ -811,6 +1030,7 @@ class ToolCatalog:
             raise ScopeConflict("Historical social label distributions use count, all codes, and no periods or comparison denominator.")
 
     def _record_statistics(self, request, filters):
+        """Exact counts, shares, groupings or period comparisons from SQL; no generation model is used."""
         group_by = request.group_by or "none"
         if group_by == "social_historical_labels":
             self._social_distribution_scope(request, filters)
@@ -923,6 +1143,7 @@ class ToolCatalog:
         return row
 
     def _record_projection(self, row):
+        """Public fields of one record; a social company affiliation is labelled as not proof of sponsorship."""
         result = {key: row.get(key) for key in _RECORD_FIELDS}
         if row.get("dataset") == "social":
             basis = _AFFILIATION_BASIS if row.get("sponsor_basis") == _AFFILIATION_BASIS else "not_recorded"
@@ -960,6 +1181,7 @@ class ToolCatalog:
                 for source in row.get("social_source_observations", [])]
 
     def _get_record(self, request, filters):
+        """One record's text (up to 12,000 characters per call) checked against its current body hash."""
         row = self._row(request.record_id, filters)
         if row.get("dataset") == "social" and row.get("retrievable") is not True:
             return {"status": "ok", "record": self._record_projection(row),
@@ -1025,6 +1247,7 @@ class ToolCatalog:
                                        links_enabled=self.service.settings.show_source_links)
 
     def _find_records(self, request, filters):
+        """Find records by exact, substring or title-term match; returns ok, ambiguous or not_found."""
         result = self.service.db.find_records(filters, request.title, request.limit or 10)
         rows = result.get("rows") or []
         total = result.get("total_candidates", 0)
@@ -1048,6 +1271,7 @@ class ToolCatalog:
                 "online_truth": "not_established"}
 
     def _get_record_sources(self, request, filters):
+        """Original and archive links, annotations and warnings for one record."""
         row = self._row(request.record_id, filters)
         record = self._record_projection(row)
         if row["dataset"] == "social":
@@ -1125,6 +1349,7 @@ class ToolCatalog:
         return BASIS_NOTE if inferred else ""
 
     def _search_records(self, request, filters):
+        """Keyword search for the planner (no vectors): one scope, or 2-3 comparison scopes of up to 3 records each."""
         with self._web_lock:
             self._web_ticket = None
         if request.comparison_scopes:
@@ -1134,18 +1359,21 @@ class ToolCatalog:
             # target must not yield a seemingly complete first-company answer.
             scopes = []
             for group in request.comparison_scopes:
-                scoped = self.narrow(group.filters, base=filters)
+                scoped = self._text_keywords(self.narrow(group.filters, base=filters), group.query)
                 self._known_filters(scoped)
-                if not ((len(scoped.sponsors) == 1) or (len(scoped.publishers) == 1)):
-                    raise ScopeConflict("Each comparison target needs one source-listed sponsor or publisher.")
-                identity = (tuple(scoped.sponsors), tuple(scoped.publishers))
+                # A target is a named sponsor, outlet or account, or else its own
+                # distinct topic within a collection (a project or place named
+                # inside an ad is not a sponsor).
+                identity = (scoped.dataset, tuple(scoped.sponsors), tuple(scoped.publishers), tuple(scoped.accounts),
+                            " ".join(group.query.casefold().split()))
                 if identity in seen:
-                    raise ScopeConflict("Comparison targets must be distinct source selections.")
+                    raise ScopeConflict("Comparison targets must be distinct source selections or topics.")
                 seen.add(identity)
                 scopes.append((group, scoped))
             for group, scoped in scopes:
                 item = self._search_one(group.query, scoped, min(request.limit or 3, 3))
-                label = " / ".join([*(sponsor_display(s) for s in scoped.sponsors), *scoped.publishers])
+                label = (" / ".join([*(sponsor_display(s) for s in scoped.sponsors), *scoped.publishers, *scoped.accounts])
+                         or group.query)
                 groups.append({"label": label, "query": group.query, "filters": scoped.model_dump(mode="json"),
                                "keyword_passages": len(item["evidence"]), "rejected_evidence": item["rejected_evidence"],
                                "search_status": item["search_status"], "diagnostics": item["diagnostics"]})
@@ -1194,6 +1422,7 @@ class ToolCatalog:
         return self.service._search_external(gap["query"], gap["filters"], visitor)
 
     def _search_one(self, query, filters, limit):
+        """Search one scope and re-verify every passage against the current version and its retrievable span."""
         report = self.service.search_report(query, filters, limit=limit)
         evidence, refs, rejected = [], [], 0
         for item in report.get("evidence", []):
@@ -1281,18 +1510,39 @@ class ToolCatalog:
         return {"schema_version": SCHEMA_VERSION, "node_types": deepcopy(NODE_TYPES),
                 "predicates": deepcopy(PREDICATES), "identity_policy": deepcopy(IDENTITY_POLICY),
                 "adapters": {"statistics": ["native", "social"], "keyword_evidence": ["native", "social"],
-                             "versioned_record_detail": ["native", "social"], "knowledge_graph": ["native"],
+                             "versioned_record_detail": ["native", "social"], "knowledge_graph": ["native", "social"],
                              "claims2_published_matches": ["native", "social"],
                              "external_fact_check": "not_connected", "reviewed_source_attachments": "not_connected"},
                 "claims_status": "historical_annotations_are_not_verified_greenwashing"}
 
+    def _select_by_company_profile(self, request, filters):
+        """Companies whose social source profile matches; a directory read like
+        resolve_entity, so it reads every social post's profile, not the scope."""
+        if not (request.organization_type or request.region or request.commodity):
+            return {"status": "invalid_request", "message": "Give a company type, region or commodity."}
+        rows = self.service.db.company_profiles(Filters(dataset="social"), organization_type=request.organization_type or "",
+                                                region=request.region or "", commodity=request.commodity or "")
+        companies, native = [], []
+        for row in rows:
+            entity = entity_registry().for_source("social", "sponsor", row["sponsor"])
+            spellings = sorted(entity.source_values.get("native.sponsor", [])) if entity else []
+            native.extend(value for value in spellings if value not in native)
+            companies.append({"sponsor": row["sponsor"], "posts": row["posts"],
+                              **({"native_sponsors": spellings} if spellings else {})})
+        # The scope notes of every tool result are left out of this short lookup.
+        return {"status": "ok", "scope_notes": [], "profile": {key: value for key, value in (
+                    ("organization_type", request.organization_type), ("region", request.region),
+                    ("commodity", request.commodity)) if value},
+                "companies": companies,
+                "sponsors": {"social": [row["sponsor"] for row in rows], "native": native},
+                "basis": ("The profile is the social source's own company classification, unverified. Native "
+                          "spellings come from the unreviewed AI-proposed entity registry; a company without "
+                          "a registry entry has no native spelling here.")}
+
     def _get_graph_neighborhood(self, request, filters):
-        if filters.dataset == "social":
-            return {"status": "unavailable", "message": "The social knowledge graph adapter is not connected."}
         filters = filters.model_copy(deep=True)
-        filters.dataset = "native"
         if self._availability(filters)["status"] != "ok":
-            return {"status": "unavailable", "message": "The native graph collection is not loaded."}
+            return {"status": "unavailable", "message": "The selected graph collection is not loaded."}
         if request.record_id:
             if filters.record_ids and request.record_id not in filters.record_ids:
                 raise ScopeConflict("The record is outside the selected record IDs.")

@@ -4,6 +4,11 @@ Unknown outcomes retain their reservation as charged exposure until reconciliati
 Expired leases release concurrency, never money. All accounting months are UTC.
 """
 
+import threading
+import time
+from collections import defaultdict, deque
+from contextlib import contextmanager
+from datetime import datetime, timezone
 from decimal import Decimal
 from uuid import uuid4
 
@@ -15,8 +20,12 @@ class LimitReached(Exception):
 
 
 def price(model, input_tokens, output_tokens=0, cached_tokens=0, cache_write_tokens=0):
+    """USD cost of a call from token counts; only the configured models have prices."""
     if model == "text-embedding-3-small":
         return Decimal(input_tokens) * Decimal("0.02") / 1_000_000
+    if model == "gpt-6-luna":
+        # Decisions API: input only, output is free (OpenAI, 2026-10-22); cached input billed at full rate.
+        return Decimal(input_tokens) * Decimal("0.10") / 1_000_000
     if model != "gpt-5.6-luna":
         raise ValueError("No verified price configuration for this model")
     if (
@@ -32,12 +41,76 @@ def price(model, input_tokens, output_tokens=0, cached_tokens=0, cache_write_tok
     ) / 1_000_000
 
 
+class QuestionGate:
+    """Visitor rate limits count questions, not the model calls inside one answer.
+
+    One list answer can make dozens of calls; counting each call refused the
+    question part-way through. A question is counted at its first paid call, so
+    free answers (statistics, metadata) never count. Counts live in this process
+    and restart with it; the monthly budget stays in the database for every call.
+    """
+
+    def __init__(self):
+        self._lock = threading.Lock()
+        self._history = defaultdict(deque)
+        self._open = defaultdict(int)
+        self._admitted = defaultdict(int)
+
+    @contextmanager
+    def question(self, visitor):
+        with self._lock:
+            self._open[visitor] += 1
+        try:
+            yield
+        finally:
+            with self._lock:
+                self._open[visitor] -= 1
+                self._admitted[visitor] = min(self._admitted[visitor], self._open[visitor])
+                if self._open[visitor] <= 0:
+                    del self._open[visitor]
+                    self._admitted.pop(visitor, None)
+
+    def admit(self, visitor, settings):
+        """True when this paid call belongs to an open question (counting it once)."""
+        with self._lock:
+            if self._open.get(visitor, 0) == 0:
+                return False
+            if self._admitted[visitor] >= self._open[visitor]:
+                return True
+            now = time.time()
+            day_start = datetime.now(timezone.utc).replace(
+                hour=0, minute=0, second=0, microsecond=0).timestamp()
+            history = self._history[visitor]
+            while history and now - history[0] >= 86_400:
+                history.popleft()
+            minute = sum(1 for at in history if now - at < 60)
+            day = sum(1 for at in history if at >= day_start)
+            if minute >= settings.requests_per_minute or day >= settings.requests_per_day:
+                raise LimitReached(
+                    "Your question limit has been reached. Please use keyword search or try later."
+                )
+            if sum(self._admitted.values()) >= settings.concurrency:
+                raise LimitReached("Other answers are in progress. Please try again shortly.")
+            history.append(now)
+            self._admitted[visitor] += 1
+            return True
+
+
+QUESTIONS = QuestionGate()
+
+
 class Budget:
     def __init__(self, db, settings):
         self.db = db
         self.settings = settings
 
     def reserve(self, amount, visitor, kind, model):
+        """Hold an estimated amount before a model call; refuse when a limit would be exceeded.
+
+        Expired pending holds become 'uncertain' and still count. The monthly cap applies to every
+        kind; per-visitor minute/day limits and concurrency apply to generation and are counted once
+        per question by QUESTIONS (in memory), falling back to the ledger outside Service.answer.
+        """
         amount = Decimal(str(amount))
         if amount <= 0:
             raise ValueError("Reservation must be positive")
@@ -59,7 +132,8 @@ class Budget:
                 raise LimitReached(
                     "Monthly API budget reached. Browsing and keyword search remain available."
                 )
-            if kind == "generation":
+            # A call inside an open question counts as that question, once.
+            if kind == "generation" and not QUESTIONS.admit(visitor, self.settings):
                 count = conn.execute(
                     "SELECT count(*) FILTER(WHERE created_at>now()-interval '1 minute') AS minute,count(*) FILTER(WHERE created_at>=date_trunc('day',now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC') AS day FROM usage_ledger WHERE visitor=%s AND kind='generation'",
                     (visitor,),
