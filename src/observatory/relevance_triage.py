@@ -29,6 +29,7 @@ earlier run of the same set, not tuned; one small set, no out-of-sample check ye
 
 from __future__ import annotations
 
+import logging
 import os
 from concurrent.futures import ThreadPoolExecutor
 from decimal import Decimal
@@ -37,6 +38,8 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from .budget import price
 from .relevance_judge import JUDGE_MODEL, MAX_AD_CHARS, _call
+
+log = logging.getLogger(__name__)
 
 POLICY = "relevance-triage-v1"
 CRITERION_MODEL = "gpt-5.6-luna"
@@ -91,11 +94,15 @@ def make_criterion(rag, question, visitor):
         rag.budget.settle(rid, actual, {**usage.model_dump(), "observatory_request": {"policy": POLICY, "stage": "criterion"}})
     except Exception as exc:  # noqa: BLE001 - the list is still screened without a criterion.
         rag.budget.uncertain(rid, type(exc).__name__)
+        # Logged by type only: the failure is visible to operators, the question is not.
+        log.warning("Criterion call failed (%s); the list is screened without a criterion", type(exc).__name__)
         return None, 0.0
     parsed = response.output_parsed if response.status == "completed" else None
     try:
         return Criterion.model_validate(parsed.model_dump()).model_dump(), float(actual)
-    except Exception:  # noqa: BLE001 - an unusable criterion is no criterion.
+    except Exception as exc:  # noqa: BLE001 - an unusable criterion is no criterion.
+        log.warning("Criterion reply unusable (%s, status %s); the list is screened without a criterion",
+                    type(exc).__name__, getattr(response, "status", None))
         return None, float(actual)
 
 
@@ -166,7 +173,9 @@ def triage(rag, question, criterion, groups, visitor, workers=WORKERS):
         body = {"model": JUDGE_MODEL, "input": _ad_text(passages), "questions": questions}
         try:
             response, cost = _call(rag, body, visitor, passages[0].record_id)
-        except Exception:  # noqa: BLE001 - an ad the judge could not read goes to screening as before.
+        except Exception as exc:  # noqa: BLE001 - an ad the judge could not read goes to screening as before.
+            log.warning("Triage call failed for record %s (%s); the ad goes to screening",
+                        passages[0].record_id, type(exc).__name__)
             return None, 0.0
         return read_answers(response), cost
 

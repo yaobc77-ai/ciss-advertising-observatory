@@ -112,3 +112,30 @@ def test_triage_is_off_without_a_decisions_client_or_when_switched_off(monkeypat
     assert relevance_triage.make_criterion(rag, "Which ads mention kites?", "visitor") == (None, 0.0)
     monkeypatch.setenv("OBS_RELEVANCE_TRIAGE", "off")
     assert not relevance_triage.enabled(SimpleNamespace(client=SimpleNamespace(post=lambda **_: None)))
+
+
+def test_failed_criterion_and_triage_calls_are_logged_by_type_without_the_question(caplog, monkeypatch):
+    # Known defect (2026-10-25): failures were swallowed silently.
+    monkeypatch.setenv("OBS_RELEVANCE_TRIAGE", "on")
+    budget = SimpleNamespace(reserve=Mock(return_value="r"), settle=Mock(), uncertain=Mock())
+
+    def parse(**_kwargs):
+        raise TimeoutError("slow")
+
+    rag = SimpleNamespace(budget=budget, client=SimpleNamespace(responses=SimpleNamespace(parse=parse), post=Mock()))
+    monkeypatch.setattr(relevance_triage, "enabled", lambda _rag: True)
+    with caplog.at_level("WARNING", logger="observatory.relevance_triage"):
+        criterion, cost = relevance_triage.make_criterion(rag, "Which ads mention tidal kites?", "visitor")
+    assert (criterion, cost) == (None, 0.0)
+    assert "Criterion call failed (TimeoutError)" in caplog.text and "tidal" not in caplog.text
+
+    def post(*_args, **_kwargs):
+        raise ConnectionError("down")
+
+    rag.client.post = post
+    caplog.clear()
+    with caplog.at_level("WARNING", logger="observatory.relevance_triage"):
+        results, cost = relevance_triage.triage(rag, "Which ads mention tidal kites?", CRITERION,
+                                                [[passage("k1", "Tidal kites cut noise.")]], "visitor", workers=1)
+    assert cost == 0.0 and list(results.values()) == [None]
+    assert "Triage call failed for record k1 (ConnectionError)" in caplog.text and "tidal kites" not in caplog.text

@@ -2,6 +2,20 @@
 
 排序约定：新内容在上；每节对应 plan.md 同编号的一轮。
 
+## 2026-10-26：名单题放宽停止规则的免费回放（用户：“用命中率……最近 10 篇命中率低于 20% 的时候停？”“做这个回放”）
+
+- 数据：B1K 八次运行（R/new3、U/new4、vA、vB/new5、wA1、wA2、wB1、wB2/new6）里最新一次回答的 `list_screening.decisions`（候选按检索排名顺序，含逐篇判定），其中读到 40 篇门槛的名单题 185 道；参考正例用 ref_v2 冻结参考。不含客户 24 题，不调模型，$0。脚本与结果：`.runtime/rag_eval_test_20261008/gate_replay_20261026/`（`gate_replay.py`、`report.txt`、`summary.json`）。
+- 命中率随排名下降但不归零：系统判“符合”的比例 1–10 名 51%、11–20 名 33%、21–30 名 23%、31–40 名 18%，41–90 名稳定在 16–21%，101–120 名仍有 12%（参考正例口径为 44%→14%→约 12%→6%）。后段只统计还在继续读的题，数字偏高；120 篇上限之外没有观测，不能说明尾部没有正例。
+- 规则回放（前 40 篇必读，之后每批 4 篇检查一次，上限 120；只能评价比现行更严的规则）：现行“最近 16 篇至少 1 篇命中”按首读判定复现 100%。用户提的“最近 10 篇少于 2 篇命中就停”读的篇数减到 70%，但 185 题里 136 题被提前截断，丢失参考正例 268/2,504（10.7%），64 道题受影响；“最近 10 篇至少 1 篇”读 85%，丢 99（4.0%）；“最近 16 篇至少 2 篇”读 85%，丢 103（4.1%）；“最近 20 篇至少 4 篇”读 75%，丢 197（7.9%）。现行规则本身丢 7（0.3%）。
+- 结论：按命中率提前停不划算，省下的读取换来名单明显不全；排名后段的正例密度约 10% 左右，并未低到可忽略。若目标是省钱，更合理的是让便宜的 Decisions 分流先过整个候选池、贵的筛查只读通过和待审的（10-24 已对 ≤400 篇范围这样做），而不是缩短阅读。未改代码。
+
+## 2026-10-26：三份会议记录归档、MT5 逐条整理与三个已登记缺陷修复（用户：“回到对用户要求和项目的推进……比如这些”）
+
+- 用户给的三份 Downloads 文件：`Dashboard UI Improvements…` 与已归档的 MT2 原件哈希相同，不重复登记；`Dashboard and RAG Updates…` 是 MT2 之后的新客户会议（Matt、Michelle），登记为 **MT5**（推断 10-22 或 10-23，待确认）；`Client Meeting Preparation…` 是团队与导师的会前内部会，登记为 **TM1**（不是客户来源）。原件复制到 `客户需求/01_原始资料/`（该目录不进 git），哈希写入 `来源登记.json`；逐条见 `02_逐条整理/MT5_会议转写逐条.md`、`TM1_团队会前准备逐条.md`。
+- client_goal.md 新增 MT5 节：C19（按社交标签类别画多条时间线叠加比较，Matt 建议）、C20（相关性判定说明与 P/R/F1 材料，Matt 要求）、优先级“看板够好、转 RAG”、里程碑“12 月 1 日完成、随后托管到客户平台”、API 原生广告观察（本系统别名表已合并 `api` 与 American Petroleum Institute，客户看的是团队另一套看板）、三项待客户材料。client_finish.md 新增 CF18：C16／C17（10-21 完成）与 C20（10-23 完成）的证据与未验收状态。`会议跟进_Dashboard_RAG.md` 加第四节。
+- 修复 CLAUDE.local.md 登记的四个缺陷中的三个：① `relevance_judge._call` 收到没有 usage 的 Decisions 回复时，不再按 $0 结算，改为 `budget.uncertain(rid, "usage_missing")`、按预留额计费并记 warning；② `relevance_triage` 的三处吞异常（标准调用失败、标准回复不可用、单篇分流失败）各加一条只含异常类型和记录 id 的 warning，不含问题文本；③ `app.py` 新增 `_boundary_failure(where, exc)`，10 处对外隐藏错误的 `except Exception` 全部记一条“位置 + 异常类型”的 warning（布局健康、分面、社交可用性、记录视图、两种下载、来源状态点击、关键词搜索、问答回调及其回退搜索）。第四个缺陷（按访客限流可绕过、名单题无单题费用上限）是设计改动，未动。
+- 测试：`test_relevance_judge.py`、`test_relevance_triage.py` 各加 1 项回归；新增 `test_dashboard_error_logging.py`（2 项：辅助函数只记位置和类型、不泄露异常内容；静态扫描 app.py 每个 `except Exception` 三行内必须记日志或重新抛出）。相关 115 项通过、32 跳过（无数据库），Ruff 通过。完整门禁（`.runtime/project_checks_defects_mt5_20261026`）：4,915 通过、0 失败、39 跳过、335 未选、28 个受保护模块排除；Ruff 通过；3 项 JS 检查仍因无 Node 未运行。Codex 提交前复核指出一处回归：`_call` 的 `price`／`settle` 被移出了原 try，它们抛错时不再记 uncertain；已恢复保护（抛错时 `uncertain(rid, 异常类型)` 并继续抛出），加 2 项测试（结算失败→uncertain、正常回复只结算一次不记 uncertain）；该修正后只重跑了三个相关测试文件（15 项通过）和 Ruff，完整门禁在提交后重跑，结果见下一条。`deliverables/slides/client_progress_20261026.pptx` 是同日出现的未跟踪文件，不是本会话产物，未动。
+
 ## 2026-10-26：问答流水线改造第 1 步——只记录 QuestionPlan，不改行为（用户：“先做这些”）
 
 - 依据 docs/architecture/pipeline_current_vs_target.zh-CN.md 第 4 节第 1 步。新增 `src/observatory/question_plan.py`（纯函数，不碰数据库、模型、网络）：`build_question_plan` 把现在散在研究代理路线、`question_contract` 正则、证据路线名单判定（规则／规划器／关系名单／字面短语）、联网补充规则（仅限馆藏措辞、名单不联网）里的决定合成一份计划，字段按文档 2.2：`route`（graph/sources/record 归为 records，claims/content_matches 归为 claims）、`agent_route`、`shape`（list/answer/table）、`list_kind`（screen/relation/literal）、`datasets_requested`／`datasets`、`filters`、`search_query`、`allow_web`、`clarify_message`、`reasons`（每项是规则、规划器还是默认决定的）、`signals`（原始信号，供第 2 步用）。

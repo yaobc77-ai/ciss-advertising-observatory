@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import inspect
+import logging
 import math
 import os
 import re
@@ -1985,6 +1986,17 @@ def _filter_panel(dataset, facets):
     )
 
 
+log = logging.getLogger(__name__)
+
+
+def _boundary_failure(where, exc):
+    """Record a failure the public boundary hides: the place and exception type only, never details or user input.
+
+    Known defect (2026-10-25): dashboard callbacks swallowed errors without any log line.
+    """
+    log.warning("Dashboard %s failed: %s", where, type(exc).__name__)
+
+
 def _panel(dataset, links_enabled):
     from observatory.data_layout import data_panel
     return data_panel(dataset, links_enabled, _figure)
@@ -2070,13 +2082,15 @@ def create_app(service, settings, record_details=None) -> Dash:
     def layout():
         try:
             health = service.health()
-        except Exception:  # noqa: BLE001 - hide internal service errors at the public boundary.
+        except Exception as exc:  # noqa: BLE001 - hide internal service errors at the public boundary.
+            _boundary_failure("layout health", exc)
             health = {"status": "unavailable"}
         facets = {}
         for dataset in ("native", "social"):
             try:
                 facets[dataset] = service.facets(dataset)
-            except Exception:  # noqa: BLE001 - leave controls usable during service failures.
+            except Exception as exc:  # noqa: BLE001 - leave controls usable during service failures.
+                _boundary_failure(f"layout facets ({dataset})", exc)
                 facets[dataset] = {}
 
         from .combined_ui import combined_filters, combined_panel
@@ -2504,8 +2518,8 @@ def create_app(service, settings, record_details=None) -> Dash:
             try:
                 if not _social_available(service.health()):
                     message = "No admitted social records. " + message
-            except Exception:  # noqa: BLE001 - no internal health details in the UI.
-                pass
+            except Exception as exc:  # noqa: BLE001 - no internal health details in the UI.
+                _boundary_failure("social availability check", exc)
         if _page(pathname) == "query" and scope == "all":
             return [
                 html.Strong("Both collections"),
@@ -2833,7 +2847,8 @@ def create_app(service, settings, record_details=None) -> Dash:
                     "Use a valid date range with the start date before the end date.",
                     "warning",
                 )
-            except Exception:  # noqa: BLE001 - public boundary must hide unexpected service details.
+            except Exception as exc:  # noqa: BLE001 - public boundary must hide unexpected service details.
+                _boundary_failure("records view", exc)
                 message = _notice(
                     "Collection temporarily unavailable",
                     "Your filters are preserved. Please try again when the data service is available.",
@@ -2877,7 +2892,8 @@ def create_app(service, settings, record_details=None) -> Dash:
                     "filename": f"{dataset}-sponsor-outlet-cross-tab.csv",
                     "type": "text/csv",
                 }, f"Downloaded cross-tab for {len(rows):,} selected records."
-            except Exception:
+            except Exception as exc:  # noqa: BLE001 - public boundary must hide unexpected service details.
+                _boundary_failure("cross-tab download", exc)
                 return None, "Cross-tab download is temporarily unavailable."
 
         @app.callback(
@@ -2945,7 +2961,8 @@ def create_app(service, settings, record_details=None) -> Dash:
                     "filename": "social-company-posts.csv" if dataset == "social" else "native-advertising.csv",
                     "type": "text/csv",
                 }, f"Downloaded {len(rows):,} selected records."
-            except Exception:  # noqa: BLE001 - public boundary must hide unexpected service details.
+            except Exception as exc:  # noqa: BLE001 - public boundary must hide unexpected service details.
+                _boundary_failure("records download", exc)
                 return (
                     None,
                     "Download is unavailable. Refresh the current source-state selection and retry; your filters are preserved."
@@ -3009,7 +3026,8 @@ def create_app(service, settings, record_details=None) -> Dash:
             if filters.labels and identifier not in filters.labels:
                 return no_update, no_update, "This segment is outside the selected OR states. Change or clear the Historical source state dropdown before exploring it."
             return [identifier], "records", f"Showing posts with {source_state_name(identifier)}. Other filters are preserved."
-        except Exception:  # noqa: BLE001 - do not expose service details or change scope on a stale click.
+        except Exception as exc:  # noqa: BLE001 - do not expose service details or change scope on a stale click.
+            _boundary_failure("source-state segment click", exc)
             raise PreventUpdate from None
 
     from observatory.knowledge_ui import register_knowledge_graph
@@ -3144,7 +3162,8 @@ def create_app(service, settings, record_details=None) -> Dash:
                     }
                 )
                 return [context, _keyword_result(report, enabled)]
-            except Exception:  # noqa: BLE001 - public boundary must hide unexpected service details.
+            except Exception as exc:  # noqa: BLE001 - public boundary must hide unexpected service details.
+                _boundary_failure("keyword search", exc)
                 return [
                     context,
                     _answer_status(
@@ -3169,10 +3188,12 @@ def create_app(service, settings, record_details=None) -> Dash:
                 effective = Filters.model_validate(result["structured_result"].get("filters") or filters.model_dump())
                 context = _search_context(question, effective)
             return [context, *_render_answer_result(result, enabled, service)]
-        except Exception:  # noqa: BLE001 - public boundary must hide unexpected service details.
+        except Exception as exc:  # noqa: BLE001 - public boundary must hide unexpected service details.
+            _boundary_failure("question answer", exc)
             try:
                 evidence = service.search(question, filters, limit=5)
-            except Exception:  # noqa: BLE001 - public boundary must hide unexpected service details.
+            except Exception as search_exc:  # noqa: BLE001 - public boundary must hide unexpected service details.
+                _boundary_failure("fallback keyword search", search_exc)
                 evidence = []
             return [
                 context,

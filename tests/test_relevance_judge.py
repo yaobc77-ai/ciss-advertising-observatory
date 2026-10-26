@@ -126,3 +126,37 @@ def test_the_views_show_counts_flags_and_validation():
     section = text(validation_section(data))
     assert "Relevance check against human labels" in section and "90%" in section
     assert "sides with the screening 0 times and with the judge 1 times" in section
+
+
+def test_a_reply_without_usage_stays_uncertain_at_the_reserved_amount_instead_of_settling_at_zero(caplog):
+    # Known defect (2026-10-25): a Decisions reply without usage settled the call at $0.
+    def no_usage(_text):
+        return {"answers": answers(0.9)["answers"]}
+
+    rag, _ = rag_answering(no_usage)
+    rag.budget.reserve = Mock(return_value="r-1")
+    with caplog.at_level("WARNING", logger="observatory.relevance_judge"):
+        report = judge_answer(rag, "Which ads mention tidal kites?", ADS[:1], "visitor")
+    assert rag.budget.settle.call_count == 0
+    assert rag.budget.uncertain.call_args_list == [(("r-1", "usage_missing"),)]
+    reserved = float(rag.budget.reserve.call_args_list[0].args[0])
+    assert reserved > 0
+    assert abs(report["ads"][0]["cost_usd"] - reserved) < 1e-9
+    assert abs(report["summary"]["cost_usd"] - round(reserved, 6)) < 1e-9
+    assert "without usage" in caplog.text and "tidal" not in caplog.text
+
+
+def test_a_settlement_failure_after_a_paid_call_keeps_the_reservation_uncertain():
+    rag, _ = rag_answering(by_text)
+    rag.budget.settle = Mock(side_effect=RuntimeError("ledger down"))
+    report = judge_answer(rag, "Which ads mention tidal kites?", ADS[:1], "visitor")
+    # judge_ad turns the propagated error into a not_judged row; the ledger row is marked uncertain.
+    assert report["ads"][0]["error"] == "RuntimeError" and report["ads"][0]["verdict"] == "not_judged"
+    assert rag.budget.uncertain.call_args_list == [(("r", "RuntimeError"),)]
+    assert rag.budget.settle.call_count == 1
+
+
+def test_a_normal_reply_settles_exactly_once_and_is_never_marked_uncertain():
+    rag, _ = rag_answering(by_text)
+    judge_answer(rag, "Which ads mention tidal kites?", ADS[:1], "visitor")
+    assert rag.budget.settle.call_count == 1 and rag.budget.uncertain.call_count == 0

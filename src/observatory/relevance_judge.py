@@ -20,10 +20,13 @@ scripts/relevance_judge_validation.py, and it does not change any answer.
 from __future__ import annotations
 
 import json
+import logging
 from concurrent.futures import ThreadPoolExecutor
 from decimal import Decimal
 
 from .budget import QUESTIONS, price
+
+log = logging.getLogger(__name__)
 
 JUDGE_MODEL = "gpt-6-luna"
 POLICY = "relevance-judge-v1"
@@ -79,11 +82,24 @@ def _call(rag, body, visitor, record_id):
     rid = rag.budget.reserve(estimate, visitor, "generation", JUDGE_MODEL)
     try:
         response = rag.client.post("/decisions", body=body, cast_to=object)
-        usage = response.get("usage") or {}
-        actual = price(JUDGE_MODEL, int(usage.get("input_tokens") or 0))
+        usage = response.get("usage") if isinstance(response, dict) else None
+        tokens = (usage or {}).get("input_tokens")
+    except Exception as exc:
+        rag.budget.uncertain(rid, type(exc).__name__)
+        raise
+    if not isinstance(tokens, int) or isinstance(tokens, bool) or tokens <= 0:
+        # A reply without usage is a paid call of unknown size: it stays uncertain
+        # in the ledger at the reserved amount instead of settling at $0
+        # (known defect, 2026-10-25). The caller is charged the estimate.
+        rag.budget.uncertain(rid, "usage_missing")
+        log.warning("Decisions reply without usage for record %s; reservation kept as uncertain", record_id)
+        return response, float(estimate)
+    try:
+        actual = price(JUDGE_MODEL, tokens)
         rag.budget.settle(rid, actual, {**usage, "observatory_request": {
             "policy": POLICY, "stage": "relevance_judge", "record_id": record_id}})
     except Exception as exc:
+        # Pricing or settlement failed after a paid call: the reservation stays uncertain.
         rag.budget.uncertain(rid, type(exc).__name__)
         raise
     return response, float(actual)
