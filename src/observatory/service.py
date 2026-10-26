@@ -25,6 +25,7 @@ from .list_screening import (
 )
 from .list_screening import screen as screen_list
 from .models import Answer, AnswerSection, CitedStatement, Filters
+from .question_plan import COLLECTION_ONLY, build_question_plan, plan_check
 from .rag import AnswerValidationError, Rag
 from .relevance_triage import make_criterion
 from .structured_queries import QuestionPlan, plan_question, validate_share_scope
@@ -36,10 +37,9 @@ _FINAL_AUDIT_CONTEXT = ContextVar("observatory_final_answer_audit", default=Fals
 # Run endings caused by planning or title lookup, not by the collection itself.
 _COLLECTION_SEARCH_REASONS = {"research_plan_invalid", "research_plan_clarification", "research_filter_not_in_question",
                               "original_source_record_unresolved", ""}
-# The user restricted the answer to the collection or current selection.
-_COLLECTION_ONLY = re.compile(
-    r"\bonly (?:use|using|from|in)\b|\bin (?:this|the selected|the current) (?:collection|selection) only\b"
-    r"|仅使用|只使用|只用|仅限|仅根据|只根据", re.I)
+# The user restricted the answer to the collection or current selection. The
+# pattern lives with the question plan so the plan mirrors the same rule.
+_COLLECTION_ONLY = COLLECTION_ONLY
 
 
 def _collection_search_applies(run) -> bool:
@@ -798,6 +798,7 @@ class Service:
                 result = self._answer_legacy(question, filters, visitor, progress=progress)
             result = self._ensure_answer(question, filters, visitor, result, progress)
             self._record_web_trace(result, question, filters)
+            self._check_question_plan(result)
             result.latency_ms = int((time.monotonic() - start) * 1000)
         finally:
             _FINAL_AUDIT_CONTEXT.reset(token)
@@ -946,6 +947,34 @@ class Service:
         except Exception:
             log.warning("Final answer audit log unavailable")
 
+    @staticmethod
+    def _record_question_plan(result, question, filters, run, narrowed=None):
+        """Pipeline step 1: write the merged handling decision into the run record.
+
+        Record only: no branch reads the plan yet. The plan is built from the
+        understanding stage alone (question, user scope, agent run, narrowed scope),
+        never from the answer, so _check_question_plan is an independent comparison.
+        A failure here leaves the answer exactly as it was.
+        """
+        if run is None:
+            return
+        try:
+            plan = build_question_plan(question, filters, run, narrowed)
+            result.research_trace["question_plan"] = plan.as_dict()
+        except Exception:
+            log.debug("Question plan unavailable", exc_info=True)
+
+    @staticmethod
+    def _check_question_plan(result):
+        """Compare the recorded plan with the final answer, after the outer web supplement."""
+        try:
+            trace = getattr(result, "research_trace", None)
+            plan = trace.get("question_plan") if isinstance(trace, dict) else None
+            if isinstance(plan, dict):
+                trace["plan_check"] = plan_check(plan, result)
+        except Exception:
+            log.debug("Question plan check unavailable", exc_info=True)
+
     def _answer_with_tools(self, question, filters, visitor, progress=None):
         """Understand the question before accessing constrained collection tools."""
         from .research_agent import ResearchAgent, _cjk_dominant_query
@@ -959,6 +988,7 @@ class Service:
         run = None
         downstream_cost = 0.0
         version = "unavailable"
+        plan_scope = None  # the evidence route's narrowed scope, recorded in the question plan
         try:
             _progress(progress, "database")
             before = self.health()
@@ -983,6 +1013,7 @@ class Service:
                 narrowed = Filters.model_validate(data["filters"])
                 validate_share_scope(narrowed, filters)
                 narrowed = _list_over_selection(question, narrowed, filters, data)
+                plan_scope = narrowed
                 # Question language and wording remain intact for the cited answer.
                 result = self._answer_evidence(question, narrowed, visitor,
                                                search_query=data.get("search_query") or data.get("query") or question, audit=False,
@@ -1072,6 +1103,7 @@ class Service:
                         "list_decision", "content_zones", "content_reading"):
                 if key in downstream_trace:
                     result.research_trace[key] = downstream_trace[key]
+            self._record_question_plan(result, question, filters, run, plan_scope)
             if result.external_research:
                 external = result.external_research
                 result.research_trace["external_web"] = {key: external.get(key) for key in (
@@ -1091,6 +1123,7 @@ class Service:
                             cost_usd=downstream_cost + (run.cost_usd if run else 0))
             if run:
                 result.research_trace = run.audit()
+                self._record_question_plan(result, question, filters, run, plan_scope)
         result.latency_ms = int((time.monotonic() - start) * 1000)
         if not _FINAL_AUDIT_CONTEXT.get():
             try:

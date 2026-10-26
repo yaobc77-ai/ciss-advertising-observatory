@@ -1,5 +1,12 @@
 # 下一步草稿
 
+## 问答流水线改造（2026-10-26，用户“先做这些”；设计见 docs/architecture/pipeline_current_vs_target.zh-CN.md）
+
+- 第 1 步已做（只记录 QuestionPlan，不改行为），见 work.md 同日条目。待做：用几道真实问题核对 `question_plan` 与实际路线是否一致（要本地服务和少量付费调用，约 $0.1，待批准）。
+- 第 2–6 步未开始。进入第 2 步前要用户定：① 名单判定规则（保持“正则或规划器任一说是名单就按名单”，还是以规划器为准、正则只提示）；② `_answer_legacy` 线上是否还在用、是否在第 6 步删；③ 意图解析 `question_intent` 保留为选项还是并入计划；④ 做几步。
+- 第 1 步留下的观察点：`plan_check.shape_matches` 为 False 的运行，和 `reasons.shape == "list_signal_not_screenable"`（用户要名单但两库带标签或比较题时没筛查）的运行，是第 2、3 步的输入。
+- Codex 提交前复核的三点，留到第 2 步一并处理：① `plan_check` 不比路线——第 1 步里计划路线就来自 `run.route`，比较是同义反复，等第 2 步证据路线读计划后再加；② 联网“已尝试”的判定沿用 `_record_web_trace` 的规则（非 disabled、非 scope_not_supported），第 5 步固定原因代码时改为按明确状态；③ 名单形态按 `list_screening` 键是否存在判定，与现有代码一致，空值情况待第 3 步合并名单实现时统一。
+
 ## 客户会议 MT2 跟进（2026-10-20，用户“跟进”）
 
 - 来源：用户提供的会议转写，已存档到 `客户需求/01_原始资料/`。逐条整理见 `客户需求/02_逐条整理/MT2_会议转写逐条.md`，跟进见 `客户需求/03_执行计划/会议跟进_Dashboard_RAG.md`。`client_goal.md` 已追加 C15–C18 和三项澄清。

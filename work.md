@@ -2,6 +2,18 @@
 
 排序约定：新内容在上；每节对应 plan.md 同编号的一轮。
 
+## 2026-10-26：问答流水线改造第 1 步——只记录 QuestionPlan，不改行为（用户：“先做这些”）
+
+- 依据 docs/architecture/pipeline_current_vs_target.zh-CN.md 第 4 节第 1 步。新增 `src/observatory/question_plan.py`（纯函数，不碰数据库、模型、网络）：`build_question_plan` 把现在散在研究代理路线、`question_contract` 正则、证据路线名单判定（规则／规划器／关系名单／字面短语）、联网补充规则（仅限馆藏措辞、名单不联网）里的决定合成一份计划，字段按文档 2.2：`route`（graph/sources/record 归为 records，claims/content_matches 归为 claims）、`agent_route`、`shape`（list/answer/table）、`list_kind`（screen/relation/literal）、`datasets_requested`／`datasets`、`filters`、`search_query`、`allow_web`、`clarify_message`、`reasons`（每项是规则、规划器还是默认决定的）、`signals`（原始信号，供第 2 步用）。
+- `service.py`：`_answer_with_tools` 在装好 trace 之后写 `research_trace["question_plan"]`（理解失败分支也写）；证据分支把收窄后的范围存进局部变量传给计划，不提前计算、不重复收窄。`_answer_question` 在联网兜底 `_ensure_answer` 之后写 `research_trace["plan_check"]`（实际形态由 `list_screening`／`statistics`／`rag` 推出，推不出记 None 不算不匹配；只有计划禁止联网却尝试了才算不匹配）。构建和核对都包在 try 里，失败只留 debug 日志，答案原样。`_COLLECTION_ONLY` 改为引用 `question_plan.COLLECTION_ONLY`，正则一字未改。没有任何分支读计划；`_answer_legacy` 未动。
+- Codex 复核设计（codex-skill plan）提了四点并全部采纳：不提前算收窄范围；plan_check 放在外层联网兜底之后；未知记 None；深拷贝并隔离异常。
+- 测试：新增 `tests/test_question_plan.py` 25 项（虚构数据，自带最小 Service 桩，不依赖受保护模块）：各路线分组、规则／规划器／关系／字面四种名单、两库带标签不筛查、比较组不作名单、仅限馆藏禁联网、plan_check 的已知／未知、统计题经 Service 端到端两键齐全且答案不变、构建或核对抛错时答案与去掉两键的 trace 完全一致、计划不进入答案正文。相关 11 个测试文件 280 项通过（另 1 项见下）；Ruff 通过。完整免费门禁见本节末。
+- 既有失败（与本次无关，改动前后相同）：`tests/test_research_service.py::test_clarification_retains_user_language_and_no_evidence_generation` 在本机失败——clarify 路线触发馆藏兜底检索（`_collection_search_applies` 对空 failure_reason 放行），桩数据库记到一次 search，随后证据路线因 `rag=object()` 抛 AttributeError。该模块属于门禁排除的受保护模块（direct_holdout），门禁不跑它。
+- 掩码事件登记：为写测试桩，我读了 `tests/test_research_service.py` 第 1–96、248–290 行（桩类、统计题和澄清题三个用例）后才发现它是受保护模块；没有把其中的问题文本用于任何提示词或规则，新测试模块只用虚构问题，并且不 import 它。此前 10-25 的门禁报告已把该模块列为排除。
+- 四个待决定事项不变（名单判定规则、`_answer_legacy` 去留、意图解析去留、做几步）；第 1 步不依赖它们。下一步（第 2 步）要用的信号已在 `signals` 和 `reasons` 里：规则与规划器是否一致、名单信号被丢弃的原因（`list_signal_not_screenable`）。
+- 完整免费门禁第一次（`.runtime/project_checks_plan_step1_20261026`）：4,910 通过、1 失败、39 跳过、335 未选（integration/live 标记）、28 个受保护模块排除；Ruff 通过；3 项浏览器 JS 检查因本机没有 Node 未运行。失败项 `tests/test_question_intent_agent.py::test_service_selects_intent_entry_without_legacy_agent_flag` 是本次引入：该测试用没有 `research_trace` 属性的替身对象当答案，`_check_question_plan` 在 try 外读了它。已改为 `getattr` 并整体放进 try；该模块与新测试共 38 项通过，Ruff 通过。第二次门禁（`.runtime/project_checks_plan_step1_20261026b`）：4,911 通过、0 失败、39 跳过、335 未选、28 个模块排除，Ruff 通过，3 项 JS 检查仍因无 Node 未运行（门禁因此退出码 1，不是测试失败）。
+- 未做：真实问题的计划与实际路线对照（第 1 步验收的后半句，需本地服务和付费调用，待用户批准）；页面不显示计划（只在 answer_runs 和 `detail=full` 接口可读）。未提交。
+
 ## 2026-10-24：名单题“标准 → Decisions 分流 → 筛查 → 三组”（用户：“把决策api放在更早的位置……一组判断对人工审核，一组判断是否过机器评审，取并集”，并同意 4 步）
 
 - 新增 `relevance_triage.py`：先由 gpt-5.6-luna 把问题写成“算/不算”规则（读广告之前）；Decisions API（gpt-6-luna）逐篇读全文，按官网多维格式一次问：verdict 选择（符合/边界/不符合）、strength 4 级、每条规则和每条排除各一个概率。排除：不符合 ≥0.8 且每条规则 <0.3；通过：符合 ≥0.5 且筛查有核对原句；其余送人工核对。名单 = 通过，另列“需要人工核对”。范围 ≤400 篇时全部分流（原生广告 263 篇全读），更大范围只分流检索候选。
