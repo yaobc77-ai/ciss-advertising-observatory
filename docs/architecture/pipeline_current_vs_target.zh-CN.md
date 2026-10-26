@@ -161,6 +161,7 @@ _answer_evidence(question, filters, ..., declared_shape, relation_listing, retri
 1. **先只加计划，不改行为。** 在 `_answer_with_tools` 里把现在分散的判断汇总成 QuestionPlan 写进运行记录，原来的逻辑照旧运行。用现有测试和几道真实问题核对：计划里写的路线，和实际走的路线是否一致。
    *进度（2026-10-26）：已做。`question_plan.py` 生成计划，运行记录多了 `question_plan` 和 `plan_check` 两个键（后者在联网兜底之后写，推不出的项记 None）。真实问题的对照还没跑。*
 2. **证据路线改为读计划。** `_answer_evidence` 不再调用 `question_contract` 和正则，改从计划里读形态和是否允许联网。每改一项，跑一次相关测试。
+   *进度（2026-10-26）：已做。`question_plan.build_evidence_plan` 给没有研究运行的调用（旧路径、复合题子问、馆藏优先回退、直接调用）建计划，和 `build_question_plan` 共用同一个决定函数；计划多了 `wants_list`、`phrases`、`original_metadata`、`read_sources`、`coverage_note_rule` 五个字段（版本 v2）。`_answer_evidence` 的原始字段题判断、名单形态与类型、引号短语、逐源阅读、检索词、联网许可、示例说明条件都读计划，不再调用 `question_contract`、正则和 `_COLLECTION_ONLY`。研究代理路径在分派前建一次计划传入，并把同一份写进运行记录。还没改的：`relation_listing`、`retrieval_groups` 仍作为数据参数传入（第 3 步定归属）；`_ensure_answer` 的只看馆藏检查（第 4 步）；`rag.py` 里 `Rag.generate` 自己的 `question_contract` 调用（作答阶段）。*
 3. **名单题只实现一遍。** 把单库和两库合成"对每个集合循环"的一个函数，分流只接一次。用人工标注集的 5 道题重跑一遍，对照三组的结果（约 $0.08）。
 4. **补救只留一处。** 把三处联网补充的条件合并到第 4 阶段，条件由 `plan.allow_web` 决定。
 5. **原因代码固定下来。** 把失败原因从自由文本改成固定的代码表，限流计数移进数据库。
@@ -171,6 +172,8 @@ _answer_evidence(question, filters, ..., declared_shape, relation_listing, retri
 ---
 
 ## 5. 需要你决定的
+
+*状态（2026-10-26）：用户按 plan.md 的建议开始第 2 步——① 保持“任一说是名单就按名单”；③ 意图解析保留为关闭选项。② 和 ④ 在进入第 5、6 步前再确认。*
 
 1. **名单题的判定规则**：保持"正则或模型，任一说是名单就按名单处理"（宁可多筛，不漏），还是改成以模型为准、正则只作提示？
 2. **旧路径 `_answer_legacy`**：线上是否还在用？如果不用，可以在第 6 步删掉。

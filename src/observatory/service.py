@@ -21,11 +21,16 @@ from .list_screening import (
     list_answer,
     literal_results,
     pure_literal_question,
-    quoted_phrases,
 )
 from .list_screening import screen as screen_list
 from .models import Answer, AnswerSection, CitedStatement, Filters
-from .question_plan import COLLECTION_ONLY, build_question_plan, plan_check
+from .question_plan import (
+    COLLECTION_ONLY,
+    build_evidence_plan,
+    build_question_plan,
+    list_requested,
+    plan_check,
+)
 from .rag import AnswerValidationError, Rag
 from .relevance_triage import make_criterion
 from .structured_queries import QuestionPlan, plan_question, validate_share_scope
@@ -136,9 +141,7 @@ def _list_over_selection(question, narrowed, selection, data):
     did). Narrowing that names an outlet, records or labels belongs to the ads
     and is kept.
     """
-    from .question_policy import question_contract
-
-    listing = data.get("answer_shape") == "every_matching_source" or question_contract(question)["requires_complete_list"]
+    listing = list_requested(question, data.get("answer_shape"))
     if (selection.dataset != "all" or narrowed.dataset != "native" or not listing or data.get("retrieval_groups")
             or narrowed.publishers or narrowed.record_ids or narrowed.labels):
         return narrowed
@@ -948,18 +951,19 @@ class Service:
             log.warning("Final answer audit log unavailable")
 
     @staticmethod
-    def _record_question_plan(result, question, filters, run, narrowed=None):
-        """Pipeline step 1: write the merged handling decision into the run record.
+    def _record_question_plan(result, question, filters, run, narrowed=None, plan=None):
+        """Write the handling decision into the run record (pipeline step 1).
 
-        Record only: no branch reads the plan yet. The plan is built from the
-        understanding stage alone (question, user scope, agent run, narrowed scope),
-        never from the answer, so _check_question_plan is an independent comparison.
-        A failure here leaves the answer exactly as it was.
+        `plan` is the plan that drove the evidence route (step 2); for the other
+        routes it is built here from the understanding stage alone (question, user
+        scope, agent run, narrowed scope), never from the answer, so
+        _check_question_plan is an independent comparison. A failure here leaves
+        the answer exactly as it was.
         """
         if run is None:
             return
         try:
-            plan = build_question_plan(question, filters, run, narrowed)
+            plan = plan or build_question_plan(question, filters, run, narrowed)
             result.research_trace["question_plan"] = plan.as_dict()
         except Exception:
             log.debug("Question plan unavailable", exc_info=True)
@@ -989,6 +993,7 @@ class Service:
         downstream_cost = 0.0
         version = "unavailable"
         plan_scope = None  # the evidence route's narrowed scope, recorded in the question plan
+        plan = None  # the evidence route's plan (pipeline step 2); other routes record one afterwards
         try:
             _progress(progress, "database")
             before = self.health()
@@ -1014,10 +1019,12 @@ class Service:
                 validate_share_scope(narrowed, filters)
                 narrowed = _list_over_selection(question, narrowed, filters, data)
                 plan_scope = narrowed
+                # Pipeline step 2: the plan is built once here and drives the evidence
+                # route (shape, list kind, search query, web permission). The planner's
+                # relation selections and comparison groups travel beside it as data.
+                plan = build_question_plan(question, filters, run, narrowed)
                 # Question language and wording remain intact for the cited answer.
-                result = self._answer_evidence(question, narrowed, visitor,
-                                               search_query=data.get("search_query") or data.get("query") or question, audit=False,
-                                               declared_shape=data.get("answer_shape"),
+                result = self._answer_evidence(question, narrowed, visitor, audit=False, plan=plan,
                                                relation_listing=data.get("relation_listing"),
                                                **({"retrieval_groups": data["retrieval_groups"]} if data.get("retrieval_groups") else {}),
                                                **({"progress": progress} if progress else {}))
@@ -1103,7 +1110,7 @@ class Service:
                         "list_decision", "content_zones", "content_reading"):
                 if key in downstream_trace:
                     result.research_trace[key] = downstream_trace[key]
-            self._record_question_plan(result, question, filters, run, plan_scope)
+            self._record_question_plan(result, question, filters, run, plan_scope, plan)
             if result.external_research:
                 external = result.external_research
                 result.research_trace["external_web"] = {key: external.get(key) for key in (
@@ -1123,7 +1130,7 @@ class Service:
                             cost_usd=downstream_cost + (run.cost_usd if run else 0))
             if run:
                 result.research_trace = run.audit()
-                self._record_question_plan(result, question, filters, run, plan_scope)
+                self._record_question_plan(result, question, filters, run, plan_scope, plan)
         result.latency_ms = int((time.monotonic() - start) * 1000)
         if not _FINAL_AUDIT_CONTEXT.get():
             try:
@@ -1976,13 +1983,14 @@ class Service:
         }), cost
 
     def _answer_evidence(self, question, filters, visitor, search_query=None, audit=True,
-                         retrieval_groups=None, progress=None, declared_shape=None, relation_listing=None):
+                         retrieval_groups=None, progress=None, declared_shape=None, relation_listing=None, plan=None):
         """Retrieve passages again and answer from them, as a checked list or as a generated answer.
 
         Steps (docs/architecture/query_logic.zh-CN.md, section 4):
-        1. Decide the shape: wants_list when the rule contract requires a complete list or the
-           planner declared answer_shape='every_matching_source'; list_mode for one collection,
-           both_list for dataset 'all' (each collection screened separately).
+        1. Read the shape from the QuestionPlan (pipeline step 2): a list when the rule contract
+           requires a complete list or the planner declared answer_shape='every_matching_source',
+           over one collection or over both for dataset 'all' (each screened separately). A
+           caller without a plan gets one built here from the same inputs.
         2. Narrow to a record whose full title appears in the question.
         3. Keyword search as a fallback, optional media evidence, then reserve $0.04 for the question
            and embed the search query (cached by text hash).
@@ -1992,15 +2000,30 @@ class Service:
         5. Lists: relation listing, pure literal matching, or model screening (screen_list), then
            _read_matched_sources or _summarize_list. Other questions: Rag.generate with checked quotes.
         6. Map failures to status/failure_reason, settle costs, and try web help only when the
-           collection had insufficient evidence, the question allows outside sources, and it was not a list.
+           collection had insufficient evidence and the plan allows outside sources (never after a list).
         """
         from .models import MediaAnswerEvidence
-        from .question_policy import original_metadata_question
 
-        if original_metadata_question(question):
+        # Every decision about the question comes from the plan. The research agent
+        # path passes the plan it built; any other caller (legacy path, composite
+        # parts, the collection-first fallback, direct calls) gets one here from the
+        # same inputs, so the rules live in question_plan only.
+        own_plan = plan is None
+        if own_plan:
+            try:
+                plan = build_evidence_plan(question, filters, search_query=search_query, declared_shape=declared_shape,
+                                           relation_listing=relation_listing, retrieval_groups=retrieval_groups)
+            except Exception as exc:
+                # A plan that cannot be built is an answer-service failure, reported
+                # like every other failure of this route, never an exception to the caller.
+                log.warning("Answer failed: %s", type(exc).__name__)
+                return Answer(status="service_unavailable", failure_reason=type(exc).__name__,
+                              answer="The answer service is unavailable. Browse the evidence below or use keyword search.")
+        if plan.original_metadata:
             return Answer(status="insufficient_evidence", answer_mode="clarification",
                           answer="This is a stored original-field question. Identify the record and use original metadata tools; content retrieval and web pages cannot substitute for that field.",
-                          failure_reason="original_source_metadata_required")
+                          failure_reason="original_source_metadata_required",
+                          **({"research_trace": {"question_plan": plan.as_dict()}} if own_plan else {}))
 
         start = time.monotonic()
         evidence = []
@@ -2014,30 +2037,22 @@ class Service:
         embedding_cost = []
         coverage = []
         scoped = []
-        search_query = search_query or question
-        from .question_policy import question_contract, sources_content_request
+        search_query = plan.search_query or question
 
-        # A "which ads ..." question over native ads screens every retrieved
-        # candidate instead of citing the few most relevant ones.
-        # A list is screened when the surface rule or the planner says so: a
-        # missed list silently loses ads, a needless screening only costs time.
-        # Step 1: list or ordinary answer. A rule-detected list, or the planner's every_matching_source.
-        rule_list = question_contract(question)["requires_complete_list"]
-        wants_list = rule_list or declared_shape == "every_matching_source"
-        # Social post lists are screened like ad lists (B1K-REL: listing five
-        # examples of 34 selected posts capped recall at 15-35%).
-        list_mode = wants_list and not retrieval_groups and filters.dataset in ("native", "social")
-        # A list over both collections is screened in each one separately, and
-        # the answer counts both (user, 2026-10-19: a "which ads" question over
-        # ads and posts listed nothing while three posts matched).
-        both_list = wants_list and not retrieval_groups and filters.dataset == "all" and not filters.labels
-        list_mode = list_mode or both_list
-        # The planner says the relation filters are the question's whole condition;
-        # honoured only when this read actually selected posts by a relation.
-        relation_list = bool(relation_listing and relation_listing.get("list_all")
-                             and relation_listing.get("selections") and filters.dataset == "social"
-                             and filters.record_ids and filters.record_ids != ["no-relation-match"])
-        list_mode = list_mode or relation_list
+        # Step 1: list or ordinary answer, read from the plan. A "which ads ..."
+        # question screens every retrieved candidate instead of citing the few most
+        # relevant ones; the plan says so when the surface rule or the planner does
+        # (a missed list silently loses ads, a needless screening only costs time),
+        # over one collection or over both (user, 2026-10-19: a "which ads" question
+        # over ads and posts listed nothing while three posts matched; B1K-REL: five
+        # examples of 34 selected posts capped recall at 15-35%), or when the
+        # planner's relation filters are the question's whole condition.
+        list_mode = plan.shape == "list"
+        both_list = list_mode and plan.datasets == ["native", "social"]
+        relation_list = plan.list_kind == "relation"
+        # The user asked for a list even where none can be screened (a comparison,
+        # or labels over both collections): the prose answer then gets a scope note.
+        wants_list = plan.wants_list
         try:
             _progress(progress, "database")
             version = self.db.health()["data_version"]
@@ -2146,7 +2161,7 @@ class Service:
                 reservation = None
                 # Every ad containing a quoted phrase is read first, with the
                 # passage that contains it; ranked candidates follow.
-                phrases = quoted_phrases(question)
+                phrases = plan.phrases
                 if not both_list:
                     scope_total = len(self.db.public_rows(filters))
                     literal = (self._public_evidence(self.db.phrase_search(phrases, filters, limit_records=scope_total + 1))
@@ -2155,7 +2170,7 @@ class Service:
                     result, screening_cost = self._screen_both(question, scoped, evidence, phrases, visitor, progress)
                 elif relation_list:
                     result, screening_cost = self._relation_list(question, filters, relation_listing), 0.0
-                elif pure_literal_question(question):
+                elif plan.list_kind == "literal":
                     # Wording, not meaning: the exact search is the complete
                     # answer and needs no model judgment.
                     results, screening_cost = literal_results(literal, phrases[0]), 0.0
@@ -2210,7 +2225,7 @@ class Service:
                     result = list_answer(question, results, evidence, scope_total=scope_total,
                                          criterion=criterion, triage=triage)
                     result.research_trace["list_screening"]["first_read"] = max(MAX_CANDIDATES, records)
-                    if sources_content_request(question) and result.citations:
+                    if plan.read_sources and result.citations:
                         result, writer_cost = self._read_matched_sources(
                             question, result, results, evidence, visitor, progress)
                         screening_cost += writer_cost
@@ -2309,10 +2324,11 @@ class Service:
         }
         # The evidence path supplements shortfalls. The outer wrapper also
         # only accepts evidence shortfalls, never operational/integrity failures.
-        # A screened list that found no match is a collection finding; web
-        # pages are not advertisements and cannot fill it.
-        if (result.status == "insufficient_evidence" and not _COLLECTION_ONLY.search(question)
-                and "list_screening" not in result.research_trace):
+        # The plan forbids web help when the user restricted the answer to the
+        # collection, and after a list: a screened list that found no match is a
+        # collection finding, and web pages are not advertisements (every list
+        # result carries research_trace["list_screening"]; a generated answer never does).
+        if result.status == "insufficient_evidence" and plan.allow_web:
             topics = gaps if retrieval_groups else []
             result.external_research = self._search_external(question, filters, visitor, missing_topics=topics, progress=progress)
             result.cost_usd += result.external_research.get("cost_usd", 0.0)
@@ -2328,17 +2344,19 @@ class Service:
                 result.research_trace = {**result.research_trace, "date_note": UNCHECKED_NOTE}
             elif cited:
                 result.research_trace = {**result.research_trace, "date_note": BASIS_NOTE}
-            contract = question_contract(question)
             # Decided by the answer itself (no per-ad screening, several sources
             # cited), not only by list recognition: the note backs up that
             # recognition, so it cannot depend on it (F04: N1 15, N2 11 unlabelled).
-            if ((contract["selects_sources"] or contract["requires_content_count"] or wants_list
-                 or _cited_record_count(result) >= 2)
+            if ((plan.coverage_note_rule or wants_list or _cited_record_count(result) >= 2)
                     and "list_screening" not in result.research_trace):
                 result.answer = result.answer + "\n\n" + examples_note(question, result)
                 result.research_trace["coverage_note"] = "retrieved_examples_only"
         # Disagreements between the rule and the planner are kept for review.
-        result.research_trace["list_decision"] = {"rule": bool(rule_list), "planner": declared_shape}
+        result.research_trace["list_decision"] = {"rule": plan.signals["rule_list"], "planner": plan.signals["planner_shape"]}
+        if own_plan:
+            # The agent path records its plan in _answer_with_tools; a caller without
+            # one (legacy path, direct calls) gets this route's plan in the record.
+            result.research_trace.setdefault("question_plan", plan.as_dict())
         if media_evidence and result.status == "service_unavailable" and not result.external_research:
             # Recheck the fixed reader before returning an operational failure.
             if not validate_media(media_evidence):
