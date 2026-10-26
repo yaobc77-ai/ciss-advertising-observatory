@@ -6,6 +6,7 @@ from dash import html
 from pydantic import BaseModel, ValidationError
 
 from .models import Citation, Evidence
+from .quote_links import record_quote_href
 
 _IDENTITIES = ("source_observation_id", "source_version_id", "source_body_hash")
 _CONFLICT_LABELS = {
@@ -130,6 +131,8 @@ def decorate_source_observation_cards(cards, evidence, citations=()):
         ]
         blocks = [html.Div([
             html.Span(f"Citation [{number}]", className="evidence-code"), html.Blockquote(quote),
+            html.A("Show this quote in the full text →", href=record_quote_href(item, [quote]),
+                   target="_blank", rel="noopener", className="quote-link"),
         ], className="citation-quote", id=f"answer-citation-{number}") for number, quote in supported]
         if not blocks:
             text = str(item.get("text") or "")

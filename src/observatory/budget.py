@@ -20,8 +20,12 @@ class LimitReached(Exception):
 
 
 def price(model, input_tokens, output_tokens=0, cached_tokens=0, cache_write_tokens=0):
+    """USD cost of a call from token counts; only the configured models have prices."""
     if model == "text-embedding-3-small":
         return Decimal(input_tokens) * Decimal("0.02") / 1_000_000
+    if model == "gpt-6-luna":
+        # Decisions API: input only, output is free (OpenAI, 2026-10-22); cached input billed at full rate.
+        return Decimal(input_tokens) * Decimal("0.10") / 1_000_000
     if model != "gpt-5.6-luna":
         raise ValueError("No verified price configuration for this model")
     if (
@@ -101,6 +105,12 @@ class Budget:
         self.settings = settings
 
     def reserve(self, amount, visitor, kind, model):
+        """Hold an estimated amount before a model call; refuse when a limit would be exceeded.
+
+        Expired pending holds become 'uncertain' and still count. The monthly cap applies to every
+        kind; per-visitor minute/day limits and concurrency apply to generation and are counted once
+        per question by QUESTIONS (in memory), falling back to the ledger outside Service.answer.
+        """
         amount = Decimal(str(amount))
         if amount <= 0:
             raise ValueError("Reservation must be positive")

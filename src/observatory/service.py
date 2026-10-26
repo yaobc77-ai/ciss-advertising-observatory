@@ -25,7 +25,9 @@ from .list_screening import (
 )
 from .list_screening import screen as screen_list
 from .models import Answer, AnswerSection, CitedStatement, Filters
+from .question_plan import COLLECTION_ONLY, build_question_plan, plan_check
 from .rag import AnswerValidationError, Rag
+from .relevance_triage import make_criterion
 from .structured_queries import QuestionPlan, plan_question, validate_share_scope
 
 log = logging.getLogger(__name__)
@@ -35,10 +37,9 @@ _FINAL_AUDIT_CONTEXT = ContextVar("observatory_final_answer_audit", default=Fals
 # Run endings caused by planning or title lookup, not by the collection itself.
 _COLLECTION_SEARCH_REASONS = {"research_plan_invalid", "research_plan_clarification", "research_filter_not_in_question",
                               "original_source_record_unresolved", ""}
-# The user restricted the answer to the collection or current selection.
-_COLLECTION_ONLY = re.compile(
-    r"\bonly (?:use|using|from|in)\b|\bin (?:this|the selected|the current) (?:collection|selection) only\b"
-    r"|仅使用|只使用|只用|仅限|仅根据|只根据", re.I)
+# The user restricted the answer to the collection or current selection. The
+# pattern lives with the question plan so the plan mirrors the same rule.
+_COLLECTION_ONLY = COLLECTION_ONLY
 
 
 def _collection_search_applies(run) -> bool:
@@ -183,6 +184,7 @@ def safe_url(value):
 
 
 def summarize(rows):
+    """Count rows by publisher, sponsor, keyword and year for the free search summary."""
     total = len(rows)
 
     def group(field, selected=None):
@@ -748,11 +750,41 @@ class Service:
         trusted = getattr(plan, "trusted_filters", None) or denominator
         return self._tool_statistics_answer(data, base_filters=trusted)
 
+    def review_relevance(self, question, record_id, route, verdict, visitor):
+        """Save a reader's check of one record in a list answer; it never changes the answer."""
+        import hashlib
+
+        from .relevance_triage import POLICY
+
+        if verdict not in ("relevant", "not_relevant") or route not in ("pass", "review", "exclude"):
+            raise ValueError("Unknown review")
+        question = (question or "").strip()[:2000]
+        visitor_hash = hashlib.sha256(f"relevance-review:{visitor}".encode()).hexdigest()
+        return self.db.save_relevance_review(visitor_hash, question, record_id, route, verdict, POLICY)
+
+    def relevance_review_counts(self):
+        return self.db.relevance_review_counts()
+
+    def judge_list(self, question, decisions, visitor):
+        """Independent Decisions-API check of a list answer's screening decisions (paid; see relevance_judge)."""
+        from .relevance_judge import MAX_ADS, ads_from_passages, judge_answer
+
+        ids = [d["record_id"] for d in decisions if d.get("record_id")][:MAX_ADS]
+        passages = self._public_evidence(self.db.record_passages(ids, Filters(dataset="all"), per_record=None))
+        return judge_answer(self.rag, question, ads_from_passages(decisions, passages), visitor)
+
     def answer(self, question, filters, visitor, progress=None):
         with QUESTIONS.question(visitor):
             return self._answer_question(question, filters, visitor, progress)
 
     def _answer_question(self, question, filters, visitor, progress=None):
+        """Answer one question: pick the tool path or the legacy path, then add web help and an audit row.
+
+        Dashboard questions use inferred dates unless the caller set include_inferred_dates. The
+        research agent path is taken when either research_agent_enabled or question_intent_enabled
+        is on (the local .env turns the agent on). _save_supplement only logs the run; answers are
+        never cached.
+        """
         start = time.monotonic()
         # A default must never override a caller's explicit source-only choice.
         if "include_inferred_dates" not in filters.model_fields_set:
@@ -766,6 +798,7 @@ class Service:
                 result = self._answer_legacy(question, filters, visitor, progress=progress)
             result = self._ensure_answer(question, filters, visitor, result, progress)
             self._record_web_trace(result, question, filters)
+            self._check_question_plan(result)
             result.latency_ms = int((time.monotonic() - start) * 1000)
         finally:
             _FINAL_AUDIT_CONTEXT.reset(token)
@@ -884,6 +917,7 @@ class Service:
 
     @staticmethod
     def _record_web_trace(result, question, filters):
+        """Copy the external web research outcome into research_trace, unless web help was off or out of scope."""
         external = result.external_research or result.research_trace.get("external_web")
         if not external or external.get("status") == "disabled" or external.get("reason") == "scope_not_supported":
             return
@@ -913,6 +947,34 @@ class Service:
         except Exception:
             log.warning("Final answer audit log unavailable")
 
+    @staticmethod
+    def _record_question_plan(result, question, filters, run, narrowed=None):
+        """Pipeline step 1: write the merged handling decision into the run record.
+
+        Record only: no branch reads the plan yet. The plan is built from the
+        understanding stage alone (question, user scope, agent run, narrowed scope),
+        never from the answer, so _check_question_plan is an independent comparison.
+        A failure here leaves the answer exactly as it was.
+        """
+        if run is None:
+            return
+        try:
+            plan = build_question_plan(question, filters, run, narrowed)
+            result.research_trace["question_plan"] = plan.as_dict()
+        except Exception:
+            log.debug("Question plan unavailable", exc_info=True)
+
+    @staticmethod
+    def _check_question_plan(result):
+        """Compare the recorded plan with the final answer, after the outer web supplement."""
+        try:
+            trace = getattr(result, "research_trace", None)
+            plan = trace.get("question_plan") if isinstance(trace, dict) else None
+            if isinstance(plan, dict):
+                trace["plan_check"] = plan_check(plan, result)
+        except Exception:
+            log.debug("Question plan check unavailable", exc_info=True)
+
     def _answer_with_tools(self, question, filters, visitor, progress=None):
         """Understand the question before accessing constrained collection tools."""
         from .research_agent import ResearchAgent, _cjk_dominant_query
@@ -926,6 +988,7 @@ class Service:
         run = None
         downstream_cost = 0.0
         version = "unavailable"
+        plan_scope = None  # the evidence route's narrowed scope, recorded in the question plan
         try:
             _progress(progress, "database")
             before = self.health()
@@ -950,6 +1013,7 @@ class Service:
                 narrowed = Filters.model_validate(data["filters"])
                 validate_share_scope(narrowed, filters)
                 narrowed = _list_over_selection(question, narrowed, filters, data)
+                plan_scope = narrowed
                 # Question language and wording remain intact for the cited answer.
                 result = self._answer_evidence(question, narrowed, visitor,
                                                search_query=data.get("search_query") or data.get("query") or question, audit=False,
@@ -1039,6 +1103,7 @@ class Service:
                         "list_decision", "content_zones", "content_reading"):
                 if key in downstream_trace:
                     result.research_trace[key] = downstream_trace[key]
+            self._record_question_plan(result, question, filters, run, plan_scope)
             if result.external_research:
                 external = result.external_research
                 result.research_trace["external_web"] = {key: external.get(key) for key in (
@@ -1058,6 +1123,7 @@ class Service:
                             cost_usd=downstream_cost + (run.cost_usd if run else 0))
             if run:
                 result.research_trace = run.audit()
+                self._record_question_plan(result, question, filters, run, plan_scope)
         result.latency_ms = int((time.monotonic() - start) * 1000)
         if not _FINAL_AUDIT_CONTEXT.get():
             try:
@@ -1452,6 +1518,13 @@ class Service:
                       structured_result=data)
 
     def _answer_legacy(self, question, filters, visitor, progress=None):
+        """Answer without the research agent: rule-based counts first, everything else as evidence.
+
+        Order: refuse original-metadata and multi-task questions; answer six exact 'how many records'
+        phrasings as a count; let plan_question recognise count, share and 'which publishers'
+        patterns and answer them from SQL with no model call; refuse other count wording; send the
+        rest to _answer_evidence.
+        """
         from .question_policy import original_metadata_question, question_contract
 
         if original_metadata_question(question):
@@ -1550,6 +1623,26 @@ class Service:
         count = self._scope_count(scope)
         return count if count <= SMALL_SCOPE_RECORDS else 0
 
+    def _triaged_screen(self, question, evidence, filters, scope_total, visitor, reread, criterion):
+        """Decisions-API triage of the candidates (every record when the scope is small), then screening.
+
+        Returns (results, cost, triage summary, passages of the records not excluded).
+        """
+        from .relevance_triage import TRIAGE_ALL_MAX, triaged_screen
+
+        extra = []
+        whole = scope_total <= TRIAGE_ALL_MAX and hasattr(self.db, "record_passages")
+        if whole:
+            seen = {e.record_id for e in evidence}
+            ids = [row["record_id"] for row in self.db.public_rows(filters) if row["record_id"] not in seen]
+            extra = self._public_evidence(self.db.record_passages(ids, filters, per_record=None)) if ids else []
+        results, cost, summary = triaged_screen(screen_list, self.rag, question, evidence, visitor,
+                                                criterion=criterion, extra=extra, reread=reread)
+        # Every record with text in scope was read; the rest have none to read.
+        summary["whole_scope"] = whole
+        kept = {item["record_id"] for item in results if item.get("route") != "exclude"}
+        return results, cost, summary, [e for e in [*evidence, *extra] if e.record_id in kept]
+
     def _merge_article_passages(self, evidence, filters, limit):
         """Join each screened ad's retrieved passages with the rest of that article.
 
@@ -1618,8 +1711,13 @@ class Service:
         from .question_policy import sources_content_request
 
         results, pool, cost, scopes, literal_only = [], [], 0.0, {}, pure_literal_question(question)
+        # One criterion for both collections, written before any record is read (relevance_triage).
+        criterion, criterion_cost = ((None, 0.0) if literal_only or phrases else make_criterion(self.rag, question, visitor))
+        cost += criterion_cost
+        triages = {}
 
         def screen_collection(scope):
+            """Screen one collection on its own: literal matches first, then ranked candidates, up to 120 records."""
             dataset, found, spent, items = scope.dataset, [], 0.0, []
             total = self._scope_count(scope)
             literal = (self._public_evidence(self.db.phrase_search(phrases, scope, limit_records=total + 1))
@@ -1639,10 +1737,16 @@ class Service:
                     sink.extend(rows)
                     return rows
 
-                found, spent = screen_list(self.rag, question, own, visitor,
-                                           limit=max(MAX_CANDIDATES, records), widen_to=max(MAX_WIDENED, records),
-                                           reread=reread if hasattr(self.db, "record_passages") else None)
-                items.extend([*own, *reread_passages])
+                if criterion:
+                    found, spent, triages[dataset], kept = self._triaged_screen(
+                        question, own, scope, total, visitor,
+                        reread if hasattr(self.db, "record_passages") else None, criterion)
+                    items.extend([*kept, *reread_passages])
+                else:
+                    found, spent = screen_list(self.rag, question, own, visitor,
+                                               limit=max(MAX_CANDIDATES, records), widen_to=max(MAX_WIDENED, records),
+                                               reread=reread if hasattr(self.db, "record_passages") else None)
+                    items.extend([*own, *reread_passages])
             return dataset, total, found, spent, items
 
         # The collections are screened independently, so they run at the same time;
@@ -1660,8 +1764,14 @@ class Service:
             results.extend({**item, "dataset": dataset} for item in found)
         pool = list({e.evidence_id: e for e in pool}.values())
         results = _with_accounts(results, pool)
+        triage = None
+        if triages:
+            triage = {"by_dataset": triages, "criterion_cost_usd": criterion_cost,
+                      **{key: sum(item[key] for item in triages.values())
+                         for key in ("triaged", "judged", "screened", "pass", "review", "exclude", "cost_usd")},
+                      **{key: next(iter(triages.values()))[key] for key in ("policy", "model", "exclude_at", "pass_at")}}
         result = list_answer(question, results, pool, scope_total=sum(scopes.values()), scopes=scopes,
-                             literal=phrases[0] if literal_only else None)
+                             literal=phrases[0] if literal_only else None, criterion=criterion, triage=triage)
         if literal_only:
             return result, cost
         result.research_trace["list_screening"]["first_read"] = MAX_CANDIDATES
@@ -1686,7 +1796,7 @@ class Service:
         its own section. If the writer fails, the list answer stands alone.
         Returns the answer and the writer cost.
         """
-        matched = [item for item in results if item["decision"] == "matches"]
+        matched = [item for item in results if item["decision"] == "matches" and item.get("route", "pass") == "pass"]
         match_ids = {item["record_id"]: item["evidence_id"] for item in matched}
         # The listed order (a fair share of ads and posts first) picks the summary's sources.
         order = {c.evidence_id: n for n, c in enumerate(listed.citations)}
@@ -1749,13 +1859,14 @@ class Service:
         recorded, and the answer says when the content reading is partial.
         Returns the merged answer and the writer cost.
         """
-        matched = [item for item in results if item["decision"] == "matches"]
+        matched = [item for item in results if item["decision"] == "matches" and item.get("route", "pass") == "pass"]
         match_ids = {item["record_id"]: item["evidence_id"] for item in matched}
         ids = list(match_ids)[:ZONE_RECORDS * CONTENT_ZONES]
         claims, citations, read, zones, cost, covered = [], [], [], [], 0.0, set()
         reading = {}
 
         def write(shard, kind):
+            """Ask the writer for one claim per matched source in this shard; record which sources it covered."""
             nonlocal cost
             passages, shard_reading = _zone_evidence(evidence, shard, match_ids)
             if kind == "shard":
@@ -1866,6 +1977,23 @@ class Service:
 
     def _answer_evidence(self, question, filters, visitor, search_query=None, audit=True,
                          retrieval_groups=None, progress=None, declared_shape=None, relation_listing=None):
+        """Retrieve passages again and answer from them, as a checked list or as a generated answer.
+
+        Steps (docs/architecture/query_logic.zh-CN.md, section 4):
+        1. Decide the shape: wants_list when the rule contract requires a complete list or the
+           planner declared answer_shape='every_matching_source'; list_mode for one collection,
+           both_list for dataset 'all' (each collection screened separately).
+        2. Narrow to a record whose full title appears in the question.
+        3. Keyword search as a fallback, optional media evidence, then reserve $0.04 for the question
+           and embed the search query (cached by text hash).
+        4. Hybrid db.search per retrieval group: 120 records and 2 passages each for lists, the whole
+           scope for small scopes (<= SMALL_SCOPE_RECORDS), otherwise 5 records and 3 passages.
+           Non-list evidence is trimmed to EVIDENCE_CHAR_BUDGET characters.
+        5. Lists: relation listing, pure literal matching, or model screening (screen_list), then
+           _read_matched_sources or _summarize_list. Other questions: Rag.generate with checked quotes.
+        6. Map failures to status/failure_reason, settle costs, and try web help only when the
+           collection had insufficient evidence, the question allows outside sources, and it was not a list.
+        """
         from .models import MediaAnswerEvidence
         from .question_policy import original_metadata_question
 
@@ -1893,6 +2021,7 @@ class Service:
         # candidate instead of citing the few most relevant ones.
         # A list is screened when the surface rule or the planner says so: a
         # missed list silently loses ads, a needless screening only costs time.
+        # Step 1: list or ordinary answer. A rule-detected list, or the planner's every_matching_source.
         rule_list = question_contract(question)["requires_complete_list"]
         wants_list = rule_list or declared_shape == "every_matching_source"
         # Social post lists are screened like ad lists (B1K-REL: listing five
@@ -1915,6 +2044,7 @@ class Service:
             trusted_filters = filters.model_copy(deep=True)
             # A named title narrows only the collection it belongs to: an ad title
             # must not restrict the social scope of a both-collections question.
+            # Step 2: a full record title in the question narrows the search to that record.
             titled = self._title_records(question, filters)
             if not retrieval_groups and filters.dataset != "all":
                 filters = self._title_scope(question, filters)
@@ -1939,6 +2069,7 @@ class Service:
                 scoped.append((item, scope))
             # Keyword search always runs first so failures can return usable evidence.
             for item, scope in scoped:
+                # Step 3a: keyword-only results, kept only if the paid hybrid search below cannot run.
                 evidence.extend(self.search(item["query"], scope, limit=3 if retrieval_groups else 5))
             # Recall stays separate by modality and by comparison target. This
             # reads supplied derived text only; it does not run OCR or watch video.
@@ -1970,6 +2101,7 @@ class Service:
             price(self.settings.generation_model, 1, 1)
             # Admission covers the whole paid question, before query embedding.
             # This exceeds the maximum generation cost under the 100k-byte prompt cap.
+            # Step 3b: hold $0.04 for this question, then embed the search query (cached by text hash).
             reservation = self.rag.budget.reserve(
                 "0.04", visitor, "generation", self.settings.generation_model
             )
@@ -1979,6 +2111,7 @@ class Service:
             evidence = []
             for ((item, scope), vector, (_, report, units)) in zip(scoped, vectors, media_groups):
                 whole = self._small_scope_size(scope) if not (retrieval_groups or list_mode) else 0
+                # Step 4: hybrid search (keyword + vector + title, RRF) per retrieval group.
                 found = self._public_evidence(self.db.search(
                     item["query"], scope, vector=vector, model=self.settings.embedding_model,
                     chunks_per_record=2 if list_mode else 3,
@@ -1997,6 +2130,7 @@ class Service:
             evidence = list({e.evidence_id: e for e in evidence}.values())
             if not list_mode:
                 # Screening sends bounded batches instead of one prompt.
+                # Ordinary answers only: keep the best-ranked passages within EVIDENCE_CHAR_BUDGET characters.
                 evidence, trimmed = _fit_evidence_budget(evidence)
             if self.db.health()["data_version"] != version:
                 evidence, media_evidence = [], []
@@ -2050,13 +2184,31 @@ class Service:
                         screened = (f"{question}\n\n(Every candidate post already satisfies, by its source "
                                     f"record, the relation {relations}; this is not visible in the text. Judge "
                                     "only the question's other conditions; if it has none, every post matches.)")
-                    results, screening_cost = screen_list(self.rag, screened, evidence, visitor,
-                                                          limit=max(MAX_CANDIDATES, records),
-                                                          widen_to=max(MAX_WIDENED, records),
-                                                          reread=reread if hasattr(self.db, "record_passages") else None)
+                    # Step 5 (one collection): screen candidates 4 at a time; every match must quote its passage.
+                    # Steps 4a-4b (relevance_triage): an explicit criterion, then a Decisions-API triage that
+                    # excludes clear non-matches before screening. Not for relation lists or quoted phrases,
+                    # whose condition is a source field or exact wording.
+                    criterion, triage = None, None
+                    if screened == question and not phrases:
+                        criterion, criterion_cost = make_criterion(self.rag, question, visitor)
+                        screening_cost_before = criterion_cost
+                    if criterion:
+                        results, screening_cost, triage, evidence = self._triaged_screen(
+                            question, evidence, filters, scope_total, visitor,
+                            reread if hasattr(self.db, "record_passages") else None, criterion)
+                        screening_cost += screening_cost_before
+                        triage["criterion_cost_usd"] = screening_cost_before
+                    else:
+                        results, screening_cost = screen_list(self.rag, screened, evidence, visitor,
+                                                              limit=max(MAX_CANDIDATES, records),
+                                                              widen_to=max(MAX_WIDENED, records),
+                                                              reread=reread if hasattr(self.db, "record_passages") else None)
+                        if screened == question and not phrases:
+                            screening_cost += screening_cost_before
                     evidence = list({e.evidence_id: e for e in [*evidence, *reread_passages]}.values())
                     results = _with_accounts(results, evidence)
-                    result = list_answer(question, results, evidence, scope_total=scope_total)
+                    result = list_answer(question, results, evidence, scope_total=scope_total,
+                                         criterion=criterion, triage=triage)
                     result.research_trace["list_screening"]["first_read"] = max(MAX_CANDIDATES, records)
                     if sources_content_request(question) and result.citations:
                         result, writer_cost = self._read_matched_sources(
@@ -2068,6 +2220,7 @@ class Service:
                         screening_cost += writer_cost
                 result.cost_usd = screening_cost + sum(embedding_cost)
             else:
+                # Step 5 (ordinary question): grounded generation; Rag.generate checks every quote verbatim.
                 result = self.rag.generate(
                     question, evidence, visitor, reservation=reservation,
                     **({"progress": progress} if progress else {}),
@@ -2086,6 +2239,7 @@ class Service:
                 raise ValueError(
                     "Data changed during generation; retry on a consistent version"
                 )
+        # Step 6: budget or question limits give status 'limited'; other errors map to failure_reason.
         except LimitReached as exc:
             result = Answer(status="limited", answer=str(exc), evidence=evidence, media_evidence=media_evidence)
         except Exception as exc:
@@ -2209,6 +2363,7 @@ class Service:
         return bool(self.settings.show_source_links)
 
     def _search_external(self, question, filters, visitor, missing_topics=None, progress=None):
+        """Ask WebResearch for outside sources when web search is on and source links are shown."""
         if not getattr(self.settings, "web_search_enabled", False):
             return {"status": "disabled", "reason": "web_search_not_enabled", "cost_usd": 0.0}
         if not self._web_scope_supported(filters):

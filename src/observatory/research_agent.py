@@ -237,6 +237,9 @@ def _clarification_in_question_language(clarification, question):
 
 
 def _validate_plan(args, question, scope):
+    """Check a set_research_plan call: 2-3 verbatim, ordered, non-overlapping question parts whose
+    datasets match the selection; any uncovered text may only be connectives or shared wording.
+    """
     plan = _ResearchPlan.model_validate(args)
     covered = [False] * len(question)
     seen = set()
@@ -377,6 +380,13 @@ def _complete_plan(run, tasks, completed, reason="", *, failure_status=None):
 
 
 def _result_dataset(result):
+    # A comparison reads each target in its own scope; the shared top-level
+    # filters keep the active selection ("all"), so the targets' common
+    # collection is the read's collection (the "Compare emissions claims"
+    # example failed on an all-collections selection).
+    groups = {(group.get("filters") or {}).get("dataset") for group in result.get("retrieval_groups") or []}
+    if len(groups) == 1 and None not in groups:
+        return groups.pop()
     return ((result.get("filters") or {}).get("dataset")
             or (result.get("record") or {}).get("dataset"))
 
@@ -456,6 +466,7 @@ class ResearchRun:
     interpretation: dict[str, Any] | None = None
 
     def audit(self):
+        """Research trace for this run: route, cost, model calls, tool calls and the plan."""
         audit = {
             "policy": POLICY_VERSION,
             "transport": "responses_function_calling",
@@ -560,6 +571,7 @@ class ResearchAgent:
         max_steps=4, max_tool_calls=4, max_output_tokens=900,
         intent_enabled=False, repairs=0,
     ):
+        """Planner over a ToolCatalog; at most four model steps and four tool calls per question."""
         if not 1 <= max_steps <= 4 or not 1 <= max_tool_calls <= 4:
             raise ValueError("Research agent permits at most four steps and tool calls")
         if not 100 <= max_output_tokens <= 1_600:
@@ -580,6 +592,9 @@ class ResearchAgent:
     def _definitions(self):
         # Held-out question-specific tools are never sent to the general planner,
         # including during evaluation of one query. No full test catalog is used.
+        """Tool definitions the planner may see: the catalog's terminal and intermediate tools plus the
+        plan and clarification tools, each with a strict JSON schema.
+        """
         definitions = [item for item in self.catalog.definitions()
                        if item.get("name") != "get_content_matches"]
         names = set()
@@ -627,6 +642,9 @@ class ResearchAgent:
         return args
 
     def _dispatch(self, inputs, definitions, visitor, step, *, policy=POLICY_VERSION):
+        """One planner call: reserve budget (estimate x 1.25), call the Responses API with one required
+        tool call and no reasoning, settle the actual cost. Inputs over MAX_INPUT_BYTES are refused.
+        """
         model = self.rag.settings.generation_model
         # A UTF-8-byte tokenizer upper bound plus schema/message overhead. This
         # covers the entire conversation resent with store=False on every turn.
@@ -769,6 +787,16 @@ class ResearchAgent:
         return execute_intent(run, compiled, self.catalog, progress)
 
     def run(self, question: str, base_filters: Filters, visitor: str, progress=None):
+        """Choose a route by letting the model call tools, with guards between steps.
+
+        Each step offers only the tools the question contract allows (_step_definitions), requires
+        exactly one function call, and checks it before running: dataset named in the question,
+        content questions must not use statistics, statistics must keep the question's conditions,
+        search queries must be English, filters may only use names grounded in the question. Some
+        failures get one repair hint; the rest end in 'clarify'. The first successful terminal tool
+        fixes the route (TERMINAL_ROUTES); with a plan, every part must finish (route 'composite').
+        Evidence passages found here only choose the route; service._answer_evidence retrieves again.
+        """
         if self.intent_enabled:
             return self._run_intent(question, base_filters, visitor, progress)
         run = ResearchRun(
@@ -1222,6 +1250,10 @@ class ResearchAgent:
                                                       "list_all": args.get("list_selected_posts") is True}
                 if (tasks or name == "record_statistics" or explicit) and _result_dataset(result) != expected_dataset:
                     trace.update(status="invalid_result", blocked_by="research_result_scope_mismatch")
+                    # The rejected read is not an answer route: the service must not
+                    # read its result as evidence (it raised KeyError and the page
+                    # showed "Answer service unavailable").
+                    run.route, run.result = "unavailable", {}
                     run.failure_reason = "research_plan_result_scope_mismatch" if tasks else "research_result_scope_mismatch"
                     return _complete_plan(run, tasks, completed, run.failure_reason) if tasks else run
                 scope_diagnostic = {}

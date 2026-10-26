@@ -21,10 +21,11 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 from .analytics import sponsor_display
+from .answer_norms import load_norms, norms_tag, screening_prompt, split_tagged
 from .budget import price
 from .models import Answer, Citation, CitedStatement
 
-POLICY_VERSION = "list-screening-v18"
+POLICY_VERSION = "list-screening-v19"
 MAX_CANDIDATES = 40
 # Gated widening: past MAX_CANDIDATES, keep reading while the last window of
 # ads read still had a match, up to MAX_WIDENED.
@@ -266,10 +267,32 @@ def _judge(rag, question, batch, first_index, phrases, visitor, stage):
             ad["phrase_sentences"] = located[:3]
         ads.append(ad)
     payload = json.dumps({"question": question, "ads": ads}, ensure_ascii=False)
+    norms = load_norms()
+    kind, template, prompt = screening_prompt(norms, question, payload) if norms else (None, None, None)
+    if prompt:
+        parsed, reasoning, actual, fallback = _judge_tagged(rag, prompt, len(batch), visitor, stage, refs,
+                                                            {"norms": norms_tag(norms), "type": kind, "template": template})
+        if not fallback:
+            return _checked_results(parsed, refs, phrases, reasoning), actual
+    else:
+        actual, reasoning, fallback = Decimal("0"), "", False
+    parsed, extra = _judge_structured(rag, payload, len(batch), visitor, stage, refs)
+    if fallback and reasoning:
+        # The decisions below come from the structured call; the reasoning is kept
+        # from the first call so why an ad was judged relevant stays readable.
+        reasoning = "(first call; its answer could not be read) " + reasoning
+    results = _checked_results(parsed, refs, phrases, reasoning)
+    for result in results if fallback else ():
+        result["screening_fallback"] = True
+    return results, actual + extra
+
+
+def _judge_structured(rag, payload, size, visitor, stage, refs):
+    """The structured-output screening call (the default without private norms)."""
     upper_input = len((SYSTEM + payload).encode("utf-8")) + 2048
     # Low reasoning: with none, 15 of 40 ads containing the quoted words were
     # judged not to (L3D replay: recall 0.625 with none, 0.925 with low).
-    max_output = 300 * len(batch) + 200 + REASONING_TOKENS
+    max_output = 300 * size + 200 + REASONING_TOKENS
     estimate = price(rag.settings.generation_model, upper_input, max_output) * Decimal("1.25")
     rid = rag.budget.reserve(estimate, visitor, "generation", rag.settings.generation_model)
     try:
@@ -289,7 +312,51 @@ def _judge(rag, question, batch, first_index, phrases, visitor, stage):
     except Exception as exc:
         rag.budget.uncertain(rid, type(exc).__name__)
         raise
-    parsed = response.output_parsed if response.status == "completed" else None
+    return (response.output_parsed if response.status == "completed" else None), actual
+
+
+# Reasoning written before the answer tag, per ad; kept short to bound output.
+THINK_TOKENS_PER_AD = 160
+
+
+def _judge_tagged(rag, prompt, size, visitor, stage, refs, request):
+    """r1_zero-style call: <think> then <answer>{"decisions": [...]}</answer>.
+
+    Returns (parsed Batch or None, reasoning, cost, fallback). An answer that
+    cannot be parsed falls back to the structured call, so a list never loses
+    a batch to a formatting slip; both calls are paid and counted.
+    """
+    upper_input = len((SYSTEM + prompt).encode("utf-8")) + 2048
+    max_output = (300 + THINK_TOKENS_PER_AD) * size + 200 + REASONING_TOKENS
+    estimate = price(rag.settings.generation_model, upper_input, max_output) * Decimal("1.25")
+    rid = rag.budget.reserve(estimate, visitor, "generation", rag.settings.generation_model)
+    try:
+        response = rag.client.responses.create(
+            model=rag.settings.generation_model,
+            input=[{"role": "system", "content": SYSTEM}, {"role": "user", "content": prompt}],
+            max_output_tokens=max_output, reasoning={"effort": "low"}, store=False,
+        )
+        usage = response.usage
+        if usage is None:
+            raise ValueError("Provider omitted usage")
+        details = usage.input_tokens_details
+        actual = price(rag.settings.generation_model, usage.input_tokens, usage.output_tokens,
+                       getattr(details, "cached_tokens", 0) or 0, getattr(details, "cache_write_tokens", 0) or 0)
+        rag.budget.settle(rid, actual, {**usage.model_dump(), "observatory_request": {
+            "policy": POLICY_VERSION, "stage": stage, "refs": list(refs), **request}})
+    except Exception as exc:
+        rag.budget.uncertain(rid, type(exc).__name__)
+        raise
+    reasoning, answer = split_tagged(getattr(response, "output_text", "") if response.status == "completed" else "")
+    if answer:
+        answer = re.sub(r"^```(?:json)?\s*|\s*```$", "", answer.strip())  # a fenced JSON answer is still an answer
+    try:
+        return Batch.model_validate_json(answer), reasoning, actual, False
+    except Exception:  # noqa: BLE001 - malformed or missing answer tag: use the structured call instead.
+        return None, reasoning, actual, True
+
+
+def _checked_results(parsed, refs, phrases, reasoning=""):
     returned = {}
     for decision in (parsed.decisions if parsed else []):
         returned.setdefault(decision.ref, decision)
@@ -298,9 +365,12 @@ def _judge(rag, question, batch, first_index, phrases, visitor, stage):
         checked = checked_decision(returned.get(ref), numbered, phrases)
         if checked.get("reason") == "quote_not_in_passage":  # kept so a dropped match can be reviewed
             checked["rejected_quote"] = returned[ref].quote[:MAX_QUOTE]
-        results.append({"record_id": first.record_id, "title": first.title, "publisher": first.publisher,
-                        "sponsor": first.sponsor, "published_at": first.published_at, **checked})
-    return results, actual
+        result = {"record_id": first.record_id, "title": first.title, "publisher": first.publisher,
+                  "sponsor": first.sponsor, "published_at": first.published_at, **checked}
+        if reasoning:
+            result["screening_reasoning"] = reasoning[:1200]
+        results.append(result)
+    return results
 
 
 def _reread_batches(groups):
@@ -458,20 +528,27 @@ def _display_order(matched, limit):
     return [*native[:shown_native], *social[:shown_social], *native[shown_native:], *social[shown_social:]]
 
 
-def _both_head(chinese, scopes, by_dataset):
-    """Opening line of a list screened in both collections: what was read and found in each."""
+def _both_head(chinese, scopes, by_dataset, whole=()):
+    """Opening line of a list screened in both collections: what was read and found in each.
+
+    A collection in `whole` was read in full by the triage; the records it did not read have no text.
+    """
     parts = []
     for dataset in ("native", "social"):
         total, examined, found = scopes[dataset], by_dataset[dataset]["examined"], by_dataset[dataset]["matches"]
         if chinese:
             unit = "篇" if dataset == "native" else "条"
             read = (f"全部 {total:,} {unit}{DATASET_NAMES[dataset][1]}" if examined >= total else
+                    f"全部 {examined:,} {unit}有正文的{DATASET_NAMES[dataset][1]}（{total:,} {unit}中另有 "
+                    f"{total - examined:,} {unit}没有可读正文）" if dataset in whole else
                     f"{total:,} {unit}{DATASET_NAMES[dataset][1]}（检索没有找到相关的）" if not examined else
                     f"{total:,} {unit}{DATASET_NAMES[dataset][1]}中最相关的 {examined} {unit}")
             parts.append((read, f"{DATASET_NAMES[dataset][1]} {found} {unit}"))
         else:
             noun = "native ads" if dataset == "native" else "company social posts"
             read = (f"all {total:,} {noun}" if examined >= total else
+                    f"all {examined:,} {noun} with readable text ({total - examined:,} of the {total:,} have none)"
+                    if dataset in whole else
                     f"the {total:,} {noun} (none came up in the search)" if not examined else
                     f"the {examined} most relevant of the {total:,} {noun}")
             kind = ("ad" if found == 1 else "ads") if dataset == "native" else ("post" if found == 1 else "posts")
@@ -481,20 +558,25 @@ def _both_head(chinese, scopes, by_dataset):
     return f"Checked {parts[0][0]} and {parts[1][0]} in your selection: found {parts[0][1]} and {parts[1][1]}."
 
 
-def list_answer(question, results, evidence, *, scope_total, literal=None, scopes=None):
+def list_answer(question, results, evidence, *, scope_total, literal=None, scopes=None, criterion=None, triage=None):
     """Server-written list of screened matches with verbatim, located quotes.
 
     `literal` is the quoted phrase when the list came from an exact text search.
     `scopes` ({"native": n, "social": m}) marks a list screened in both
     collections; each result then carries its "dataset", the opening line
     counts each collection, and the charts split their bars by collection.
+    With `triage` (relevance_triage), only ads routed "pass" are listed; ads
+    routed "review" follow as a separate list for a human check.
     """
     chinese = bool(re.search(r"[一-鿿]", question))
-    matched = [item for item in results if item["decision"] == "matches"]
+    matched = [item for item in results if item["decision"] == "matches" and item.get("route", "pass") == "pass"]
+    review = [item for item in results if item.get("route") == "review"]
     if scopes:
         matched = _display_order(matched, DISPLAY_LIMIT)
     counts = {name: sum(item["decision"] == name for item in results)
               for name in ("matches", "does_not_match", "unclear")}
+    # A match routed to a human check is not counted as listed.
+    counts["matches"] = sum(item["decision"] == "matches" and item.get("route", "pass") == "pass" for item in results)
     examined = len(results)
     by_id = {item.evidence_id: item for item in evidence}
     citations, lines, claims = [], [], []
@@ -521,6 +603,19 @@ def list_answer(question, results, evidence, *, scope_total, literal=None, scope
     hidden = len(matched) - min(len(matched), DISPLAY_LIMIT)
     if hidden:
         lines.append(hidden_line(hidden, chinese, both=bool(scopes)))
+    if review:
+        # Not dropped and not listed: the judge and the screening did not agree clearly enough.
+        lines.append((f"另有 {len(review)} 篇需要人工核对（机器判断不够确定）：" if chinese else
+                      f"{len(review)} more need a human check (the machine checks were not clear enough):"))
+        for item in review[:DISPLAY_LIMIT]:
+            numbers = item.get("triage") or {}
+            share = f"{numbers['meets']:.0%}" if numbers.get("meets") is not None else "–"
+            lines.append(f"- {item.get('title') or item['record_id']}"
+                         + (f": “{item['quote']}”" if item.get("quote") and item["decision"] == "matches" else "")
+                         + (f"（评审判定符合 {share}）" if chinese else f" (judge: meets {share})"))
+        if len(review) > DISPLAY_LIMIT:
+            lines.append(f"……另有 {len(review) - DISPLAY_LIMIT} 篇。" if chinese else
+                         f"…and {len(review) - DISPLAY_LIMIT} more.")
     # Plain wording for readers; the method and its limits stay in
     # structured_result and the trace (user, 2026-10-19).
     m = counts["matches"]
@@ -531,7 +626,9 @@ def list_answer(question, results, evidence, *, scope_total, literal=None, scope
                              "matches": sum(item.get("dataset") == dataset for item in matched)}
                    for dataset in ("native", "social")} if scopes else None)
     if scopes:
-        head = _both_head(chinese, scopes, by_dataset)
+        whole = {dataset for dataset, item in ((triage or {}).get("by_dataset") or {}).items()
+                 if item.get("whole_scope")}
+        head = _both_head(chinese, scopes, by_dataset, whole)
         if literal is not None:
             head += (f"符合指含有“{literal}”（只按字面查找）。" if chinese else
                      f" Matching means containing “{literal}” (exact wording).")
@@ -541,19 +638,31 @@ def list_answer(question, results, evidence, *, scope_total, literal=None, scope
         head = f"{m} of the {scope_total} ads in your selection contain “{literal}” (exact wording)."
     elif chinese:
         head = (f"在所选的 {scope_total} 篇广告中找到 {m} 篇符合（已全部检查）。" if examined >= scope_total else
+                f"在所选的 {scope_total} 篇广告中找到 {m} 篇符合；有正文的 {examined} 篇已全部检查，"
+                f"另有 {scope_total - examined} 篇没有可读正文。" if (triage or {}).get("whole_scope") else
                 f"在所选的 {scope_total} 篇广告中，检查了最相关的 {examined} 篇，找到 {m} 篇符合；"
                 f"其余 {scope_total - examined} 篇未检查。")
     else:
         ads = "matching ad" if m == 1 else "matching ads"
         head = (f"Found {m} {ads} among the {scope_total} in your selection (all checked)."
                 if examined >= scope_total else
+                f"Found {m} {ads} among the {scope_total} in your selection; all {examined} with readable text "
+                f"were checked, the other {scope_total - examined} have no readable text."
+                if (triage or {}).get("whole_scope") else
                 f"Found {m} {ads} among the {examined} most relevant of the {scope_total} in your selection; "
                 f"the other {scope_total - examined} were not checked.")
     trace = {"policy": POLICY_VERSION, "method": "exact_text" if literal is not None else "ai_screening",
+             "question": question,
+             **({"criterion": criterion} if criterion else {}), **({"triage": triage} if triage else {}),
+             "review": len(review),
              "scope_total": scope_total, "examined": scope_total if literal is not None else examined, **counts,
+             # Each decision keeps its quote and, on the tagged path, the model's reasoning, so
+             # why an ad was judged relevant can be read back (API detail=full, answer_runs).
              "decisions": [{key: (value.isoformat() if hasattr(value, "isoformat") else value)
                             for key, value in item.items() if key in (
-                                "record_id", "dataset", "decision", "reason", "evidence_id", "reread_from", "verified_from")} for item in results],
+                                "record_id", "dataset", "title", "decision", "reason", "evidence_id", "reread_from",
+                                "verified_from", "quote", "rejected_quote", "screening_reasoning", "screening_fallback",
+                                "route", "triage")} for item in results],
              "reread": sum("reread_from" in item for item in results),
              "verified_removed": sum("verified_from" in item for item in results),
              **({"by_dataset": by_dataset} if by_dataset else {})}
@@ -568,7 +677,8 @@ def list_answer(question, results, evidence, *, scope_total, literal=None, scope
         citations=citations, cited_claims=claims,
         evidence=list({item.evidence_id: item for item in [*cited_evidence, *evidence]}.values()),
         structured_result={"kind": "exact_text_list" if literal is not None else "ai_screened_list",
-                           **{k: trace[k] for k in ("policy", "method", "scope_total", "examined", "matches")},
+                           **{k: trace[k] for k in ("policy", "method", "scope_total", "examined", "matches", "review")},
+                           **({"criterion": criterion} if criterion else {}),
                            **({"by_dataset": by_dataset} if by_dataset else {}),
                            "meaning": ("Literal wording found in indexed text; meaning is not judged."
                                        if literal is not None else

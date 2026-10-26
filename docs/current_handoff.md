@@ -11,7 +11,7 @@ The uploaded project description, client meeting and client email remain the req
 
 The company-post collection preserves all 37,082 source observations and counts one post per platform and canonical original URL. All 36,182 posts are now searchable, with zero paused. Each observation is indexed independently; quotations retain its source ID, source version, body hash and exact character range. The active `sentence600-social-observations-v1` profile contains **37,708 passages**: 37,086 social and the preserved 622 native passages. An independent read-only audit verified coverage of all 6,916,098 non-whitespace saved-source characters, with zero omitted.
 
-The earlier frozen-v2 package and its 32 pause decisions remain preserved: eight body-conflict groups, eleven quality cases and thirteen strict sentence-source failures. A separate source-retrieval policy created 32 new versions without changing original bodies, source observations, issues or historical labels. All 37,037 earlier versions, 37,782 annotations and 1,089 cached embedding rows remain unchanged, as do usage, answer and generation histories. Original source differences are unresolved; this saved-text coverage does not establish complete vector coverage, media recovery or semantic accuracy. See [the full-post retrieval record](all_social_posts_retrieval.zh-CN.md).
+The earlier frozen-v2 package and its 32 pause decisions remain preserved: eight body-conflict groups, eleven quality cases and thirteen strict sentence-source failures. A separate source-retrieval policy created 32 new versions without changing original bodies, source observations, issues or historical labels. All 37,037 earlier versions, 37,782 annotations and 1,089 cached embedding rows remain unchanged, as do usage, answer and generation histories. Original source differences are unresolved; this saved-text coverage does not establish complete vector coverage, media recovery or semantic accuracy. See [the full-post retrieval record](data/all_social_posts_retrieval.zh-CN.md).
 
 The earlier local AFPM account check returned 745 posts and 743 searchable bodies. Its downloaded CSV contained exactly the same 745 unique record IDs; one post detail and its original/archive references were checked. Those receipts retain their earlier index scope. All posts are now eligible under the source-observation profile; the earlier AFPM check establishes its selection's members, not independent usability or full-corpus semantic accuracy.
 
@@ -19,7 +19,7 @@ The earlier local AFPM account check returned 745 posts and 743 searchable bodie
 
 The Data callback now skips a collection that is not visible on the Data page. Social paging/sorting reuses the existing aggregate charts only when the server-recorded selection, collection version and historical source-state fingerprint still agree. Current page reads are checked again before returning. Changed or missing guards recompute the selection and return to the first page; no browser store alone authorizes reuse.
 
-The [loading report](data_loading_20261006.md) records one local callback run per case under the AFPM account selection:
+The [loading report](data/data_loading_20261006.md) records one local callback run per case under the AFPM account selection:
 
 | Callback | Before, seconds / SQL statements | After, seconds / SQL statements |
 | --- | ---: | ---: |
@@ -40,7 +40,7 @@ Three paired warm-database local callback runs per scope measured median seconds
 of AFPM 18.016→12.972, Shell 20.426→13.712 and all company posts 51.898→26.367;
 SQL executions fell from 38 to 30. All nine paired outputs and eight extra ranges
 match the frozen baseline in full, including relationships, order, members and
-source state. The [loading report](data_loading_20261006.md) contains ranges,
+source state. The [loading report](data/data_loading_20261006.md) contains ranges,
 failure attribution and the exact normalization/method limits.
 
 The parent regression passed 218 selected offline checks and 112 PostgreSQL-enabled
@@ -64,13 +64,13 @@ and installation check are pending under P35; older archives are retained.
 
 The standard MCP catalog remains at 10 read-only tools and the web model catalog at 9. The web planner selects `search_records`; the service internally retrieves body, image and video evidence for each requested target. Direct `get_media_evidence` remains MCP-only. A joint reference catalog restores the actual selected source type and quotation. The UI labels derived image descriptions, OCR text and caption/transcript excerpts separately from original-body quotations, retaining supplied pages, regions and video segments. Summary citation numbers are shared across those types.
 
-Source and fixed-bundle checks run before and after generation; a changed, duplicate or mismatched evidence identity cannot be masked by an external answer. Coverage counts only the source records actually cited for each comparison target. It does not establish semantic support, recognition accuracy or complete matching-ad coverage. The [media answer contract](media_answers.md) explains the inputs, types and failure states. Focused checks use controlled fixtures and do not provide real-model or real-media performance scores.
+Source and fixed-bundle checks run before and after generation; a changed, duplicate or mismatched evidence identity cannot be masked by an external answer. Coverage counts only the source records actually cited for each comparison target. It does not establish semantic support, recognition accuracy or complete matching-ad coverage. The [media answer contract](architecture/media_answers.md) explains the inputs, types and failure states. Focused checks use controlled fixtures and do not provide real-model or real-media performance scores.
 
 An earlier temporary read-only check used six saved-page text assets and 23 retained units, with current record, version, source-range and filter checks. Saved page text is not a caption. The three production media settings remain unconfigured; actual image recognition, caption recovery and video transcription remain at zero. Missing or unmatched media is reported separately from a finding about the original advertisement. The reader makes no recognition or model calls. Material review, a separately authorized frozen pilot and independent evaluation remain pending.
 
 The temporary [local media-answer preview](http://127.0.0.1:8071/) replays three synthetic states: both targets cited, one target not cited and a changed-source refusal. Browser review checked all three states and saved screenshots. The local application restart retained its prior health, data/index versions and counts. The selected regression passed 496 engineering checks across 22 test files, with zero failures. The [final local private receipt](../.runtime/media_web_answers_20261006/verification.json) holds the exact scope and source fingerprints. These are presentation and engineering checks, not recognition, semantic performance or client acceptance; no real media was activated.
 
-The 628-file source candidate is an earlier immutable freeze. It does not contain this subsequent typed-media web answer change; its installation results are not reused for the new source. The new [media-answer candidate](media_source_candidate_20261006.md) captures 634 payload files. Its extracted wheel was installed outside the checkout; 75 module imports, 13 maintenance help entries and 613 selected checks across 29 files passed, with three Windows symlink-test skips. Tested runtime/source bytes match; final Markdown and archive comparison are separately recorded in the candidate's private receipt. This same-machine cached installation does not establish database restoration, cold-machine setup or independent client handoff.
+The 628-file source candidate is an earlier immutable freeze. It does not contain this subsequent typed-media web answer change; its installation results are not reused for the new source. The new [media-answer candidate](data/media_source_candidate_20261006.md) captures 634 payload files. Its extracted wheel was installed outside the checkout; 75 module imports, 13 maintenance help entries and 613 selected checks across 29 files passed, with three Windows symlink-test skips. Tested runtime/source bytes match; final Markdown and archive comparison are separately recorded in the candidate's private receipt. This same-machine cached installation does not establish database restoration, cold-machine setup or independent client handoff.
 
 The local [media-material form](http://127.0.0.1:8070/media) lists 26 concrete sources and accepts screenshots, descriptions and optional times in a separate pending-review journal. Material submission does not activate retrieval or execute a paid request. The [24-question reference draft](../.runtime/customer_holdout/references/24_answer.md) has 33 located supporting, exclusion and boundary passages; it is development material, not a complete or independently approved answer set. All 6,312 full-corpus judgments remain pending, and the independent test count is zero.
 
@@ -85,7 +85,7 @@ Private evidence:
 - `.runtime/decision_followup_20261006/decisions/media_mcp_verification.json`: actual Service/ToolCatalog and official in-memory MCP transport; 10 MCP tools, 9 web tools and unchanged database observations.
 - `.runtime/decision_followup_20261006/media_reader/live_receipt.json`: all 23 retained text units from six current sources, with explicit missing/no-match states.
 
-No paid model calls, pushes, deployments or client approvals occurred in this update. The old three-article paid plan must be revised for the user's media decisions and separately authorized; it is not an approved current run. Latest operating status is in [the execution record](decision_followup.zh-CN.md), [goal](../goal.md), [plan](../plan.md) and [work](../work.md). Older packages and receipts below retain their captured scope and do not validate subsequently added modules.
+No paid model calls, pushes, deployments or client approvals occurred in this update. The old three-article paid plan must be revised for the user's media decisions and separately authorized; it is not an approved current run. Latest operating status is in [the execution record](evaluation/decision_followup.zh-CN.md), [goal](../goal.md), [plan](../plan.md) and [work](../work.md). Older packages and receipts below retain their captured scope and do not validate subsequently added modules.
 
 ## Earlier local source candidate, before the reviewed decisions: 6 October 2026
 
@@ -128,7 +128,7 @@ The final ZIP is `ciss-observatory-working-tree-p20-20261006-02.zip`, with a che
 sidecar and final verification receipt. The older candidate and its
 receipts below retain their captured version and remain unchanged.
 
-The [current source candidate](current_source_candidate_20261006.md) separates
+The [current source candidate](data/current_source_candidate_20261006.md) separates
 this unpublished working tree from the earlier 0.4.10 release. The handoff
 builder now has an explicit `--include-untracked` option for permitted nonignored
 files, retaining private-file, credential and source-change checks. Its default
@@ -146,8 +146,8 @@ event-loop socketpair guard was corrected, then the 16-case MCP file passed
 (nine overlaps). These are same-machine engineering checks, with no database or
 model calls, and do not establish independent handoff or client acceptance.
 
-The [user guide](guide.md) now explains reviewed-content coverage, exact evidence
-and page JSON exports. The [operations guide](operations.md) documents the
+The [user guide](operations/guide.md) now explains reviewed-content coverage, exact evidence
+and page JSON exports. The [operations guide](operations/operations.md) documents the
 private evaluation and reviewed-content artifacts, their pins and unavailable
 states. No real report or content publication has been enabled.
 Client requirements, source data, private evidence and some historical links
@@ -163,18 +163,18 @@ client requirements folder. [plan.md](../plan.md) records the next tasks and
 completion checks; [work.md](../work.md) records actual results. These local
 changes have not been published or accepted by the client.
 
-The [24-question review packet](content_review_packet.md) includes all 263
-countable native records. The [offline assessment workflow](content_assessment.md)
+The [24-question review packet](data/content_review_packet.md) includes all 263
+countable native records. The [offline assessment workflow](data/content_assessment.md)
 has prepared 254 full-text requests; nine records have unavailable or placeholder
 text. All 6,312 question–record judgments remain unknown. The
-[provider and bounded runner](content_provider.md) are implemented. A private
+[provider and bounded runner](data/content_provider.md) are implemented. A private
 three-article plan allows up to 6,000 output tokens per article, reserves
 $0.095944500 and has a $0.10 run limit. It has not been authorized or executed.
 The later D01 decision requires this plan to be revised before separate authorization.
 Engineering checks do not establish classification accuracy or a complete
 matching-ad list. This background workflow is separate from online RAG.
 
-The earlier [two-text update](native_saved_text_update_20261006.md) adopted source
+The earlier [two-text update](data/native_saved_text_update_20261006.md) adopted source
 IDs 12 and 16 after root and independent AI source/text review. Their full supplied
 text, attribution and disclosure are retained as partial saved-page captures.
 Two versions and five lexical chunks were added; exact repeat added zero versions.
@@ -193,7 +193,7 @@ their settings, but the plan has a new full-scope binding and remains unauthoriz
 and unexecuted. Previous packets and application-check receipts retain their
 captured versions. No new vectors, classification or remote publication occurred.
 
-The newer [nineteen-text update](native_truncated_text_update_20261006.md) read
+The newer [nineteen-text update](data/native_truncated_text_update_20261006.md) read
 twenty remaining candidates, adopted nineteen and rejected replacing source 79
 because its candidate omits current disclosure and a footnote. Full TXT remains,
 with reviewed ranges excluding identified defects and nonbody text. The guarded
@@ -213,13 +213,13 @@ the plan has a new full-scope binding, remains unauthorized and has not run.
 Earlier packets and their application-check receipts retain their old source
 versions; no additional semantic or customer acceptance is established.
 
-The [current-source refresh](content_source_refresh_20261006.md) binds the six
+The [current-source refresh](data/content_source_refresh_20261006.md) binds the six
 new TXT versions and retains all 24 question definitions. Its 1,844 statistics
 application checks passed against separately observed matching metadata; they
 do not evaluate language-model interpretation or content semantics. The former
 248-request/15-unavailable packet remains frozen with its original versions.
 
-The [reviewed membership reader](content_publication.md) is now implemented
+The [reviewed membership reader](data/content_publication.md) is now implemented
 locally. It uses an immutable private artifact and explicit review assertions,
 without adding a service, package or database table. Data Overview, query
 answers and MCP share `get_content_matches` for the original 24 questions.
@@ -240,19 +240,19 @@ method executed 18 SELECT statements across six statement shapes. The existing
 prior receipts remain unchanged. Evidence:
 `.runtime/content_publication_20261006/sql_check/verification.json`.
 
-The [original CLAIMS input review](claims_input_review.md) now prioritizes the
+The [original CLAIMS input review](data/claims_input_review.md) now prioritizes the
 supplied ZIP, TXT files and workbook identities before external source search.
 Its 50 selected inputs contain 810 retained paragraphs with located source
 positions. The 37 legacy classification candidates remain on hold. Source
 identity, text adoption and semantic classification decisions are separate.
-The [body comparison](native_body_review.md) and
-[reviewed update workflow](native_body_update.md) preserve prior versions.
+The [body comparison](data/native_body_review.md) and
+[reviewed update workflow](data/native_body_update.md) preserve prior versions.
 Six supplied saved-page TXT files were adopted locally after recorded AI
 engineering review, with restricted searchable ranges and partial-source notes.
 The original 50-proposal pending template retains its older scope; other source
 and classification decisions remain pending. The new text inherits no labels.
 
-The [video plan](video_recovery_plan.zh-CN.md) follows the user's lower-effort
+The [video plan](data/video_recovery_plan.zh-CN.md) follows the user's lower-effort
 preference only for video transcription. Of 14 countable placeholders, six
 had saved-page text candidates, four have empty TXT files, two have directory
 leads and two have image leads. The six saved texts are now locally adopted,
@@ -270,9 +270,9 @@ Before the later reviewed company-post import, the supplied Twitter export was p
 full import and repeat import in an owned isolated database, with every source,
 body, annotation and version reconciled; repeat import added zero versions.
 All admission flags in that isolated test remained False and its database was removed. That receipt does not describe the later 36,182-post application import above. The existing canonical JSONL uses `import-records`; client approval of paid identity and dual-collection acceptance remain pending.
-See [social input handling](social_archive_input.md).
+See [social input handling](data/social_archive_input.md).
 
-The later local [historical social-label detail view](social_historical_annotations.md)
+The later local [historical social-label detail view](data/social_historical_annotations.md)
 adds 13 source True/False/Unknown states and bounded old generated explanations
 to admitted social record details and the existing MCP source tool. It retains
 current-body binding, trusted filters and admission controls; social details do
@@ -291,7 +291,7 @@ before the last fixes; it is not a frozen final-source result. Counts overlap.
 Earlier account receipts and the frozen source candidate retain their own
 captured versions and do not prove this later change.
 
-The later local [source-account exploration change](social_account_exploration.md)
+The later local [source-account exploration change](data/social_account_exploration.md)
 adds account filters, full account statistics and account-bar record drilldown,
 with explicit company-affiliation wording and an admitted-record availability
 check. The frozen local regression passed 594 offline checks, including four
@@ -300,7 +300,7 @@ checks passed separately. These are engineering checks, not real social or
 customer evaluation. Actual company-post admission was later verified as recorded above; deployment and user-task evaluation remain pending. The earlier frozen source ZIP and wheel do not
 contain this later change; their receipts retain their original scope.
 
-The local [MCP source-detail adapter](mcp_research_tools.md) now supports admitted
+The local [MCP source-detail adapter](architecture/mcp_research_tools.md) now supports admitted
 native and social records under the same current filters. It verifies the
 stored version, body hash and permitted passage positions; social sources are
 read directly without inventing native sponsorship edges. Its offline
@@ -312,15 +312,15 @@ the exact schema was removed and public catalog metadata remained equal. This
 does not compare shared table data. Two separate offline configuration checks
 also passed; these make no database connections. These earlier receipts did not verify real social records or a deployed MCP process. Later real company-post reads and official in-memory MCP checks are recorded above; deployed MCP and model-answer quality remain unverified.
 
-The [current system design](architecture.md) now separates input processing,
+The [current system design](architecture/architecture.md) now separates input processing,
 query-time tools/RAG and offline classification/review/publication. Its original
-0.2.3 bytes remain in [the historical copy](architecture_0_2_3.md). The
-[data dictionary](data_dictionary.md) maps each supplied source to the canonical
+0.2.3 bytes remain in [the historical copy](architecture/architecture_0_2_3.md). The
+[data dictionary](data/data_dictionary.md) maps each supplied source to the canonical
 fields, storage and public components, including Twitter identities and UTC
 publication dates. These documents describe local code, not a newly published
 service or client-approved counting policy.
 
-The [current demonstration script](../deliverables/project_demo_20261006.md)
+The [current demonstration script](../deliverables/demo_scripts/project_demo_20261006.md)
 follows all six research questions, shows available native relationships and
 Evaluation definitions, and records the received-but-unadmitted Twitter input at that captured stage. It predates the later company-post import and must be refreshed for a current demonstration.
 Its ordinary walkthrough makes no model calls. This is a progress review; a
@@ -331,8 +331,8 @@ remain pending. The suggested duration is a team estimate, not a client date.
 
 **Tools → Evaluation** maps all six customer questions to 16 measures with units,
 numerators, denominators, review methods and missing-result states. The
-[methodology](evaluation_methodology.md), [independent statistics preparation](statistics_reference.md)
-and [report contract](customer_metric_report.md) describe the process. Optional
+[methodology](evaluation/evaluation_methodology.md), [independent statistics preparation](data/statistics_reference.md)
+and [report contract](evaluation/customer_metric_report.md) describe the process. Optional
 server-selected reports require file and frozen-plan fingerprints, expose
 aggregates only, and remain labeled for their frozen run. No real reviewed
 report or public quality score is configured. This local work is not published.
@@ -367,55 +367,55 @@ baseline remain separate. The later company-post application import is recorded 
 
 The following was the state on 5 October, before the later local import. It does not describe current local collection availability.
 
-The supplied project description (3) retains the original scope and adds meeting templates and the 24 client RAG questions already recorded in [the validation review](rag_validation_requirements.md). The supplied social archive is now available: all 37,082 Twitter source rows have been prepared and validated offline. These posts are not imported or admitted to live advertising counts or retrieval. See [source mapping and remaining decisions](social_archive_input.md), [current work](../work.md) and [next tasks](../plan.md).
+The supplied project description (3) retains the original scope and adds meeting templates and the 24 client RAG questions already recorded in [the validation review](evaluation/rag_validation_requirements.md). The supplied social archive is now available: all 37,082 Twitter source rows have been prepared and validated offline. These posts are not imported or admitted to live advertising counts or retrieval. See [source mapping and remaining decisions](data/social_archive_input.md), [current work](../work.md) and [next tasks](../plan.md).
 
 Local prompt changes separate task meaning, tools, evidence and output. A server guard blocks explicit content predicates misrouted to metadata statistics; the answer UI states that retrieved ads are candidates rather than a complete list. These local changes have not been published and do not establish semantic answer accuracy. Earlier release receipts below retain their recorded versions and data snapshots.
 
-Published 0.4.10: [CI, installed artifact, live version and selected attachment checks](../reports/citation_v0_4_10_publication_20261001.json). The two repositories matched for the code and tests recorded in that 1 October publication receipt. Later local changes are not covered by it. Those engineering checks do not complete independent or dual-dataset acceptance.
+Published 0.4.10: [CI, installed artifact, live version and selected attachment checks](../reports/releases/citation_v0_4_10_publication_20261001.json). The two repositories matched for the code and tests recorded in that 1 October publication receipt. Later local changes are not covered by it. Those engineering checks do not complete independent or dual-dataset acceptance.
 
-The **0.4.10** display correction shows every cited quotation with its original answer number and separates citation numbers from retrieval ranks. The [current native follow-up](../reports/NATIVE_DEMO_FOLLOWUP_20261001.en.md) records matrix, historical-label and article-mode checks, two actual paid development answers, the saved-answer display check and the unresolved Edge PDF download. Independent and dual-dataset acceptance remain pending.
+The **0.4.10** display correction shows every cited quotation with its original answer number and separates citation numbers from retrieval ranks. The [current native follow-up](../reports/data_audits/NATIVE_DEMO_FOLLOWUP_20261001.en.md) records matrix, historical-label and article-mode checks, two actual paid development answers, the saved-answer display check and the unresolved Edge PDF download. Independent and dual-dataset acceptance remain pending.
 
-The [export and runtime handoff report](../reports/NATIVE_EXPORT_AND_RUNTIME_HANDOFF_20261001.en.md) records four actual hosted CSV downloads: all 160 cross-tab cells match the 263-record selection, and the combined ExxonMobil, Washington Post and 2022 selection matches three records and its matrix drilldown. A fresh installed-wheel runtime outside the checkout combined the existing verified restored database with a copied selected PDF bundle. Company relationships, free keyword search, the selected preview and HTTP assets were checked before and after an owned-process restart; all 21 restored tables stayed unchanged. This remains a same-implementer, same-machine rehearsal. CSV success does not resolve the blocked browser PDF download.
+The [export and runtime handoff report](../reports/releases/NATIVE_EXPORT_AND_RUNTIME_HANDOFF_20261001.en.md) records four actual hosted CSV downloads: all 160 cross-tab cells match the 263-record selection, and the combined ExxonMobil, Washington Post and 2022 selection matches three records and its matrix drilldown. A fresh installed-wheel runtime outside the checkout combined the existing verified restored database with a copied selected PDF bundle. Company relationships, free keyword search, the selected preview and HTTP assets were checked before and after an owned-process restart; all 21 restored tables stayed unchanged. This remains a same-implementer, same-machine rehearsal. CSV success does not resolve the blocked browser PDF download.
 
-The [current native review preparation](../reports/NATIVE_CLIENT_REVIEW_PREPARATION_20261001.en.md) provides complete 19/15/18/3-record lists, the actual saved CCS/biogas answers, four original quotations and six blank human-review rows in a private packet. All examples were previously used; no review, approval, independent freeze or client message has occurred. The original frozen-review intake remains blank.
+The [current native review preparation](../reports/data_audits/NATIVE_CLIENT_REVIEW_PREPARATION_20261001.en.md) provides complete 19/15/18/3-record lists, the actual saved CCS/biogas answers, four original quotations and six blank human-review rows in a private packet. All examples were previously used; no review, approval, independent freeze or client message has occurred. The original frozen-review intake remains blank.
 
-The [complete native source import rehearsal](../reports/NATIVE_FULL_IMPORT_20261001.en.md) used the installed 0.4.10 CLI and all fixed private inputs in a new dedicated database. The first import created 275 versions; the repeat created none and retained 275 unchanged records. Counts matched 275/263/226; the main database, existing test database and private configuration stayed unchanged. The fresh database contains the default `legacy600-v1` profile, 558 passages and zero embeddings. This verifies source import and idempotency, not reproduction of the production 556-passage profile, vectors or saved answers.
+The [complete native source import rehearsal](../reports/data_audits/NATIVE_FULL_IMPORT_20261001.en.md) used the installed 0.4.10 CLI and all fixed private inputs in a new dedicated database. The first import created 275 versions; the repeat created none and retained 275 unchanged records. Counts matched 275/263/226; the main database, existing test database and private configuration stayed unchanged. The fresh database contains the default `legacy600-v1` profile, 558 passages and zero embeddings. This verifies source import and idempotency, not reproduction of the production 556-passage profile, vectors or saved answers.
 
-The optional installed-wheel verifier now rejects same-name public relations before creating its test schema and checks table resolution after migration. The [maintenance check](../reports/release_database_guard_20261001.json) records 37 regression tests and a read-only refusal of the existing test database. Use the updated verifier; old source archives retain their original helper. No complete successful synthetic database run after this correction is claimed.
+The optional installed-wheel verifier now rejects same-name public relations before creating its test schema and checks table resolution after migration. The [maintenance check](../reports/releases/release_database_guard_20261001.json) records 37 regression tests and a read-only refusal of the existing test database. Use the updated verifier; old source archives retain their original helper. No complete successful synthetic database run after this correction is claimed.
 
-The [current native demonstration](../deliverables/native_demo_v0_4_9.en.md) now accompanies a [private input handoff guide](native_source_handoff.md). The [1 October check](../reports/NATIVE_HANDOFF_20261001.en.md) records an offline, installed-package rehearsal of all fixed native inputs and selected current graph/date/source interactions. The [publication receipt](../reports/native_handoff_publication_20261001.json) binds both successful CI runs (1,926 passed), source archives and the deployed follow-up. This is a same-implementer rehearsal; independent reproduction and final dual-dataset/client acceptance remain pending.
+The [current native demonstration](../deliverables/demo_scripts/native_demo_v0_4_9.en.md) now accompanies a [private input handoff guide](data/native_source_handoff.md). The [1 October check](../reports/releases/NATIVE_HANDOFF_20261001.en.md) records an offline, installed-package rehearsal of all fixed native inputs and selected current graph/date/source interactions. The [publication receipt](../reports/releases/native_handoff_publication_20261001.json) binds both successful CI runs (1,926 passed), source archives and the deployed follow-up. This is a same-implementer rehearsal; independent reproduction and final dual-dataset/client acceptance remain pending.
 
-The **0.4.9** query update adds record pagination inside statistics answers. It keeps the full submitted selection, browses the percentage numerator and makes no model calls while paging. Both question routes and every page check source identity; stale or unverified results require resubmission. The [query browsing report](../reports/QUERY_V0_4_9_20261001.en.md) and [engineering receipt](../reports/query_v0_4_9_engineering_20261001.json) record the checks. The [publication receipt](../reports/query_v0_4_9_publication_20261001.json) binds successful CI, hosted pagination, selected assets and source archives. A source-noted duplicate candidate remains pending a counting-unit decision; no data or admission rules changed.
+The **0.4.9** query update adds record pagination inside statistics answers. It keeps the full submitted selection, browses the percentage numerator and makes no model calls while paging. Both question routes and every page check source identity; stale or unverified results require resubmission. The [query browsing report](../reports/releases/QUERY_V0_4_9_20261001.en.md) and [engineering receipt](../reports/releases/query_v0_4_9_engineering_20261001.json) record the checks. The [publication receipt](../reports/releases/query_v0_4_9_publication_20261001.json) binds successful CI, hosted pagination, selected assets and source archives. A source-noted duplicate candidate remains pending a counting-unit decision; no data or admission rules changed.
 
-The **0.4.8** query update adds database percentages with an explicit current-selection denominator, shared publisher aliases, sanitized limit messages, and source-bound title handling in the answer language check. Its [query verification report](../reports/QUERY_V0_4_8_20261001.en.md) separates development regression checks from independent semantic and client acceptance. The [publication receipt](../reports/query_v0_4_8_publication_20261001.json) binds both successful CI runs, production health, selected attachment checks and verified source archives. Earlier recovery and source-review receipts below retain their original versions.
+The **0.4.8** query update adds database percentages with an explicit current-selection denominator, shared publisher aliases, sanitized limit messages, and source-bound title handling in the answer language check. Its [query verification report](../reports/releases/QUERY_V0_4_8_20261001.en.md) separates development regression checks from independent semantic and client acceptance. The [publication receipt](../reports/releases/query_v0_4_8_publication_20261001.json) binds both successful CI runs, production health, selected attachment checks and verified source archives. Earlier recovery and source-review receipts below retain their original versions.
 
-The [selected PDF-265 snapshot and preview are now hosted](../reports/RECORD_ASSETS_HOSTED_20260930.en.md). The [attachment guide](record_assets.md) includes a repeatable HTTP checker and an installed-package command for validating mounted files; production images do not contain the checkout's scripts.
+The [selected PDF-265 snapshot and preview are now hosted](../reports/releases/RECORD_ASSETS_HOSTED_20260930.en.md). The [attachment guide](architecture/record_assets.md) includes a repeatable HTTP checker and an installed-package command for validating mounted files; production images do not contain the checkout's scripts.
 
-Updated 1 October 2026, following the UTC-dated query and Railway recovery receipts. The previous **0.4.7** maintenance release added offline source review packets and passed installed-wheel verification. Both repositories' CI and local/production health checks are recorded in the [publication receipt](../reports/source_review_v0_4_7_publication_20260930.json); source data and retrieval index identities remain unchanged from 0.4.6. Both [source archives](../reports/source_handoff_v0_4_7_20260930.json) have verified file hashes and exclude private materials. Full collection-graph interaction checks were performed on **0.4.2**; 0.4.6 adds tested assignment-specific evidence reads. The [CLAIMS source audit](claims_source_audit.md) is a maintenance command; it does not publish labels.
+Updated 1 October 2026, following the UTC-dated query and Railway recovery receipts. The previous **0.4.7** maintenance release added offline source review packets and passed installed-wheel verification. Both repositories' CI and local/production health checks are recorded in the [publication receipt](../reports/releases/source_review_v0_4_7_publication_20260930.json); source data and retrieval index identities remain unchanged from 0.4.6. Both [source archives](../reports/releases/source_handoff_v0_4_7_20260930.json) have verified file hashes and exclude private materials. Full collection-graph interaction checks were performed on **0.4.2**; 0.4.6 adds tested assignment-specific evidence reads. The [CLAIMS source audit](data/claims_source_audit.md) is a maintenance command; it does not publish labels.
 
-The [private source review packet](claims_source_discovery.md#create-a-private-source-review-packet) preserves an original paragraph, saved lookup bytes and optional captured text, with exact or whitespace-only excerpt locations. Every source decision starts pending. The [maintenance receipt](../reports/claims_source_review_v0_4_7_20260930.json) records 1,650 installed-wheel offline tests, including 61 packet tests, and a passed package inventory check. One case was skipped and 87 database/live cases were excluded. The actual packet contains five existing candidate URLs, zero captured pages and no new paid calls. It does not establish the original article URL or publish classifications.
+The [private source review packet](data/claims_source_discovery.md#create-a-private-source-review-packet) preserves an original paragraph, saved lookup bytes and optional captured text, with exact or whitespace-only excerpt locations. Every source decision starts pending. The [maintenance receipt](../reports/data_audits/claims_source_review_v0_4_7_20260930.json) records 1,650 installed-wheel offline tests, including 61 packet tests, and a passed package inventory check. One case was skipped and 87 database/live cases were excluded. The actual packet contains five existing candidate URLs, zero captured pages and no new paid calls. It does not establish the original article URL or publish classifications.
 
-The subsequent [0.4.7 local restore](../reports/DATABASE_RESTORE_V0_4_7_20260930.en.md) verifies all 21 current tables, migration checksums and saved source locations. Six CLAIMS2 tables remain empty. A [separate archive comparison](../reports/claims_legacy_source_candidate_20260930.json) identifies a CNBC/SunPower source candidate for legacy input 2, supported by the original CSV and PDF-223. Explicit punctuation differences prevent an exact match; the identity decision remains pending. Neither check calls a model or publishes classifications.
+The subsequent [0.4.7 local restore](../reports/releases/DATABASE_RESTORE_V0_4_7_20260930.en.md) verifies all 21 current tables, migration checksums and saved source locations. Six CLAIMS2 tables remain empty. A [separate archive comparison](../reports/data_audits/claims_legacy_source_candidate_20260930.json) identifies a CNBC/SunPower source candidate for legacy input 2, supported by the original CSV and PDF-223. Explicit punctuation differences prevent an exact match; the identity decision remains pending. Neither check calls a model or publishes classifications.
 
-The separate [Railway-origin recovery](../reports/RAILWAY_DATABASE_RECOVERY_20261001.en.md) restores a full cloud snapshot to a fresh database on the same PostgreSQL 18.6 service. Its [receipt](../reports/railway_database_recovery_20261001.json) records 13 passed checks and a checksum-verified private backup download. Local and cloud application connections remain unchanged. This is logical recovery within the same managed cluster; independent-machine recovery, global role/password provisioning and complete source-archive and attachment recovery remain separate tasks. The later runtime rehearsal covers copying and running the selected PDF-265 bundle only.
+The separate [Railway-origin recovery](../reports/releases/RAILWAY_DATABASE_RECOVERY_20261001.en.md) restores a full cloud snapshot to a fresh database on the same PostgreSQL 18.6 service. Its [receipt](../reports/releases/railway_database_recovery_20261001.json) records 13 passed checks and a checksum-verified private backup download. Local and cloud application connections remain unchanged. This is logical recovery within the same managed cluster; independent-machine recovery, global role/password provisioning and complete source-archive and attachment recovery remain separate tasks. The later runtime rehearsal covers copying and running the selected PDF-265 bundle only.
 
-The **0.4.5** maintenance update adds a [reviewed CLAIMS2 importer](claims_result_import.md),
-[frozen evaluation inputs](frozen_evaluation.md), and a corrected source handoff archive builder.
+The **0.4.5** maintenance update adds a [reviewed CLAIMS2 importer](data/claims_result_import.md),
+[frozen evaluation inputs](evaluation/frozen_evaluation.md), and a corrected source handoff archive builder.
 CLAIMS2 evidence and review revisions use independent tables and a separate `claims_version`;
 article versions, retrieval profiles and historical twelve-label annotations are unchanged.
 The 37 located candidates remain held in a private pending review file. No real labels,
 customer approvals, frozen acceptance run or model calls were added by this update.
 
-The **0.4.6** implementation adds [read-only CLAIMS2 views](claims_read_views.md)
+The **0.4.6** implementation adds [read-only CLAIMS2 views](data/claims_read_views.md)
 in Overview, article detail, Query and the article-provenance graph. Each selected
-assignment keeps its own taxonomy and source evidence. [Legacy URL discovery](claims_source_discovery.md)
+assignment keeps its own taxonomy and source evidence. [Legacy URL discovery](data/claims_source_discovery.md)
 checks exact local text first and can make one paid web search through an explicitly
 enabled maintenance MCP tool. Candidate URLs require review and do not update
-articles or classifications. The [engineering receipt](../reports/claims_read_engineering_v0_4_6_20260930.json)
+articles or classifications. The [engineering receipt](../reports/data_audits/claims_read_engineering_v0_4_6_20260930.json)
 records 1,589 offline and 33 isolated database tests. One paid source-search sample
 cost $0.0134298 and did not establish its original article URL. Both repositories'
 CI passed; the hosted source collection and retrieval index remain unchanged.
-The [source archives](../reports/source_handoff_v0_4_6_20260930.json) bind the tested application commits.
+The [source archives](../reports/releases/source_handoff_v0_4_6_20260930.json) bind the tested application commits.
 
 [Live dashboard](https://ciss-advertising-observatory-production.up.railway.app/data) · [Questions](https://ciss-advertising-observatory-production.up.railway.app/query) · [Project page](https://yaobc77-ai.github.io/ciss-advertising-observatory-549/) · [Repository](https://github.com/yaobc77-ai/ciss-advertising-observatory-549)
 
@@ -457,7 +457,7 @@ The database stores records, immutable text versions, annotations, passages, ret
 Migration 3 adds six CLAIMS2 tables for taxonomies, runs, import manifests, immutable
 evidence assignments, review revisions and retractions. Applying it creates storage;
 it does not approve or import classifications. The importer is a maintenance CLI.
-The [CLAIMS2 website and MCP reads](claims_read_views.md) consume only published current-source assignments. The optional [legacy source lookup](claims_source_discovery.md) is a separate maintenance workflow. Its MCP tool is hidden by default; `OBS_CLAIMS_SOURCE_SEARCH_ENABLED=true` exposes it in that process. A local hit makes no model call; external search uses the shared API budget and changes usage accounting only.
+The [CLAIMS2 website and MCP reads](data/claims_read_views.md) consume only published current-source assignments. The optional [legacy source lookup](data/claims_source_discovery.md) is a separate maintenance workflow. Its MCP tool is hidden by default; `OBS_CLAIMS_SOURCE_SEARCH_ENABLED=true` exposes it in that process. A local hit makes no model call; external search uses the shared API budget and changes usage accounting only.
 
 `claims-source-review-packet` needs no API key, database connection or application settings. Open its private `review.html` to inspect candidate URLs and any supplied excerpt locations. The packet's pending `review.json` is separate from the result importer's review format; an externally confirmed source must enter the corpus review process before a new `claims-audit`.
 
@@ -525,13 +525,13 @@ Before treating a restore as accepted, compare it with the backup's fixed source
 5. Actual keyword and vector retrieval on the restored copy, using stored vectors without requesting new embeddings.
 6. The main database and its connection settings remain unchanged.
 
-The [current 0.4.7 complete local restore receipt](../reports/database_restore_v0_4_7_complete_20260930.json) passed all seven comparisons. Its fixed snapshot and restored copy contain 21 tables, 828 text versions, 2,071 stored passages, 1,051 embeddings, 121 saved answers and 177 usage entries. All 729 saved evidence references and 189 citations locate correctly, including 94 citations to earlier text versions. Six keyword, hybrid and empty-filter probes matched between source and restore. The active profile retained its 556 current passages; the 2,071 total also includes historical passages. The [supplemental read-only check](../reports/database_restore_v0_4_7_scope_20260930.json) confirms all three migration checksums. The six CLAIMS2 tables remain empty: their recovery is not a test of nonempty classification histories. No model requests were made, and the main database and private configuration stayed unchanged. Search probes use separate live read transactions; the dump and inventories share the exported snapshot.
+The [current 0.4.7 complete local restore receipt](../reports/releases/database_restore_v0_4_7_complete_20260930.json) passed all seven comparisons. Its fixed snapshot and restored copy contain 21 tables, 828 text versions, 2,071 stored passages, 1,051 embeddings, 121 saved answers and 177 usage entries. All 729 saved evidence references and 189 citations locate correctly, including 94 citations to earlier text versions. Six keyword, hybrid and empty-filter probes matched between source and restore. The active profile retained its 556 current passages; the 2,071 total also includes historical passages. The [supplemental read-only check](../reports/releases/database_restore_v0_4_7_scope_20260930.json) confirms all three migration checksums. The six CLAIMS2 tables remain empty: their recovery is not a test of nonempty classification histories. No model requests were made, and the main database and private configuration stayed unchanged. Search probes use separate live read transactions; the dump and inventories share the exported snapshot.
 
 This completes the tested **local same-cluster restore**. Its evidence does not cover the separate Railway snapshot described below, recovery on another machine, complete source-archive and attachment recovery, semantic answer quality or another implementer's handoff acceptance. The older 0.2.4 nine-table restore and synthetic wheel checks retain their separate scope.
 
 #### Railway-origin recovery — 1 October 2026 UTC
 
-The [Railway recovery report](../reports/RAILWAY_DATABASE_RECOVERY_20261001.en.md) and [machine-readable receipt](../reports/railway_database_recovery_20261001.json) describe a separate fixed snapshot and a fresh restore target on the same managed PostgreSQL 18.6 cluster. All 21 table content fingerprints and schema definitions matched, including owners, permissions and extension versions. Migration version 3 and its checksums matched, with no pending migration. A complete archive and checksum sidecar were downloaded to private storage; neither database was merged into the other.
+The [Railway recovery report](../reports/releases/RAILWAY_DATABASE_RECOVERY_20261001.en.md) and [machine-readable receipt](../reports/releases/railway_database_recovery_20261001.json) describe a separate fixed snapshot and a fresh restore target on the same managed PostgreSQL 18.6 cluster. All 21 table content fingerprints and schema definitions matched, including owners, permissions and extension versions. Migration version 3 and its checksums matched, with no pending migration. A complete archive and checksum sidecar were downloaded to private storage; neither database was merged into the other.
 
 | Stored material | Local snapshot, 30 September | Railway snapshot, 1 October UTC |
 | --- | ---: | ---: |
@@ -570,7 +570,7 @@ For complete reproduction, preserve the seven input files below and the three ma
 
 The corresponding manifests are `config/native_admissions.json`, `config/native_body_ranges.json` and `config/native_body_recoveries.json`. They specify the source hashes, reviewed admissions and retrieval ranges. The PDF and extracted-text hashes are checked independently. `scripts/extract_pdf_text.py`, with the optional locked `pdf` extra, reproduces the reviewed extraction without OCR or normalizing the original text.
 
-The [private native source handoff](native_source_handoff.md) adds a complete checksum inventory and an explicit `verify_clean_import.py --inputs-only` check. The original archive index retains legacy absolute candidate paths; these are not portable, reviewed attachments. Preserve that input unchanged and transfer approved captures using the separate record asset bundle. Do not run the historical verifier without the flag as an offline check: its default mode clears `obs_test` and reproduces `legacy600-v1`.
+The [private native source handoff](data/native_source_handoff.md) adds a complete checksum inventory and an explicit `verify_clean_import.py --inputs-only` check. The original archive index retains legacy absolute candidate paths; these are not portable, reviewed attachments. Preserve that input unchanged and transfer approved captures using the separate record asset bundle. Do not run the historical verifier without the flag as an offline check: its default mode clears `obs_test` and reproduces `legacy600-v1`.
 
 ```sh
 uv run observatory import-native --root /path/to/approved-source-bundle
@@ -578,9 +578,9 @@ uv run observatory import-native --root /path/to/approved-source-bundle
 
 Read the import report before continuing. Import commands default to **upsert**, retaining records absent from this batch. Use `--mode snapshot` only for an approved complete replacement: it retires missing records and refuses an empty snapshot. A canonical JSONL alternative is available through `import-records`; use `--dry-run` to validate it before opening the database.
 
-A new database starts with `legacy600-v1`. Importing the fixed native inputs produces 558 passages without embeddings; it does not activate a later profile automatically. The [current full-input CLI check](../reports/NATIVE_FULL_IMPORT_20261001.en.md) records both first and repeat imports. The current local profile is `sentence600-social-observations-v1`; select and prepare the intended profile separately, or restore the full database to retain its active profile and histories.
+A new database starts with `legacy600-v1`. Importing the fixed native inputs produces 558 passages without embeddings; it does not activate a later profile automatically. The [current full-input CLI check](../reports/data_audits/NATIVE_FULL_IMPORT_20261001.en.md) records both first and repeat imports. The current local profile is `sentence600-social-observations-v1`; select and prepare the intended profile separately, or restore the full database to retain its active profile and histories.
 
-For the supplied nested Twitter JSON or ZIP, use the offline `prepare-social` adapter described in [the social input guide](social_archive_input.md). That first observation package preserves source identity and text with counts/retrieval disabled; preparation does not import records. Apply the separately reviewed [company-post admission](social_posts_admission.md) before `import-records --dataset social`. The earlier frozen v2 preserves variants, groups unique original URLs and pauses 32 bodies. Current all-post retrieval additionally uses 32 separately prepared source-retrieval versions and the observation profile described in [the retrieval record](all_social_posts_retrieval.zh-CN.md). Preserve the original v2 package and its historical decisions. Do not import the initial observation package as if it were the admitted package. The generic mapped CSV importer below remains available for other explicitly reviewed export formats.
+For the supplied nested Twitter JSON or ZIP, use the offline `prepare-social` adapter described in [the social input guide](data/social_archive_input.md). That first observation package preserves source identity and text with counts/retrieval disabled; preparation does not import records. Apply the separately reviewed [company-post admission](data/social_posts_admission.md) before `import-records --dataset social`. The earlier frozen v2 preserves variants, groups unique original URLs and pauses 32 bodies. Current all-post retrieval additionally uses 32 separately prepared source-retrieval versions and the observation profile described in [the retrieval record](data/all_social_posts_retrieval.zh-CN.md). Preserve the original v2 package and its historical decisions. Do not import the initial observation package as if it were the admitted package. The generic mapped CSV importer below remains available for other explicitly reviewed export formats.
 
 ```sh
 uv run observatory import-social /path/to/posts.csv --mapping /path/to/reviewed-mapping.json
@@ -588,7 +588,7 @@ uv run observatory import-social /path/to/posts.csv --mapping /path/to/reviewed-
 
 Reconcile source and imported record totals, rejected/duplicate rows and date handling. Post counts and article counts have different units. Engagement is not an impression measure unless the source explicitly defines it that way.
 
-Source import may create passages without their embeddings. `observatory index` fills missing embeddings for the active profile and can incur API cost. Read `index-status` and `budget` first. Ordinary `index-prepare` / `index-activate` activation refuses missing vectors or a changed source snapshot. The current social observation profile used a separate guarded local activation that preserved native passages and vector availability while enabling social keyword retrieval; it generated no embeddings and does not promise complete vector coverage. See [the retrieval record](all_social_posts_retrieval.zh-CN.md) and [index maintenance in the original repository](https://github.com/yaobc77-ai/ciss-advertising-observatory/blob/main/docs/operations.md#检索索引准备发布与回退). Do not invoke indexing automatically on ordinary startup or claim that a source import restores historical model outputs.
+Source import may create passages without their embeddings. `observatory index` fills missing embeddings for the active profile and can incur API cost. Read `index-status` and `budget` first. Ordinary `index-prepare` / `index-activate` activation refuses missing vectors or a changed source snapshot. The current social observation profile used a separate guarded local activation that preserved native passages and vector availability while enabling social keyword retrieval; it generated no embeddings and does not promise complete vector coverage. See [the retrieval record](data/all_social_posts_retrieval.zh-CN.md) and [index maintenance in the original repository](https://github.com/yaobc77-ai/ciss-advertising-observatory/blob/main/docs/operations.md#检索索引准备发布与回退). Do not invoke indexing automatically on ordinary startup or claim that a source import restores historical model outputs.
 
 ## 5. Preserve source materials separately
 
@@ -596,7 +596,7 @@ Only reviewed, hash-bound PDF mappings may be served. The current reviewed local
 
 Record detail attachment access depends on the source root containing the recovery manifest and approved PDF. Preview access additionally needs the matching PNG and JSON receipt under `sources/recovered_native/previews`. `scripts/render_record_previews.py` prepares the first-page cache using Poppler outside web requests. The receipt binds the image to the reviewed PDF hash.
 
-For a hosted environment, the new [private record asset bundle](record_assets.md) separates reviewed files from the code-only image:
+For a hosted environment, the new [private record asset bundle](architecture/record_assets.md) separates reviewed files from the code-only image:
 
 ```sh
 uv run python scripts/build_record_asset_bundle.py build --source-root . --destination .runtime/record-assets-release --record-id d340f887-efa7-5746-aaf8-14aabba6b63f
@@ -610,7 +610,7 @@ The builder returns the manifest SHA-256. Transfer the bundle privately, then ch
 
 Set `OBS_RECORD_ASSET_ROOT` to that mount and `OBS_RECORD_ASSET_MANIFEST_SHA256` to the returned hash. The bundle contains `record_assets.json`, hash-named PDFs and optional previews. A configured bundle is checked as a whole; an invalid or incomplete bundle disables attachments without falling back to other files. The record JSON exposes `record_asset_status=bundle_verified` or `bundle_unavailable`. Without these settings, the existing local-workspace attachment paths remain in use.
 
-The selected PDF-265 bundle is now mounted on the Railway application, with one PDF and one cached preview. Its manifest SHA-256 is `0a4eed8b7dcd205ec7d6b99f9e3837aa6e0ce29fa5344919c19962d2c84d10d9`. [Mounted checks in two deployments and local/hosted HTTP checks](../reports/RECORD_ASSETS_HOSTED_20260930.en.md) passed; a browser check showed the rendered preview. Private bundle files remain outside Git. This confirms access and container replacement survival for this selected capture, not archive coverage or customer source approval. Missing or changed assets must stay unavailable rather than being substituted. A restored database by itself does not restore filesystem attachments.
+The selected PDF-265 bundle is now mounted on the Railway application, with one PDF and one cached preview. Its manifest SHA-256 is `0a4eed8b7dcd205ec7d6b99f9e3837aa6e0ce29fa5344919c19962d2c84d10d9`. [Mounted checks in two deployments and local/hosted HTTP checks](../reports/releases/RECORD_ASSETS_HOSTED_20260930.en.md) passed; a browser check showed the rendered preview. Private bundle files remain outside Git. This confirms access and container replacement survival for this selected capture, not archive coverage or customer source approval. Missing or changed assets must stay unavailable rather than being substituted. A restored database by itself does not restore filesystem attachments.
 
 ## 6. Verify code, data and answers separately
 
@@ -623,14 +623,14 @@ GitHub CI builds and installs a wheel, checks packaged resources, and runs tests
 
 The 0.4.2 publication receipt records 982 passed and 62 deselected engineering tests, plus production graph selection checks. Its real-corpus graph checker verifies selected relationship scopes and counts. These checks do not establish answer meaning, a verified greenwashing classification, client usability, or social-data acceptance.
 
-The 0.4.4 installed wheel passed 1,258 tests, with one Windows symlink test skipped and 62 integration/live tests deselected. Both repository CI runs also passed 1,258 tests, with one private-bundle case skipped. Its [offline package reproduction](../reports/current_release_offline_reproduction_v0_4_4_20260930.json) separately verifies installed modules, packaged assets/SQL and the canonical import dry run. No model request was made; these checks do not replace the full local restore or client review.
+The 0.4.4 installed wheel passed 1,258 tests, with one Windows symlink test skipped and 62 integration/live tests deselected. Both repository CI runs also passed 1,258 tests, with one private-bundle case skipped. Its [offline package reproduction](../reports/releases/current_release_offline_reproduction_v0_4_4_20260930.json) separately verifies installed modules, packaged assets/SQL and the canonical import dry run. No model request was made; these checks do not replace the full local restore or client review.
 
 The 0.4.5 installed wheel passed 1,406 offline tests (one Windows symlink skip,
 79 integration/live deselections) and 22 isolated database tests. Both repository
 CI runs passed 1,406 tests, with one private-bundle case skipped. Local migration
 and the observed production predeploy log reached version 3. The [engineering
-receipt](../reports/claims_import_engineering_v0_4_5_20260930.json) and
-[source archive receipt](../reports/source_handoff_v0_4_5_20260930.json) bind those
+receipt](../reports/data_audits/claims_import_engineering_v0_4_5_20260930.json) and
+[source archive receipt](../reports/releases/source_handoff_v0_4_5_20260930.json) bind those
 checks and the two clean source archives. No new classification or real review
 approval is inferred from them.
 
@@ -639,7 +639,7 @@ The evaluation files contain 20 development questions and 20 acceptance **drafts
 Format-2 review packets can now bind native, social or cross-collection inputs to
 review files, the complete selected record/version/body set and the source/index snapshot.
 Evaluation accepts these only with `--frozen-manifest`; draft mode remains unchanged.
-See the [frozen evaluation guide](frozen_evaluation.md). A verified input manifest
+See the [frozen evaluation guide](evaluation/frozen_evaluation.md). A verified input manifest
 does not establish semantic accuracy or customer acceptance.
 
 ## 7. Hosted deployment and operating limits
@@ -650,13 +650,13 @@ Use the provided Dockerfile. Set `OBS_HOST=0.0.0.0`; Railway supplies `PORT`. Co
 
 The deployment contract uses `/app/.venv/bin/observatory migrate` before startup, `/healthz` with a 60-second timeout, and deployment after successful CI. Check the platform's applied settings and logs: the repository's `railway.json` alone does not demonstrate that a setting was adopted.
 
-The historical public health observation on 30 September 2026 identifies application **0.4.4** at commit `e01edc9e7767f37691686d1a999c8423a0a2ceb4`, with native 275 records, 556 passages, `sentence600-v1`, and the graph, distribution and research-agent features enabled. The source, data and index identifiers match the earlier 0.4.3 observation. Both repository CI runs passed; the query/data routes and static project page returned HTTP 200. These checks are recorded in the [publication receipt](../reports/release_v0_4_4_publication_20260930.json), which binds the tested application commits before a documentation-only follow-up. A healthy endpoint is not proof that every user workflow or attachment works.
+The historical public health observation on 30 September 2026 identifies application **0.4.4** at commit `e01edc9e7767f37691686d1a999c8423a0a2ceb4`, with native 275 records, 556 passages, `sentence600-v1`, and the graph, distribution and research-agent features enabled. The source, data and index identifiers match the earlier 0.4.3 observation. Both repository CI runs passed; the query/data routes and static project page returned HTTP 200. These checks are recorded in the [publication receipt](../reports/releases/release_v0_4_4_publication_20260930.json), which binds the tested application commits before a documentation-only follow-up. A healthy endpoint is not proof that every user workflow or attachment works.
 
 The historical 0.4.5 observation identifies commit `f2c9142e9274dc4f694c5ac0e6a61270997d753c`.
 Its successful deployment and migration-3 log were checked in the existing
 Railway project. Native 275, 556 passages, source/data/index identities and the
 three feature flags are unchanged. Query/Data and the static page returned 200.
-The [0.4.5 receipt](../reports/release_v0_4_5_publication_20260930.json) records this
+The [0.4.5 receipt](../reports/releases/release_v0_4_5_publication_20260930.json) records this
 scope; product graph flows were not repeated for this maintenance update.
 
 The example configuration specifies a $100 monthly application/API budget, 5 requests per visitor per minute, 30 per UTC day and 2 concurrent generations. The deployed values can differ; inspect the actual configuration and ledger before spending. Application/API controls are separate from Railway hosting charges. Failed or uncertain requests retain their recorded costs and reservations; do not clear the ledger to resume service.

@@ -6,6 +6,20 @@ from decimal import Decimal
 
 from dotenv import load_dotenv
 
+PUBLIC_ENV_PREFIX = "NATIVEADS_"
+INTERNAL_ENV_PREFIX = "OBS_"
+
+
+def apply_public_env_names(environ=None):
+    """Accept NATIVEADS_* (the public name) for every OBS_* setting; NATIVEADS_* wins.
+
+    OBS_* keeps working, so existing deployments need no change.
+    """
+    environ = os.environ if environ is None else environ
+    for key, value in list(environ.items()):
+        if key.startswith(PUBLIC_ENV_PREFIX):
+            environ[INTERNAL_ENV_PREFIX + key[len(PUBLIC_ENV_PREFIX):]] = value
+
 
 @dataclass
 class Settings:
@@ -30,6 +44,10 @@ class Settings:
     question_intent_enabled: bool = False
     # /compare runs the same question with and without retrieval (paid); demo only.
     compare_demo_enabled: bool = False
+    # `observatory api`: JSON-only backend for a separate frontend.
+    api_port: int = 18060
+    api_cors_origins: tuple = ("http://localhost:5173", "http://127.0.0.1:5173",
+                               "http://localhost:3000", "http://127.0.0.1:3000")
     # Planner reads may select social posts by X relations (mentions, hashtags,
     # replies to collected posts) and companies by source profile; opt in after
     # the A/C comparison.
@@ -57,6 +75,7 @@ class Settings:
     @classmethod
     def from_env(cls):
         load_dotenv(override=False)
+        apply_public_env_names()
         return cls(
             database_url=os.getenv("OBS_DATABASE_URL", ""),
             show_source_links=os.getenv("OBS_SHOW_SOURCE_LINKS", "true").lower()
@@ -76,6 +95,11 @@ class Settings:
             research_agent_enabled=os.getenv("OBS_RESEARCH_AGENT_ENABLED", "false").lower() == "true",
             question_intent_enabled=os.getenv("OBS_QUESTION_INTENT_ENABLED", "false").lower() == "true",
             compare_demo_enabled=os.getenv("OBS_COMPARE_DEMO_ENABLED", "false").lower() == "true",
+            api_port=int(os.getenv("OBS_API_PORT", "18060")),
+            api_cors_origins=tuple(o.strip() for o in os.getenv(
+                "OBS_API_CORS_ORIGINS",
+                "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000",
+            ).split(",") if o.strip()),
             relation_selection_enabled=os.getenv("OBS_RELATION_SELECTION_ENABLED", "false").lower() == "true",
             claims_source_search_enabled=os.getenv("OBS_CLAIMS_SOURCE_SEARCH_ENABLED", "false").lower() == "true",
             web_search_enabled=os.getenv("OBS_WEB_SEARCH_ENABLED", "true").lower() == "true",

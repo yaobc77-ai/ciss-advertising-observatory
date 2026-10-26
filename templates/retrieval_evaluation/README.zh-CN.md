@@ -27,4 +27,4 @@
 
 格式准备好后，评分适配器将把已判定单位导出为TREC qrels（query_id、iteration、doc_id、relevance）及run。适配器、真实标签与实际测试仍待执行；本模板不包含自动评分脚本。
 
-完整口径见[方法说明](../../docs/retrieval_evaluation.zh-CN.md)。
+完整口径见[方法说明](../../docs/evaluation/retrieval_evaluation.zh-CN.md)。

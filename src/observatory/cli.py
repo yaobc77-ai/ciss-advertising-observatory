@@ -31,6 +31,7 @@ def main():
     infer.add_argument("--record-ids", nargs="*", default=None, help="Limit web search to these records")
     sub.add_parser("health")
     sub.add_parser("serve")
+    sub.add_parser("api", help="Serve the JSON API only (no web pages) for a separate frontend")
     sub.add_parser("budget")
     imp = sub.add_parser("import-native")
     imp.add_argument("--root", type=Path, default=Path.cwd())
@@ -271,6 +272,15 @@ def main():
             else service.answer(args.question, filters, "local-maintainer").model_dump()
         )
         emit(result, args.out)
+    elif args.command == "api":
+        from waitress import serve
+
+        from .api import create_api
+        from .service import Service
+
+        api = create_api(Service(settings), settings)
+        print(f"nativeADS JSON API on http://{settings.host}:{settings.api_port}/api/v1", flush=True)
+        serve(api, host=settings.host, port=settings.api_port, threads=8)
     elif args.command == "serve":
         from waitress import serve
 

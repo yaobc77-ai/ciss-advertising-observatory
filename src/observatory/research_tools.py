@@ -298,6 +298,7 @@ def strict_schema(schema):
     schema = deepcopy(schema)
 
     def walk(node):
+        """Strip schema defaults and titles and require every object property (strict mode)."""
         if not isinstance(node, dict):
             return
         node.pop("default", None)
@@ -587,6 +588,11 @@ class ToolCatalog:
 
     def narrow(self, requested: FiltersRequest | None, *, base: Filters | None = None):
         # ``base`` lets a share numerator narrow its own trusted denominator.
+        """Intersect the model's filters with the trusted selection; a tool can only narrow, never widen.
+
+        Names are canonicalised through the entity registry, dates take the tighter bound (and then
+        exclude unknown dates), and dataset may only go from 'all' to one collection.
+        """
         filters = base.model_copy(deep=True) if base is not None else self.base_filters
         if requested is None:
             if filters.accounts and filters.dataset != "social":
@@ -798,6 +804,11 @@ class ToolCatalog:
                 "missing_datasets": missing}
 
     def call(self, name, arguments):
+        """Run one tool: validate arguments, narrow filters, and refuse results read across a data change.
+
+        health() is read before and after; if data_version (or statistics_version) moved, the result
+        is 'unavailable'. ScopeConflict becomes 'clarify'; any other error becomes 'unavailable'.
+        """
         if name == "get_content_matches" and not evaluation_active():
             return {"status": "invalid_request", "tool": "unknown",
                     "message": "This read is available only in the isolated local evaluation context."}
@@ -899,6 +910,7 @@ class ToolCatalog:
         )
 
     def _resolve_entity(self, request, filters):
+        """Match a sponsor, publisher or account name against stored facet values and registry aliases."""
         if request.entity_type == "account" and filters.dataset not in {"social", "all"}:
             raise ScopeConflict("Account resolution requires the social collection.")
         # Accounts exist only in the social collection, also under a combined selection.
@@ -1018,6 +1030,7 @@ class ToolCatalog:
             raise ScopeConflict("Historical social label distributions use count, all codes, and no periods or comparison denominator.")
 
     def _record_statistics(self, request, filters):
+        """Exact counts, shares, groupings or period comparisons from SQL; no generation model is used."""
         group_by = request.group_by or "none"
         if group_by == "social_historical_labels":
             self._social_distribution_scope(request, filters)
@@ -1130,6 +1143,7 @@ class ToolCatalog:
         return row
 
     def _record_projection(self, row):
+        """Public fields of one record; a social company affiliation is labelled as not proof of sponsorship."""
         result = {key: row.get(key) for key in _RECORD_FIELDS}
         if row.get("dataset") == "social":
             basis = _AFFILIATION_BASIS if row.get("sponsor_basis") == _AFFILIATION_BASIS else "not_recorded"
@@ -1167,6 +1181,7 @@ class ToolCatalog:
                 for source in row.get("social_source_observations", [])]
 
     def _get_record(self, request, filters):
+        """One record's text (up to 12,000 characters per call) checked against its current body hash."""
         row = self._row(request.record_id, filters)
         if row.get("dataset") == "social" and row.get("retrievable") is not True:
             return {"status": "ok", "record": self._record_projection(row),
@@ -1232,6 +1247,7 @@ class ToolCatalog:
                                        links_enabled=self.service.settings.show_source_links)
 
     def _find_records(self, request, filters):
+        """Find records by exact, substring or title-term match; returns ok, ambiguous or not_found."""
         result = self.service.db.find_records(filters, request.title, request.limit or 10)
         rows = result.get("rows") or []
         total = result.get("total_candidates", 0)
@@ -1255,6 +1271,7 @@ class ToolCatalog:
                 "online_truth": "not_established"}
 
     def _get_record_sources(self, request, filters):
+        """Original and archive links, annotations and warnings for one record."""
         row = self._row(request.record_id, filters)
         record = self._record_projection(row)
         if row["dataset"] == "social":
@@ -1332,6 +1349,7 @@ class ToolCatalog:
         return BASIS_NOTE if inferred else ""
 
     def _search_records(self, request, filters):
+        """Keyword search for the planner (no vectors): one scope, or 2-3 comparison scopes of up to 3 records each."""
         with self._web_lock:
             self._web_ticket = None
         if request.comparison_scopes:
@@ -1404,6 +1422,7 @@ class ToolCatalog:
         return self.service._search_external(gap["query"], gap["filters"], visitor)
 
     def _search_one(self, query, filters, limit):
+        """Search one scope and re-verify every passage against the current version and its retrievable span."""
         report = self.service.search_report(query, filters, limit=limit)
         evidence, refs, rejected = [], [], 0
         for item in report.get("evidence", []):

@@ -6,17 +6,17 @@
 
 | 文件 | 用途 |
 | --- | --- |
-| [用户指南](guide.md) | 页面、筛选、正文和问答操作 |
-| [系统结构](architecture.md) | 当前模块和数据流程 |
-| [数据字典](data_dictionary.md) | 字段、数据类型和统计单位 |
-| [导入契约](PROTOTYPE_DATA_PIPELINE.md) | 数据导入与质量要求 |
-| [工具说明](mcp_research_tools.md) | 工具输入、输出、范围与失败状态 |
-| [CLAIMS 接入](claims_integration_plan.md) | 来源关联、结果导入和审查边界 |
-| [来源附件](record_assets.md) | 原文、PDF 和截图的呈现 |
-| [运维说明](operations.md) | 环境配置、迁移和部署 |
-| [免费检查](test_gate.zh-CN.md) | 开发检查与隔离数据库 |
-| [组织身份](organization_identity.md) | 别名、原始字段与审核边界 |
-| [Git协作](git_collaboration.md) | 先同步远端、保留组员修改、分支审核上传 |
+| [用户指南](operations/guide.md) | 页面、筛选、正文和问答操作 |
+| [系统结构](architecture/architecture.md) | 当前模块和数据流程 |
+| [数据字典](data/data_dictionary.md) | 字段、数据类型和统计单位 |
+| [导入契约](architecture/PROTOTYPE_DATA_PIPELINE.md) | 数据导入与质量要求 |
+| [工具说明](architecture/mcp_research_tools.md) | 工具输入、输出、范围与失败状态 |
+| [CLAIMS 接入](data/claims_integration_plan.md) | 来源关联、结果导入和审查边界 |
+| [来源附件](architecture/record_assets.md) | 原文、PDF 和截图的呈现 |
+| [运维说明](operations/operations.md) | 环境配置、迁移和部署 |
+| [免费检查](evaluation/test_gate.zh-CN.md) | 开发检查与隔离数据库 |
+| [组织身份](architecture/organization_identity.md) | 别名、原始字段与审核边界 |
+| [Git协作](operations/git_collaboration.md) | 先同步远端、保留组员修改、分支审核上传 |
 
 ## 需求与记录
 
@@ -26,9 +26,9 @@
 | [用户目标](../user_goal.md) | 用户追加请求和完成情况 |
 | [总目标](../goal.md) | 项目范围和未完成事项 |
 | [计划](../plan.md) | 下一步与实施边界 |
-| [任务看板](task_board_20261008.md) | 10月8日五阶段进度快照 |
+| [任务看板](operations/task_board_20261008.md) | 10月8日五阶段进度快照 |
 | [工作记录](../work.md) | 实际改动、检查结果和具体问题 |
-| [故障清单](fault_register.zh-CN.md) | 测试中出现过的故障、修复与各轮复盘结果 |
+| [故障清单](evaluation/fault_register.zh-CN.md) | 测试中出现过的故障、修复与各轮复盘结果 |
 | [交接说明](current_handoff.md) | 当前交接范围和材料要求 |
 
 原始客户文件、受保护评价题和逐题结果不在公开索引中。软件检查、真实模型表现、人工审核与客户验收分别记录；历史报告不能代替当前验证。

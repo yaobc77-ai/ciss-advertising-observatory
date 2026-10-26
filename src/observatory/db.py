@@ -167,6 +167,7 @@ class Database:
         return (row["writes"], row["tables"])
 
     def _cached_read(self, key, compute):
+        """Reuse a read for READ_CACHE_SECONDS until any table's write counters change (app process only)."""
         if not getattr(self, "read_cache", False):
             return compute()
         if not hasattr(self, "_read_cache"):
@@ -211,6 +212,13 @@ class Database:
         self, batch: ImportBatch, snapshot_dataset=None, *,
         expected_current: dict[str, dict[str, str]] | None = None,
     ):
+        """Write a batch of records as new immutable versions, with chunks, annotations and profile updates.
+
+        A version id is the hash of the record payload, so a changed payload is a new version; an
+        unchanged one only re-activates the record. With expected_current, every target must still be
+        at its reviewed version before anything is written (guarded corrections). Runs under advisory
+        lock 54901 so imports and retrieval preparation never interleave.
+        """
         from .chunking import retrieval_spans
         from .indexing import (
             SOCIAL_OBSERVATION_PROFILE,
@@ -334,6 +342,11 @@ class Database:
     @staticmethod
     def where(filters: Filters):
         # model_copy and direct assignment can bypass the model validator.
+        """SQL WHERE clause for Filters: active countable records, exact stored values, dates and labels.
+
+        Name fields match stored values exactly (empty counts as '(Unknown)'). With
+        include_inferred_dates, a usable day-level inferred date fills a missing source date.
+        """
         validate_historical_label_scope(filters.dataset, filters.labels)
         if filters.accounts and filters.dataset != "social":
             raise ValueError("Account filters require the social collection")
@@ -395,6 +408,7 @@ class Database:
         return " AND ".join(terms), params
 
     def _public_query(self, filters: Filters):
+        """SELECT of the public record fields (effective date, labels, social states) under where()."""
         where, params = self.where(filters)
         source_date = "NULLIF(v.payload->>'published_at','')"
         effective_date = (f"COALESCE({source_date},di.inferred_date::text)"
@@ -456,9 +470,40 @@ class Database:
         def compute():
             select, params = self._public_query(filters)
             with self.connect() as conn:
-                rows = conn.execute(f"SELECT record_id,dataset,title FROM ({select}) AS titled", params)
+                rows = conn.execute(f"SELECT record_id,dataset,title FROM ({select}) AS titled", params).fetchall()
                 return [(row["record_id"], row["dataset"], row["title"] or "") for row in rows]
         return self._cached_read(("public_titles", filters.model_dump_json()), compute)
+
+    # A visitor's checks per UTC day; enough for a careful reader, not for flooding the table.
+    RELEVANCE_REVIEWS_PER_DAY = 300
+
+    def save_relevance_review(self, visitor_hash, question, record_id, route, verdict, policy):
+        """Insert or replace one reader check (migration 0008). False when the daily cap is reached."""
+        import hashlib
+        from uuid import uuid4
+
+        question_sha = hashlib.sha256(question.encode("utf-8")).hexdigest()
+        with self.connect() as conn:
+            today = conn.execute(
+                "SELECT count(*) AS n FROM relevance_reviews WHERE visitor_hash=%s "
+                "AND created_at>=date_trunc('day',now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'", (visitor_hash,),
+            ).fetchone()["n"]
+            if today >= self.RELEVANCE_REVIEWS_PER_DAY:
+                return False
+            conn.execute(
+                "INSERT INTO relevance_reviews(review_id,visitor_hash,question,question_sha256,record_id,route,verdict,policy) "
+                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT (visitor_hash,question_sha256,record_id) "
+                "DO UPDATE SET verdict=EXCLUDED.verdict,route=EXCLUDED.route,policy=EXCLUDED.policy,created_at=now()",
+                (uuid4().hex, visitor_hash, question, question_sha, record_id, route, verdict, policy),
+            )
+        return True
+
+    def relevance_review_counts(self):
+        """Reader checks by route and verdict, e.g. {("pass", "relevant"): 12}."""
+        with self.connect() as conn:
+            rows = conn.execute(
+                "SELECT route,verdict,count(*) AS n FROM relevance_reviews GROUP BY route,verdict").fetchall()
+        return {(row["route"], row["verdict"]): row["n"] for row in rows}
 
     def count_public(self, filters: Filters):
         """Number of public rows in scope, without transferring them."""
@@ -930,6 +975,7 @@ class Database:
         return self._cached_read(("facets", dataset), lambda: self._compute_facets(dataset))
 
     def _compute_facets(self, dataset):
+        """Distinct filter values and counts for one collection."""
         select, params = self._public_query(Filters(dataset=dataset))
         # This CTE is used twice and is materialized. Keep only facet fields
         # so PostgreSQL can prune body-bound social annotation validation and
@@ -997,6 +1043,7 @@ class Database:
         )
 
     def _compute_dashboard(self, filters: Filters, offset=0, limit=20, sort_by="date", descending=True):
+        """Totals, chart aggregates and one page of records for the data page."""
         from .analytics import LABEL_NOTE, sponsor_publisher_matrix_from_counts
 
         offset, limit = self._page_bounds(offset, limit)
@@ -1215,6 +1262,7 @@ class Database:
         return self._cached_read(("health",), self._compute_health)
 
     def _compute_health(self):
+        """Record counts, active retrieval profile, index and data versions in one snapshot."""
         from .indexing import profile_snapshot
 
         with self.connect() as conn:
@@ -1303,6 +1351,17 @@ class Database:
         chunks_per_record=1,
         _include_diagnostics=False,
     ):
+        """Hybrid passage search over current versions of the active retrieval profile.
+
+        1. Terms: lower-cased word/hyphen tokens minus stop words and single letters, at most 40.
+        2. dataset 'all' ranks native and social separately (social is ~130x larger).
+        3. Channels, each max(50, 2*limit) rows: English full-text (ordered by distinct terms matched,
+           then ts_rank_cd); pgvector cosine (HNSW, 400 candidates, exact fallback) when a vector is
+           given; native titles with >= 2 terms; and a social literal substring only if all are empty.
+        4. Reciprocal rank fusion, 1/(60+rank) per channel, equal weights.
+        5. Take `limit` distinct records, alternating between collections, and keep at most
+           `chunks_per_record` passages each; social passages are bound to their source observation.
+        """
         where, params = self.where(filters)
         select = self._SEARCH_SELECT
         join = self._SEARCH_JOIN
@@ -1340,6 +1399,7 @@ class Database:
                     "No meaningful search terms remain after stop-word filtering.", tokens
                 )}
             return []
+        # Terms are OR-ed for websearch_to_tsquery; ranking first rewards matching more distinct terms.
         lexical_query = " OR ".join('"' + t + '"' for t in terms)
         # Each channel returns at least 50 passages, and enough for two per
         # requested record: a list read of 120 ads was cut near 50 ads when
@@ -1661,6 +1721,7 @@ class Database:
         }
 
     def validate_evidence(self, evidence: Evidence):
+        """Confirm a passage still belongs to the record's current active version and matches its text."""
         with self.connect() as conn:
             row = conn.execute(
                 "SELECT c.*,v.body,v.body_hash,v.payload,r.dataset,"

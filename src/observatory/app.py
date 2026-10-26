@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import inspect
+import logging
 import math
 import os
 import re
@@ -28,6 +29,16 @@ from observatory.analytics import (
 from observatory.evaluation_report import published_report
 from observatory.evaluation_ui import evaluation_panel
 from observatory.models import Filters
+from observatory.quote_links import record_quote_href
+from observatory.relevance_eval_ui import (
+    criterion_card,
+    judge_numbers,
+    register_reviews,
+    review_section,
+    route_badge,
+    validation_section,
+    vote_buttons,
+)
 from observatory.social_annotations import SCHEME, STATUS, social_state_options
 from observatory.social_label_ui import (
     clicked_social_state,
@@ -519,6 +530,79 @@ def _bars(items, metric="count"):
                         ticktext=[_wrap_label(item.get("name") or UNKNOWN) for item in items])
     figure.update_layout(height=max(320, len(items) * 36 + 65), margin={"l": 16, "r": 50, "t": 18, "b": 45})
     return figure
+
+
+SCREENING_DECISIONS = {"matches": "Listed", "does_not_match": "Not listed", "unclear": "Unclear"}
+
+
+def _relevance_reasoning(result):
+    """Collapsed record of how each screened ad was judged: decision, quote and the model's reasoning.
+
+    Screening reads four ads per model call, so decisions are grouped by call and each
+    call's reasoning is printed once. With a triage (relevance_triage), each ad also
+    shows its route and the Decisions judge's numbers, and ads the judge excluded
+    without screening are listed apart. Titles come from the decisions or the evidence.
+    """
+    trace = (result.get("research_trace") or {}).get("list_screening") or {}
+    decisions, question = trace.get("decisions") or [], trace.get("question")
+    if not decisions:
+        return []
+    titles = {}
+    for item in result.get("evidence") or []:
+        item = _mapping(item)
+        titles.setdefault(item.get("record_id"), item.get("title") or item.get("account") or item.get("record_id"))
+
+    def title(decision):
+        return decision.get("title") or titles.get(decision.get("record_id")) or decision.get("record_id")
+
+    apart = {"triage_excluded", "not_screened"}
+    screened = [d for d in decisions if d.get("reason") not in apart]
+    excluded = [d for d in decisions if d.get("reason") == "triage_excluded"]
+    calls, current = [], []
+    for decision in screened:
+        # A new call starts every four ads, or when the reasoning text changes.
+        if current and (len(current) == 4 or decision.get("screening_reasoning") != current[0].get("screening_reasoning")):
+            calls.append(current)
+            current = []
+        current.append(decision)
+    if current:
+        calls.append(current)
+    blocks, number = [], 0
+    for call in calls:
+        rows = []
+        for decision in call:
+            number += 1
+            label = SCREENING_DECISIONS.get(decision.get("decision"), decision.get("decision") or "")
+            rows.append(html.Li([
+                html.Span(f"A{number}. "), html.Strong(title(decision)),
+                html.Span(f" · {label}", className=f"screen-decision screen-{decision.get('decision')}"),
+                html.Span(" "), route_badge(decision.get("route")),
+                html.Blockquote(decision["quote"], className="screen-quote") if decision.get("quote") else None,
+                html.Div(judge_numbers(decision.get("triage"))) if "triage" in decision else None,
+                vote_buttons(question, decision.get("record_id"), decision.get("route"))
+                if decision.get("route") == "pass" and decision.get("decision") == "matches" else None,
+            ]))
+        reasoning = call[0].get("screening_reasoning")
+        blocks.append(html.Div([
+            html.Ul(rows, className="screen-call-list"),
+            html.P(["Reasoning: ", reasoning] if reasoning else "No reasoning text came back for this call.",
+                   className="screen-reasoning" if reasoning else "scope-note"),
+        ], className="screen-call"))
+    if excluded:
+        blocks.append(html.Details([
+            html.Summary(f"Excluded by the judge without screening ({len(excluded)})"),
+            html.Ul([html.Li([html.Strong(title(d)), html.Div(judge_numbers(d.get("triage")))]) for d in excluded],
+                    className="screen-call-list"),
+        ], className="screen-call"))
+    listed = sum(d.get("decision") == "matches" and d.get("route", "pass") == "pass" for d in decisions)
+    return [html.Details([
+        html.Summary(f"How relevance was judged ({len(decisions)} ads read, {listed} listed)"),
+        html.P("The model read four ads per call. A listed ad needs a sentence copied from it, which the server "
+               "checked against the stored text. A1, A2… are the reading order the reasoning refers to. "
+               "Judge numbers come from the Decisions API reading the whole ad against the rules above.",
+               className="scope-note"),
+        *blocks,
+    ], className="relevance-reasoning")]
 
 
 def _list_chart_cards(data):
@@ -1356,8 +1440,13 @@ def _render_answer_result(result, links_enabled, service):
     partial = _partial_collection_answer(result)
     if mode == "rag" and (status == "answered" or partial):
         summary, findings = _grounded_answer_parts(result, str(result.get("answer") or ""))
-        evidence = [_answer_section("Findings", findings)] if findings else []
+        screening = (result.get("research_trace") or {}).get("list_screening") or {}
+        # The rules a listed record meets come first, then the findings (relevance_triage).
+        evidence = criterion_card(screening)
+        evidence.extend([_answer_section("Findings", findings)] if findings else [])
         evidence.extend(_list_chart_cards(data))
+        evidence.extend(review_section(screening))
+        evidence.extend(_relevance_reasoning(result))
         shown_evidence = result.get("evidence") or []
         if isinstance(data.get("display_citations"), list):
             # A list answer shows the passages of the citations it displays
@@ -1572,6 +1661,8 @@ def _evidence_cards(evidence, enabled, citations=()):
                     [
                         html.Span(f"Citation [{number}]", className="evidence-code"),
                         html.Blockquote(quote),
+                        html.A("Show this quote in the full text →", href=record_quote_href(item, [quote]),
+                               target="_blank", rel="noopener", className="quote-link"),
                     ],
                     className="citation-quote",
                     id=f"answer-citation-{number}",
@@ -1652,7 +1743,7 @@ def _evidence_cards(evidence, enabled, citations=()):
                     ),
                     html.A(
                         "View record and archived materials →",
-                        href="/records/" + str(item.get("record_id") or ""),
+                        href=record_quote_href(item, [quote for _, quote in supported]),
                         target="_blank",
                         rel="noopener",
                     ),
@@ -1895,6 +1986,17 @@ def _filter_panel(dataset, facets):
     )
 
 
+log = logging.getLogger(__name__)
+
+
+def _boundary_failure(where, exc):
+    """Record a failure the public boundary hides: the place and exception type only, never details or user input.
+
+    Known defect (2026-10-25): dashboard callbacks swallowed errors without any log line.
+    """
+    log.warning("Dashboard %s failed: %s", where, type(exc).__name__)
+
+
 def _panel(dataset, links_enabled):
     from observatory.data_layout import data_panel
     return data_panel(dataset, links_enabled, _figure)
@@ -1980,13 +2082,15 @@ def create_app(service, settings, record_details=None) -> Dash:
     def layout():
         try:
             health = service.health()
-        except Exception:  # noqa: BLE001 - hide internal service errors at the public boundary.
+        except Exception as exc:  # noqa: BLE001 - hide internal service errors at the public boundary.
+            _boundary_failure("layout health", exc)
             health = {"status": "unavailable"}
         facets = {}
         for dataset in ("native", "social"):
             try:
                 facets[dataset] = service.facets(dataset)
-            except Exception:  # noqa: BLE001 - leave controls usable during service failures.
+            except Exception as exc:  # noqa: BLE001 - leave controls usable during service failures.
+                _boundary_failure(f"layout facets ({dataset})", exc)
                 facets[dataset] = {}
 
         from .combined_ui import combined_filters, combined_panel
@@ -2273,7 +2377,7 @@ def create_app(service, settings, record_details=None) -> Dash:
                             **{"aria-label": "Project wireframe"},
                         ),
                         html.Section(
-                            evaluation_panel(published_report(settings)),
+                            [evaluation_panel(published_report(settings)), validation_section()],
                             id="evaluation-page",
                             hidden=True,
                             **{"aria-label": "Evaluation"},
@@ -2414,8 +2518,8 @@ def create_app(service, settings, record_details=None) -> Dash:
             try:
                 if not _social_available(service.health()):
                     message = "No admitted social records. " + message
-            except Exception:  # noqa: BLE001 - no internal health details in the UI.
-                pass
+            except Exception as exc:  # noqa: BLE001 - no internal health details in the UI.
+                _boundary_failure("social availability check", exc)
         if _page(pathname) == "query" and scope == "all":
             return [
                 html.Strong("Both collections"),
@@ -2743,7 +2847,8 @@ def create_app(service, settings, record_details=None) -> Dash:
                     "Use a valid date range with the start date before the end date.",
                     "warning",
                 )
-            except Exception:  # noqa: BLE001 - public boundary must hide unexpected service details.
+            except Exception as exc:  # noqa: BLE001 - public boundary must hide unexpected service details.
+                _boundary_failure("records view", exc)
                 message = _notice(
                     "Collection temporarily unavailable",
                     "Your filters are preserved. Please try again when the data service is available.",
@@ -2787,7 +2892,8 @@ def create_app(service, settings, record_details=None) -> Dash:
                     "filename": f"{dataset}-sponsor-outlet-cross-tab.csv",
                     "type": "text/csv",
                 }, f"Downloaded cross-tab for {len(rows):,} selected records."
-            except Exception:
+            except Exception as exc:  # noqa: BLE001 - public boundary must hide unexpected service details.
+                _boundary_failure("cross-tab download", exc)
                 return None, "Cross-tab download is temporarily unavailable."
 
         @app.callback(
@@ -2855,7 +2961,8 @@ def create_app(service, settings, record_details=None) -> Dash:
                     "filename": "social-company-posts.csv" if dataset == "social" else "native-advertising.csv",
                     "type": "text/csv",
                 }, f"Downloaded {len(rows):,} selected records."
-            except Exception:  # noqa: BLE001 - public boundary must hide unexpected service details.
+            except Exception as exc:  # noqa: BLE001 - public boundary must hide unexpected service details.
+                _boundary_failure("records download", exc)
                 return (
                     None,
                     "Download is unavailable. Refresh the current source-state selection and retry; your filters are preserved."
@@ -2919,7 +3026,8 @@ def create_app(service, settings, record_details=None) -> Dash:
             if filters.labels and identifier not in filters.labels:
                 return no_update, no_update, "This segment is outside the selected OR states. Change or clear the Historical source state dropdown before exploring it."
             return [identifier], "records", f"Showing posts with {source_state_name(identifier)}. Other filters are preserved."
-        except Exception:  # noqa: BLE001 - do not expose service details or change scope on a stale click.
+        except Exception as exc:  # noqa: BLE001 - do not expose service details or change scope on a stale click.
+            _boundary_failure("source-state segment click", exc)
             raise PreventUpdate from None
 
     from observatory.knowledge_ui import register_knowledge_graph
@@ -3054,7 +3162,8 @@ def create_app(service, settings, record_details=None) -> Dash:
                     }
                 )
                 return [context, _keyword_result(report, enabled)]
-            except Exception:  # noqa: BLE001 - public boundary must hide unexpected service details.
+            except Exception as exc:  # noqa: BLE001 - public boundary must hide unexpected service details.
+                _boundary_failure("keyword search", exc)
                 return [
                     context,
                     _answer_status(
@@ -3079,10 +3188,12 @@ def create_app(service, settings, record_details=None) -> Dash:
                 effective = Filters.model_validate(result["structured_result"].get("filters") or filters.model_dump())
                 context = _search_context(question, effective)
             return [context, *_render_answer_result(result, enabled, service)]
-        except Exception:  # noqa: BLE001 - public boundary must hide unexpected service details.
+        except Exception as exc:  # noqa: BLE001 - public boundary must hide unexpected service details.
+            _boundary_failure("question answer", exc)
             try:
                 evidence = service.search(question, filters, limit=5)
-            except Exception:  # noqa: BLE001 - public boundary must hide unexpected service details.
+            except Exception as search_exc:  # noqa: BLE001 - public boundary must hide unexpected service details.
+                _boundary_failure("fallback keyword search", search_exc)
                 evidence = []
             return [
                 context,
@@ -3094,4 +3205,15 @@ def create_app(service, settings, record_details=None) -> Dash:
                 *_evidence_cards(evidence, enabled),
             ]
 
+    # Registered last: tests and Dash look up the original owners of the shared outputs first.
+    from observatory.year_drilldown import register_year_drilldown
+
+    for dataset in ("native", "social"):
+        register_year_drilldown(app, service, dataset,
+                                lambda dependency, dataset=dataset: _filter_inputs(dataset, dependency),
+                                lambda *values, dataset=dataset: _filters(dataset, *values), f"{dataset}-view")
+    from observatory.topic_compare_ui import register_compare_ask
+
+    register_compare_ask(app)
+    register_reviews(app, service)
     return app

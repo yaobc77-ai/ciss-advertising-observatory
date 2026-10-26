@@ -11,6 +11,7 @@ from openai import OpenAI
 from psycopg.types.json import Jsonb
 from pydantic import BaseModel, Field, StrictInt, create_model
 
+from .answer_norms import general_norm, load_norms
 from .budget import Budget, price
 from .db import digest
 from .language import POLICY_VERSION, answer_language, check_claim_languages
@@ -48,6 +49,7 @@ class AnswerValidationError(ValueError):
     """
 
     def __init__(self, error, *, stage):
+        """Map a validation message to a stable failure reason code and keep audit details."""
         super().__init__(str(error))
         reasons = {
             "Contradictory answer status": "answer_status_contradictory",
@@ -120,6 +122,7 @@ _OBSERVATION_FIELDS = (
 
 
 def _observation_metadata(source):
+    """Source-observation fields for a social passage, or {} for ordinary article text (re-validated)."""
     defaults = {
         "source_observation_id": None, "source_version_id": None, "source_body_hash": None,
         "source_observation_count": 1, "source_conflicts": [], "source_quality_codes": [],
@@ -354,6 +357,12 @@ def _attach_quote_context(catalog):
 
 def selection_schema(catalog):
     # Structured Outputs can restrict identifiers to real passages at generation time.
+    """Structured-output schema in which the model can only pick passage ids that exist in the catalog.
+
+    The model writes paraphrases and chooses Q-numbered passages; it never types quote text.
+    Limits: MAX_CLAIMS claims, MAX_SUPPORT_PASSAGES supports each, MAX_SUMMARY_POINTS summary
+    points and MAX_ANSWER_SECTIONS sections.
+    """
     choices = Literal.__getitem__(tuple(catalog))
     claim = create_model(
         "SelectedClaim",
@@ -515,6 +524,7 @@ def evidence_inventory(evidence, media, catalog):
 
 
 def _selection_supports(selection, source, catalog):
+    """Check a claim's support passages: same source view, no repeats, and the full sentence covered."""
     support_ids = getattr(selection, "support_passage_ids", [])
     if (not isinstance(support_ids, list) or len(support_ids) > MAX_SUPPORT_PASSAGES
             or any(not isinstance(pid, str) or pid not in catalog or pid == selection.passage_id for pid in support_ids)
@@ -565,6 +575,10 @@ def _without_passage_ids(text):
 
 
 def materialize_selections(parsed, catalog):
+    """Turn chosen passage ids into exact quotes; drop claims whose support is unrelated or clips a sentence.
+
+    If any claim is dropped, summary and sections are cleared because they refer to claims by position.
+    """
     _check_answer_state(parsed)
     # Historical replay fixtures may omit the new fields. New strict API output
     # includes them, and an answered response cannot silently omit its overview.
@@ -626,6 +640,7 @@ class Rag:
         return self._client
 
     def embed(self, texts, visitor="maintenance", cost_sink=None):
+        """Embed texts with text-embedding-3-small, reusing vectors cached by text hash in `embeddings`."""
         model = self.settings.embedding_model
         if model != "text-embedding-3-small":
             raise ValueError("Unconfigured embedding price/dimension")
@@ -695,6 +710,16 @@ class Rag:
 
     def generate(self, question, evidence, visitor, reservation=None, *, progress=None,
                  media_evidence=(), validate_media=None, one_claim_per_source=False):
+        """Write a grounded answer from the given passages, then check every quote.
+
+        1. Validate evidence against current versions; no evidence means insufficient_evidence.
+        2. Build the quote catalog (<= 60-word passages Q1..Qn with sentence context) and inventory.
+        3. System prompt: ANSWER_SYSTEM + general norm + social, one-claim-per-source, period and
+           language rules as they apply.
+        4. Reserve budget unless the caller passed a reservation; refuse inputs over 100,000 bytes.
+        5. responses.parse with the selection schema, no reasoning, max_output_tokens; no retries.
+        6. Settle cost, store the raw output, materialise quotes and run validate_answer.
+        """
         try:
             media = [MediaAnswerEvidence.model_validate(item) for item in media_evidence]
         except Exception as exc:
@@ -728,13 +753,14 @@ class Rag:
                 self.budget.cancel_unsent(reservation)
             raise ValueError("Media evidence failed source validation")
         try:
+            # The model can only cite these numbered passages; it never writes quote text itself.
             catalog = answer_quote_catalog(evidence, media)
             inventory = evidence_inventory(evidence, media, catalog)
             source_refs = {eid: source["source_ref"] for source in inventory["sources"]
                            for eid in source["evidence_ids"]}
             output_schema = selection_schema(catalog)
             target = answer_language(question)
-            system = SYSTEM
+            system = SYSTEM + general_norm(load_norms(), question)
             if any(_observation_metadata(item) for item in evidence):
                 system += (
                     "\nFor supplied social source observations, attribute claims to the specific observation. "
@@ -870,6 +896,7 @@ class Rag:
             estimate, visitor, "generation", self.settings.generation_model
         )
         try:
+            # One structured call, no reasoning and no retries (client max_retries=0).
             response = self.client.responses.parse(
                 model=self.settings.generation_model,
                 input=[
@@ -1003,6 +1030,12 @@ def _check_answer_structure(parsed, summary, sections):
 
 
 def validate_answer(parsed, evidence, cost=0.0, *, target=None, media_evidence=()):
+    """Final checks before an answer is shown, and the Answer object built from them.
+
+    Every quote must be a verbatim substring of its evidence and at most MAX_QUOTE_WORDS words;
+    1-MAX_CLAIMS claims are required; a bad summary/section structure is dropped (claims kept);
+    a confident language mismatch returns service_unavailable. Citations are numbered by first use.
+    """
     _check_answer_state(parsed)
     media = [MediaAnswerEvidence.model_validate(item) for item in media_evidence]
     by_id = {e.evidence_id: e for e in evidence}

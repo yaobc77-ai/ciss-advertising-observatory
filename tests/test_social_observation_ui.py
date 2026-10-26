@@ -140,7 +140,7 @@ def test_disabled_source_links_and_caller_cards_are_preserved():
     before = json.dumps(originals[0].to_plotly_json(), cls=PlotlyJSONEncoder)
     card = decorate_source_observation_cards(originals, [item], [cited])[0]
     links = [node.href for node in descendants(card) if isinstance(node, html.A)]
-    assert links == ["/records/same-counted-post"]
+    assert links and all(link.startswith("/records/same-counted-post?v=") and "obs=junkipedia%3A1" in link for link in links)
     assert item.url not in links and item.archive_url not in links
     assert json.dumps(originals[0].to_plotly_json(), cls=PlotlyJSONEncoder) == before
 
