@@ -32,3 +32,6 @@ docs/data/content_publication.md
 # Built release packages in any deliverables subfolder.
 deliverables/**/*.zip
 deliverables/**/*.zip.sha256
+
+# Personal Claude Code instructions for this machine (ports, local state).
+CLAUDE.local.md
