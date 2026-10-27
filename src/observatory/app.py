@@ -17,7 +17,7 @@ from pathlib import Path
 from urllib.parse import quote, urlsplit
 
 import plotly.graph_objects as go
-from dash import Dash, Input, Output, State, ctx, dcc, html, no_update
+from dash import MATCH, Dash, Input, Output, State, ctx, dcc, html, no_update
 from dash.exceptions import PreventUpdate
 from flask import request, session
 
@@ -52,6 +52,18 @@ from observatory.social_source_ui import (
     decorate_source_observation_cards,
     original_text_citation_matches,
 )
+
+from .criterion_confirmation import pending_confirmation
+from .criterion_ui import (
+    NOTICE_REASONS,
+    REFUSAL_NEXT_STEPS,
+    REFUSAL_TITLES,
+    criterion_from_text,
+    refusal_notice,
+    register_criterion_card,
+    rules_notice,
+)
+from .criterion_ui import card as criterion_confirmation_card
 
 UNKNOWN = "(Unknown)"
 NATIVE_COLUMNS = ("url", "publisher", "title", "date", "sponsor", "keyword")
@@ -1391,6 +1403,17 @@ def _render_answer_result(result, links_enabled, service):
     """All answer routes share presentation; failure statuses cannot bypass it."""
     status, mode = result.get("status"), result.get("answer_mode", "rag")
     data = result.get("structured_result") or {}
+    if pending_confirmation(result):
+        # Step 3 (S3-d): the list stopped for the researcher's criterion. The card comes first;
+        # the retrieved candidates below are free to browse; nothing has been judged yet.
+        submission = result.get("card_submission") or {
+            "question": (result.get("research_trace") or {}).get("original_question") or "", "filters": {}}
+        cards = [criterion_confirmation_card(result, submission)]
+        if result.get("evidence"):
+            cards.append(_answer_section("Retrieved candidates (free to browse; nothing judged yet)",
+                                         _evidence_cards(result["evidence"], links_enabled)))
+        cards.append(_research_steps(result))
+        return cards
     if mode == "tools" and data.get("kind") == "composite":
         cards = [html.H3("Completed question parts" if data.get("complete") else "Partial answer")]
         if status in {"limited", "service_unavailable"}:
@@ -1471,7 +1494,11 @@ def _render_answer_result(result, links_enabled, service):
             summary, evidence, _rag_scope_notes(result),
             eyebrow="Generated answer", trace=_research_steps(result), class_name="grounded-answer",
         ), external]
-    if status == "insufficient_evidence":
+    reason = result.get("failure_reason") or ""
+    if reason in REFUSAL_TITLES:
+        # Step 3: a refused or deferred confirmation keeps its own explanation, whatever its status.
+        title, message, next_step = REFUSAL_TITLES[reason], str(result.get("answer") or ""), REFUSAL_NEXT_STEPS[reason]
+    elif status == "insufficient_evidence":
         title = "Clarify this question" if mode == "clarification" else "Insufficient evidence"
         message = str(result.get("answer") or "The available records do not support an answer.")
         next_step = ("Specify the collection, company, outlet or date range so the question can be answered within a clear scope."
@@ -2026,7 +2053,7 @@ def create_app(service, settings, record_details=None) -> Dash:
         SESSION_COOKIE_SAMESITE="Lax",
         SESSION_COOKIE_SECURE=bool(getattr(settings, "secure_cookies", False)),
     )
-    from observatory.query_progress import ProgressRegistry
+    from observatory.query_progress import PREPARING, STAGES, ProgressRegistry
 
     progress_registry = ProgressRegistry()
 
@@ -2242,8 +2269,10 @@ def create_app(service, settings, record_details=None) -> Dash:
             [
                 dcc.Location(id="page-location", refresh=False),
                 dcc.Store(id="research-submission"),
+                dcc.Store(id="criterion-flow-state"),  # the last continuation's outcome and submitted criterion (step 3)
                 dcc.Store(id="research-progress-token", data=secrets.token_urlsafe(24)),
                 dcc.Interval(id="research-progress-poll", interval=600, disabled=True),
+                dcc.Interval(id="criterion-progress-poll", interval=600, disabled=True),
                 html.A("Skip to content", href="#main", className="skip-link"),
                 html.Header(
                     [
@@ -2341,6 +2370,14 @@ def create_app(service, settings, record_details=None) -> Dash:
                                                         ], id="research-progress", className="query-progress",
                                                             style={"display": "none"}, role="status",
                                                             **{"aria-live": "polite", "aria-atomic": "true"}),
+                                                        html.Div([
+                                                            html.Span(className="query-progress-spinner", **{"aria-hidden": "true"}),
+                                                            html.Span("Judging each ad by the confirmed rules", id="criterion-progress-label"),
+                                                        ], id="criterion-progress", className="query-progress",
+                                                            style={"display": "none"}, role="status",
+                                                            **{"aria-live": "polite", "aria-atomic": "true"}),
+                                                        html.Div(id="criterion-notice", className="criterion-notice-slot",
+                                                                 role="status", **{"aria-live": "polite"}),
                                                         html.Div(
                                                             id="research-results",
                                                             **{"aria-live": "polite"},
@@ -2553,7 +2590,8 @@ def create_app(service, settings, record_details=None) -> Dash:
             current = _research_signature(question, scope, dataset, values)
         except ValueError:
             current = None
-        if current == submitted:
+        # A criterion card adds its flow id to the signature (step 3, S3-d); the controls did not move.
+        if current == {key: value for key, value in submitted.items() if key != "flow_id"}:
             return None
         return _notice(
             "Results are from an earlier selection",
@@ -3082,8 +3120,22 @@ def create_app(service, settings, record_details=None) -> Dash:
         return state["label"] if state["status"] == "running" else "Preparing your search"
 
     @app.callback(
+        Output("criterion-progress-label", "children"),
+        Input("criterion-progress-poll", "n_intervals"),
+        State("research-progress-token", "data"),
+        prevent_initial_call=True,
+    )
+    def show_criterion_progress(_ticks, token):
+        # The card's block never says "Preparing your search": before the judgment reports its first
+        # stage, and in its failure fallback, it keeps the judging text (seen in the browser, 2026-10-27).
+        state = progress_registry.snapshot(session.get("visitor_id"), token)
+        return state["label"] if state["status"] == "running" and state["label"] != PREPARING else STAGES["judging"]
+
+    @app.callback(
         Output("research-results", "children"),
         Output("research-submission", "data"),
+        Output("criterion-notice", "children"),
+        Output("criterion-flow-state", "data"),
         Input("search-free", "n_clicks"),
         Input("answer-paid", "n_clicks"),
         State("research-question", "value"),
@@ -3112,29 +3164,78 @@ def create_app(service, settings, record_details=None) -> Dash:
         if not isinstance(clicks, int) or isinstance(clicks, bool) or clicks <= 0:
             raise PreventUpdate
         owner = session["visitor_id"]
-        request_id = progress_registry.begin(owner, token)
+        # One submission at a time per page (step 3): admission and registration happen under one
+        # lock, and the slot is held until this response is built, so the next submission can be
+        # admitted only after this one's response is on its way; the browser runs this callback's
+        # `running` finaliser when that response arrives (a server-side ordering, not a guarantee
+        # against a delayed delivery). An entry pruned by the TTL or evicted at capacity frees the
+        # slot while its work continues; is_current then drops the late response.
+        admitted, request_id = progress_registry.try_begin(owner, token)
+        if not admitted:
+            return no_update, no_update, _notice(
+                "Another submission is still running", "Wait for it to finish, then submit again.", "warning"), no_update
         progress = progress_registry.reporter(owner, token, request_id)
         try:
-            result = run_research(question, scope, dataset, values, progress)
-        except Exception:
-            progress_registry.finish(owner, token, request_id, status="failed")
-            raise
+            try:
+                result, flow_id = run_research(question, scope, dataset, values, progress)
+            except Exception:
+                progress_registry.finish(owner, token, request_id, status="failed")
+                raise
+            if not progress_registry.is_current(owner, token, request_id):
+                raise PreventUpdate  # the slot expired and a newer submission took it: its result stands
+            try:
+                submitted = _research_signature(question, scope, dataset, values)
+            except ValueError:
+                submitted = None
+            if submitted is not None and flow_id:
+                # The card's flow: a click on the card is honoured only while it is the current result.
+                submitted = {**submitted, "flow_id": flow_id}
+            return result, submitted, None, None  # a new submission clears the card's notice and flow state
         finally:
             progress_registry.finish(owner, token, request_id)
+
+    def paid_answer(question, filters, progress, **options):
+        """service.answer for this visitor with progress reporting.
+
+        `options` (criterion_confirmation, continuation; step 3) go only where the service accepts
+        them, so a plain fake with the three positional parameters keeps working.
+        """
+        if "visitor_id" not in session:
+            session["visitor_id"] = secrets.token_urlsafe(24)
+        arguments = {"visitor": session["visitor_id"]}
+        parameters = inspect.signature(service.answer).parameters
+        flexible = any(parameter.kind == inspect.Parameter.VAR_KEYWORD for parameter in parameters.values())
+        if "progress" in parameters or flexible:
+            arguments["progress"] = progress
+        arguments.update({name: value for name, value in options.items() if name in parameters or flexible})
+        return _mapping(service.answer(question, filters, **arguments))
+
+    def failure_view(question, filters, context):
+        """The public boundary after an answer failure (logged where it was caught): keyword evidence when it can be read."""
         try:
-            submitted = _research_signature(question, scope, dataset, values)
-        except ValueError:
-            submitted = None
-        return result, submitted
+            evidence = service.search(question, filters, limit=5)
+        except Exception as search_exc:  # noqa: BLE001 - public boundary must hide unexpected service details.
+            _boundary_failure("fallback keyword search", search_exc)
+            evidence = []
+        return [
+            context,
+            _answer_status(
+                "Answer service unavailable",
+                "The answer service could not complete this request. Keyword results are shown when available.",
+                "You can continue browsing and searching; submit the question again to retry.",
+            ),
+            *_evidence_cards(evidence, enabled),
+        ]
 
     def run_research(question, scope, dataset, values, progress):
+        """(rendered children, the flow id when the answer stopped at a criterion card, else None)."""
         question = (question or "").strip()
         if not question or len(question) > 2000:
             return _notice(
                 "Enter a research question",
                 "Use between 1 and 2,000 characters.",
                 "warning",
-            )
+            ), None
         try:
             filters = (
                 Filters(dataset="all")
@@ -3148,7 +3249,7 @@ def create_app(service, settings, record_details=None) -> Dash:
                 "Check the filters",
                 "Use a valid date range before searching.",
                 "warning",
-            )
+            ), None
         context = _search_context(question, filters)
         if ctx.triggered_id == "search-free":
             try:
@@ -3161,7 +3262,7 @@ def create_app(service, settings, record_details=None) -> Dash:
                         "diagnostics": {},
                     }
                 )
-                return [context, _keyword_result(report, enabled)]
+                return [context, _keyword_result(report, enabled)], None
             except Exception as exc:  # noqa: BLE001 - public boundary must hide unexpected service details.
                 _boundary_failure("keyword search", exc)
                 return [
@@ -3171,39 +3272,147 @@ def create_app(service, settings, record_details=None) -> Dash:
                         "The data service could not complete this search.",
                         "Please try again later or browse the records in Data.",
                     ),
-                ]
+                ], None
         try:
-            if "visitor_id" not in session:
-                session["visitor_id"] = secrets.token_urlsafe(24)
-            arguments = {"visitor": session["visitor_id"]}
-            parameters = inspect.signature(service.answer).parameters
-            if "progress" in parameters or any(parameter.kind == inspect.Parameter.VAR_KEYWORD
-                                                 for parameter in parameters.values()):
-                arguments["progress"] = progress
-            result = _mapping(
-                service.answer(question, filters, **arguments)
-            )
+            # Step 3 (S3-d): the web asks for the criterion card before any ad is judged, unless
+            # the switch says auto; the API and internal callers never read the switch.
+            result = paid_answer(question, filters, progress,
+                                 criterion_confirmation=getattr(settings, "criterion_confirmation", "ask") or "ask")
             progress("organizing")
             if result.get("status") == "answered" and result.get("answer_mode") in {"statistics", "tools"} and result.get("structured_result"):
                 effective = Filters.model_validate(result["structured_result"].get("filters") or filters.model_dump())
                 context = _search_context(question, effective)
-            return [context, *_render_answer_result(result, enabled, service)]
+            flow_id = None
+            if pending_confirmation(result):
+                # The scope as the web built it, without pinning the service's own defaults (a field the
+                # web left unset, such as include_inferred_dates, is defaulted the same way in phase 2).
+                result = {**result, "card_submission": {"question": question,
+                                                        "filters": filters.model_dump(mode="json", exclude_unset=True)}}
+                flow_id = (result.get("structured_result") or {}).get("flow_id")
+            return [context, *_render_answer_result(result, enabled, service)], flow_id
         except Exception as exc:  # noqa: BLE001 - public boundary must hide unexpected service details.
             _boundary_failure("question answer", exc)
+            return failure_view(question, filters, context), None
+
+    @app.callback(
+        Output("research-results", "children", allow_duplicate=True),
+        Output("research-submission", "data", allow_duplicate=True),
+        # A fixed slot above the results, not a MATCH id: Dash refuses a callback whose outputs mix
+        # MATCH wildcards with plain ids (seen in the browser, 2026-10-27).
+        Output("criterion-notice", "children", allow_duplicate=True),
+        Output("criterion-flow-state", "data", allow_duplicate=True),
+        Input({"type": "criterion-continue", "q": MATCH, "f": MATCH}, "n_clicks"),
+        State({"type": "criterion-card", "q": MATCH, "f": MATCH}, "data"),
+        State({"type": "criterion-rules", "q": MATCH, "f": MATCH}, "value"),
+        State({"type": "criterion-exclusions", "q": MATCH, "f": MATCH}, "value"),
+        State({"type": "criterion-choices", "q": MATCH, "f": MATCH}, "data"),
+        State("criterion-flow-state", "data"),
+        State("research-submission", "data"),
+        State("research-question", "value"),
+        State("search-scope", "value"),
+        State("active-dataset", "value"),
+        *_filter_inputs("native", State),
+        *_filter_inputs("social", State),
+        *_filter_inputs("all", State),
+        State("research-progress-token", "data"),
+        State("page-location", "pathname"),
+        prevent_initial_call=True,
+        # Only the card's own controls and its own progress block: a callback's `running` resets its
+        # outputs when it ends, so two callbacks must not share them (seen in the browser, 2026-10-27).
+        # Overlapping submissions are refused before any call (progress_registry.try_begin).
+        running=[
+            (Output({"type": "criterion-continue", "q": MATCH, "f": MATCH}, "disabled"), True, False),
+            (Output({"type": "criterion-browse", "q": MATCH, "f": MATCH}, "disabled"), True, False),
+            (Output({"type": "criterion-rules", "q": MATCH, "f": MATCH}, "disabled"), True, False),
+            (Output({"type": "criterion-exclusions", "q": MATCH, "f": MATCH}, "disabled"), True, False),
+            (Output("criterion-progress", "style"), {}, {"display": "none"}),
+            (Output("criterion-progress-poll", "disabled"), False, True),
+        ],
+    )
+    def continue_card(clicks, card, rules, exclusions, choices, flow_state, submitted, question, scope, dataset, *values):
+        """Phase 2 from the card (step 3, S3-d): judge by the rules the researcher confirmed.
+
+        The card's own question and scope are judged (the server also checks the token's); a
+        local check of the boxes, a refusal the server returns and a judgment in progress only
+        change the notice above the results, so the card, its typed rules, the token and the
+        candidates stay; the outcome and the submitted criterion go to the flow-state store, and a
+        retry after "being judged" resends exactly that criterion, whatever the boxes say now, so
+        the finished judgment is replayed. A click on a card that a newer submission replaced is
+        ignored, and a response that is no longer the latest submission is not published.
+        """
+        pathname, token, values = values[-1], values[-2], values[:-2]
+        if pathname is None or _page(pathname) != "query":
+            raise PreventUpdate
+        if not isinstance(clicks, int) or isinstance(clicks, bool) or clicks <= 0:
+            raise PreventUpdate
+        if not isinstance(card, dict) or not card.get("token") or not isinstance(card.get("filters"), dict):
+            raise PreventUpdate
+        if not isinstance(submitted, dict) or submitted.get("flow_id") != card.get("flow_id"):
+            raise PreventUpdate
+        replaying = (isinstance(flow_state, dict) and flow_state.get("flow_id") == card.get("flow_id")
+                     and flow_state.get("state") == "continuation_in_progress")
+        if replaying:
+            # The judgment already running is bound to the criterion that was submitted: resend exactly
+            # that (the boxes may have changed since), so the finished result is replayed, not refused.
+            criterion, problem = flow_state.get("criterion"), None
+            choices = flow_state.get("example_choices") or []
+        else:
+            criterion, problem = criterion_from_text(rules, exclusions, condition=card.get("condition"), limits=card.get("limits"))
+        if problem:
+            return no_update, no_update, rules_notice(problem), no_update
+        card_question = str(card.get("question") or "")
+        try:
+            filters = Filters.model_validate(card["filters"])
+        except Exception:  # noqa: BLE001 - a store the browser altered; the server would refuse the token's scope anyway.
+            raise PreventUpdate from None
+        try:
+            current = _research_signature(question, scope, dataset, values)
+        except ValueError:
+            current = None
+        moved = current != {"question": card_question, "filters": filters.model_dump(mode="json")}
+        context = _search_context(card_question, filters)
+        continuation = {"token": card["token"], "criterion": criterion, "example_choices": list(choices or [])}
+        owner = session["visitor_id"]
+        admitted, request_id = progress_registry.try_begin(owner, token)
+        if not admitted:
+            return no_update, no_update, _notice(
+                "Another submission is still running", "Wait for it to finish, then select Judge again.", "warning"), no_update
+        progress = progress_registry.reporter(owner, token, request_id)
+        result, failed = None, None
+        try:
             try:
-                evidence = service.search(question, filters, limit=5)
-            except Exception as search_exc:  # noqa: BLE001 - public boundary must hide unexpected service details.
-                _boundary_failure("fallback keyword search", search_exc)
-                evidence = []
-            return [
-                context,
-                _answer_status(
-                    "Answer service unavailable",
-                    "The answer service could not complete this request. Keyword results are shown when available.",
-                    "You can continue browsing and searching; submit the question again to retry.",
-                ),
-                *_evidence_cards(evidence, enabled),
-            ]
+                result = paid_answer(card_question, filters, progress, continuation=continuation)
+            except Exception as exc:  # noqa: BLE001 - public boundary must hide unexpected service details.
+                _boundary_failure("question answer", exc)
+                failed = exc
+            signature = {"question": card_question, "filters": filters.model_dump(mode="json")}
+            if result is None:
+                payload = (failure_view(card_question, filters, context), signature, None, None)
+            elif (result.get("failure_reason") or "") in NOTICE_REASONS:
+                payload = (no_update, no_update, refusal_notice(result),
+                           {"flow_id": card.get("flow_id"), "state": result.get("failure_reason"),
+                            "criterion": criterion, "example_choices": list(choices or [])})
+            else:
+                children = [context]
+                if moved:
+                    children.append(_notice(
+                        "Judged in the card's original scope",
+                        "The question or filters changed after the card was shown; the judgment used the card's question and scope.",
+                        "warning",
+                    ))
+                children.extend(_render_answer_result(result, enabled, service))
+                payload = (children, signature, None, None)
+            # Checked last, once everything the response needs is built (the fallback's keyword search
+            # above may take time): a response that is no longer the latest submission is not published.
+            if not progress_registry.is_current(owner, token, request_id):
+                raise PreventUpdate
+            return payload
+        finally:
+            # Released only now: the slot is held through the fallback's keyword search, the rendering
+            # and the freshness check, so the next submission (two continuations share the fixed
+            # progress block) is admitted only after this response is on its way, and this callback's
+            # `running` finaliser normally runs first; the research callback notes the limits.
+            progress_registry.finish(owner, token, request_id, status="failed" if failed else "complete")
 
     # Registered last: tests and Dash look up the original owners of the shared outputs first.
     from observatory.year_drilldown import register_year_drilldown
@@ -3216,4 +3425,5 @@ def create_app(service, settings, record_details=None) -> Dash:
 
     register_compare_ask(app)
     register_reviews(app, service)
+    register_criterion_card(app)
     return app

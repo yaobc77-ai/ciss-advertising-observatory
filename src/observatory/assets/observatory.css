@@ -682,3 +682,16 @@ summary { cursor: pointer; color: var(--teal); }
 .vote-row { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 4px; }
 .vote-button { font-size: 0.75rem; padding: 1px 8px; border: 1px solid #b9c0ca; border-radius: 10px; background: #fff; cursor: pointer; }
 .vote-button:hover { border-color: #003262; }
+/* The criterion card (pipeline step 3, S3-d): confirm what counts before any ad is judged. */
+.criterion-confirm { margin: 0 0 16px; padding: 14px 16px; border: 1px solid #c9d4e0; border-left: 4px solid #a86b25; background: #fbf7f0; border-radius: 4px; }
+.criterion-confirm h4 { margin: 0 0 8px; }
+.criterion-prose { margin: 4px 0; line-height: 1.6; }
+.criterion-example { margin: 4px 0 8px; padding-left: 10px; border-left: 2px solid #d6dfe7; }
+.criterion-example blockquote { margin: 0 0 2px; font-style: italic; }
+.criterion-source { display: block; font-size: 0.8rem; color: #4a5566; }
+.criterion-editor { display: grid; gap: 6px; margin: 10px 0; }
+.criterion-editor label { font-weight: 600; font-size: 0.9rem; }
+.criterion-box { width: 100%; box-sizing: border-box; font: inherit; padding: 6px 8px; border: 1px solid #b9c0ca; border-radius: 4px; }
+.criterion-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 8px 0; }
+.criterion-notice { color: #8a3b12; font-size: 0.9rem; margin: 6px 0; }
+.criterion-meta { font-size: 0.8rem; color: #687587; margin: 4px 0 0; }

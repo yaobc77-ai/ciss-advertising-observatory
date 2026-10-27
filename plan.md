@@ -19,6 +19,7 @@
 ## 问答流水线改造（2026-10-26，用户“先做这些”；设计见 docs/architecture/pipeline_current_vs_target.zh-CN.md）
 
 - 第 1 步已做（只记录 QuestionPlan，不改行为），见 work.md 同日条目。待做：用几道真实问题核对 `question_plan` 与实际路线是否一致（要本地服务和少量付费调用，约 $0.1，待批准）。
+- 第 3 步 S3-d 已做（2026-10-27：网页卡片与回调、网页默认 ask、进度标签；见 work.md 同日条目）。下一步：带真实模型的网页走查（要密钥能看到 gpt-5.6-luna、gpt-6-luna、text-embedding-3-small）和 S3-e 付费复测（约 $0.08）。
 - 第 3 步 S3-c 已做（2026-10-27：阶段一卡片与例句、`flow_id`／令牌／`FlowRegistry`、`Service.answer(continuation=)`、接口字段、开关默认 auto；见 work.md 同日条目）。下一步 S3-d：网页卡片与回调（接受／例句点选→草稿行／编辑／放弃）、网页默认 ask、进度标签；之后 S3-e 付费复测（约 $0.08，另行申请）。
 - 第 3 步 S3-b 已做（2026-10-27：计划 `criterion_mode`／`criterion_available` v4；确认后的标准可进名单路线，分流和筛查都用它；ask 无标准明确拒绝；`plan_check.criterion_matches`；auto 行为不变，见 work.md 同日条目）。下一步 S3-c：阶段一卡片、例句、`flow_id`／令牌／`FlowRegistry`、`Service.answer(continuation=)`、接口字段。
 - 第 3 步 S3-a 已做（2026-10-26，名单合一：`Service._list_answer` 替换单库分支和 `_screen_both`；22 个金样本白名单外零差异；见 work.md 同日条目）。S3-b～S3-e 等用户定三项产品规则。
