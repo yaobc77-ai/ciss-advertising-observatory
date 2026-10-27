@@ -2,6 +2,22 @@
 
 排序约定：新内容在上；每节对应 plan.md 同编号的一轮。
 
+## 2026-10-27：流水线第 3 步 S3-b——确认后的标准可进名单路线（用户定 A／B／B 之后开工）
+
+- 结论：名单路线能接收人确认的标准并按它判定；auto 行为不变（22 个金样本白名单外一致，白名单只加新记录键）。$0。
+- 代码：`question_plan`——`QuestionPlan.criterion_mode`（auto／ask／none）、`criterion_available`（分流开着且本题会起草；调用方没说则 None；传入的可以是只在筛查名单时才调用的函数，建计划不碰模型客户端）、`signals.relation_hint`、`reasons.criterion_mode`，建计划函数加 `triage_enabled`、`criterion_confirmation`，版本 v4；`plan_check` 加 `criterion_matches`（none：无来源；auto：草稿或无，待确认即错；ask：待确认或 confirmed／edited）。`list_screening.screen(criterion=)`：确认后的标准附在判题问题后（`CONFIRMED_CRITERION_NOTE`："按确认后的标准判，引用满足规则的句子"），必含短语仍只取自原问题，首读、重读、复核同一文本；`relevance_triage.triaged_screen(screen_with_criterion=)`。`service._answer_evidence`／`_list_answer` 加 `criterion=`、`criterion_source=`、`criterion_draft=`：是否传入标准在起草前定；有则不起草，分流开着时分流用它，筛查也用它；记录 `criterion_source`（confirmed／edited／draft_unconfirmed／none）、`screening_basis`、`criterion_draft`（只记真正的草稿）；带标准的调用其路线计划记 ask；来源只接受省略（= confirmed）、confirmed、edited，其他显式值在花钱前拒绝（`criterion_source_invalid`）；传入 auto 计划加标准在花钱前拒绝（`criterion_plan_mismatch`）；计划 ask 而没有标准→`criterion_confirmation_required` 拒绝（附检索候选，只花嵌入费），`_ensure_answer` 不联网补救；字面／关系名单不查分流开关。`list_screening._judge` 多 `asked` 参数：开 norms 时题型按原问题选，payload 里的问题带标准。回答正文在 auto 下不变（"未经人确认"的文字标注留到 S3-c）。
+- 测试：新 `tests/test_list_criterion_mode.py` 18 项（不起草且分流、筛查、重读都带标准；confirmed／edited 只差标签；非确认或未知来源三种值在花钱前拒绝；传入 auto 计划加标准拒绝、字面计划带标准照常字面；已知草稿并记；规则里的引号正反例不成为必含短语；无分流客户端、分流关闭、评审全失败三种情形仍按标准筛查；字面与关系名单不查分流开关；开虚构 norms 时题型按原问题选且提示 payload 带标准、无结构化回退；auto 记草稿未确认并按原问题筛查；ask 无标准拒绝且零判定、不联网；字面／关系名单无新键；计划字段（含函数式开关只对筛查名单调用一次）；plan_check 表含"筛查过却没记来源 = 不一致"）。`test_question_plan.py` 版本串 v4、`actual` 多 `criterion_source`。29 个文件（25 套件 + 金样本 + 分流 + 并行 + 新模块）：442 通过、1 跳过（补两条断言后 `test_list_criterion_mode.py` 单独重跑 18 项通过）。Ruff 通过。限制：私有 norms 的正文不在仓库里，测试用的是虚构 norms，只证明机制（题型按原问题、payload 带标准）；真实 norms 下的提示是否与确认标准冲突，留给 S3-e 付费复测。
+- Codex：计划复核 8 点已处理（设计稿第 8 节）；提交前复核：两轮。第一轮 4 点：显式非确认来源被改成已确认→改为花钱前拒绝（`criterion_source_invalid`）；传入 auto 计划加标准会执行后才发现不一致→花钱前拒绝（`criterion_plan_mismatch`）；字面名单前无条件查分流开关→只在确认标准真要筛查时查，建计划的开关函数只对筛查名单调用；norms 路径未证→`_judge(asked=)` 题型按原问题，加虚构 norms 的完整提示测试；另要求 plan_check 区分未判定与判定了没记来源→已改。第二轮：上一轮阻断项已解决，无新阻断项；建议两种新拒绝各过一次开联网的 `_ensure_answer`→已加断言；私有 norms 的语义冲突留给 S3-e。
+- 完整门禁：`.runtime/project_checks_s3b_final_20261027`（最终代码）：pytest 4,987 通过、0 失败、39 跳过、335 未选、28 个受保护模块排除，比 S3-a 那轮（4,969）多的 18 项就是 `tests/test_list_criterion_mode.py`；Ruff 通过；3 项浏览器 JS 检查因本机无 Node 未运行，门禁退出码 1，不能算完整通过；2 条 pytest 警告仍是 `tests/test_task_contract.py` 的 pydantic 序列化提示。说明：门禁收集时导入的是 `tests/test_list_criterion_mode.py` 补两条 `_ensure_answer` 断言之前的版本（Codex 第二轮建议，只加断言不改被测代码），改后模块单独重跑 18 项通过；本轮第一次门禁（修正前代码）在第一轮复核意见到达时停止，半截报告保留在 `.runtime/project_checks_s3b_20261027`。
+- 回滚：提交后 `git revert`；无数据、无 schema、$0。
+- 下一步：S3-c（阶段一卡片与例句、`flow_id`／令牌／`FlowRegistry`、`Service.answer(continuation=)`、接口字段、回答正文标注未经确认）。
+
+## 2026-10-27：两阶段问答的三项产品规则已定（用户："A，B，B。不用怕循环论证，用户就是要找到自己想找的"）
+
+- 决定：1 接口和内部调用允许不经人确认的 auto 模式（回答和记录标明"标准由模型起草，未经人确认"）；2 人确认的规则里可以写进库里的原句（例句点选变成规则草稿行，服务端记录不拒绝；起草模型仍只看问题）；3 人确认后筛查按确认后的标准找句子（接受和编辑同一策略，改宽的篇目可进通过组；未经人确认的草稿仍按原问题筛查）。
+- 改了设计稿 `docs/architecture/pipeline_step3_list_once_two_phase.zh-CN.md` 的 0、3.3、3.4a、3.5、3.6、3.8、5、6、7 节和第 4 节 S3-b／S3-c／S3-e 行；plan.md 同节加了记录。$0。
+- 下一步：S3-b（计划 `criterion_mode`、`_answer_evidence`／`_list_answer` 的 `criterion=`、记录字段、`plan_check`），auto 行为不变，22 个金样本不变。
+
 ## 2026-10-26：流水线第 3 步 S3-a——名单只实现一遍（用户："开始 S3-a：先存金样本，再把单库和两库名单合成一个函数，行为不变，不花钱。设计稿三个文件随 S3-a 一起提交。"）
 
 - 结论：单库和两库名单现在都走 `Service._list_answer`；22 个金样本（合并前在 60775b3 上冻结）在合并后白名单外零差异；$0。

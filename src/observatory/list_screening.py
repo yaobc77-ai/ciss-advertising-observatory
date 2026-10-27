@@ -24,6 +24,7 @@ from .analytics import sponsor_display
 from .answer_norms import load_norms, norms_tag, screening_prompt, split_tagged
 from .budget import price
 from .models import Answer, Citation, CitedStatement
+from .relevance_triage import criterion_text
 
 POLICY_VERSION = "list-screening-v19"
 MAX_CANDIDATES = 40
@@ -248,8 +249,12 @@ def checked_decision(decision, passages, phrases=()):
 _EDGE = " \"'.,;:!?…"
 
 
-def _judge(rag, question, batch, first_index, phrases, visitor, stage):
-    """One provider call for a batch of ads (each a list of passages); returns checked results and cost."""
+def _judge(rag, question, batch, first_index, phrases, visitor, stage, asked=None):
+    """One provider call for a batch of ads (each a list of passages); returns checked results and cost.
+
+    `asked` is the question as sent to the judge when it differs from `question` (a confirmed
+    criterion appended); the norms' question type is still read from `question` itself.
+    """
     refs, ads = {}, []
     for index, passages in enumerate(batch, first_index):
         ref = f"A{index}"
@@ -266,7 +271,7 @@ def _judge(rag, question, batch, first_index, phrases, visitor, stage):
         if located:
             ad["phrase_sentences"] = located[:3]
         ads.append(ad)
-    payload = json.dumps({"question": question, "ads": ads}, ensure_ascii=False)
+    payload = json.dumps({"question": asked or question, "ads": ads}, ensure_ascii=False)
     norms = load_norms()
     kind, template, prompt = screening_prompt(norms, question, payload) if norms else (None, None, None)
     if prompt:
@@ -395,7 +400,17 @@ def _run_batches(calls):
         return list(pool.map(lambda call: call(), calls))
 
 
-def screen(rag, question, evidence, visitor, limit=MAX_CANDIDATES, widen_to=None, reread=None, verify=None):
+# Appended to the question for the judge when a researcher confirmed the criterion (step 3,
+# S3-b; design 3.4a (b)): the criterion is what an ad is matched by; the question stays as
+# context, its quoted phrases and the verbatim quote check stay as they are. A model-drafted
+# criterion is never given to screening (2026-10-24: it missed 5 of 29 coder-relevant articles).
+CONFIRMED_CRITERION_NOTE = ("\n\n(The researcher confirmed the criterion below for this question. An ad matches when a "
+                            "sentence of its text satisfies one of the inclusion rules and no exclusion applies; "
+                            "quote that sentence. {criterion})")
+
+
+def screen(rag, question, evidence, visitor, limit=MAX_CANDIDATES, widen_to=None, reread=None, verify=None,
+           criterion=None):
     """Return per-record decisions and the settled cost. One provider call per batch.
 
     The first `limit` ranked ads are always read. Up to `widen_to` are read
@@ -410,9 +425,16 @@ def screen(rag, question, evidence, visitor, limit=MAX_CANDIDATES, widen_to=None
 
     `verify` (default VERIFY_LISTED, off) sends the listed ads through a second check that can only remove
     them (VERIFY_SYSTEM); questions with a quoted phrase are not re-checked.
+
+    `criterion` is a researcher-confirmed criterion ({counts, does_not_count}): the judge is
+    asked to decide by it (CONFIRMED_CRITERION_NOTE). The quoted phrases that every match
+    must contain still come from the question alone, so a rule that quotes a sentence does
+    not become a literal requirement.
     """
     groups = candidates_by_record(evidence, max(limit, widen_to or 0))
     phrases = quoted_phrases(question)
+    asked = question if criterion is None else question + CONFIRMED_CRITERION_NOTE.format(criterion=criterion_text(criterion))
+    sent = {"asked": asked} if criterion is not None else {}  # the judge's question when it differs
     results, cost = [], Decimal("0")
     starts = list(range(0, len(groups), BATCH_SIZE))
     first_wave = max(1, sum(1 for start in starts if start < limit))
@@ -421,7 +443,7 @@ def screen(rag, question, evidence, visitor, limit=MAX_CANDIDATES, widen_to=None
         wave = starts[position:position + (first_wave if position == 0 else SCREEN_WORKERS)]
         outcomes = _run_batches([
             (lambda start=start: _judge(rag, question, groups[start:start + BATCH_SIZE], start + 1, phrases,
-                                        visitor, "list_screening"))
+                                        visitor, "list_screening", **sent))
             for start in wave
         ])
         for start, (found, spent) in zip(wave, outcomes):
@@ -447,7 +469,7 @@ def screen(rag, question, evidence, visitor, limit=MAX_CANDIDATES, widen_to=None
             number += len(batch)
         outcomes = _run_batches([
             (lambda batch=batch, first=first: _judge(rag, question, batch, first, phrases, visitor,
-                                                     "list_screening_reread"))
+                                                     "list_screening_reread", **sent))
             for batch, first in numbered
         ])
         for found, spent in outcomes:
@@ -466,7 +488,7 @@ def screen(rag, question, evidence, visitor, limit=MAX_CANDIDATES, widen_to=None
         listed = [item for item in results if item["decision"] == "matches"]
         position = {item["record_id"]: n for n, item in enumerate(results)}
         for start in range(0, len(listed), BATCH_SIZE):
-            removed, spent = _verify(rag, question, listed[start:start + BATCH_SIZE], texts, visitor)
+            removed, spent = _verify(rag, asked, listed[start:start + BATCH_SIZE], texts, visitor)
             cost += spent
             for rid, reason in removed.items():
                 item = results[position[rid]]

@@ -152,7 +152,7 @@ def test_one_quoted_phrase_asked_literally_is_a_literal_list():
     plan = build_question_plan(question, base, run_for("evidence", {"filters": base.model_dump(mode="json")}), base)
     assert plan.shape == "list" and plan.list_kind == "literal"
     assert plan.signals["quoted_phrases"] == 1 and plan.signals["pure_literal"] is True
-    assert plan.phrases == ["tidal kite"] and plan.version == PLAN_VERSION == "question-plan-v3"
+    assert plan.phrases == ["tidal kite"] and plan.version == PLAN_VERSION == "question-plan-v4"
 
 
 def test_comparison_groups_are_never_screened_as_lists():
@@ -222,7 +222,7 @@ def test_plan_check_flags_a_web_attempt_only_when_the_plan_forbade_it():
     assert plan_check({"allow_web": True}, attempted)["web_matches"] is True
     assert plan_check({"allow_web": True}, attempted)["actual"] == {
         "status": "insufficient_evidence", "answer_mode": "rag", "failure_reason": "", "web_attempted": True,
-        "web_status": "unresolved", "shape": None}
+        "web_status": "unresolved", "shape": None, "criterion_source": None}
     disabled = answer(status="insufficient_evidence", external_research={"status": "disabled"})
     assert plan_check({"allow_web": False}, disabled)["web_matches"] is None
     out_of_scope = answer(status="insufficient_evidence", external_research={"status": "ok", "reason": "scope_not_supported"})
@@ -391,7 +391,7 @@ def test_a_literal_question_over_both_collections_is_matched_literally_in_each()
     assert plan.shape == "list" and plan.list_kind == "literal" and plan.datasets == ["native", "social"]
     assert plan.phrases == ["tidal kite"] and plan.signals["pure_literal"] is True
     assert build_evidence_plan(LITERAL, Filters(dataset="native")).list_kind == "literal"
-    assert plan.version == PLAN_VERSION == "question-plan-v3"
+    assert plan.version == PLAN_VERSION == "question-plan-v4"
 
 
 def test_list_requested_is_the_one_rule_the_selection_widening_reads():

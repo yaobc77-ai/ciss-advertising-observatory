@@ -42,7 +42,8 @@ from .question_policy import (
 # coverage_note_rule; v1 plans recorded by step 1 lack them. v3 (step 3, S3-a):
 # list_kind "literal" also for a quoted-phrase question over both collections,
 # which v2 recorded as "screen" to mirror the former two-collection function.
-PLAN_VERSION = "question-plan-v3"
+# v4 (step 3, S3-b) adds criterion_mode and criterion_available.
+PLAN_VERSION = "question-plan-v4"
 # The planner's declaration that every matching source is wanted.
 PLANNER_LIST = "every_matching_source"
 
@@ -98,6 +99,13 @@ class QuestionPlan:
     read_sources: bool = False
     # The surface rule selects or counts sources: a prose answer gets a retrieved-examples note.
     coverage_note_rule: bool = False
+    # How a screened list's criterion is decided (step 3): "auto" drafts it from the question
+    # and judges at once, "ask" stops for a human first (S3-c), "none" for lists without
+    # model screening and for every other shape.
+    criterion_mode: str = "none"
+    # A criterion would be drafted: the Decisions triage is on and the list is screened
+    # without quoted phrases or a relation hint. None when the caller did not say.
+    criterion_available: bool | None = None
     reasons: dict[str, str] = field(default_factory=dict)
     signals: dict[str, Any] = field(default_factory=dict)
     version: str = PLAN_VERSION
@@ -119,7 +127,8 @@ def _datasets(dataset: str | None) -> list[str]:
 
 def _compose(question: str, *, route: str, agent_route: str, route_reason: str, base_filters, effective,
              declared_shape, relation_listing, retrieval_groups, search_query, query_reason: str,
-             clarify_message: str | None, failure_reason: str) -> QuestionPlan:
+             clarify_message: str | None, failure_reason: str, triage_enabled=None,
+             criterion_confirmation="auto") -> QuestionPlan:
     """The one place where a question's handling is decided, for both builders."""
     contract = question_contract(question)
     reasons: dict[str, str] = {"route": route_reason}
@@ -140,6 +149,9 @@ def _compose(question: str, *, route: str, agent_route: str, route_reason: str, 
                          and effective.dataset == "social" and effective.record_ids
                          and effective.record_ids != ["no-relation-match"])
     groups = bool(retrieval_groups)
+    # Posts selected by a relation get a hint in the screening question (one social
+    # collection only); such a list drafts no criterion.
+    relation_hint = bool(listing and listing.get("selections") and effective.dataset == "social" and not relation_list)
     phrases = quoted_phrases(question)
     literal = pure_literal_question(question)
     # A list is screened in one collection, or in both when the user selected both
@@ -151,7 +163,7 @@ def _compose(question: str, *, route: str, agent_route: str, route_reason: str, 
     signals = {
         "rule_list": rule_list, "planner_shape": declared_shape, "relation_list": relation_list,
         "quoted_phrases": len(phrases), "pure_literal": literal, "retrieval_groups": groups,
-        "collection_only": bool(COLLECTION_ONLY.search(question)),
+        "collection_only": bool(COLLECTION_ONLY.search(question)), "relation_hint": relation_hint,
         "contract_task": contract.get("task"), "original_metadata_only": bool(contract.get("original_metadata_only")),
     }
 
@@ -201,6 +213,25 @@ def _compose(question: str, *, route: str, agent_route: str, route_reason: str, 
         query = search_query or question
         reasons["search_query"] = query_reason
 
+    # Step 3 (S3-b): only a model-screened list has a criterion. "auto" drafts it from the
+    # question and judges at once (today's behaviour); "ask" means the researcher confirms it
+    # first, so the list is judged only with a confirmed criterion (a caller passing one, or the
+    # two-phase entry of S3-c); never a silent fallback from one to the other.
+    if shape == "list" and list_kind == "screen":
+        criterion_mode = "ask" if criterion_confirmation == "ask" else "auto"
+        reasons["criterion_mode"] = "caller:ask" if criterion_mode == "ask" else "default:auto"
+    else:
+        criterion_mode, reasons["criterion_mode"] = "none", (f"kind:{list_kind}" if list_kind else f"shape:{shape}")
+    # One meaning: this list would get a drafted criterion (the triage is on; screened list
+    # without quoted phrases or a relation hint), whichever mode decides when it is confirmed.
+    # `triage_enabled` may be a callable, asked only for a screened list (it may touch the
+    # model client); None means the caller did not say.
+    if criterion_mode == "none":
+        criterion_available = None if triage_enabled is None else False
+    else:
+        on = triage_enabled() if callable(triage_enabled) else triage_enabled
+        criterion_available = None if on is None else bool(on) and not phrases and not relation_hint
+
     return QuestionPlan(
         route=route, agent_route=agent_route, shape=shape, list_kind=list_kind,
         datasets_requested=requested, datasets=datasets, filters=filters_dump, search_query=query,
@@ -208,11 +239,13 @@ def _compose(question: str, *, route: str, agent_route: str, route_reason: str, 
         wants_list=wants_list, phrases=phrases, original_metadata=original_metadata_question(question),
         read_sources=sources_content_request(question),
         coverage_note_rule=bool(contract["selects_sources"] or contract["requires_content_count"]),
+        criterion_mode=criterion_mode, criterion_available=criterion_available,
         reasons=reasons, signals=signals,
     )
 
 
-def build_question_plan(question: str, base_filters, run, narrowed_filters=None) -> QuestionPlan:
+def build_question_plan(question: str, base_filters, run, narrowed_filters=None, *, triage_enabled=None,
+                        criterion_confirmation="auto") -> QuestionPlan:
     """The plan for a question the research agent understood.
 
     `run` is the ResearchRun (route, result, failure_reason); `narrowed_filters`
@@ -236,11 +269,13 @@ def build_question_plan(question: str, base_filters, run, narrowed_filters=None)
         search_query=query, query_reason="planner" if query else "default:question",
         clarify_message=message if route == "clarify" and isinstance(message, str) else None,
         failure_reason=str(getattr(run, "failure_reason", "") or ""),
+        triage_enabled=triage_enabled, criterion_confirmation=criterion_confirmation,
     )
 
 
 def build_evidence_plan(question: str, filters, *, search_query=None, declared_shape=None,
-                        relation_listing=None, retrieval_groups=None) -> QuestionPlan:
+                        relation_listing=None, retrieval_groups=None, triage_enabled=None,
+                        criterion_confirmation="auto") -> QuestionPlan:
     """The plan for an evidence-route call that has no research run.
 
     Used by the legacy path, composite question parts, the collection-first
@@ -252,7 +287,8 @@ def build_evidence_plan(question: str, filters, *, search_query=None, declared_s
         base_filters=filters, effective=filters, declared_shape=declared_shape,
         relation_listing=relation_listing, retrieval_groups=retrieval_groups,
         search_query=search_query, query_reason="caller" if search_query else "default:question",
-        clarify_message=None, failure_reason="",
+        clarify_message=None, failure_reason="", triage_enabled=triage_enabled,
+        criterion_confirmation=criterion_confirmation,
     )
 
 
@@ -285,5 +321,26 @@ def plan_check(plan: dict[str, Any], result) -> dict[str, Any]:
     web_matches = None
     if web_attempted:
         web_matches = bool(plan.get("allow_web"))
+    # Step 3: the criterion the list was judged by must be the kind the plan called for. A list
+    # never judged (no screened list) is unknown; a model-screened list without a recorded
+    # source is a mismatch; a literal or relation list has no source and needs none.
+    screening = trace.get("list_screening") or {}
+    source = screening.get("criterion_source")
+    screened = screening.get("method") == "ai_screening"
+    actual["criterion_source"] = source
+    mode = plan.get("criterion_mode")
+    pending = (result.structured_result or {}).get("kind") == "criterion_confirmation"
+    if mode == "none":
+        criterion_matches = not pending and (source == "none" or (source is None and not screened))
+    elif mode in ("auto", "ask"):
+        expected = ("draft_unconfirmed", "none") if mode == "auto" else ("confirmed", "edited")
+        if pending:
+            criterion_matches = mode == "ask"
+        elif source is None:
+            criterion_matches = False if screened else None
+        else:
+            criterion_matches = source in expected
+    else:
+        criterion_matches = None
     return {"version": plan.get("version"), "shape_matches": shape_matches, "web_matches": web_matches,
-            "actual": actual}
+            "criterion_matches": criterion_matches, "actual": actual}

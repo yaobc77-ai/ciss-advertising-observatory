@@ -39,6 +39,7 @@ from observatory.list_screening import (
     _phrase_pattern,
 )
 from observatory.models import Answer, Citation, CitedStatement, Evidence, Filters
+from observatory.question_plan import PLAN_VERSION
 from observatory.rag import Rag
 from observatory.relevance_triage import Criterion
 from observatory.service import Service
@@ -121,11 +122,18 @@ GROUPS = ({"query": HASHTAG, "filters": {"dataset": "social", "record_ids": ["s1
 
 # Record fields the merge changes on purpose (design 2.2): the two-collection path wrote a fixed
 # first_read (now the largest collection's, with one value per collection beside it); the plan's
-# list_kind for a literal question over both collections; the plan version.
+# list_kind for a literal question over both collections; the plan version. S3-b added record
+# keys only: the plan's criterion_mode / criterion_available / relation_hint signal, and the
+# trace's criterion_source / screening_basis.
 BOTH = (("result", "research_trace", "list_screening", "first_read"),
         ("result", "research_trace", "list_screening", "first_read_by_dataset"))
+PLAN = ("result", "research_trace", "question_plan")
 ALLOWED = (("db_calls", "public_rows"), ("db_calls", "count_public"),
-           ("result", "research_trace", "question_plan", "version"))
+           (*PLAN, "version"), (*PLAN, "criterion_mode"), (*PLAN, "criterion_available"),
+           (*PLAN, "reasons", "criterion_mode"), (*PLAN, "signals", "relation_hint"),
+           ("result", "research_trace", "list_screening", "criterion_source"),
+           ("result", "research_trace", "list_screening", "screening_basis"),
+           ("result", "research_trace", "list_screening", "criterion_draft"))
 
 
 @dataclass(frozen=True)
@@ -496,6 +504,9 @@ def test_the_list_route_reproduces_the_frozen_samples(name, plain_environment):
         pytest.skip(f"golden sample recorded: {path.name}")
     expected = json.loads(path.read_text(encoding="utf-8"))
     assert expected.pop("frozen") == FROZEN
+    # The plan version may differ from the frozen one only by being the current one.
+    plan = actual["result"]["research_trace"].get("question_plan")
+    assert plan is None or plan["version"] == PLAN_VERSION
     # The recorded scenario must be this scenario (a field added to Scenario later keeps its default
     # for an older sample); only the free-text note may differ.
     frozen_scenario, live_scenario = {**actual["scenario"], **expected.pop("scenario")}, actual.pop("scenario")

@@ -31,6 +31,7 @@ from .question_plan import (
     plan_check,
 )
 from .rag import AnswerValidationError, Rag
+from .relevance_triage import enabled as triage_enabled
 from .relevance_triage import make_criterion
 from .structured_queries import QuestionPlan, plan_question, validate_share_scope
 
@@ -834,7 +835,9 @@ class Service:
         protected = {"citation_mismatch", "quote_too_long", "invalid_claim_count", "named_source_not_in_collection",
                      "evidence_version_mismatch", "answer_structure_mismatch", "content_publication_unavailable",
                      "collection_unavailable", "statistics_unavailable", "historical_source_state_unverified",
-                     "media_evidence_mismatch", "duplicate_evidence_identity"}
+                     "media_evidence_mismatch", "duplicate_evidence_identity",
+                     # A list waiting for the researcher's criterion is not an evidence shortfall (step 3).
+                     "criterion_confirmation_required"}
         if (not 1 <= len(question.strip()) <= 2000
                 or result.failure_reason.startswith("data_changed") or result.failure_reason in protected
                 or research_failure_status(result.failure_reason)):
@@ -1021,7 +1024,7 @@ class Service:
                 # Pipeline step 2: the plan is built once here and drives the evidence
                 # route (shape, list kind, search query, web permission). The planner's
                 # relation selections and comparison groups travel beside it as data.
-                plan = build_question_plan(question, filters, run, narrowed)
+                plan = build_question_plan(question, filters, run, narrowed, triage_enabled=lambda: triage_enabled(self.rag))
                 # Question language and wording remain intact for the cited answer.
                 result = self._answer_evidence(question, narrowed, visitor, audit=False, plan=plan,
                                                relation_listing=data.get("relation_listing"),
@@ -1629,7 +1632,8 @@ class Service:
         count = self._scope_count(scope)
         return count if count <= SMALL_SCOPE_RECORDS else 0
 
-    def _triaged_screen(self, question, evidence, filters, scope_total, visitor, reread, criterion):
+    def _triaged_screen(self, question, evidence, filters, scope_total, visitor, reread, criterion,
+                        screen_with_criterion=False):
         """Decisions-API triage of the candidates (every record when the scope is small), then screening.
 
         Returns (results, cost, triage summary, passages of the records not excluded).
@@ -1643,7 +1647,8 @@ class Service:
             ids = [row["record_id"] for row in self.db.public_rows(filters) if row["record_id"] not in seen]
             extra = self._public_evidence(self.db.record_passages(ids, filters, per_record=None)) if ids else []
         results, cost, summary = triaged_screen(screen_list, self.rag, question, evidence, visitor,
-                                                criterion=criterion, extra=extra, reread=reread)
+                                                criterion=criterion, extra=extra, reread=reread,
+                                                screen_with_criterion=screen_with_criterion)
         # Every record with text in scope was read; the rest have none to read.
         summary["whole_scope"] = whole
         kept = {item["record_id"] for item in results if item.get("route") != "exclude"}
@@ -1707,7 +1712,8 @@ class Service:
             "research_trace": {**result.research_trace, "list_screening": trace},
         })
 
-    def _list_answer(self, question, plan, filters, scopes, evidence, visitor, progress=None, relation_listing=None):
+    def _list_answer(self, question, plan, filters, scopes, evidence, visitor, progress=None, relation_listing=None,
+                     criterion=None, criterion_source=None, criterion_draft=None):
         """Answer a list question over its collections with one implementation (pipeline step 3, S3-a).
 
         `filters` is the question's scope, `scopes` the collections' Filters (one, or native
@@ -1723,13 +1729,35 @@ class Service:
         two) and listed once; a screened list is then summarised or its matches read.
         Returns (Answer, cost).
 
+        `criterion` (step 3, S3-b) is a criterion a researcher confirmed ({counts, does_not_count};
+        `criterion_source` "confirmed" (the default) or "edited" says only where it came from, any
+        other label is refused by _answer_evidence before anything is spent, `criterion_draft`
+        the model's draft it was made from when the caller knows it): nothing is drafted, the
+        triage judges by it when it is on, and screening is asked to judge by it too (design
+        3.4a (b)). Without it an "auto" list behaves as before: a criterion drafted from the
+        question drives the triage only and screening judges by the question
+        ("draft_unconfirmed"), or there is none ("none"). A plan that asks for confirmation
+        ("ask") without a confirmed criterion is refused, never judged by a draft. The trace
+        records `criterion_source`, `screening_basis` and, when known, `criterion_draft`.
+
         A one-collection failure replaces `evidence` in place with the passages read so far,
         so a limited or failed answer shows them, as before the merge; with two collections
         the retrieval candidates stay, as before.
         """
         if plan.list_kind == "relation":
             return self._relation_list(question, filters, relation_listing), 0.0
+        if plan.criterion_mode == "ask" and criterion is None:
+            # The two-phase entry (S3-c) stops here with the criterion to confirm; until then a
+            # confirmation that never happened is a refusal, not a judgment by a model draft.
+            return Answer(status="insufficient_evidence", answer_mode="clarification",
+                          failure_reason="criterion_confirmation_required",
+                          answer="This list is judged only by a criterion the researcher confirms first; "
+                                 "no confirmed criterion was given, so nothing was judged.",
+                          evidence=list(evidence)), 0.0  # the retrieval candidates, free to browse
         phrases, literal, both = plan.phrases, plan.list_kind == "literal", len(scopes) > 1
+        confirmed = criterion is not None
+        if confirmed and criterion_source is None:
+            criterion_source = "confirmed"  # omitted: taken as given; other labels were checked by the caller
         # Posts selected by a relation satisfy it by their source records, which the
         # screener cannot see in the text (B1K-REL4: 0 of 17 replies kept). One social
         # collection only, as before the merge: a list over both has no relation selection.
@@ -1788,14 +1816,18 @@ class Service:
                 return rows
 
             reader = reread if hasattr(self.db, "record_passages") else None
-            if criterion:
-                results, cost, summary, kept = self._triaged_screen(question, own, scope, total, visitor, reader, criterion)
+            # A confirmed criterion goes through the triage only when the triage is on (asked
+            # here, not for lists that never judge: the check may touch the model client).
+            if criterion and (not confirmed or triage_enabled(self.rag)):
+                results, cost, summary, kept = self._triaged_screen(question, own, scope, total, visitor, reader, criterion,
+                                                                    screen_with_criterion=confirmed)
                 items = [*kept, *reread_passages]
             else:
                 # Screen candidates 4 at a time; every match must quote its passage. Past
                 # the first MAX_CANDIDATES, reading continues only while matches turn up.
                 results, cost = screen_list(self.rag, question + hint, own, visitor, limit=max(MAX_CANDIDATES, records),
-                                            widen_to=max(MAX_WIDENED, records), reread=reader)
+                                            widen_to=max(MAX_WIDENED, records), reread=reader,
+                                            **({"criterion": criterion} if confirmed else {}))
                 summary, items = None, [*own, *reread_passages]
             if not both:
                 read[:] = list({e.evidence_id: e for e in items}.values())
@@ -1805,7 +1837,9 @@ class Service:
             """Steps 4a-4b (relevance_triage): an explicit criterion, then a Decisions-API triage
             that excludes clear non-matches before screening. One criterion for every collection,
             from the question alone; not for quoted phrases, exact wording or a relation hint,
-            whose condition is the text itself or a source field."""
+            whose condition is the text itself or a source field. A confirmed criterion is used as given."""
+            if confirmed:
+                return criterion, 0.0
             return (None, 0.0) if literal or phrases or hint else make_criterion(self.rag, question, visitor)
 
         try:
@@ -1849,6 +1883,13 @@ class Service:
             trace["first_read"] = max(first_reads.values())
             if both:
                 trace["first_read_by_dataset"] = first_reads
+            # Which criterion the list was judged by, what screening looked for sentences by, and
+            # the model's draft when it is known (drafted here, or handed over with a confirmed one).
+            trace["criterion_source"] = criterion_source if confirmed else "draft_unconfirmed" if criterion else "none"
+            trace["screening_basis"] = "confirmed_criterion" if confirmed else "question"
+            draft = criterion_draft if confirmed else criterion
+            if draft:
+                trace["criterion_draft"] = draft
             if plan.read_sources and result.citations:
                 result, writer_cost = self._read_matched_sources(question, result, results, pool, visitor, progress)
                 cost += writer_cost
@@ -2054,7 +2095,8 @@ class Service:
         }), cost
 
     def _answer_evidence(self, question, filters, visitor, search_query=None, audit=True,
-                         retrieval_groups=None, progress=None, declared_shape=None, relation_listing=None, plan=None):
+                         retrieval_groups=None, progress=None, declared_shape=None, relation_listing=None, plan=None,
+                         criterion=None, criterion_source=None, criterion_draft=None):
         """Retrieve passages again and answer from them, as a checked list or as a generated answer.
 
         Steps (docs/architecture/query_logic.zh-CN.md, section 4):
@@ -2069,8 +2111,9 @@ class Service:
            scope for small scopes (<= SMALL_SCOPE_RECORDS), otherwise 5 records and 3 passages.
            Non-list evidence is trimmed to EVIDENCE_CHAR_BUDGET characters.
         5. Lists: _list_answer (pipeline step 3), one implementation over one or both collections:
-           relation listing, exact wording or model screening per collection, then
-           _read_matched_sources or _summarize_list. Other questions: Rag.generate with checked quotes.
+           relation listing, exact wording or model screening per collection (by a criterion the
+           researcher confirmed when `criterion` is given), then _read_matched_sources or
+           _summarize_list. Other questions: Rag.generate with checked quotes.
         6. Map failures to status/failure_reason, settle costs, and try web help only when the
            collection had insufficient evidence and the plan allows outside sources (never after a list).
         """
@@ -2084,7 +2127,9 @@ class Service:
         if own_plan:
             try:
                 plan = build_evidence_plan(question, filters, search_query=search_query, declared_shape=declared_shape,
-                                           relation_listing=relation_listing, retrieval_groups=retrieval_groups)
+                                           relation_listing=relation_listing, retrieval_groups=retrieval_groups,
+                                           triage_enabled=lambda: triage_enabled(self.rag),
+                                           criterion_confirmation="ask" if criterion is not None else "auto")
             except Exception as exc:
                 # A plan that cannot be built is an answer-service failure, reported
                 # like every other failure of this route, never an exception to the caller.
@@ -2096,6 +2141,15 @@ class Service:
                           answer="This is a stored original-field question. Identify the record and use original metadata tools; content retrieval and web pages cannot substitute for that field.",
                           failure_reason="original_source_metadata_required",
                           **({"research_trace": {"question_plan": plan.as_dict()}} if own_plan else {}))
+        if criterion is not None:
+            # A confirmed criterion (step 3) comes with a source that says so and a plan that asked
+            # for it; neither is guessed, and nothing is spent on a contradiction.
+            problem = ("criterion_source_invalid" if criterion_source not in (None, "confirmed", "edited")
+                       else "criterion_plan_mismatch" if plan.criterion_mode == "auto" else None)
+            if problem:
+                return Answer(status="service_unavailable", failure_reason=problem,
+                              answer="The answer service is unavailable. Browse the evidence below or use keyword search.",
+                              **({"research_trace": {"question_plan": plan.as_dict()}} if own_plan else {}))
 
         start = time.monotonic()
         evidence = []
@@ -2233,7 +2287,9 @@ class Service:
                 reservation = None
                 # Step 5 (list): one implementation over one or both collections.
                 result, screening_cost = self._list_answer(question, plan, filters, [scope for _, scope in scoped],
-                                                           evidence, visitor, progress, relation_listing=relation_listing)
+                                                           evidence, visitor, progress, relation_listing=relation_listing,
+                                                           criterion=criterion, criterion_source=criterion_source,
+                                                           criterion_draft=criterion_draft)
                 result.cost_usd = screening_cost + sum(embedding_cost)
             else:
                 # Step 5 (ordinary question): grounded generation; Rag.generate checks every quote verbatim.

@@ -198,12 +198,15 @@ def route(decision, numbers):
     return "pass" if decision == "matches" and numbers["meets"] >= PASS_AT else "review"
 
 
-def triaged_screen(screen, rag, question, evidence, visitor, *, criterion, extra=(), reread=None):
+def triaged_screen(screen, rag, question, evidence, visitor, *, criterion, extra=(), reread=None,
+                   screen_with_criterion=False):
     """Triage, then screen what was not excluded; returns (results, cost, summary).
 
     `screen` is list_screening.screen. `evidence` holds the ranked candidates'
     passages and `extra` every passage of the other records in a small scope.
-    Each result carries "route" and "triage" (the judge's numbers).
+    Each result carries "route" and "triage" (the judge's numbers). A criterion a
+    researcher confirmed is given to screening too (`screen_with_criterion`,
+    design step 3); a model draft is not (step 3 of the module docstring).
     """
     groups = {}
     for item in [*evidence, *extra]:
@@ -216,7 +219,8 @@ def triaged_screen(screen, rag, question, evidence, visitor, *, criterion, extra
     kept.sort(key=lambda g: -((numbers.get(g[0].record_id) or {}).get("meets", 0.5)))
     screened, unscreened = kept[:SCREEN_MAX], kept[SCREEN_MAX:]
     results, spent = (screen(rag, question, [p for g in screened for p in g], visitor, limit=len(screened),
-                             widen_to=len(screened), reread=reread) if screened else ([], 0.0))
+                             widen_to=len(screened), reread=reread,
+                             **({"criterion": criterion} if screen_with_criterion else {})) if screened else ([], 0.0))
     cost += spent
     for item in results:
         item["triage"] = numbers.get(item["record_id"])
