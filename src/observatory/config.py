@@ -42,6 +42,10 @@ class Settings:
     research_agent_enabled: bool = False
     # One typed interpretation compiled to existing reads; opt in after validation.
     question_intent_enabled: bool = False
+    # Two-phase list questions (pipeline step 3): "ask" shows the drafted judging rules for
+    # confirmation before any ad is judged, "auto" judges at once. Read by the web entry only;
+    # the API and internal callers stay "auto" unless a request asks (user decision 2026-10-27).
+    criterion_confirmation: str = "auto"
     # /compare runs the same question with and without retrieval (paid); demo only.
     compare_demo_enabled: bool = False
     # `observatory api`: JSON-only backend for a separate frontend.
@@ -94,6 +98,7 @@ class Settings:
             trusted_proxy=os.getenv("OBS_TRUSTED_PROXY", ""),
             research_agent_enabled=os.getenv("OBS_RESEARCH_AGENT_ENABLED", "false").lower() == "true",
             question_intent_enabled=os.getenv("OBS_QUESTION_INTENT_ENABLED", "false").lower() == "true",
+            criterion_confirmation="ask" if os.getenv("OBS_CRITERION_CONFIRMATION", "auto").strip().lower() == "ask" else "auto",
             compare_demo_enabled=os.getenv("OBS_COMPARE_DEMO_ENABLED", "false").lower() == "true",
             api_port=int(os.getenv("OBS_API_PORT", "18060")),
             api_cors_origins=tuple(o.strip() for o in os.getenv(

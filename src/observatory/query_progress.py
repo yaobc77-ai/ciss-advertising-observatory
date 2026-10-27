@@ -20,6 +20,9 @@ STAGES = {
     "web": "Searching web sources",
     "organizing": "Organizing a source-grounded answer",
     "citations": "Checking citations against sources",
+    # Two-phase list questions (pipeline step 3, S3-c).
+    "drafting": "Drafting the judging rules",
+    "judging": "Judging each ad by the confirmed rules",
 }
 _TOKEN = re.compile(r"[A-Za-z0-9_-]{24,80}\Z")
 

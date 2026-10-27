@@ -249,11 +249,13 @@ def checked_decision(decision, passages, phrases=()):
 _EDGE = " \"'.,;:!?…"
 
 
-def _judge(rag, question, batch, first_index, phrases, visitor, stage, asked=None):
+def _judge(rag, question, batch, first_index, phrases, visitor, stage, asked=None, cost_sink=None):
     """One provider call for a batch of ads (each a list of passages); returns checked results and cost.
 
     `asked` is the question as sent to the judge when it differs from `question` (a confirmed
     criterion appended); the norms' question type is still read from `question` itself.
+    `cost_sink` (a list) receives the cost of every call settled here, so a list that fails
+    later can still report what it spent.
     """
     refs, ads = {}, []
     for index, passages in enumerate(batch, first_index):
@@ -276,12 +278,14 @@ def _judge(rag, question, batch, first_index, phrases, visitor, stage, asked=Non
     kind, template, prompt = screening_prompt(norms, question, payload) if norms else (None, None, None)
     if prompt:
         parsed, reasoning, actual, fallback = _judge_tagged(rag, prompt, len(batch), visitor, stage, refs,
-                                                            {"norms": norms_tag(norms), "type": kind, "template": template})
+                                                            {"norms": norms_tag(norms), "type": kind, "template": template},
+                                                            **({"cost_sink": cost_sink} if cost_sink is not None else {}))
         if not fallback:
             return _checked_results(parsed, refs, phrases, reasoning), actual
     else:
         actual, reasoning, fallback = Decimal("0"), "", False
-    parsed, extra = _judge_structured(rag, payload, len(batch), visitor, stage, refs)
+    parsed, extra = _judge_structured(rag, payload, len(batch), visitor, stage, refs,
+                                      **({"cost_sink": cost_sink} if cost_sink is not None else {}))
     if fallback and reasoning:
         # The decisions below come from the structured call; the reasoning is kept
         # from the first call so why an ad was judged relevant stays readable.
@@ -292,7 +296,7 @@ def _judge(rag, question, batch, first_index, phrases, visitor, stage, asked=Non
     return results, actual + extra
 
 
-def _judge_structured(rag, payload, size, visitor, stage, refs):
+def _judge_structured(rag, payload, size, visitor, stage, refs, cost_sink=None):
     """The structured-output screening call (the default without private norms)."""
     upper_input = len((SYSTEM + payload).encode("utf-8")) + 2048
     # Low reasoning: with none, 15 of 40 ads containing the quoted words were
@@ -314,6 +318,8 @@ def _judge_structured(rag, payload, size, visitor, stage, refs):
                        getattr(details, "cached_tokens", 0) or 0, getattr(details, "cache_write_tokens", 0) or 0)
         rag.budget.settle(rid, actual, {**usage.model_dump(), "observatory_request": {
             "policy": POLICY_VERSION, "stage": stage, "refs": list(refs)}})
+        if cost_sink is not None:
+            cost_sink.append(float(actual))
     except Exception as exc:
         rag.budget.uncertain(rid, type(exc).__name__)
         raise
@@ -324,7 +330,7 @@ def _judge_structured(rag, payload, size, visitor, stage, refs):
 THINK_TOKENS_PER_AD = 160
 
 
-def _judge_tagged(rag, prompt, size, visitor, stage, refs, request):
+def _judge_tagged(rag, prompt, size, visitor, stage, refs, request, cost_sink=None):
     """r1_zero-style call: <think> then <answer>{"decisions": [...]}</answer>.
 
     Returns (parsed Batch or None, reasoning, cost, fallback). An answer that
@@ -349,6 +355,8 @@ def _judge_tagged(rag, prompt, size, visitor, stage, refs, request):
                        getattr(details, "cached_tokens", 0) or 0, getattr(details, "cache_write_tokens", 0) or 0)
         rag.budget.settle(rid, actual, {**usage.model_dump(), "observatory_request": {
             "policy": POLICY_VERSION, "stage": stage, "refs": list(refs), **request}})
+        if cost_sink is not None:
+            cost_sink.append(float(actual))
     except Exception as exc:
         rag.budget.uncertain(rid, type(exc).__name__)
         raise
@@ -410,7 +418,7 @@ CONFIRMED_CRITERION_NOTE = ("\n\n(The researcher confirmed the criterion below f
 
 
 def screen(rag, question, evidence, visitor, limit=MAX_CANDIDATES, widen_to=None, reread=None, verify=None,
-           criterion=None):
+           criterion=None, cost_sink=None):
     """Return per-record decisions and the settled cost. One provider call per batch.
 
     The first `limit` ranked ads are always read. Up to `widen_to` are read
@@ -435,6 +443,8 @@ def screen(rag, question, evidence, visitor, limit=MAX_CANDIDATES, widen_to=None
     phrases = quoted_phrases(question)
     asked = question if criterion is None else question + CONFIRMED_CRITERION_NOTE.format(criterion=criterion_text(criterion))
     sent = {"asked": asked} if criterion is not None else {}  # the judge's question when it differs
+    if cost_sink is not None:
+        sent["cost_sink"] = cost_sink  # every settled call is recorded as it happens (a later failure keeps it)
     results, cost = [], Decimal("0")
     starts = list(range(0, len(groups), BATCH_SIZE))
     first_wave = max(1, sum(1 for start in starts if start < limit))
@@ -488,7 +498,8 @@ def screen(rag, question, evidence, visitor, limit=MAX_CANDIDATES, widen_to=None
         listed = [item for item in results if item["decision"] == "matches"]
         position = {item["record_id"]: n for n, item in enumerate(results)}
         for start in range(0, len(listed), BATCH_SIZE):
-            removed, spent = _verify(rag, asked, listed[start:start + BATCH_SIZE], texts, visitor)
+            removed, spent = _verify(rag, asked, listed[start:start + BATCH_SIZE], texts, visitor,
+                                     **({"cost_sink": cost_sink} if cost_sink is not None else {}))
             cost += spent
             for rid, reason in removed.items():
                 item = results[position[rid]]
@@ -497,7 +508,7 @@ def screen(rag, question, evidence, visitor, limit=MAX_CANDIDATES, widen_to=None
     return results, float(cost)
 
 
-def _verify(rag, question, listed, texts, visitor):
+def _verify(rag, question, listed, texts, visitor, cost_sink=None):
     """One provider call: which of these listed ads the second check removes, and its cost."""
     refs, ads = {}, []
     for n, item in enumerate(listed, 1):
@@ -525,6 +536,8 @@ def _verify(rag, question, listed, texts, visitor):
                        getattr(details, "cached_tokens", 0) or 0, getattr(details, "cache_write_tokens", 0) or 0)
         rag.budget.settle(rid, actual, {**usage.model_dump(), "observatory_request": {
             "policy": POLICY_VERSION, "stage": "list_verification", "refs": list(refs)}})
+        if cost_sink is not None:
+            cost_sink.append(float(actual))
     except Exception as exc:
         rag.budget.uncertain(rid, type(exc).__name__)
         raise

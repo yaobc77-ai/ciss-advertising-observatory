@@ -12,6 +12,35 @@ from itertools import zip_longest
 from urllib.parse import urlsplit
 
 from .budget import QUESTIONS, LimitReached, price
+from .criterion_confirmation import (
+    CONDITIONS_WITHOUT_RULES,
+    CONFIRMATION_REFUSALS,
+    EXAMPLE_SOURCE,
+    MAX_EXCLUSIONS,
+    MAX_RULES,
+    ConfirmationTokens,
+    ContinuationInvalid,
+    CriterionInvalid,
+    FlowLost,
+    FlowRegistry,
+    RegistryFull,
+    candidate_summary,
+    confirmation_text,
+    criterion_examples,
+    criterion_hash,
+    mark_unconfirmed,
+    new_flow_id,
+    normal_question,
+    normalize_criterion,
+    pending_confirmation,
+    quoted_examples,
+    redact_continuation,
+    refusal,
+    replay,
+)
+from .criterion_confirmation import (
+    KIND as CONFIRMATION_KIND,
+)
 from .db import Database
 from .list_screening import (
     DISPLAY_LIMIT,
@@ -30,12 +59,19 @@ from .question_plan import (
     list_requested,
     plan_check,
 )
+from .question_plan import (
+    QuestionPlan as EvidencePlan,
+)
 from .rag import AnswerValidationError, Rag
+from .relevance_triage import TRIAGE_ALL_MAX, make_criterion
 from .relevance_triage import enabled as triage_enabled
-from .relevance_triage import make_criterion
 from .structured_queries import QuestionPlan, plan_question, validate_share_scope
 
 log = logging.getLogger(__name__)
+
+# How the cost of a list answer that failed after its hold was released is made up (step 3, S3-c).
+COST_BASIS = ("embedding_and_settled_calls; a Decisions reply without usage is charged its estimate; "
+              "uncertain charges stay in the budget ledger")
 _FINAL_AUDIT_CONTEXT = ContextVar("observatory_final_answer_audit", default=False)
 
 
@@ -66,6 +102,12 @@ def _collection_search_applies(run) -> bool:
             if routes & {"statistics", "metadata"} and not routes & {"record", "sources", "claims"}:
                 return False
     return True
+
+
+def _deferred_confirmation(result) -> bool:
+    """A compound answer whose list part waits for the researcher's criterion (step 3, S3-c)."""
+    parts = (result.structured_result or {}).get("incomplete_parts") or []
+    return any(isinstance(part, dict) and part.get("failure_reason") == "criterion_confirmation_required" for part in parts)
 
 
 # Passage text sent to the writer; the prompt also carries a quotation catalogue
@@ -327,6 +369,10 @@ class Service:
         self.research_agent = research_agent
         self.claims_store = claims_store
         self.web_research = web_research
+        # Two-phase list questions (step 3, S3-c): the flows a card opened, and the signed tokens
+        # a researcher continues one with. Both are process-local.
+        self.flows = FlowRegistry()
+        self._confirmation_tokens = ConfirmationTokens(getattr(settings, "cookie_secret", "") or None)
 
     def media_evidence(self, filters: Filters, *, query, media_types=None, limit=5):
         """Read frozen operator-mounted material; never execute OCR or a model."""
@@ -776,37 +822,67 @@ class Service:
         passages = self._public_evidence(self.db.record_passages(ids, Filters(dataset="all"), per_record=None))
         return judge_answer(self.rag, question, ads_from_passages(decisions, passages), visitor)
 
-    def answer(self, question, filters, visitor, progress=None):
-        with QUESTIONS.question(visitor):
-            return self._answer_question(question, filters, visitor, progress)
+    def answer(self, question, filters, visitor, progress=None, *, criterion_confirmation=None, continuation=None):
+        """Answer one question (step 3, S3-c: in one or two phases).
 
-    def _answer_question(self, question, filters, visitor, progress=None):
+        `criterion_confirmation` decides how a screened list gets its criterion: "auto" (drafted
+        from the question and judged at once, said to be unconfirmed) or "ask" (the list stops
+        with a card for the researcher to confirm first). None means "auto": the entry decides,
+        so the API and internal callers never inherit the web's switch (decision 1, 2026-10-27);
+        the web passes settings.criterion_confirmation. `continuation` ({"token", "criterion",
+        "example_choices"}) continues a card: the token is checked, the flow bound once in the
+        registry, and the list judged by the confirmed criterion (_continue_confirmation).
+        """
+        if criterion_confirmation not in (None, "auto", "ask"):
+            raise ValueError("criterion_confirmation must be 'auto' or 'ask'")
+        with QUESTIONS.question(visitor):
+            return self._answer_question(question, filters, visitor, progress,
+                                         criterion_confirmation=criterion_confirmation or "auto", continuation=continuation)
+
+    def _answer_question(self, question, filters, visitor, progress=None, *, criterion_confirmation="auto", continuation=None):
         """Answer one question: pick the tool path or the legacy path, then add web help and an audit row.
 
         Dashboard questions use inferred dates unless the caller set include_inferred_dates. The
         research agent path is taken when either research_agent_enabled or question_intent_enabled
         is on (the local .env turns the agent on). _save_supplement only logs the run; answers are
-        never cached.
+        never cached. A continuation (phase 2 of a confirmation) runs here too, so it gets the
+        same wrapping; its flow is marked done only with the final, wrapped answer.
         """
         start = time.monotonic()
         # A default must never override a caller's explicit source-only choice.
         if "include_inferred_dates" not in filters.model_fields_set:
             filters = filters.model_copy(update={"include_inferred_dates": True})
         token = _FINAL_AUDIT_CONTEXT.set(True)
+        flow = None
         try:
-            if (getattr(self.settings, "research_agent_enabled", False)
+            if continuation is not None:
+                result, flow = self._continue_confirmation(question, filters, visitor, continuation, progress)
+            elif (getattr(self.settings, "research_agent_enabled", False)
                     or getattr(self.settings, "question_intent_enabled", False)):
-                result = self._answer_with_tools(question, filters, visitor, progress=progress)
+                result = self._answer_with_tools(question, filters, visitor, progress=progress,
+                                                 criterion_confirmation=criterion_confirmation)
             else:
-                result = self._answer_legacy(question, filters, visitor, progress=progress)
+                result = self._answer_legacy(question, filters, visitor, progress=progress,
+                                             criterion_confirmation=criterion_confirmation)
             result = self._ensure_answer(question, filters, visitor, result, progress)
             self._record_web_trace(result, question, filters)
             self._check_question_plan(result)
             result.latency_ms = int((time.monotonic() - start) * 1000)
+        except BaseException:
+            if flow:
+                self.flows.fail(flow, "exception")
+            raise
         finally:
             _FINAL_AUDIT_CONTEXT.reset(token)
         if 1 <= len(question.strip()) <= 2000:
             self._save_supplement(question, filters, result)
+        if flow:
+            # Done only now, with the wrapped answer (a concurrent retry replays this one, never an
+            # unfinished result); a failed or limited judgment stays failed: never a new paid run.
+            if result.status in ("answered", "insufficient_evidence"):
+                self.flows.finish(flow, result)
+            else:
+                self.flows.fail(flow, result.failure_reason or result.status)
         return result
 
     def _ensure_answer(self, question, filters, visitor, result, progress=None):
@@ -827,6 +903,10 @@ class Service:
                             and (result.structured_result or {}).get("complete") is False)
         if result.status != "insufficient_evidence" and not partial_metadata:
             return result
+        if pending_confirmation(result) or _deferred_confirmation(result) or result.research_trace.get("continuation_replay"):
+            # A list waiting for the researcher's criterion (alone or inside a compound answer) is not
+            # an evidence shortfall, and a replayed judgment is never supplemented again (step 3).
+            return result
         if _COLLECTION_ONLY.search(question):
             # The user asked for the collection only: its gap is the answer.
             return result
@@ -836,8 +916,9 @@ class Service:
                      "evidence_version_mismatch", "answer_structure_mismatch", "content_publication_unavailable",
                      "collection_unavailable", "statistics_unavailable", "historical_source_state_unverified",
                      "media_evidence_mismatch", "duplicate_evidence_identity",
-                     # A list waiting for the researcher's criterion is not an evidence shortfall (step 3).
-                     "criterion_confirmation_required"}
+                     # A list waiting for the researcher's criterion, and a refused or deferred
+                     # continuation, are not evidence shortfalls (step 3).
+                     "criterion_confirmation_required", *CONFIRMATION_REFUSALS}
         if (not 1 <= len(question.strip()) <= 2000
                 or result.failure_reason.startswith("data_changed") or result.failure_reason in protected
                 or research_failure_status(result.failure_reason)):
@@ -948,7 +1029,7 @@ class Service:
     def _save_supplement(self, question, filters, result):
         try:
             version = result.research_trace.get("data_version") or self.health().get("data_version", "unavailable")
-            self.db.save_answer(question, filters, result, version)
+            self.db.save_answer(question, filters, redact_continuation(result), version)
         except Exception:
             log.warning("Final answer audit log unavailable")
 
@@ -981,8 +1062,12 @@ class Service:
         except Exception:
             log.debug("Question plan check unavailable", exc_info=True)
 
-    def _answer_with_tools(self, question, filters, visitor, progress=None):
-        """Understand the question before accessing constrained collection tools."""
+    def _answer_with_tools(self, question, filters, visitor, progress=None, criterion_confirmation="auto"):
+        """Understand the question before accessing constrained collection tools.
+
+        `criterion_confirmation` (step 3) travels into the plan and down to every list this
+        question reaches: the evidence route, compound parts, the collection-first fallback.
+        """
         from .research_agent import ResearchAgent, _cjk_dominant_query
         from .research_tools import ToolCatalog
 
@@ -1024,9 +1109,10 @@ class Service:
                 # Pipeline step 2: the plan is built once here and drives the evidence
                 # route (shape, list kind, search query, web permission). The planner's
                 # relation selections and comparison groups travel beside it as data.
-                plan = build_question_plan(question, filters, run, narrowed, triage_enabled=lambda: triage_enabled(self.rag))
+                plan = build_question_plan(question, filters, run, narrowed, triage_enabled=lambda: triage_enabled(self.rag),
+                                           criterion_confirmation=criterion_confirmation)
                 # Question language and wording remain intact for the cited answer.
-                result = self._answer_evidence(question, narrowed, visitor, audit=False, plan=plan,
+                result = self._answer_evidence(question, narrowed, visitor, audit=False, plan=plan, confirmation_flow=True,
                                                relation_listing=data.get("relation_listing"),
                                                **({"retrieval_groups": data["retrieval_groups"]} if data.get("retrieval_groups") else {}),
                                                **({"progress": progress} if progress else {}))
@@ -1036,6 +1122,7 @@ class Service:
                 result = self._tool_composite_answer(
                     {**data, "failure_reason": run.failure_reason or data.get("failure_reason", "")},
                     filters, data_version=version, visitor=visitor, progress=progress,
+                    criterion_confirmation=criterion_confirmation,
                 )
             elif run.route in {"graph", "sources", "record"}:
                 source_choice = data.get("text_status") == "source_observation_selection"
@@ -1067,7 +1154,7 @@ class Service:
                 )
             collection_first = ""
             if result.status == "insufficient_evidence" and run.route in {"clarify", "composite"} \
-                    and _collection_search_applies(run):
+                    and _collection_search_applies(run) and not _deferred_confirmation(result):
                 # The plan or title lookup failed, not the collection: search the
                 # saved text with the original question before any web lookup.
                 # English search terms the model already wrote match the English
@@ -1079,12 +1166,15 @@ class Service:
                     and not _cjk_dominant_query(item["arguments"])), question)
                 try:
                     searched = self._answer_evidence(question, filters, visitor, search_query=fallback_query, audit=False,
+                                                     criterion_confirmation=criterion_confirmation, confirmation_flow=True,
                                                      **({"progress": progress} if progress else {}))
                 except Exception:
                     # Best effort only: a failed fallback never replaces the explanation.
                     log.debug("Collection-first search unavailable", exc_info=True)
                     searched = None
-                if searched is not None and searched.status == "answered":
+                if searched is not None and (searched.status == "answered" or pending_confirmation(searched)):
+                    # A card (the list stopped for the researcher's criterion) is more useful than
+                    # the explanation and spent no judging (design 3.2).
                     collection_first, result = run.failure_reason or run.route, searched
             downstream_cost = result.cost_usd
             after = self.health()
@@ -1109,7 +1199,7 @@ class Service:
             if collection_first:
                 result.research_trace["collection_first_fallback"] = collection_first
             for key in ("external_web", "media_retrieval", "generation_failure", "list_screening", "coverage_note",
-                        "list_decision", "content_zones", "content_reading"):
+                        "list_decision", "content_zones", "content_reading", "criterion_draft", "flow_id"):
                 if key in downstream_trace:
                     result.research_trace[key] = downstream_trace[key]
             self._record_question_plan(result, question, filters, run, plan_scope, plan)
@@ -1136,12 +1226,13 @@ class Service:
         result.latency_ms = int((time.monotonic() - start) * 1000)
         if not _FINAL_AUDIT_CONTEXT.get():
             try:
-                self.db.save_answer(question, filters, result, version)
+                self.db.save_answer(question, filters, redact_continuation(result), version)
             except Exception:
                 log.warning("Tool research audit log unavailable")
         return result
 
-    def _tool_composite_answer(self, data, base_filters, *, data_version=None, visitor=None, progress=None):
+    def _tool_composite_answer(self, data, base_filters, *, data_version=None, visitor=None, progress=None,
+                               criterion_confirmation="auto"):
         """Combine checked read results, preserving any unfinished question part.
 
         A content part arrives as a search result and is answered here with its
@@ -1149,7 +1240,7 @@ class Service:
         """
         from .research_agent import research_failure_status
 
-        parts, messages, incomplete = [], [], []
+        parts, messages, incomplete, deferred = [], [], [], False
         reason = data.get("failure_reason") or ""
         complete = bool(data.get("complete")) and not data.get("pending_parts") and not reason
         blocked_status = research_failure_status(reason)
@@ -1167,7 +1258,13 @@ class Service:
                 answer = self._answer_evidence(part["question_part"], narrowed, visitor,
                                                search_query=item.get("search_query") or part["question_part"],
                                                audit=False, declared_shape=item.get("answer_shape"),
+                                               criterion_confirmation=criterion_confirmation,
                                                **({"progress": progress} if progress else {}))
+                if answer.failure_reason == "criterion_confirmation_required":
+                    # Under "ask" a list part stops before any judgment; a confirmation is not
+                    # continued inside a compound answer (design 3.2), so the part is deferred.
+                    answer.answer += " Ask this part on its own to confirm the criterion."
+                    deferred = True
                 cost += answer.cost_usd
                 cited = answer if cited is None else False
             elif route == "statistics":
@@ -1210,7 +1307,9 @@ class Service:
                    if cited else {})
         return Answer(status=blocked_status or ("answered" if complete else "insufficient_evidence"), answer_mode="tools",
                       cost_usd=cost, **sources,
-                      answer="\n\n".join(messages), failure_reason="" if complete and not blocked_status else reason or "research_plan_incomplete",
+                      answer="\n\n".join(messages),
+                      failure_reason="" if complete and not blocked_status else reason or (
+                          "criterion_confirmation_required" if deferred else "research_plan_incomplete"),
                       structured_result={"kind": "composite", "complete": complete, "parts": parts,
                                          "pending_parts": pending, "incomplete_parts": incomplete,
                                          "failure_reason": reason,
@@ -1526,7 +1625,7 @@ class Service:
         return Answer(status="answered", answer_mode="statistics", answer=". ".join(part.rstrip(". ") for part in parts) + ".",
                       structured_result=data)
 
-    def _answer_legacy(self, question, filters, visitor, progress=None):
+    def _answer_legacy(self, question, filters, visitor, progress=None, criterion_confirmation="auto"):
         """Answer without the research agent: rule-based counts first, everything else as evidence.
 
         Order: refuse original-metadata and multi-task questions; answer six exact 'how many records'
@@ -1622,7 +1721,8 @@ class Service:
                 answer_mode="clarification",
                 answer="Counts support named outlets, sponsors and explicit dates. Percentages compare target records with the current selected collection; select the denominator scope first. Topic counts require validated annotations. Retrieved passages cannot establish corpus totals.",
             )
-        return self._answer_evidence(question, filters, visitor, progress=progress)
+        return self._answer_evidence(question, filters, visitor, progress=progress,
+                                     criterion_confirmation=criterion_confirmation, confirmation_flow=True)
 
     def _small_scope_size(self, scope):
         """Record count of a selection narrow enough to read whole, else 0."""
@@ -1632,23 +1732,42 @@ class Service:
         count = self._scope_count(scope)
         return count if count <= SMALL_SCOPE_RECORDS else 0
 
+    def _draft_criterion(self, question, visitor):
+        """The one place a criterion is drafted: from the question alone (relevance_triage.make_criterion)."""
+        return make_criterion(self.rag, question, visitor)
+
+    def _consistent_version(self, data_version):
+        """Nothing is judged on a collection that moved since the retrieval (step 3, S3-c).
+
+        Called after every read of the collection a judgment will use (phrase search, whole
+        articles, the whole-scope read) and right before the first paid judging call, so the
+        reads cannot have mixed versions without the route reporting it first.
+        """
+        if data_version is not None and self.db.health()["data_version"] != data_version:
+            raise ValueError("Data changed during retrieval; retry on a consistent version")
+
+    def _scope_passages(self, evidence, scope):
+        """Every passage of the records in `scope` that `evidence` does not cover (a small scope read whole)."""
+        if not hasattr(self.db, "record_passages"):
+            return []
+        seen = {e.record_id for e in evidence}
+        ids = [row["record_id"] for row in self.db.public_rows(scope) if row["record_id"] not in seen]
+        return self._public_evidence(self.db.record_passages(ids, scope, per_record=None)) if ids else []
+
     def _triaged_screen(self, question, evidence, filters, scope_total, visitor, reread, criterion,
-                        screen_with_criterion=False):
+                        screen_with_criterion=False, cost_sink=None, data_version=None):
         """Decisions-API triage of the candidates (every record when the scope is small), then screening.
 
         Returns (results, cost, triage summary, passages of the records not excluded).
         """
-        from .relevance_triage import TRIAGE_ALL_MAX, triaged_screen
+        from .relevance_triage import triaged_screen
 
-        extra = []
         whole = scope_total <= TRIAGE_ALL_MAX and hasattr(self.db, "record_passages")
-        if whole:
-            seen = {e.record_id for e in evidence}
-            ids = [row["record_id"] for row in self.db.public_rows(filters) if row["record_id"] not in seen]
-            extra = self._public_evidence(self.db.record_passages(ids, filters, per_record=None)) if ids else []
+        extra = self._scope_passages(evidence, filters) if whole else []
+        self._consistent_version(data_version)  # after the last read, before the first judging call
         results, cost, summary = triaged_screen(screen_list, self.rag, question, evidence, visitor,
                                                 criterion=criterion, extra=extra, reread=reread,
-                                                screen_with_criterion=screen_with_criterion)
+                                                screen_with_criterion=screen_with_criterion, cost_sink=cost_sink)
         # Every record with text in scope was read; the rest have none to read.
         summary["whole_scope"] = whole
         kept = {item["record_id"] for item in results if item.get("route") != "exclude"}
@@ -1713,7 +1832,8 @@ class Service:
         })
 
     def _list_answer(self, question, plan, filters, scopes, evidence, visitor, progress=None, relation_listing=None,
-                     criterion=None, criterion_source=None, criterion_draft=None):
+                     criterion=None, criterion_source=None, criterion_draft=None, confirmed_condition=False,
+                     cost_sink=None, data_version=None):
         """Answer a list question over its collections with one implementation (pipeline step 3, S3-a).
 
         `filters` is the question's scope, `scopes` the collections' Filters (one, or native
@@ -1740,22 +1860,34 @@ class Service:
         ("ask") without a confirmed criterion is refused, never judged by a draft. The trace
         records `criterion_source`, `screening_basis` and, when known, `criterion_draft`.
 
+        `confirmed_condition` (S3-c) says the researcher confirmed the stated condition of a list
+        that drafts no criterion (quoted phrases, a relation hint, the triage off): nothing is
+        drafted, screening judges by the question as in auto mode, and the trace records
+        `criterion_source="confirmed"` with no criterion. An unconfirmed draft is said so in the
+        answer's first paragraph (decision 1, 2026-10-27).
+
+        `cost_sink` (a list) receives the cost of every model call settled on the way, so a failed
+        answer can still say what it spent; `data_version` is checked once more after the last read
+        a judgment uses (phrase search, whole articles, the whole-scope read) and right before the
+        first judging call (_consistent_version).
+
         A one-collection failure replaces `evidence` in place with the passages read so far,
         so a limited or failed answer shows them, as before the merge; with two collections
         the retrieval candidates stay, as before.
         """
         if plan.list_kind == "relation":
             return self._relation_list(question, filters, relation_listing), 0.0
-        if plan.criterion_mode == "ask" and criterion is None:
-            # The two-phase entry (S3-c) stops here with the criterion to confirm; until then a
-            # confirmation that never happened is a refusal, not a judgment by a model draft.
+        if plan.criterion_mode == "ask" and criterion is None and not confirmed_condition:
+            # The two-phase entry (_confirmation_card, S3-c) stops before this function with the
+            # criterion to confirm; a list that reaches it unconfirmed (a compound part, a direct
+            # call) is refused, never judged by a model draft.
             return Answer(status="insufficient_evidence", answer_mode="clarification",
                           failure_reason="criterion_confirmation_required",
                           answer="This list is judged only by a criterion the researcher confirms first; "
                                  "no confirmed criterion was given, so nothing was judged.",
                           evidence=list(evidence)), 0.0  # the retrieval candidates, free to browse
         phrases, literal, both = plan.phrases, plan.list_kind == "literal", len(scopes) > 1
-        confirmed = criterion is not None
+        confirmed = criterion is not None or confirmed_condition
         if confirmed and criterion_source is None:
             criterion_source = "confirmed"  # omitted: taken as given; other labels were checked by the caller
         # Posts selected by a relation satisfy it by their source records, which the
@@ -1770,6 +1902,10 @@ class Service:
                     f"{relations}; this is not visible in the text. Judge only the question's other "
                     "conditions; if it has none, every post matches.)")
         read = []  # one collection: the passages read so far, shown by a limited or failed answer
+
+        def charged(amount):
+            if cost_sink is not None and amount:
+                cost_sink.append(float(amount))
 
         def each(function, items):
             """The collections are independent: one after another, or both at the same time."""
@@ -1820,15 +1956,30 @@ class Service:
             # here, not for lists that never judge: the check may touch the model client).
             if criterion and (not confirmed or triage_enabled(self.rag)):
                 results, cost, summary, kept = self._triaged_screen(question, own, scope, total, visitor, reader, criterion,
-                                                                    screen_with_criterion=confirmed)
+                                                                    screen_with_criterion=confirmed, cost_sink=cost_sink,
+                                                                    data_version=data_version)
                 items = [*kept, *reread_passages]
             else:
-                # Screen candidates 4 at a time; every match must quote its passage. Past
-                # the first MAX_CANDIDATES, reading continues only while matches turn up.
-                results, cost = screen_list(self.rag, question + hint, own, visitor, limit=max(MAX_CANDIDATES, records),
-                                            widen_to=max(MAX_WIDENED, records), reread=reader,
-                                            **({"criterion": criterion} if confirmed else {}))
+                # Screen candidates 4 at a time; every match must quote its passage. In auto mode,
+                # past the first MAX_CANDIDATES reading continues only while matches turn up. After
+                # a confirmation (step 3, design 3.9) the card's promise holds: every record with
+                # text of a scope up to TRIAGE_ALL_MAX is read, every retrieved candidate of a
+                # larger one, with no stopping rule.
+                if confirmed:
+                    if total <= TRIAGE_ALL_MAX:
+                        own = [*own, *self._scope_passages(own, scope)]
+                    first = len({e.record_id for e in own})
+                    limit = widen_to = first
+                else:
+                    first, limit, widen_to = max(MAX_CANDIDATES, records), max(MAX_CANDIDATES, records), max(MAX_WIDENED, records)
+                self._consistent_version(data_version)  # after the last read, before the first judging call
+                results, cost = screen_list(self.rag, question + hint, own, visitor, limit=limit, widen_to=widen_to,
+                                            reread=reader, **({"criterion": criterion} if confirmed else {}),
+                                            **({"cost_sink": cost_sink} if cost_sink is not None else {}))
                 summary, items = None, [*own, *reread_passages]
+                if not both:
+                    read[:] = list({e.evidence_id: e for e in items}.values())
+                return dataset, total, results, cost, items, summary, first
             if not both:
                 read[:] = list({e.evidence_id: e for e in items}.values())
             return dataset, total, results, cost, items, summary, max(MAX_CANDIDATES, records)
@@ -1840,17 +1991,19 @@ class Service:
             whose condition is the text itself or a source field. A confirmed criterion is used as given."""
             if confirmed:
                 return criterion, 0.0
-            return (None, 0.0) if literal or phrases or hint else make_criterion(self.rag, question, visitor)
+            return (None, 0.0) if literal or phrases or hint else self._draft_criterion(question, visitor)
 
         try:
             if both:
                 # As before the merge: the criterion first, then each collection prepares and
                 # judges on its own, at the same time.
                 criterion, criterion_cost = draft()
+                charged(criterion_cost)
                 outcomes = each(lambda scope: judge(prepare(scope)), scopes)
             else:
                 prepared = prepare(scopes[0])
                 criterion, criterion_cost = draft()
+                charged(criterion_cost)
                 outcomes = [judge(prepared)]
             results, pool, cost, totals, triages, first_reads = [], [], criterion_cost, {}, {}, {}
             for dataset, total, found, spent, items, summary, first_read in outcomes:
@@ -1886,15 +2039,22 @@ class Service:
             # Which criterion the list was judged by, what screening looked for sentences by, and
             # the model's draft when it is known (drafted here, or handed over with a confirmed one).
             trace["criterion_source"] = criterion_source if confirmed else "draft_unconfirmed" if criterion else "none"
-            trace["screening_basis"] = "confirmed_criterion" if confirmed else "question"
+            trace["screening_basis"] = "confirmed_criterion" if confirmed and criterion else "question"
             draft = criterion_draft if confirmed else criterion
             if draft:
                 trace["criterion_draft"] = draft
+            # The API's compact body drops the trace: the source travels in the structured result too.
+            result.structured_result = {**result.structured_result, "criterion_source": trace["criterion_source"]}
+            if criterion and not confirmed:
+                # Decision 1 (2026-10-27): an unconfirmed model draft is said so in the answer itself.
+                result.answer = mark_unconfirmed(result.answer, question)
             if plan.read_sources and result.citations:
-                result, writer_cost = self._read_matched_sources(question, result, results, pool, visitor, progress)
+                result, writer_cost = self._read_matched_sources(question, result, results, pool, visitor, progress,
+                                                                 cost_sink=cost_sink)
                 cost += writer_cost
             elif result.citations:
-                result, writer_cost = self._summarize_list(question, result, results, pool, visitor, progress)
+                result, writer_cost = self._summarize_list(question, result, results, pool, visitor, progress,
+                                                           cost_sink=cost_sink)
                 cost += writer_cost
             return result, cost
         except BaseException:
@@ -1902,12 +2062,177 @@ class Service:
                 evidence[:] = read
             raise
 
+    def _confirmation_card(self, question, plan, scopes, evidence, visitor, filters, version, relation_listing, progress=None,
+                           cost_sink=None):
+        """Phase 1 of a two-phase list (step 3, S3-c): the card, before any ad is judged.
+
+        What the list would be judged by is decided and shown, nothing is judged: the criterion
+        drafted from the question alone (not for quoted phrases, a relation hint, or with the
+        triage off: the card states that condition instead), one verbatim example sentence per
+        rule from the best-ranked candidates (never sent to a model), what phase 2 will read per
+        collection (design 3.9, exactly what _list_answer does), and a signed token bound to this
+        visitor, question, scope, plan, draft and data version. The flow is registered before the
+        drafting call, so a full registry refuses before anything is spent. `filters` is the scope
+        this route was called with; `version` the data version of the retrieval.
+        Returns (Answer, drafting cost).
+        """
+        triage_on = triage_enabled(self.rag)
+        hinted = bool(len(scopes) == 1 and scopes[0].dataset == "social" and relation_listing
+                      and relation_listing.get("selections"))
+        kind = "phrases" if plan.phrases else "relation_hint" if hinted else "triage_off" if not triage_on else "draft"
+        flow_id = new_flow_id()
+        # Registered, and so holding its slot, before anything is drafted: a full registry refuses here.
+        self.flows.register(flow_id, visitor, {"question": question, "relation_listing": relation_listing})
+        try:
+            criterion, cost = None, 0.0
+            if kind == "draft":
+                _progress(progress, "drafting")
+                criterion, cost = self._draft_criterion(question, visitor)  # the question only (design 3.3)
+                if cost_sink is not None and cost:
+                    cost_sink.append(float(cost))
+                try:
+                    criterion = normalize_criterion(criterion) if criterion else None
+                except CriterionInvalid:
+                    criterion = None  # a blank or oversized draft is no draft; its cost stays recorded
+                if criterion is None:
+                    kind = "draft_failed"
+            totals = {scope.dataset: self._scope_count(scope) for scope in scopes}
+            hits = {}
+            if plan.phrases:
+                # Phase 2 reads every record containing the quoted phrases first (prepare in _list_answer).
+                hits = {scope.dataset: len({item.record_id for item in self._public_evidence(
+                    self.db.phrase_search(plan.phrases, scope, limit_records=totals[scope.dataset] + 1))}) for scope in scopes}
+            examples = criterion_examples(criterion, evidence, plan.datasets) if criterion else []
+        except BaseException:
+            self.flows.discard(flow_id)
+            raise
+        if not self.flows.ready(flow_id, condition=kind, draft=criterion, examples=examples):
+            raise FlowLost()  # forgotten while preparing: no card for a flow that cannot be continued
+        candidates = candidate_summary(totals, evidence, kind, hits)
+        relations = None
+        if hinted:
+            relations = "; ".join(f"{name}: {', '.join(map(str, values))}" for item in relation_listing["selections"]
+                                  for name, values in item.get("relations", {}).items())
+        token = self._confirmation_tokens.issue({
+            "v": 1, "flow_id": flow_id, "visitor": visitor, "question": normal_question(question),
+            "scope": filters.model_dump(mode="json"), "plan": plan.as_dict(),
+            "draft_hash": criterion_hash(criterion) if criterion else None, "condition": kind, "data_version": version})
+        draft = {"status": kind, "criterion": criterion, "cost_usd": cost, "examples": examples, "example_source": EXAMPLE_SOURCE}
+        return Answer(
+            status="insufficient_evidence", answer_mode="clarification", failure_reason="criterion_confirmation_required",
+            answer=confirmation_text(question, candidates, kind, criterion, plan.phrases),
+            evidence=list(evidence),  # the ranked candidates, free to browse: the answer when the researcher stops here
+            structured_result={"kind": CONFIRMATION_KIND, "flow_id": flow_id,
+                               "condition": {"kind": kind, "phrases": list(plan.phrases), "relations": relations},
+                               "criterion": criterion, "examples": examples, "candidates": candidates,
+                               "continuation": token, "expires_at": self._confirmation_tokens.expires_at(),
+                               "data_version": version, "limits": {"max_rules": MAX_RULES, "max_exclusions": MAX_EXCLUSIONS}},
+            research_trace={"criterion_draft": draft, "flow_id": flow_id},
+        ), cost
+
+    def _continue_confirmation(self, question, filters, visitor, continuation, progress=None):
+        """Phase 2 of a two-phase list (step 3, S3-c): judge by the criterion the researcher confirmed.
+
+        Checked in order, nothing spent before the registry claim: the continuation's shape; the
+        token (signature, age, this visitor, the same question); the data version; the scope (the
+        token's scope lies within the scope this request names, the plan's within the token's,
+        and the plan is a screened list under "ask"); the criterion (within the Criterion limits;
+        omitted only for a condition that drafted none: then the stated condition is confirmed);
+        the registry (one judgment per card: a retry with the same criterion replays the stored
+        answer, another criterion is a conflict, an unknown or failed flow is refused). Then the
+        evidence route runs with the token's plan and scope, no research agent, the retrieval
+        redone on the same data version, and the criterion drives the triage and the screening.
+        "confirmed" or "edited" is decided here from the draft's hash, never from a client label.
+        Returns (Answer, flow id when a judgment started, else None).
+        """
+        def refuse(reason, detail=None):
+            return refusal(reason, detail, question), None
+
+        if (not isinstance(continuation, dict) or set(continuation) - {"token", "criterion", "example_choices"}
+                or not isinstance(continuation.get("token"), str)):
+            return refuse("continuation_invalid", "malformed")
+        choices = continuation.get("example_choices") or []
+        if not isinstance(choices, list) or not all(
+                isinstance(item, dict) and isinstance(item.get("example"), int)
+                and item.get("choice") in ("counts", "does_not_count") for item in choices):
+            return refuse("continuation_invalid", "malformed")
+        try:
+            payload = self._confirmation_tokens.read(continuation["token"])
+        except ContinuationInvalid as exc:
+            return refuse("continuation_invalid", exc.reason)
+        if payload.get("visitor") != visitor:
+            return refuse("continuation_invalid", "visitor")
+        if payload.get("question") != normal_question(question):
+            return refuse("continuation_invalid", "question_changed")
+        health = self.health()
+        if health.get("status") != "ok" or health.get("data_version") != payload.get("data_version"):
+            return refuse("continuation_invalid", "data_changed")
+        try:
+            scope = Filters.model_validate(payload["scope"])
+            validate_share_scope(scope, filters)
+            plan = EvidencePlan(**payload["plan"])
+            validate_share_scope(Filters.model_validate(plan.filters), scope)
+            if not (plan.shape == "list" and plan.list_kind == "screen" and plan.criterion_mode == "ask"):
+                raise ValueError("not a list to confirm")
+        except Exception:
+            return refuse("continuation_invalid", "scope")
+        condition = payload.get("condition")
+        criterion = None
+        if continuation.get("criterion") is not None:
+            try:
+                criterion = normalize_criterion(continuation["criterion"])
+            except CriterionInvalid as exc:
+                return refuse("criterion_invalid", exc.detail)
+        elif condition not in CONDITIONS_WITHOUT_RULES:
+            return refuse("criterion_invalid", "rules_required")  # nothing is judged without rules (design 3.5)
+        digest = criterion_hash(criterion) if criterion else "condition"
+        flow_id = payload.get("flow_id")
+        outcome, data = self.flows.claim(flow_id, visitor, digest)
+        if outcome == "unknown":
+            return refuse("continuation_invalid", "flow_unknown")
+        if outcome == "failed":
+            return refuse("continuation_invalid", "flow_failed")
+        if outcome == "in_progress":
+            return refuse("continuation_in_progress")
+        if outcome == "conflict":
+            return refuse("continuation_conflict")
+        if outcome == "done":
+            return replay(data, flow_id), None
+        context = data
+        draft = context.get("draft")
+        source = "confirmed" if criterion is None or digest == payload.get("draft_hash") else "edited"
+        _progress(progress, "judging")
+        try:
+            result = self._answer_evidence(question, scope, visitor, audit=False, plan=plan,
+                                           relation_listing=context.get("relation_listing"), criterion=criterion,
+                                           criterion_source=source, criterion_draft=draft if criterion is not None else None,
+                                           confirmed_condition=criterion is None, expected_version=payload.get("data_version"),
+                                           **({"progress": progress} if progress else {}))
+        except BaseException:
+            self.flows.fail(flow_id, "exception")
+            raise
+        if result.failure_reason in CONFIRMATION_REFUSALS:
+            # Refused inside the route (the data changed before retrieval): terminal, never replayed.
+            self.flows.fail(flow_id, result.failure_reason)
+            return result, None
+        quotes = quoted_examples(criterion, context.get("examples") or []) if criterion else []
+        trace = result.research_trace
+        trace["flow_id"] = flow_id
+        trace["question_plan"] = plan.as_dict()
+        trace["criterion_confirmation"] = {"phase": 2, "condition": condition, "criterion_source": source,
+                                           "draft_hash": payload.get("draft_hash"), "criterion_hash": digest,
+                                           "example_choices": choices, "criterion_quotes_examples": quotes}
+        if "list_screening" in trace:
+            trace["list_screening"]["criterion_quotes_examples"] = quotes
+            trace["list_screening"]["confirmed_condition"] = condition
+        return result, flow_id
+
     def _scope_count(self, scope):
         """Records in a scope; counted in the database when it can, not by reading every row."""
         counter = getattr(self.db, "count_public", None)
         return counter(scope) if callable(counter) else len(self.db.public_rows(scope))
 
-    def _summarize_list(self, question, listed, results, evidence, visitor, progress=None):
+    def _summarize_list(self, question, listed, results, evidence, visitor, progress=None, cost_sink=None):
         """Answer a list question in words before listing every matching ad.
 
         The writer reads the SUMMARY_RECORDS most relevant listed ads and
@@ -1923,6 +2248,8 @@ class Service:
         passages, _ = _zone_evidence(evidence, ids, match_ids)
         try:
             part = self.rag.generate(question, passages, visitor, **({"progress": progress} if progress else {}))
+            if cost_sink is not None:
+                cost_sink.append(float(part.cost_usd))
         except LimitReached:
             raise
         except Exception as exc:
@@ -1966,7 +2293,7 @@ class Service:
                                   "display_citations": [*range(1, written + shown + 1)]},
         }), part.cost_usd
 
-    def _read_matched_sources(self, question, listed, results, evidence, visitor, progress=None):
+    def _read_matched_sources(self, question, listed, results, evidence, visitor, progress=None, cost_sink=None):
         """Second query zone of a "what do these ads say" list: read the matches.
 
         Screening, the first zone, decides which ads match and quotes one
@@ -1993,6 +2320,8 @@ class Service:
             try:
                 part = self.rag.generate(question, passages, visitor, one_claim_per_source=True,
                                          **({"progress": progress} if progress else {}))
+                if cost_sink is not None:
+                    cost_sink.append(float(part.cost_usd))
             except LimitReached:
                 raise
             except Exception as exc:
@@ -2096,7 +2425,8 @@ class Service:
 
     def _answer_evidence(self, question, filters, visitor, search_query=None, audit=True,
                          retrieval_groups=None, progress=None, declared_shape=None, relation_listing=None, plan=None,
-                         criterion=None, criterion_source=None, criterion_draft=None):
+                         criterion=None, criterion_source=None, criterion_draft=None, criterion_confirmation="auto",
+                         confirmation_flow=False, confirmed_condition=False, expected_version=None):
         """Retrieve passages again and answer from them, as a checked list or as a generated answer.
 
         Steps (docs/architecture/query_logic.zh-CN.md, section 4):
@@ -2116,6 +2446,11 @@ class Service:
            _summarize_list. Other questions: Rag.generate with checked quotes.
         6. Map failures to status/failure_reason, settle costs, and try web help only when the
            collection had insufficient evidence and the plan allows outside sources (never after a list).
+
+        Step 3 (S3-c): `criterion_confirmation` ("auto" | "ask") is the mode of a plan built here;
+        with `confirmation_flow` a list under "ask" stops with the card (_confirmation_card), without
+        it (a compound part) it is refused; `confirmed_condition` and `criterion` come from phase 2,
+        with `expected_version` the data version the card was made from.
         """
         from .models import MediaAnswerEvidence
 
@@ -2129,7 +2464,8 @@ class Service:
                 plan = build_evidence_plan(question, filters, search_query=search_query, declared_shape=declared_shape,
                                            relation_listing=relation_listing, retrieval_groups=retrieval_groups,
                                            triage_enabled=lambda: triage_enabled(self.rag),
-                                           criterion_confirmation="ask" if criterion is not None else "auto")
+                                           criterion_confirmation=("ask" if criterion is not None or confirmed_condition
+                                                                   else criterion_confirmation))
             except Exception as exc:
                 # A plan that cannot be built is an answer-service failure, reported
                 # like every other failure of this route, never an exception to the caller.
@@ -2141,9 +2477,9 @@ class Service:
                           answer="This is a stored original-field question. Identify the record and use original metadata tools; content retrieval and web pages cannot substitute for that field.",
                           failure_reason="original_source_metadata_required",
                           **({"research_trace": {"question_plan": plan.as_dict()}} if own_plan else {}))
-        if criterion is not None:
-            # A confirmed criterion (step 3) comes with a source that says so and a plan that asked
-            # for it; neither is guessed, and nothing is spent on a contradiction.
+        if criterion is not None or confirmed_condition:
+            # A confirmed criterion or condition (step 3) comes with a source that says so and a plan
+            # that asked for it; neither is guessed, and nothing is spent on a contradiction.
             problem = ("criterion_source_invalid" if criterion_source not in (None, "confirmed", "edited")
                        else "criterion_plan_mismatch" if plan.criterion_mode == "auto" else None)
             if problem:
@@ -2161,6 +2497,7 @@ class Service:
         dispatched = False
         version = "unavailable"
         embedding_cost = []
+        spent = []  # every model call the list route settles, for the cost of an answer that fails later
         coverage = []
         scoped = []
         search_query = plan.search_query or question
@@ -2180,6 +2517,9 @@ class Service:
         try:
             _progress(progress, "database")
             version = self.db.health()["data_version"]
+            if expected_version is not None and version != expected_version:
+                # Phase 2 of a confirmation judges only the collection its card was made from.
+                raise ContinuationInvalid("data_changed")
             trusted_filters = filters.model_copy(deep=True)
             # A named title narrows only the collection it belongs to: an ad title
             # must not restrict the social scope of a both-collections question.
@@ -2285,11 +2625,19 @@ class Service:
                 # Each screening batch reserves and settles its own call.
                 self.rag.budget.cancel_unsent(reservation)
                 reservation = None
-                # Step 5 (list): one implementation over one or both collections.
-                result, screening_cost = self._list_answer(question, plan, filters, [scope for _, scope in scoped],
-                                                           evidence, visitor, progress, relation_listing=relation_listing,
-                                                           criterion=criterion, criterion_source=criterion_source,
-                                                           criterion_draft=criterion_draft)
+                scopes = [scope for _, scope in scoped]
+                if plan.criterion_mode == "ask" and criterion is None and not confirmed_condition and confirmation_flow:
+                    # Step 5 (list, phase 1 of S3-c): stop before any judgment with the criterion to confirm.
+                    result, screening_cost = self._confirmation_card(question, plan, scopes, evidence, visitor,
+                                                                     trusted_filters, version, relation_listing, progress,
+                                                                     cost_sink=spent)
+                else:
+                    # Step 5 (list): one implementation over one or both collections.
+                    result, screening_cost = self._list_answer(question, plan, filters, scopes, evidence, visitor, progress,
+                                                               relation_listing=relation_listing, criterion=criterion,
+                                                               criterion_source=criterion_source, criterion_draft=criterion_draft,
+                                                               confirmed_condition=confirmed_condition, cost_sink=spent,
+                                                               data_version=version)
                 result.cost_usd = screening_cost + sum(embedding_cost)
             else:
                 # Step 5 (ordinary question): grounded generation; Rag.generate checks every quote verbatim.
@@ -2314,6 +2662,12 @@ class Service:
         # Step 6: budget or question limits give status 'limited'; other errors map to failure_reason.
         except LimitReached as exc:
             result = Answer(status="limited", answer=str(exc), evidence=evidence, media_evidence=media_evidence)
+        except ContinuationInvalid as exc:
+            result = refusal("continuation_invalid", exc.reason, question, evidence=evidence)
+        except RegistryFull:
+            result = refusal("confirmation_registry_full", None, question, evidence=evidence)
+        except FlowLost:
+            result = refusal("confirmation_unavailable", None, question, evidence=evidence)
         except Exception as exc:
             log.warning("Answer failed: %s", type(exc).__name__)
             known = {
@@ -2346,12 +2700,21 @@ class Service:
             result.cost_usd = self.rag.budget.reservation_cost(reservation) + sum(
                 embedding_cost
             )
-        if coverage and "list_screening" in result.research_trace:
-            # Keep the screening counts; the retrieval groups go beside them.
+        elif (embedding_cost or spent) and result.status in ("limited", "service_unavailable"):
+            # A list that failed after its hold was released: this answer's cost is its embedding plus
+            # every model call the list route settled before the failure (collected per request);
+            # uncertain reservations stay in the budget ledger as exposure (step 3, S3-c).
+            result.cost_usd = sum(embedding_cost) + sum(spent)
+            result.research_trace["cost_basis"] = COST_BASIS
+        if coverage and ("list_screening" in result.research_trace or pending_confirmation(result)):
+            # Keep the screening counts (or the card); the retrieval groups go beside them.
             result.structured_result = {**result.structured_result, "groups": coverage}
-        elif coverage:
+        elif coverage and result.structured_result is None:
             result.structured_result = {"kind": "evidence_coverage", "groups": coverage,
                                         "meaning": "Retrieved text and derived media are a sample, not complete coverage or verified semantic support."}
+        if "cost_basis" in result.research_trace:
+            # The API's compact body drops the trace: the basis of the cost travels in the structured result too.
+            result.structured_result = {**(result.structured_result or {}), "cost_basis": result.research_trace["cost_basis"]}
         if result.status == "insufficient_evidence" and not evidence and not media_evidence and not retrieval_groups:
             result.answer += "\n\n" + empty_scope_note(question, filters)
         cited_ids = {citation.evidence_id for citation in result.citations}
@@ -2427,7 +2790,7 @@ class Service:
         result.latency_ms = int((time.monotonic() - start) * 1000)
         if audit and not _FINAL_AUDIT_CONTEXT.get():
             try:
-                self.db.save_answer(question, filters, result, version)
+                self.db.save_answer(question, filters, redact_continuation(result), version)
             except Exception:
                 log.warning("Answer audit log unavailable")
         return result

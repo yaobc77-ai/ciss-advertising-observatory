@@ -31,6 +31,7 @@ import pytest
 
 from observatory.budget import LimitReached
 from observatory.config import Settings
+from observatory.criterion_confirmation import UNCONFIRMED_NOTE, chinese
 from observatory.list_screening import (
     Batch,
     Decision,
@@ -124,7 +125,9 @@ GROUPS = ({"query": HASHTAG, "filters": {"dataset": "social", "record_ids": ["s1
 # first_read (now the largest collection's, with one value per collection beside it); the plan's
 # list_kind for a literal question over both collections; the plan version. S3-b added record
 # keys only: the plan's criterion_mode / criterion_available / relation_hint signal, and the
-# trace's criterion_source / screening_basis.
+# trace's criterion_source / screening_basis. S3-c adds the structured result's criterion_source
+# and, for a list judged by an unconfirmed model draft, one sentence in the answer's first
+# paragraph (decision 1, 2026-10-27), accepted by an exact rule in the test, not by a whitelist.
 BOTH = (("result", "research_trace", "list_screening", "first_read"),
         ("result", "research_trace", "list_screening", "first_read_by_dataset"))
 PLAN = ("result", "research_trace", "question_plan")
@@ -133,7 +136,9 @@ ALLOWED = (("db_calls", "public_rows"), ("db_calls", "count_public"),
            (*PLAN, "reasons", "criterion_mode"), (*PLAN, "signals", "relation_hint"),
            ("result", "research_trace", "list_screening", "criterion_source"),
            ("result", "research_trace", "list_screening", "screening_basis"),
-           ("result", "research_trace", "list_screening", "criterion_draft"))
+           ("result", "research_trace", "list_screening", "criterion_draft"),
+           ("result", "structured_result", "criterion_source"),
+           ("result", "research_trace", "cost_basis"), ("result", "structured_result", "cost_basis"))
 
 
 @dataclass(frozen=True)
@@ -511,9 +516,32 @@ def test_the_list_route_reproduces_the_frozen_samples(name, plain_environment):
     # for an older sample); only the free-text note may differ.
     frozen_scenario, live_scenario = {**actual["scenario"], **expected.pop("scenario")}, actual.pop("scenario")
     assert {k: v for k, v in frozen_scenario.items() if k != "note"} == {k: v for k, v in live_scenario.items() if k != "note"}
+    drafted = (actual["result"]["research_trace"].get("list_screening") or {}).get("criterion_source") == "draft_unconfirmed"
     for allowed in (*ALLOWED, *scenario.allowed):
         drop(expected, allowed)
         drop(actual, allowed)
+    # A list judged by an unconfirmed model draft now says so (S3-c): the live answer must be the
+    # frozen one plus that sentence, exactly once, at the end of the first paragraph; any other
+    # list must read exactly as frozen.
+    if drafted:
+        note = UNCONFIRMED_NOTE["zh" if chinese(scenario.question) else "en"]
+        live, frozen = actual["result"].pop("answer"), expected["result"].pop("answer")
+        head, separator, rest = live.partition("\n\n")
+        assert live.count(note) == 1 and head.endswith(note), name
+        assert head[:-len(note)].rstrip() + separator + rest == frozen, name
+        # The summary's first statement repeats the head, note included.
+        actual["result"]["summary"] = [[text.replace(note, "").rstrip(), refs] if n == 0 else [text, refs]
+                                       for n, (text, refs) in enumerate(actual["result"]["summary"])]
+    # S3-c: a list that failed after its hold was released carries its embedding cost plus every
+    # model call settled before the failure (the frozen samples recorded 0); accepted only as
+    # exactly that run's embeddings and the ledger's settled amounts (a Decisions reply without
+    # usage is charged its estimate), and only for a limited or unavailable answer.
+    if actual["result"]["status"] in ("limited", "service_unavailable"):
+        embedded = sum(0.000001 * len(call["texts"]) for call in actual["model_calls"]["shared"] if call["role"] == "embed")
+        charged = sum(item[5] for item in actual["ledger"] if item[3] == "settled") + sum(
+            item[2] for item in actual["ledger"] if item[3] == "uncertain" and item[4] == "usage_missing")
+        live_cost, frozen_cost = actual["result"].pop("cost_usd"), expected["result"].pop("cost_usd")
+        assert live_cost == pytest.approx(frozen_cost + embedded + charged), name
     assert actual == expected, name
 
 

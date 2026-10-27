@@ -18,6 +18,7 @@ class _Service:
     def __init__(self):
         self.calls = []
         self.answer_status = "answered"
+        self.pending = None
 
     def health(self):
         return {"status": "ok", "record_counts": {"native": 2}, "secret_path": "hidden"}
@@ -34,8 +35,10 @@ class _Service:
         self.calls.append(("page", filters, offset, limit))
         return {"rows": [{"record_id": "rec-1", "title": "Quiet kites"}], "total": 1}
 
-    def answer(self, question, filters, visitor):
-        self.calls.append(("answer", question, filters.dataset, visitor))
+    def answer(self, question, filters, visitor, **options):
+        self.calls.append(("answer", question, filters.dataset, visitor, *([options] if options else [])))
+        if self.pending is not None:
+            return self.pending
         return Answer(status=self.answer_status, answer="Two Tidal Co ads mention kites.")
 
 
@@ -90,6 +93,44 @@ def test_ask_validates_body_and_uses_a_visitor_id(client_and_service):
     assert response.status_code == 200
     assert response.get_json()["answer"] == "Two Tidal Co ads mention kites."
     assert service.calls[-1] == ("answer", "Which ads mention kites?", "all", "api:frontend-dev")
+
+
+def test_ask_forwards_the_confirmation_mode_and_a_continuation(client_and_service):
+    # Step 3 (S3-c): the API never inherits the web's switch; without the field the service's
+    # own default ("auto") applies, so nothing is forwarded.
+    client, service = client_and_service
+    assert client.post("/api/v1/ask", json={"question": "Which ads mention kites?"}).status_code == 200
+    assert service.calls[-1] == ("answer", "Which ads mention kites?", "all", service.calls[-1][3])
+    response = client.post("/api/v1/ask", json={"question": "Which ads mention kites?", "criterion_confirmation": "ask"})
+    assert response.status_code == 200 and service.calls[-1][-1] == {"criterion_confirmation": "ask"}
+    continuation = {"token": "t.0k.en", "criterion": {"counts": ["Mentions kites."], "does_not_count": []},
+                    "example_choices": [{"example": 0, "choice": "counts"}]}
+    response = client.post("/api/v1/ask", json={"question": "Which ads mention kites?", "continuation": continuation})
+    assert response.status_code == 200 and service.calls[-1][-1] == {"continuation": continuation}
+    # A continuation carries its own mode; unknown fields are refused before any read.
+    before = len(service.calls)
+    assert client.post("/api/v1/ask", json={"question": "Which ads mention kites?", "continuation": continuation,
+                                             "criterion_confirmation": "ask"}).status_code == 400
+    assert client.post("/api/v1/ask", json={"question": "Which ads mention kites?", "criterion_confirmation": "maybe"}).status_code == 400
+    assert client.post("/api/v1/ask", json={"question": "Which ads mention kites?",
+                                             "continuation": {**continuation, "flow_id": "x"}}).status_code == 400
+    assert len(service.calls) == before
+
+
+def test_a_pending_criterion_card_is_returned_as_is_with_its_token(client_and_service):
+    client, service = client_and_service
+    service.pending = Answer(status="insufficient_evidence", answer_mode="clarification", answer="Confirm the rules.",
+                             failure_reason="criterion_confirmation_required",
+                             structured_result={"kind": "criterion_confirmation", "continuation": "signed.token",
+                                                "criterion": {"counts": ["Mentions kites."], "does_not_count": []},
+                                                "examples": [{"rule": 1, "sentence": "Kites.", "evidence_id": "e1"}]},
+                             research_trace={"criterion_draft": {"status": "draft"}})
+    response = client.post("/api/v1/ask", json={"question": "Which ads mention kites?", "criterion_confirmation": "ask"})
+    body = response.get_json()
+    assert response.status_code == 200 and body["failure_reason"] == "criterion_confirmation_required"
+    assert body["structured_result"]["kind"] == "criterion_confirmation"
+    assert body["structured_result"]["continuation"] == "signed.token"  # the token travels to the client
+    assert "research_trace" not in body  # the compact body, as for every answer
 
 
 def test_a_rate_limited_question_is_429(client_and_service):

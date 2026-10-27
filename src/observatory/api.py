@@ -11,6 +11,7 @@ import json
 import logging
 from datetime import date, datetime
 from decimal import Decimal
+from typing import Literal
 
 from flask import Flask, jsonify, request
 from flask.json.provider import DefaultJSONProvider
@@ -45,10 +46,23 @@ class _JSON(DefaultJSONProvider):
         return str(value)
 
 
+class ContinuationRequest(BaseModel):
+    """Phase 2 of a two-phase list (step 3): the card's token and the criterion the researcher confirmed."""
+
+    model_config = ConfigDict(extra="forbid")
+    token: str = Field(min_length=1, max_length=16000)
+    criterion: dict | None = None
+    example_choices: list[dict] = Field(default_factory=list)
+
+
 class AskRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     question: str = Field(min_length=1, max_length=2000)
     filters: Filters = Field(default_factory=lambda: Filters(dataset="all"))
+    # Step 3: "ask" returns the criterion card first; omitted or "auto" judges at once with an
+    # unconfirmed model draft (decision 1, 2026-10-27: the API never inherits the web's switch).
+    criterion_confirmation: Literal["auto", "ask"] | None = None
+    continuation: ContinuationRequest | None = None
 
 
 class BadRequest(ValueError):
@@ -143,6 +157,8 @@ def compact_answer(body):
     """Drop the internal trace and every passage the answer does not cite (often >1 MB)."""
     body = dict(body)
     body.pop("research_trace", None)
+    if (body.get("structured_result") or {}).get("kind") == "criterion_confirmation":
+        return body  # the card's candidates are what the researcher browses before anything is judged (step 3)
     cited = _referenced_ids([body.get(key) for key in ("citations", "cited_claims", "sections",
                                                          "structured_result", "summary")], set())
     body["evidence"] = [e for e in body.get("evidence") or [] if e.get("evidence_id") in cited]
@@ -275,7 +291,14 @@ def create_api(service, settings, record_details=None) -> Flask:
         except (ValidationError, TypeError) as exc:
             message = _first_error(exc) if isinstance(exc, ValidationError) else "Send JSON"
             raise BadRequest(f"{message}. Body: {{\"question\": \"...\", \"filters\": {{\"dataset\": \"all\"}}}}") from None
-        result = service.answer(payload.question, payload.filters, _visitor())
+        if payload.continuation is not None and payload.criterion_confirmation is not None:
+            raise BadRequest("Send criterion_confirmation or continuation, not both: a continuation carries its own mode")
+        options = {}
+        if payload.continuation is not None:
+            options["continuation"] = payload.continuation.model_dump()
+        elif payload.criterion_confirmation is not None:
+            options["criterion_confirmation"] = payload.criterion_confirmation
+        result = service.answer(payload.question, payload.filters, _visitor(), **options)
         status = 429 if result.status == "limited" else 200
         body = result.model_dump(mode="json")
         body["citations"] = citation_locations(body.get("citations") or [], body.get("evidence") or [])

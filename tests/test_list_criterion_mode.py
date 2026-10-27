@@ -160,7 +160,8 @@ def test_quoted_sentences_in_confirmed_rules_are_not_literal_requirements(monkey
     # from the question alone: n1's matching sentence contains neither quoted sentence and still counts.
     result, calls, _ = answer("native_screen", monkeypatch, criterion=QUOTING)
     asked = screening_questions(calls)
-    assert len(asked) == 2 and all(NOTE_HEAD in question and "kite festival starts on Friday" in question for question in asked)
+    # S3-c: a confirmed list reads the whole small scope: six ads in two batches, then n1's re-reading.
+    assert len(asked) == 3 and all(NOTE_HEAD in question and "kite festival starts on Friday" in question for question in asked)
     trace = result.research_trace["list_screening"]
     decisions = {d["record_id"]: d for d in trace["decisions"]}
     assert decisions["n1"]["decision"] == "matches" and decisions["n1"]["evidence_id"] == "n1-e9"
@@ -185,7 +186,7 @@ def test_with_the_triage_switched_off_a_confirmed_criterion_still_reaches_the_sc
     monkeypatch.setenv("OBS_RELEVANCE_TRIAGE", "off")
     result = service._answer_evidence(scenario.question, Filters(dataset="native"), "offline", audit=False, criterion=CONFIRMED)
     assert calls.by_dataset["native"]["judge"] == [] and "criterion" not in roles(calls)
-    assert len(screening_questions(calls)) == 2 and all(NOTE_HEAD in question for question in screening_questions(calls))
+    assert len(screening_questions(calls)) == 3 and all(NOTE_HEAD in question for question in screening_questions(calls))
     trace = result.research_trace["list_screening"]
     assert "triage" not in trace and trace["screening_basis"] == "confirmed_criterion"
     assert result.research_trace["question_plan"]["criterion_available"] is False
@@ -235,13 +236,13 @@ def test_with_norms_on_the_type_comes_from_the_question_and_the_prompt_carries_t
     result = service._answer_evidence(question, Filters(dataset="native"), "offline", audit=False,
                                       declared_shape="every_matching_source", criterion=CONFIRMED)
     assert result.status == "answered" and [c.evidence_id for c in result.citations][-2:] == ["n1-e9", "n2-e1"]
-    assert len(created) == 2 and all(prompt.startswith("MENTION NORM") for prompt in created)
+    assert len(created) == 3 and all(prompt.startswith("MENTION NORM") for prompt in created)
     for prompt in created:
         norm, payload_text = prompt.split("\n\n", 1)
         payload = json.loads(payload_text)
         assert payload["question"].startswith(question) and NOTE_HEAD in payload["question"]
         assert "(1) The ad presents tidal kites as a source of jobs." in payload["question"]
-        assert {TEXT_RECORD[p["text"]] for item in payload["ads"] for p in item["passages"]} <= {"n1", "n2", "n3"}
+        assert {TEXT_RECORD[p["text"]] for item in payload["ads"] for p in item["passages"]} <= {"n1", "n2", "n3", "n4", "n5", "n6"}
     assert calls.by_dataset["native"]["screen"] == []  # the tagged call answered; no structured fallback
     trace = result.research_trace["list_screening"]
     assert trace["screening_basis"] == "confirmed_criterion" and all(d.get("screening_reasoning") == "checked" for d in trace["decisions"])

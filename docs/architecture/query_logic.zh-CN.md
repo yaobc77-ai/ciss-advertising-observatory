@@ -58,6 +58,7 @@
 1. 请求体只允许 `question`（1–2,000 字）和 `filters`。不传 `filters` 时默认 `{"dataset":"all"}`。注意：传空的 `{}` 时会用模型默认值 `native`（models.py:103）。
 2. 访客 id 的取法（api.py:120-126）：有 `X-Visitor-Id` 头就用 `api:<头的值>`，否则用 IP 加浏览器标识算出的哈希。这个头由客户端控制，换个值就能绕开按人限流。
 3. 被限流时返回 HTTP 429。每条引文会补上 `location`（在原文中的位置），默认输出精简版，不带 `research_trace`。
+4. 两阶段名单（流水线第 3 步，S3-c）：请求加 `"criterion_confirmation": "ask"` 时，筛查名单先返回 HTTP 200 的待确认卡片（`structured_result.kind == "criterion_confirmation"`：起草的规则、例句、覆盖说明、`continuation` 令牌、`expires_at`）；再发 `"continuation": {"token": …, "criterion": {"counts": […], "does_not_count": […]} 或 null, "example_choices": […]}` 续问（同一问题、同一访客、范围不比卡片宽、30 分钟内、数据版本未变），服务器按规则逐篇判定并记 `criterion_source` confirmed／edited。不带字段时为 auto：和今天一样起草后直接判定，正文和 `structured_result.criterion_source` 标明未经确认。两个字段同时给返回 400；失效、冲突、规则无效等返回 200 并以 `failure_reason`（`continuation_invalid`／`continuation_conflict`／`continuation_in_progress`／`criterion_invalid`）和 `structured_result.detail` 说明。
 
 ### 1.3 筛选条件 Filters（models.py:102-125）
 

@@ -165,14 +165,15 @@ def _ad_text(passages):
     return f"Ad: {head}\n\n" + "\n".join(p.text for p in passages)[:MAX_AD_CHARS]
 
 
-def triage(rag, question, criterion, groups, visitor, workers=WORKERS):
+def triage(rag, question, criterion, groups, visitor, workers=WORKERS, cost_sink=None):
     """{record_id: judge numbers or None} and cost, one Decisions request per ad (in parallel)."""
     questions = triage_questions(question, criterion)
 
     def one(passages):
         body = {"model": JUDGE_MODEL, "input": _ad_text(passages), "questions": questions}
         try:
-            response, cost = _call(rag, body, visitor, passages[0].record_id)
+            response, cost = _call(rag, body, visitor, passages[0].record_id,
+                                   **({"cost_sink": cost_sink} if cost_sink is not None else {}))
         except Exception as exc:  # noqa: BLE001 - an ad the judge could not read goes to screening as before.
             log.warning("Triage call failed for record %s (%s); the ad goes to screening",
                         passages[0].record_id, type(exc).__name__)
@@ -199,7 +200,7 @@ def route(decision, numbers):
 
 
 def triaged_screen(screen, rag, question, evidence, visitor, *, criterion, extra=(), reread=None,
-                   screen_with_criterion=False):
+                   screen_with_criterion=False, cost_sink=None):
     """Triage, then screen what was not excluded; returns (results, cost, summary).
 
     `screen` is list_screening.screen. `evidence` holds the ranked candidates'
@@ -212,7 +213,7 @@ def triaged_screen(screen, rag, question, evidence, visitor, *, criterion, extra
     for item in [*evidence, *extra]:
         groups.setdefault(item.record_id, []).append(item)
     groups = list(groups.values())[:TRIAGE_MAX]
-    numbers, cost = triage(rag, question, criterion, groups, visitor)
+    numbers, cost = triage(rag, question, criterion, groups, visitor, cost_sink=cost_sink)
     excluded = [g for g in groups if excludable(numbers.get(g[0].record_id))]
     kept = [g for g in groups if g not in excluded]
     # The likeliest matches are screened first; ties keep the retrieval order.
@@ -220,7 +221,8 @@ def triaged_screen(screen, rag, question, evidence, visitor, *, criterion, extra
     screened, unscreened = kept[:SCREEN_MAX], kept[SCREEN_MAX:]
     results, spent = (screen(rag, question, [p for g in screened for p in g], visitor, limit=len(screened),
                              widen_to=len(screened), reread=reread,
-                             **({"criterion": criterion} if screen_with_criterion else {})) if screened else ([], 0.0))
+                             **({"criterion": criterion} if screen_with_criterion else {}),
+                             **({"cost_sink": cost_sink} if cost_sink is not None else {})) if screened else ([], 0.0))
     cost += spent
     for item in results:
         item["triage"] = numbers.get(item["record_id"])

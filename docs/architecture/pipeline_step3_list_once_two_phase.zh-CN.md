@@ -198,6 +198,7 @@ ask 模式的含义是"模型逐篇判定之前先经人确认"：`plan.list_kin
 - 阶段二**不再调研究代理**：从令牌里恢复 `QuestionPlan`（`QuestionPlan(**data)`），`validate_share_scope` 再校验一次，直接 `_answer_evidence(question, Filters(plan.filters), visitor, plan=plan, criterion=确认后的标准)`。检索重做一次（嵌入按文本哈希缓存，`db.search` 一两秒），不信任客户端传回的候选。同一数据版本下同样的检索词和范围给出同样的候选（同一索引、同一缓存向量、确定性的融合排序），所以阶段二的候选和卡片上的一致；版本变了就按上面失效处理，不会判定一组用户没见过的候选。
 - `_answer_evidence` 新参数 `criterion=None`：有则跳过 `make_criterion`，分流和筛查都用它（3.4a 的 (b)），`list_screening` 记 `criterion_source="confirmed"`（原样接受）或 `"edited"`（人改过）、`screening_basis="confirmed_criterion"`；没有且 `plan.criterion_mode == "ask"` → 走阶段一返回待确认回答；没有且 `"auto"` → 今天的行为，记 `"draft_unconfirmed"`、`screening_basis="question"`。
 - 服务器除 `FlowRegistry` 外不保存阶段状态；阶段一和阶段二各写一行 `answer_runs`（阶段一的 `result` 里有 `flow_id` 和令牌哈希，不是令牌本身）。
+- 实现说明（S3-c，2026-10-27，按 Codex 计划复核改）：① 令牌签的是证据路线被调用时的范围（`scope`）和计划（含有效范围）；阶段二先核令牌范围在本次请求范围之内、计划范围在令牌范围之内，再按令牌的范围与计划进证据路线；问题文本签发与校验用同一规范化（压空白）。② 数据版本在入口核一次、在证据路线读版本后再核一次（`expected_version`），中途变了按失效拒绝，流程终态。③ 没起草标准的条件（引号短语、关系提示、分流关闭）可以不写规则直接确认：记 `criterion_source="confirmed"`、`screening_basis="question"`、不记 `criterion`，另记 `list_screening.confirmed_condition` 和 `research_trace.criterion_confirmation`；起草过或起草失败的卡片没有规则就不判定（`criterion_invalid`／`rules_required`）。④ 流程在 `_answer_question` 的完整包装（联网补救、记录、plan_check、审计保存）之后才标 done，判定中再来返回“正在判定中”；done 存紧凑副本（只留引文和结构化结果引用的段落），回放是新副本、费用 0、记 `continuation_replay`，回放和复合题里被推迟的子问都不再联网补救；failed／limited 终态，重来要重新提问（损失起草费）。名单在预留取消之后失败或触限的回答，`cost_usd` = 本次嵌入费 + 失败前已结算的模型调用（请求内逐笔收集：筛查批次、复核、Decisions 评审、起草、写手各部分；无 usage 的 Decisions 回复按预估计费），不确定的预留不计入、留在账本里；`research_trace.cost_basis` 说明口径并同时写进 `structured_result`（这一点对 auto 的失败回答也成立，5 个冻结失败场景按精确规则核对）。⑤ 登记表：流程在起草前以 preparing 登记（占位），卡片发出后转 pending，30 分钟从发卡时起算；preparing 和 judging 永不被淘汰，满员时在起草前拒绝（`confirmation_registry_full`，状态 limited）；阶段一失败则撤销登记；准备期间被清理则不发卡（`confirmation_unavailable`，状态 service_unavailable）。模型起草的空白或超限规则按起草失败处理（费用保留）。例句截断按原文词尾位置，逐字。接口精简输出保留卡片的全部候选段落。⑧ 判定前的最后一次核对：`_consistent_version` 在判定要用的最后一次读取之后（短语搜索、补全整篇、小范围补读）、第一次付费判定调用之前再核一次数据版本，变了就按 `data_changed_during_retrieval` 停下、流程终态；auto 模式同样核对（数据不动时无差别）。⑥ 复合题子问 v1 不出卡片、不起草、不登记：用 S3-b 的拒绝，正文加“请单独提问这一部分”，复合结果原因记 `criterion_confirmation_required`（不联网），馆藏优先回退对它不启动。⑦ `Service.answer(criterion_confirmation=None)` 一律 auto，网页在 S3-d 显式传开关值；接口只在请求带字段时转发。
 - ask 模式下任何要模型逐篇判定的名单都先停，没有悄悄退回今天筛查的路：起草失败或规则为空→待确认卡片的规则栏为空并说明"标准起草失败，请自己写规则，或只看检索结果"，没有人写规则就不判定；引号短语题、关系提示题（今天不起草标准）→卡片写明判定条件（短语必须出现／关系已由来源字段满足，只判其余条件），人确认后才筛查；分流被运维关掉（`OBS_RELEVANCE_TRIAGE=off`）→卡片写明"没有判定标准（分流已关闭），筛查只按问题找句子"，仍要人确认才花钱，计划记 `criterion_mode=ask`、`criterion_available=false`；令牌失效→上面的明确失败。
 
 ### 3.6 非交互入口的默认
@@ -227,6 +228,8 @@ ask 模式的含义是"模型逐篇判定之前先经人确认"：`plan.list_kin
 
 两种文案都写进 `structured_result.candidates`，网页和接口用同一份数据。
 
+实现说明（S3-c，提交前复核第一轮后恢复为设计）：卡片的承诺就是 `_list_answer` 在确认之后实际读的，与分流开关无关：该集合 ≤ 400 篇→`whole_scope`（分流开着走 Decisions 全读，关着则筛查补读范围内所有有正文的记录，首读 = 全部）；更大→`candidates`（检索到的候选全部读完，没有“前 40 篇无命中就停”的规则）。`with_rules` 是有规则时的覆盖，`condition_only` 是不写规则只确认条件时的覆盖（按问题筛查；引号短语题在大范围时先读含短语的每一篇，`phrase_hits` 用阶段一同一 `phrase_search` 数出）。auto 模式不变（分流开着才全读；筛查保留 40→120 的渐进规则）。计划稿曾想把小范围全读收窄到“只有分流开着时”，Codex 指出这是未经用户授权的范围缩减，已改回。
+
 ### 3.10 网页
 
 - 渲染：`_render_answer_result` 识别 `kind == "criterion_confirmation"`，输出卡片：规则列表（每条下面是例句 + 算／不算按钮）、例外列表、编辑文本框、"按这些规则判定"、"不判定，只看检索结果"；下面是候选证据卡（免费）。
@@ -236,7 +239,7 @@ ask 模式的含义是"模型逐篇判定之前先经人确认"：`plan.list_kin
 
 ### 3.11 开关
 
-- `OBS_CRITERION_CONFIRMATION`：`ask`（网页两阶段）／`auto`（今天的行为）／默认值见第 6 节。分流本身仍受 `OBS_RELEVANCE_TRIAGE` 控制；分流关着时没有标准，也就没有两阶段。
+- `OBS_CRITERION_CONFIRMATION`：`ask`（网页两阶段）／`auto`（今天的行为），默认 auto（S3-c）；只有网页入口读它（S3-d），接口和内部调用一律 auto，接口可按请求要求 ask（决定 1）。分流本身仍受 `OBS_RELEVANCE_TRIAGE` 控制；分流关着时卡片写明“没有判定规则（分流已关闭），筛查只按问题找句子”，仍要人确认才花钱（3.5），不是没有两阶段。
 
 ---
 
@@ -246,7 +249,7 @@ ask 模式的含义是"模型逐篇判定之前先经人确认"：`plan.list_kin
 |---|---|---|---|
 | S3-a（已做，2026-10-26） | 先存金样本（2.4，全模拟调用，22 个场景），再合成 `_list_answer`（共用 prepare／judge；单库：准备→起草→判定，两库：起草→各库并行准备并判定，都和今天一样），删 `_screen_both`；计划里两库字面题改回 literal（v3）；不顺带启用任何确认流程 | 只有 2.2 列出的记录字段 | 金样本逐项一致（白名单外零差异，白名单内的实际差异见 work.md）+ 25 套件 + 6 项新测试（同一函数、两库字面题每库一次短语搜索且零模型调用、每库各自编号与重读、>40 命中每库各自首读、触限答案的证据不重复、接线只有一份）；门禁 |
 | S3-b（已做，2026-10-27） | 计划加 `criterion_mode`（auto／ask／none）、`criterion_available`（分流开着且本题会起草；未知为 None）、`signals.relation_hint`、`reasons.criterion_mode`，版本 v4；`screen(criterion=)` 把确认后的标准附在判题问题后（`CONFIRMED_CRITERION_NOTE`：按标准判，引用满足规则的句子；必含短语仍只取自原问题），首读、重读、复核同一文本；`triaged_screen(screen_with_criterion=)`；`_answer_evidence`／`_list_answer` 加 `criterion=`、`criterion_source=`、`criterion_draft=`：有则不起草、分流开着时分流也用它、筛查按它找句子；记录 `criterion_source`（confirmed／edited／draft_unconfirmed／none）、`screening_basis`（confirmed_criterion／question）、`criterion_draft`（只记真正的草稿）；带标准的调用其路线计划记 `criterion_mode=ask`；来源只接受省略（= confirmed）、confirmed、edited，其他显式值在花钱前拒绝（`criterion_source_invalid`）；传入 auto 计划加标准在花钱前拒绝（`criterion_plan_mismatch`）；计划 ask 而没有标准→拒绝（`criterion_confirmation_required`，附检索候选，不起草不判定，`_ensure_answer` 不联网补救）；开 norms 时题型仍按原问题选，提示的 payload 带标准；`plan_check` 加 `criterion_matches`（筛查过却没记来源 = 不一致，没筛查 = 未知） | 无（auto = 今天；还没有调用方传标准或 ask 计划） | `tests/test_list_criterion_mode.py` 18 项（含开 norms 的完整提示、分流关闭／评审全失败仍按标准筛查、字面与关系名单不查分流开关）；22 个金样本白名单外一致（白名单只加新记录键并核对版本 = v4）；29 个文件通过数见 work.md；门禁见 work.md |
-| S3-c | 阶段一产物 + 例句选择 + `flow_id`／令牌／`FlowRegistry` + `Service.answer(continuation=)` + 接口字段；例句点选→草稿行；服务端记录规则里引用的例句（不拒绝）；开关默认 auto | 开关不开时无 | 流程测试：ask 模式确认前起草可有、Decisions／筛查为零；起草失败、分流关闭、规则为空各一例；令牌过期、版本变化、访客不符、范围篡改→零模型调用；双击／并发／重试只判定一次；重启后登记缺失→失效不执行；同一标准重试→复用结果，不同标准→冲突；父 ask + 复合名单子问→零逐篇调用；规则含例句→记录且照常判定；接口两阶段往返 |
+| S3-c（已做，2026-10-27） | 新模块 `criterion_confirmation.py`：`pending_confirmation`、标准规范化与哈希、`ConfirmationTokens`（itsdangerous，30 分钟，没配 cookie secret 则每进程随机）、`FlowRegistry`（pending→judging→done／failed，pending 30 分钟、done／failed 保留 24 小时、judging 永不清除，满员拒绝新卡片）、例句选择（每库检索前 5 篇按词面重叠，无重叠取首句，不进任何模型）、`example_choice_line`、`quoted_examples`、覆盖说明与卡片文案（中英）、`mark_unconfirmed`、拒绝文案。`Service.answer(criterion_confirmation=None, continuation=None)`：None = auto（接口与内部调用永不继承网页开关，决定 1），模式随计划传到证据路线、复合子问、馆藏优先回退；`_confirmation_card`（阶段一：先登记流程再起草，起草只看问题；条件种类 draft／draft_failed／phrases／relation_hint／triage_off；令牌签 flow_id、访客、问题、调用范围、计划、草稿哈希、条件、数据版本）；`_continue_confirmation`（阶段二：按序校验形状、令牌、访客、问题、数据版本、范围、标准，再原子登记，再进证据路线并在检索前再核数据版本；confirmed／edited 由服务器按哈希判定）；流程在完整包装与审计保存之后才标 done；同标准重试回放紧凑副本、不同标准冲突、判定中拒绝、失败／触限终态；auto 名单正文首段标注“规则由模型起草、未经研究者确认”，`structured_result.criterion_source`；所有 `save_answer` 只存令牌哈希。接口字段 `criterion_confirmation`、`continuation`；`OBS_CRITERION_CONFIRMATION` 默认 auto（S3-d 网页读）；进度阶段 drafting／judging | 开关不开时：筛查名单多 `structured_result.criterion_source`，有草稿的名单正文多一句“未经确认”，名单在预留取消后失败／触限的回答 `cost_usd` 记本次嵌入费并记 `cost_basis`（都按金样本的精确规则核对） | `tests/test_criterion_confirmation.py` 57 项（含参数化；卡片、确认／编辑／引用例句、回放、冲突、并发与满员、失败与触限终态、已结算后触限、数据版本在入口／检索中／补读整篇后／只在补读漏掉记录时四处核对（分流开关两种）、有效期从发卡起算与准备超时不发卡、九种无效续问、重启、七种无效规则、起草失败与空白草稿、分流关闭、开关两阶段间翻转、大范围候选全读、引号短语、关系提示、复合子问（含自带原因）、回退卡片、未完成结果回放、并发起草、例句逐字、auto 标注、开关不继承、真实 Service 接口往返、纯函数）；22 个金样本按规则一致；接口 +2、配置 +1；门禁见 work.md |
 | S3-d | 网页卡片与回调；网页默认 ask | 网页名单题变两阶段 | Python 回调测试；人工走一遍；记录截图路径 |
 | S3-e | 人工标注集 5 道题按确认后的标准（(b)：分流和筛查都用）重跑三组数字，与 10-24 基线（30／21／24）并列；(a) 并列一次作对照 | — | 约 $0.08，另行申请 |
 
@@ -289,6 +292,7 @@ S3-a（名单合一）Codex 已通过并已提交（b1e1f0b）。两阶段部分
 
 ## 8. 复核记录
 
+- 2026-10-27 Codex 计划复核（S3-c，依据内联设计节、计划与代码摘录）：范围认可，要求①接口／内部入口显式默认 auto，不继承全局 ask→`Service.answer` 的 None 一律 auto，网页 S3-d 显式传开关；②卡片覆盖承诺与实际执行一致，短语搜索追加的候选也要说明→`candidate_summary` 的 `with_rules`／`condition_only`／`phrase_hits`（3.9 实现说明）；计划稿本想只在分流开着时承诺小范围全读，提交前复核指出这是范围缩减，已按设计恢复：确认后 ≤ 400 篇全读、更大范围候选全读；③执行时再绑定数据版本，令牌保留原始范围和有效范围→`expected_version` 在检索前再核，令牌签 `scope` + 计划；④完整包装结束后才标 done→流程在 `_answer_question` 包装与审计保存后 finish／fail。边界：无规则确认记 confirmed 并保留条件种类与 `screening_basis=question`→已做；failed／limited 终态且费用如实→已做；回放复制最终结果并保留结构化结果引用的证据→已做；复合子问的“请单独提问”要经完整包装保留→原因进保护清单、回退不启动；问题规范化一致、登记表满员拒绝、修正 3.11 旧表述→已做。提交前复核见 work.md。
 - 2026-10-27 Codex 计划复核（S3-b，依据内联设计节与计划）：要求①传入标准的调用其计划要能表达 ask，否则 plan_check 必报错，且 ask 缺标准不得退回 auto→计划加 `criterion_confirmation`，路线为带标准的调用建 ask 计划，ask 无标准返回明确拒绝；②`criterion_draft` 只记真正的草稿→已做；③"回答文字标明未经确认"留到 S3-c→本步正文不变；④`screen_with_criterion` 按"是否传入标准"决定，不看起草后非空→已做；⑤提示词不要把原问题变成额外门槛→改为"按确认后的标准判，引用满足规则的句子"，原问题的短语约束和逐字核对保留；⑥标准贯穿筛查、重读、分流关闭时的回退→已做并有测试；⑦`criterion_available` 只有一个含义→"本题会起草"；⑧白名单精确到新增字段并核对版本→已做。提交前复核见 work.md。
 - 2026-10-27 用户定两阶段的三项产品规则（原话："A，B，B。不用怕循环论证，用户就是要找到自己想找的"）：1 接口和内部调用允许 auto 并标注未经人确认；2 人写的规则可以引用库内原句，服务端记录不拒绝；3 确认后筛查按确认后的标准找句子（(b)）。据此改了 0、3.3、3.4a、3.5、3.6、3.8、5、6、7 节和第 4 节的 S3-b／S3-c／S3-e 行。
 

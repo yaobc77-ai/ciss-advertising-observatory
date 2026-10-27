@@ -75,8 +75,11 @@ def _ad_input(ad):
     return f"Ad: {head}\n\n{(ad.get('text') or '')[:MAX_AD_CHARS]}"
 
 
-def _call(rag, body, visitor, record_id):
-    """One paid Decisions request, reserved and settled like every other model call."""
+def _call(rag, body, visitor, record_id, cost_sink=None):
+    """One paid Decisions request, reserved and settled like every other model call.
+
+    `cost_sink` (a list) receives what the caller is charged for this call as soon as it is known.
+    """
     # About 3 characters per token is a safe overestimate for English ads.
     estimate = max(price(JUDGE_MODEL, len(json.dumps(body)) // 3 + 400), Decimal("0.000001"))
     rid = rag.budget.reserve(estimate, visitor, "generation", JUDGE_MODEL)
@@ -93,11 +96,15 @@ def _call(rag, body, visitor, record_id):
         # (known defect, 2026-10-25). The caller is charged the estimate.
         rag.budget.uncertain(rid, "usage_missing")
         log.warning("Decisions reply without usage for record %s; reservation kept as uncertain", record_id)
+        if cost_sink is not None:
+            cost_sink.append(float(estimate))
         return response, float(estimate)
     try:
         actual = price(JUDGE_MODEL, tokens)
         rag.budget.settle(rid, actual, {**usage, "observatory_request": {
             "policy": POLICY, "stage": "relevance_judge", "record_id": record_id}})
+        if cost_sink is not None:
+            cost_sink.append(float(actual))
     except Exception as exc:
         # Pricing or settlement failed after a paid call: the reservation stays uncertain.
         rag.budget.uncertain(rid, type(exc).__name__)
