@@ -1,0 +1,288 @@
+{
+ "db_calls": {
+  "count_public": {},
+  "native": [],
+  "public_rows": {
+   "social": 5
+  },
+  "search": [
+   {
+    "chunks_per_record": null,
+    "dataset": "social",
+    "hybrid": false,
+    "limit": 5,
+    "query": "Which ads mention \"tidal kite\"?",
+    "record_ids": []
+   },
+   {
+    "chunks_per_record": 2,
+    "dataset": "social",
+    "hybrid": true,
+    "limit": 120,
+    "query": "Which ads mention \"tidal kite\"?",
+    "record_ids": []
+   }
+  ],
+  "social": [
+   {
+    "found": [
+     "s1-e1",
+     "s3-e1"
+    ],
+    "limit_records": 5,
+    "method": "phrase_search",
+    "phrases": [
+     "tidal kite"
+    ]
+   }
+  ]
+ },
+ "frozen": {
+  "commit": "60775b3",
+  "date": "2026-10-26",
+  "module": "tests/test_list_golden.py"
+ },
+ "ledger": [
+  [
+   "generation",
+   "gpt-5.6-luna",
+   0.04,
+   "cancelled"
+  ]
+ ],
+ "model_calls": {
+  "native": {
+   "judge": [],
+   "screen": []
+  },
+  "shared": [
+   {
+    "role": "embed",
+    "texts": [
+     "Which ads mention \"tidal kite\"?"
+    ]
+   }
+  ],
+  "social": {
+   "judge": [],
+   "screen": []
+  }
+ },
+ "result": {
+  "answer": "2 of the 4 ads in your selection contain “tidal kite” (exact wording).\n\n1.  — , (Unknown), 2023-07-01: “Every tidal kite farm hires local crews: jobs for the harbor.” [1]\n\n2.  — , (Unknown), 2023-07-01: “Tidal kites: jobs, jobs, jobs.” [2]",
+  "answer_mode": "rag",
+  "citations": [
+   [
+    "s1-e1",
+    "Every tidal kite farm hires local crews: jobs for the harbor."
+   ],
+   [
+    "s3-e1",
+    "Tidal kites: jobs, jobs, jobs."
+   ]
+  ],
+  "cited_claims": [
+   [
+    " — , (Unknown), 2023-07-01: “Every tidal kite farm hires local crews: jobs for the harbor.” [1]",
+    [
+     1
+    ]
+   ],
+   [
+    " — , (Unknown), 2023-07-01: “Tidal kites: jobs, jobs, jobs.” [2]",
+    [
+     2
+    ]
+   ]
+  ],
+  "cost_usd": 1e-06,
+  "evidence_ids": [
+   "s1-e1",
+   "s3-e1"
+  ],
+  "external_research": {},
+  "failure_reason": "",
+  "research_trace": {
+   "list_decision": {
+    "planner": null,
+    "rule": true
+   },
+   "list_screening": {
+    "decisions": [
+     {
+      "decision": "matches",
+      "evidence_id": "s1-e1",
+      "quote": "Every tidal kite farm hires local crews: jobs for the harbor.",
+      "record_id": "s1",
+      "title": ""
+     },
+     {
+      "decision": "matches",
+      "evidence_id": "s3-e1",
+      "quote": "Tidal kites: jobs, jobs, jobs.",
+      "record_id": "s3",
+      "title": ""
+     }
+    ],
+    "does_not_match": 0,
+    "examined": 4,
+    "matches": 2,
+    "method": "exact_text",
+    "policy": "list-screening-v19",
+    "question": "Which ads mention \"tidal kite\"?",
+    "reread": 0,
+    "review": 0,
+    "scope_total": 4,
+    "unclear": 0,
+    "verified_removed": 0
+   },
+   "media_retrieval": {
+    "groups": [
+     {
+      "image_units": 0,
+      "label": "Current selection",
+      "status": "not_configured",
+      "video_units": 0
+     }
+    ],
+    "method": "separate_lexical_media_rrf",
+    "recognition_calls": 0,
+    "source_binding": {
+     "bundle_sha256": "",
+     "configuration_complete": false,
+     "contract": "separate-media-evidence-v1"
+    }
+   },
+   "question_plan": {
+    "agent_route": "direct",
+    "allow_web": false,
+    "clarify_message": null,
+    "coverage_note_rule": true,
+    "datasets": [
+     "social"
+    ],
+    "datasets_requested": [
+     "social"
+    ],
+    "failure_reason": "",
+    "filters": {
+     "accounts": [],
+     "dataset": "social",
+     "date_from": null,
+     "date_presence": "any",
+     "date_to": null,
+     "include_inferred_dates": false,
+     "include_unknown_dates": true,
+     "keywords": [],
+     "labels": [],
+     "platforms": [],
+     "publishers": [],
+     "record_ids": [],
+     "replies": [],
+     "sponsors": []
+    },
+    "list_kind": "literal",
+    "original_metadata": false,
+    "phrases": [
+     "tidal kite"
+    ],
+    "read_sources": false,
+    "reasons": {
+     "allow_web": "rule:list_screened",
+     "datasets": "filters:user",
+     "route": "caller:evidence",
+     "search_query": "default:question",
+     "shape": "rule:requires_complete_list"
+    },
+    "route": "evidence",
+    "search_query": "Which ads mention \"tidal kite\"?",
+    "shape": "list",
+    "signals": {
+     "collection_only": false,
+     "contract_task": "content_mentions",
+     "original_metadata_only": false,
+     "planner_shape": null,
+     "pure_literal": true,
+     "quoted_phrases": 1,
+     "relation_list": false,
+     "retrieval_groups": false,
+     "rule_list": true
+    },
+    "version": "question-plan-v2",
+    "wants_list": true
+   }
+  },
+  "sections": [],
+  "status": "answered",
+  "structured_result": {
+   "charts": [],
+   "display_citations": [
+    1,
+    2
+   ],
+   "examined": 4,
+   "groups": [
+    {
+     "evidence_units": 2,
+     "filters": {
+      "accounts": [],
+      "dataset": "social",
+      "date_from": null,
+      "date_presence": "any",
+      "date_to": null,
+      "include_inferred_dates": false,
+      "include_unknown_dates": true,
+      "keywords": [],
+      "labels": [],
+      "platforms": [],
+      "publishers": [],
+      "record_ids": [],
+      "replies": [],
+      "sponsors": []
+     },
+     "image_units": 0,
+     "label": "Current selection",
+     "media_status": "not_configured",
+     "passages": 2,
+     "query": "Which ads mention \"tidal kite\"?",
+     "retrieved_evidence_ids": [
+      "s1-e1",
+      "s2-e1"
+     ],
+     "retrieved_record_ids": [
+      "s1",
+      "s2"
+     ],
+     "video_units": 0
+    }
+   ],
+   "kind": "exact_text_list",
+   "matches": 2,
+   "meaning": "Literal wording found in indexed text; meaning is not judged.",
+   "method": "exact_text",
+   "policy": "list-screening-v19",
+   "review": 0,
+   "scope_total": 4
+  },
+  "summary": []
+ },
+ "scenario": {
+  "allowed": [],
+  "declared_shape": null,
+  "fail_social_screening": false,
+  "filters": {
+   "dataset": "social"
+  },
+  "large_scope": false,
+  "limit_at": null,
+  "many_literal": false,
+  "match": "jobs",
+  "name": "social_literal",
+  "note": "exact wording over posts: lines as before the merge (no account filled in)",
+  "question": "Which ads mention \"tidal kite\"?",
+  "relation_listing": null,
+  "retrieval_groups": null,
+  "triage": true,
+  "writer": "summary"
+ }
+}

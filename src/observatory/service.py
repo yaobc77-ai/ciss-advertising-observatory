@@ -20,7 +20,6 @@ from .list_screening import (
     hidden_line,
     list_answer,
     literal_results,
-    pure_literal_question,
 )
 from .list_screening import screen as screen_list
 from .models import Answer, AnswerSection, CitedStatement, Filters
@@ -1708,87 +1707,159 @@ class Service:
             "research_trace": {**result.research_trace, "list_screening": trace},
         })
 
-    def _screen_both(self, question, scoped, evidence, phrases, visitor, progress=None):
-        """Screen a list question in the native ads and in the company posts, then answer once.
+    def _list_answer(self, question, plan, filters, scopes, evidence, visitor, progress=None, relation_listing=None):
+        """Answer a list question over its collections with one implementation (pipeline step 3, S3-a).
 
-        Each collection gets its own ranked candidates, first reading and
-        widening, so posts never crowd ads out of the reading (or the reverse).
-        Returns the combined list answer and its cost.
+        `filters` is the question's scope, `scopes` the collections' Filters (one, or native
+        and social for a list over both), `evidence` the ranked candidates of all of them. A
+        relation list goes to _relation_list. Otherwise each collection is prepared (scope
+        count, every record containing the quoted phrases first, the candidates completed to
+        whole articles) and judged (an exact-text list, list_kind "literal", with no model
+        call; or screening, after the Decisions-API triage when there is a criterion) on its
+        own. One criterion is drafted from the question alone (relevance_triage; not for
+        quoted phrases, exact wording or a relation hint): after the preparation for one
+        collection, before the collections' parallel work for two, as before the merge. The
+        results are joined in collection order (tagged with their collection when there are
+        two) and listed once; a screened list is then summarised or its matches read.
+        Returns (Answer, cost).
+
+        A one-collection failure replaces `evidence` in place with the passages read so far,
+        so a limited or failed answer shows them, as before the merge; with two collections
+        the retrieval candidates stay, as before.
         """
-        from .question_policy import sources_content_request
+        if plan.list_kind == "relation":
+            return self._relation_list(question, filters, relation_listing), 0.0
+        phrases, literal, both = plan.phrases, plan.list_kind == "literal", len(scopes) > 1
+        # Posts selected by a relation satisfy it by their source records, which the
+        # screener cannot see in the text (B1K-REL4: 0 of 17 replies kept). One social
+        # collection only, as before the merge: a list over both has no relation selection.
+        hint = ""
+        if not both and scopes[0].dataset == "social" and relation_listing and relation_listing.get("selections"):
+            relations = "; ".join(f"{name}: {', '.join(map(str, values))}"
+                                  for item in relation_listing["selections"]
+                                  for name, values in item.get("relations", {}).items())
+            hint = (f"\n\n(Every candidate post already satisfies, by its source record, the relation "
+                    f"{relations}; this is not visible in the text. Judge only the question's other "
+                    "conditions; if it has none, every post matches.)")
+        read = []  # one collection: the passages read so far, shown by a limited or failed answer
 
-        results, pool, cost, scopes, literal_only = [], [], 0.0, {}, pure_literal_question(question)
-        # One criterion for both collections, written before any record is read (relevance_triage).
-        criterion, criterion_cost = ((None, 0.0) if literal_only or phrases else make_criterion(self.rag, question, visitor))
-        cost += criterion_cost
-        triages = {}
+        def each(function, items):
+            """The collections are independent: one after another, or both at the same time."""
+            if len(items) > 1:
+                with ThreadPoolExecutor(max_workers=len(items)) as executor:
+                    return list(executor.map(function, items))
+            return [function(item) for item in items]
 
-        def screen_collection(scope):
-            """Screen one collection on its own: literal matches first, then ranked candidates, up to 120 records."""
-            dataset, found, spent, items = scope.dataset, [], 0.0, []
+        def prepare(scope):
+            """(scope, scope total, phrase hits, candidates completed to articles, phrase-hit records)."""
             total = self._scope_count(scope)
-            literal = (self._public_evidence(self.db.phrase_search(phrases, scope, limit_records=total + 1))
-                       if phrases else [])
-            if literal_only:
-                found = literal_results(literal, phrases[0])
-                items.extend(literal)
+            # Every record containing a quoted phrase is read first, with the passage
+            # that contains it; ranked candidates follow.
+            found = (self._public_evidence(self.db.phrase_search(phrases, scope, limit_records=total + 1))
+                     if phrases else [])
+            if literal:
+                return scope, total, found, found, 0
+            # With two collections each keeps its own candidates, so posts never crowd
+            # ads out of the reading (or the reverse).
+            own = evidence if not both else [e for e in evidence if getattr(e, "dataset", scope.dataset) == scope.dataset]
+            own = list({e.evidence_id: e for e in [*found, *own]}.values())
+            if not both:
+                read[:] = own
+            records = len({e.record_id for e in found})
+            # An ad is not ruled out from part of its text: its whole article is read first,
+            # and an ad ruled out while a passage was unshown is read again (screen_list).
+            own = self._merge_article_passages(own, scope, max(MAX_WIDENED, records))
+            if not both:
+                read[:] = own
+            return scope, total, found, own, records
+
+        def judge(prepared):
+            """(dataset, scope total, results, cost, passages, triage summary, first read) of one collection."""
+            scope, total, found, own, records = prepared
+            dataset = scope.dataset
+            if literal:
+                # Wording, not meaning: the exact search is the complete answer and needs no model judgment.
+                return dataset, total, literal_results(found, phrases[0]), 0.0, found, None, None
+            reread_passages = []
+
+            def reread(record_ids):
+                rows = self._public_evidence(self.db.record_passages(record_ids, scope, per_record=None))
+                reread_passages.extend(rows)
+                return rows
+
+            reader = reread if hasattr(self.db, "record_passages") else None
+            if criterion:
+                results, cost, summary, kept = self._triaged_screen(question, own, scope, total, visitor, reader, criterion)
+                items = [*kept, *reread_passages]
             else:
-                own = [e for e in evidence if getattr(e, "dataset", dataset) == dataset]
-                own = list({e.evidence_id: e for e in [*literal, *own]}.values())
-                records = len({e.record_id for e in literal})
-                own = self._merge_article_passages(own, scope, max(MAX_WIDENED, records))
-                reread_passages = []
+                # Screen candidates 4 at a time; every match must quote its passage. Past
+                # the first MAX_CANDIDATES, reading continues only while matches turn up.
+                results, cost = screen_list(self.rag, question + hint, own, visitor, limit=max(MAX_CANDIDATES, records),
+                                            widen_to=max(MAX_WIDENED, records), reread=reader)
+                summary, items = None, [*own, *reread_passages]
+            if not both:
+                read[:] = list({e.evidence_id: e for e in items}.values())
+            return dataset, total, results, cost, items, summary, max(MAX_CANDIDATES, records)
 
-                def reread(record_ids, scope=scope, sink=reread_passages):
-                    rows = self._public_evidence(self.db.record_passages(record_ids, scope, per_record=None))
-                    sink.extend(rows)
-                    return rows
+        def draft():
+            """Steps 4a-4b (relevance_triage): an explicit criterion, then a Decisions-API triage
+            that excludes clear non-matches before screening. One criterion for every collection,
+            from the question alone; not for quoted phrases, exact wording or a relation hint,
+            whose condition is the text itself or a source field."""
+            return (None, 0.0) if literal or phrases or hint else make_criterion(self.rag, question, visitor)
 
-                if criterion:
-                    found, spent, triages[dataset], kept = self._triaged_screen(
-                        question, own, scope, total, visitor,
-                        reread if hasattr(self.db, "record_passages") else None, criterion)
-                    items.extend([*kept, *reread_passages])
-                else:
-                    found, spent = screen_list(self.rag, question, own, visitor,
-                                               limit=max(MAX_CANDIDATES, records), widen_to=max(MAX_WIDENED, records),
-                                               reread=reread if hasattr(self.db, "record_passages") else None)
-                    items.extend([*own, *reread_passages])
-            return dataset, total, found, spent, items
-
-        # The collections are screened independently, so they run at the same time;
-        # results are combined in the original collection order.
-        collections = [scope for _, scope in scoped]
-        if len(collections) > 1:
-            with ThreadPoolExecutor(max_workers=len(collections)) as executor:
-                outcomes = list(executor.map(screen_collection, collections))
-        else:
-            outcomes = [screen_collection(scope) for scope in collections]
-        for dataset, total, found, spent, items in outcomes:
-            scopes[dataset] = total
-            cost += spent
-            pool.extend(items)
-            results.extend({**item, "dataset": dataset} for item in found)
-        pool = list({e.evidence_id: e for e in pool}.values())
-        results = _with_accounts(results, pool)
-        triage = None
-        if triages:
-            triage = {"by_dataset": triages, "criterion_cost_usd": criterion_cost,
-                      **{key: sum(item[key] for item in triages.values())
-                         for key in ("triaged", "judged", "screened", "pass", "review", "exclude", "cost_usd")},
-                      **{key: next(iter(triages.values()))[key] for key in ("policy", "model", "exclude_at", "pass_at")}}
-        result = list_answer(question, results, pool, scope_total=sum(scopes.values()), scopes=scopes,
-                             literal=phrases[0] if literal_only else None, criterion=criterion, triage=triage)
-        if literal_only:
+        try:
+            if both:
+                # As before the merge: the criterion first, then each collection prepares and
+                # judges on its own, at the same time.
+                criterion, criterion_cost = draft()
+                outcomes = each(lambda scope: judge(prepare(scope)), scopes)
+            else:
+                prepared = prepare(scopes[0])
+                criterion, criterion_cost = draft()
+                outcomes = [judge(prepared)]
+            results, pool, cost, totals, triages, first_reads = [], [], criterion_cost, {}, {}, {}
+            for dataset, total, found, spent, items, summary, first_read in outcomes:
+                totals[dataset] = total
+                cost += spent
+                pool.extend(items)
+                results.extend([{**item, "dataset": dataset} for item in found] if both else found)
+                if summary is not None:
+                    triages[dataset] = summary
+                if first_read is not None:
+                    first_reads[dataset] = first_read
+            pool = list({e.evidence_id: e for e in pool}.values())
+            if both or not literal:
+                # The one-collection exact-text list showed a post without its account before
+                # the merge; kept as it was (a visible change needs its own approval).
+                results = _with_accounts(results, pool)
+            triage = None
+            if triages and not both:
+                triage = {**next(iter(triages.values())), "criterion_cost_usd": criterion_cost}
+            elif triages:
+                triage = {"by_dataset": triages, "criterion_cost_usd": criterion_cost,
+                          **{key: sum(item[key] for item in triages.values())
+                             for key in ("triaged", "judged", "screened", "pass", "review", "exclude", "cost_usd")},
+                          **{key: next(iter(triages.values()))[key] for key in ("policy", "model", "exclude_at", "pass_at")}}
+            result = list_answer(question, results, pool, scope_total=sum(totals.values()), scopes=totals if both else None,
+                                 literal=phrases[0] if literal else None, criterion=criterion, triage=triage)
+            if literal:
+                return result, cost
+            trace = result.research_trace["list_screening"]
+            trace["first_read"] = max(first_reads.values())
+            if both:
+                trace["first_read_by_dataset"] = first_reads
+            if plan.read_sources and result.citations:
+                result, writer_cost = self._read_matched_sources(question, result, results, pool, visitor, progress)
+                cost += writer_cost
+            elif result.citations:
+                result, writer_cost = self._summarize_list(question, result, results, pool, visitor, progress)
+                cost += writer_cost
             return result, cost
-        result.research_trace["list_screening"]["first_read"] = MAX_CANDIDATES
-        if sources_content_request(question) and result.citations:
-            result, writer_cost = self._read_matched_sources(question, result, results, pool, visitor, progress)
-            cost += writer_cost
-        elif result.citations:
-            result, writer_cost = self._summarize_list(question, result, results, pool, visitor, progress)
-            cost += writer_cost
-        return result, cost
+        except BaseException:
+            if read:
+                evidence[:] = read
+            raise
 
     def _scope_count(self, scope):
         """Records in a scope; counted in the database when it can, not by reading every row."""
@@ -1997,7 +2068,8 @@ class Service:
         4. Hybrid db.search per retrieval group: 120 records and 2 passages each for lists, the whole
            scope for small scopes (<= SMALL_SCOPE_RECORDS), otherwise 5 records and 3 passages.
            Non-list evidence is trimmed to EVIDENCE_CHAR_BUDGET characters.
-        5. Lists: relation listing, pure literal matching, or model screening (screen_list), then
+        5. Lists: _list_answer (pipeline step 3), one implementation over one or both collections:
+           relation listing, exact wording or model screening per collection, then
            _read_matched_sources or _summarize_list. Other questions: Rag.generate with checked quotes.
         6. Map failures to status/failure_reason, settle costs, and try web help only when the
            collection had insufficient evidence and the plan allows outside sources (never after a list).
@@ -2048,8 +2120,6 @@ class Service:
         # examples of 34 selected posts capped recall at 15-35%), or when the
         # planner's relation filters are the question's whole condition.
         list_mode = plan.shape == "list"
-        both_list = list_mode and plan.datasets == ["native", "social"]
-        relation_list = plan.list_kind == "relation"
         # The user asked for a list even where none can be screened (a comparison,
         # or labels over both collections): the prose answer then gets a scope note.
         wants_list = plan.wants_list
@@ -2064,10 +2134,12 @@ class Service:
             if not retrieval_groups and filters.dataset != "all":
                 filters = self._title_scope(question, filters)
             searches = retrieval_groups or [{"query": search_query, "filters": filters.model_dump(mode="json"), "label": "Current selection"}]
-            if both_list:
-                searches = [{"query": search_query, "label": label,
+            if list_mode and len(plan.datasets) > 1:
+                # A list over both collections retrieves and screens each on its own.
+                labels = {"native": "Native ads", "social": "Company posts"}
+                searches = [{"query": search_query, "label": labels[dataset],
                              "filters": filters.model_copy(update={"dataset": dataset}).model_dump(mode="json")}
-                            for dataset, label in (("native", "Native ads"), ("social", "Company posts"))]
+                            for dataset in plan.datasets]
             if not 1 <= len(searches) <= 3:
                 raise ValueError("Invalid comparison scope count")
             # Narrowing is revalidated here even for a custom research adapter.
@@ -2159,80 +2231,9 @@ class Service:
                 # Each screening batch reserves and settles its own call.
                 self.rag.budget.cancel_unsent(reservation)
                 reservation = None
-                # Every ad containing a quoted phrase is read first, with the
-                # passage that contains it; ranked candidates follow.
-                phrases = plan.phrases
-                if not both_list:
-                    scope_total = len(self.db.public_rows(filters))
-                    literal = (self._public_evidence(self.db.phrase_search(phrases, filters, limit_records=scope_total + 1))
-                               if phrases else [])
-                if both_list:
-                    result, screening_cost = self._screen_both(question, scoped, evidence, phrases, visitor, progress)
-                elif relation_list:
-                    result, screening_cost = self._relation_list(question, filters, relation_listing), 0.0
-                elif plan.list_kind == "literal":
-                    # Wording, not meaning: the exact search is the complete
-                    # answer and needs no model judgment.
-                    results, screening_cost = literal_results(literal, phrases[0]), 0.0
-                    result = list_answer(question, results, literal, scope_total=scope_total, literal=phrases[0])
-                else:
-                    evidence = list({e.evidence_id: e for e in [*literal, *evidence]}.values())
-                    records = len({e.record_id for e in literal})
-                    evidence = self._merge_article_passages(evidence, filters, max(MAX_WIDENED, records))
-                    # An ad is not ruled out from part of its text: its whole
-                    # article is read again first, and a match there is cited.
-                    reread_passages = []
-
-                    def reread(record_ids):
-                        rows = self._public_evidence(self.db.record_passages(record_ids, filters, per_record=None))
-                        reread_passages.extend(rows)
-                        return rows
-
-                    # Past the first 40, reading continues only while matches still turn up.
-                    # Posts selected by a relation satisfy it by their source records, which
-                    # the screener cannot see in the text (B1K-REL4: 0 of 17 replies kept).
-                    screened = question
-                    if relation_listing and relation_listing.get("selections") and filters.dataset == "social":
-                        relations = "; ".join(f"{name}: {', '.join(map(str, values))}"
-                                              for item in relation_listing["selections"]
-                                              for name, values in item.get("relations", {}).items())
-                        screened = (f"{question}\n\n(Every candidate post already satisfies, by its source "
-                                    f"record, the relation {relations}; this is not visible in the text. Judge "
-                                    "only the question's other conditions; if it has none, every post matches.)")
-                    # Step 5 (one collection): screen candidates 4 at a time; every match must quote its passage.
-                    # Steps 4a-4b (relevance_triage): an explicit criterion, then a Decisions-API triage that
-                    # excludes clear non-matches before screening. Not for relation lists or quoted phrases,
-                    # whose condition is a source field or exact wording.
-                    criterion, triage = None, None
-                    if screened == question and not phrases:
-                        criterion, criterion_cost = make_criterion(self.rag, question, visitor)
-                        screening_cost_before = criterion_cost
-                    if criterion:
-                        results, screening_cost, triage, evidence = self._triaged_screen(
-                            question, evidence, filters, scope_total, visitor,
-                            reread if hasattr(self.db, "record_passages") else None, criterion)
-                        screening_cost += screening_cost_before
-                        triage["criterion_cost_usd"] = screening_cost_before
-                    else:
-                        results, screening_cost = screen_list(self.rag, screened, evidence, visitor,
-                                                              limit=max(MAX_CANDIDATES, records),
-                                                              widen_to=max(MAX_WIDENED, records),
-                                                              reread=reread if hasattr(self.db, "record_passages") else None)
-                        if screened == question and not phrases:
-                            screening_cost += screening_cost_before
-                    evidence = list({e.evidence_id: e for e in [*evidence, *reread_passages]}.values())
-                    results = _with_accounts(results, evidence)
-                    result = list_answer(question, results, evidence, scope_total=scope_total,
-                                         criterion=criterion, triage=triage)
-                    result.research_trace["list_screening"]["first_read"] = max(MAX_CANDIDATES, records)
-                    if plan.read_sources and result.citations:
-                        result, writer_cost = self._read_matched_sources(
-                            question, result, results, evidence, visitor, progress)
-                        screening_cost += writer_cost
-                    elif result.citations:
-                        result, writer_cost = self._summarize_list(
-                            question, result, results, evidence, visitor, progress)
-                        screening_cost += writer_cost
+                # Step 5 (list): one implementation over one or both collections.
+                result, screening_cost = self._list_answer(question, plan, filters, [scope for _, scope in scoped],
+                                                           evidence, visitor, progress, relation_listing=relation_listing)
                 result.cost_usd = screening_cost + sum(embedding_cost)
             else:
                 # Step 5 (ordinary question): grounded generation; Rag.generate checks every quote verbatim.

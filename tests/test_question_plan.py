@@ -1,8 +1,10 @@
-"""Pipeline steps 1-2: the QuestionPlan records how a question is handled, and the evidence route reads it.
+"""Pipeline steps 1-3: the QuestionPlan records how a question is handled, and the evidence route reads it.
 
 Step 1 mirrored today's decisions into the run record without changing behaviour;
 step 2 made service._answer_evidence read shape, list kind, phrases, source
-reading and web permission from the plan. Fictional questions and records only,
+reading and web permission from the plan; step 3 (S3-a) merged the one- and
+two-collection list paths, so a literal question over both collections is now
+"literal" (route_oracle marks that one deliberate change). Fictional questions and records only,
 written against the product interfaces (Service, ResearchRun) so this module
 stays in the free completion gate. The plan is built from the understanding
 stage (question, scope, agent run); plan_check compares it with the final answer.
@@ -150,7 +152,7 @@ def test_one_quoted_phrase_asked_literally_is_a_literal_list():
     plan = build_question_plan(question, base, run_for("evidence", {"filters": base.model_dump(mode="json")}), base)
     assert plan.shape == "list" and plan.list_kind == "literal"
     assert plan.signals["quoted_phrases"] == 1 and plan.signals["pure_literal"] is True
-    assert plan.phrases == ["tidal kite"] and plan.version == PLAN_VERSION == "question-plan-v2"
+    assert plan.phrases == ["tidal kite"] and plan.version == PLAN_VERSION == "question-plan-v3"
 
 
 def test_comparison_groups_are_never_screened_as_lists():
@@ -303,8 +305,11 @@ SCOPES = [Filters(dataset="native"), Filters(dataset="social"), Filters(dataset=
           Filters(dataset="social", record_ids=["no-relation-match"])]
 
 
-def before_step_2(question, filters, declared_shape, relation_listing, retrieval_groups):
-    """_answer_evidence's own decisions as written before step 2 (service.py at 69a3846), kept as the oracle."""
+def route_oracle(question, filters, declared_shape, relation_listing, retrieval_groups):
+    """_answer_evidence's own decisions as written before step 2 (service.py at 69a3846), kept as the oracle,
+    with the one change step 3 (S3-a) made on purpose: a literal question over both collections is matched
+    literally in each collection, so its kind is "literal", not the former two-collection function's "screen".
+    """
     contract = question_contract(question)
     rule_list = contract["requires_complete_list"]
     wants_list = rule_list or declared_shape == "every_matching_source"
@@ -317,8 +322,6 @@ def before_step_2(question, filters, declared_shape, relation_listing, retrieval
     list_mode = list_mode or relation_list
     if not list_mode:
         kind = None
-    elif both_list:
-        kind = "screen"  # _screen_both reads the quoted phrase itself
     elif relation_list:
         kind = "relation"
     elif pure_literal_question(question):
@@ -356,14 +359,14 @@ def without_provenance(plan):
 
 @pytest.mark.parametrize("question", [RULE_LIST, UNRULED_LIST, PLAIN, LITERAL, TWO_PHRASES, SAYS,
                                       "Only use the collection: " + PLAIN, ORIGINAL, POST_LITERAL])
-def test_both_builders_reproduce_the_evidence_route_decisions_made_before_step_2(question):
+def test_both_builders_reproduce_the_evidence_route_decisions_of_the_oracle(question):
     cases = 0
     for filters in SCOPES:
         for declared in (None, "every_matching_source"):
             for listing in (None, LISTING):
                 for groups in (None, GROUPS):
                     for query in (None, "tidal kites"):
-                        expected = before_step_2(question, filters, declared, listing, groups)
+                        expected = route_oracle(question, filters, declared, listing, groups)
                         direct = build_evidence_plan(question, filters, search_query=query, declared_shape=declared,
                                                      relation_listing=listing, retrieval_groups=groups)
                         data = {"filters": filters.model_dump(mode="json"), "search_query": query, "answer_shape": declared,
@@ -381,12 +384,14 @@ def test_both_builders_reproduce_the_evidence_route_decisions_made_before_step_2
     assert build_evidence_plan(question, Filters()).reasons["search_query"] == "default:question"
 
 
-def test_a_literal_question_over_both_collections_is_screened_in_each_not_matched_literally():
-    # The step-1 mirror put "literal" first; _answer_evidence screens both collections first.
+def test_a_literal_question_over_both_collections_is_matched_literally_in_each():
+    # Step 2 mirrored the former two-collection function ("screen"); step 3 (S3-a) lists over
+    # both collections with the one-collection code, so the exact search applies to each (v3).
     plan = build_evidence_plan(LITERAL, Filters(dataset="all"))
-    assert plan.shape == "list" and plan.list_kind == "screen" and plan.datasets == ["native", "social"]
+    assert plan.shape == "list" and plan.list_kind == "literal" and plan.datasets == ["native", "social"]
     assert plan.phrases == ["tidal kite"] and plan.signals["pure_literal"] is True
     assert build_evidence_plan(LITERAL, Filters(dataset="native")).list_kind == "literal"
+    assert plan.version == PLAN_VERSION == "question-plan-v3"
 
 
 def test_list_requested_is_the_one_rule_the_selection_widening_reads():

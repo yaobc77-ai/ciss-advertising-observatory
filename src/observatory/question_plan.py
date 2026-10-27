@@ -1,4 +1,4 @@
-"""One record of how a question is handled: the QuestionPlan (pipeline steps 1 and 2).
+"""One record of how a question is handled: the QuestionPlan (pipeline steps 1-3).
 
 "How to handle this question" used to be decided in several places: the regex
 contract (question_policy), the research agent's final tool (run.route), the
@@ -11,8 +11,10 @@ kind, quoted phrases, source reading, web permission - instead of recomputing
 them from the question. The research agent path builds the plan once in
 service._answer_with_tools; every other caller (legacy path, composite parts,
 the collection-first fallback, direct calls) gets one from build_evidence_plan,
-so each rule exists once. See docs/architecture/pipeline_current_vs_target.zh-CN.md,
-section 4, steps 1-2.
+so each rule exists once. Step 3 (S3-a): one list implementation over one or both
+collections (service._list_answer), so a literal question over both is matched
+literally in each. See docs/architecture/pipeline_current_vs_target.zh-CN.md,
+section 4, steps 1-3.
 
 Everything here is pure: no database, model or network access. The plan is
 built from the understanding stage only (question, user scope, agent run,
@@ -37,8 +39,10 @@ from .question_policy import (
 )
 
 # v2 (step 2) added wants_list, phrases, original_metadata, read_sources and
-# coverage_note_rule; v1 plans recorded by step 1 lack them.
-PLAN_VERSION = "question-plan-v2"
+# coverage_note_rule; v1 plans recorded by step 1 lack them. v3 (step 3, S3-a):
+# list_kind "literal" also for a quoted-phrase question over both collections,
+# which v2 recorded as "screen" to mirror the former two-collection function.
+PLAN_VERSION = "question-plan-v3"
 # The planner's declaration that every matching source is wanted.
 PLANNER_LIST = "every_matching_source"
 
@@ -154,11 +158,9 @@ def _compose(question: str, *, route: str, agent_route: str, route_reason: str, 
     list_kind = None
     if route == "evidence" and list_mode:
         shape = "list"
-        if both_list:
-            # Both collections are screened by one function that reads a quoted
-            # phrase itself, so a literal question over both is still "screen".
-            list_kind = "screen"
-        elif relation_list:
+        # One implementation lists over one or both collections (service._list_answer,
+        # step 3): a relation selection, exact wording, or model screening per collection.
+        if relation_list:
             list_kind = "relation"
         elif literal:
             list_kind = "literal"
