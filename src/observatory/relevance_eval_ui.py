@@ -288,15 +288,22 @@ def _track_record(validation):
 
 
 def criterion_card(trace, validation=None):
-    """The rules written before reading, and what the judge did with them."""
+    """The rules a listed record meets, where they came from, and what the judge did with them."""
     criterion = trace.get("criterion")
     if not criterion:
         return []
     triage = trace.get("triage") or {}
+    # Where the rules came from (Service._list_answer records criterion_source and screening_basis;
+    # pipeline step 3): a researcher's confirmation or edit on the card, else the model's draft.
+    source = trace.get("criterion_source")
+    origin = ("Confirmed by the researcher before any ad was judged." if source == "confirmed"
+              else "Supplied or edited by the researcher before any ad was judged."
+              if source == "edited" else "Written from the question before any record was read.")
+    basis = "meets these rules" if trace.get("screening_basis") == "confirmed_criterion" else "answers the question"
     blocks = [html.H5("What counts for this question"),
-              html.P("Written from the question before any record was read. The judge checks every record against "
-                     "these rules; separately, screening must copy a sentence from the record that answers the question. "
-                     "A record is listed only when both checks agree.", className="scope-note"),
+              html.P(f"{origin} The judge checks every record against these rules; separately, screening must copy "
+                     f"a sentence from the record that {basis}. A record is listed only when both checks agree.",
+                     className="scope-note"),
               html.Ol([html.Li(rule) for rule in criterion["counts"]], className="criterion-rules")]
     if criterion.get("does_not_count"):
         blocks += [html.P(html.Strong("Does not count:")),

@@ -149,6 +149,11 @@ def test_continuing_with_the_unchanged_draft_judges_by_it_as_confirmed(monkeypat
     result = service.answer(JOBS, NATIVE, "offline", progress=stages.append,
                             continuation={"token": card.structured_result["continuation"], "criterion": DRAFT})
     assert result.status == "answered" and "judging" in stages
+    # Stage order of a judged list: retrieval, then "judging" through the triage and the screening,
+    # "organizing" only when the writer starts, "citations" last (the walkthrough of 2026-10-27 showed
+    # "organizing" during the judging).
+    last_judging = len(stages) - 1 - stages[::-1].index("judging")
+    assert stages.index("database") < last_judging < stages.index("organizing") < stages.index("citations")
     assert roles(calls) == ["embed", "criterion", "embed", "writer"]  # nothing drafted again, no research agent
     judged = calls.by_dataset["native"]["judge"]
     assert len(judged) == 6 and all(call["questions"] == ["verdict", "strength", "rule_1", "exclusion_1"] for call in judged)
@@ -989,3 +994,41 @@ def test_a_version_change_while_the_omitted_records_are_read_stops_before_any_ju
     assert calls.by_dataset["native"] == {"screen": [], "judge": []} and model_calls(calls) == before + 1  # the embedding only
     assert service.flows.snapshot(card.structured_result["flow_id"])["state"] == "failed"
     assert result.cost_usd == pytest.approx(0.000001) and result.research_trace["cost_basis"].startswith("embedding_and_settled_calls")
+
+
+def test_a_judged_list_reports_judging_during_the_screening_and_organizing_for_the_writer(monkeypatch):
+    # Auto mode is unchanged: a list judged by the model's own draft never says "judging by the confirmed rules".
+    service, scenario, calls, ledger = service_for("native_triage", monkeypatch)
+    stages = []
+    result = service.answer(JOBS, NATIVE, "offline", progress=stages.append)
+    assert result.status == "answered" and "judging" not in stages
+    assert stages.index("database") < stages.index("organizing") < stages.index("citations")
+
+
+def test_a_confirmed_list_that_reads_its_matches_reports_judging_then_organizing(monkeypatch):
+    # The source-reader branch: "organizing" starts with the reader, after the judging; the trace shows the reading.
+    from test_list_criterion_mode import answer as evidence_answer
+    stages = []
+    result, calls, _ = evidence_answer("native_phrase_read", monkeypatch, criterion=CONFIRMED, criterion_source="edited",
+                                       progress=stages.append)
+    assert result.status == "answered" and "content_reading" in result.research_trace
+    last_judging = len(stages) - 1 - stages[::-1].index("judging")
+    assert stages.index("database") < last_judging < stages.index("organizing") < stages.index("citations")
+
+
+def test_a_confirmed_list_without_matches_never_reaches_the_writer_stage(monkeypatch):
+    from test_list_criterion_mode import answer as evidence_answer
+    stages = []
+    result, calls, _ = evidence_answer("native_zero_match", monkeypatch, criterion=CONFIRMED, criterion_source="edited",
+                                       progress=stages.append)
+    assert result.status == "answered" and not result.citations
+    assert "judging" in stages and "organizing" not in stages and stages[-1] == "citations"
+
+
+def test_a_confirmed_condition_without_rules_keeps_the_organizing_stage(monkeypatch):
+    # Only rules a researcher confirmed or edited are "the confirmed rules": a confirmed condition alone is not.
+    service, scenario, card, calls, _ = card_for("native_phrase_read", monkeypatch)
+    stages = []
+    result = service.answer(PHRASE_READ, NATIVE, "offline", progress=stages.append,
+                            continuation={"token": card.structured_result["continuation"], "criterion": None})
+    assert result.status == "answered" and "judging" not in stages and "organizing" in stages

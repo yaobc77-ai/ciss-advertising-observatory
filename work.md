@@ -2,6 +2,27 @@
 
 排序约定：新内容在上；每节对应 plan.md 同编号的一轮。
 
+## 2026-10-28：S3-d 走查后补——标准区按来源措辞、判定中报 judging
+
+- 结论：走查发现的两处已修，第三处（费用合计）复核后撤回（见前一条目③的更正）。$0，未提交。
+- 改动：① `relevance_eval_ui.criterion_card` 的开头按 trace 的 `criterion_source` 措辞——confirmed：“Confirmed by the researcher before any ad was judged.”；edited：“Supplied or edited by the researcher before any ad was judged.”（Codex 计划复核指出：人在没有草稿的卡片上自己写的规则也是 edited，不能写成“从问题起草”）；其余（auto 草稿、旧记录）原句不变；筛查那句按 `screening_basis`：confirmed_criterion 写“meets these rules”，否则仍是“answers the question”。② `service.py`：`_answer_evidence` 在名单分支前只在 `criterion` 非空（人确认或改过的规则）时报 judging，否则仍报 organizing；`_continue_confirmation` 入口那次早报同样只在有规则时发（Codex：只确认条件没有规则时，“by the confirmed rules”不成立）；`_list_answer` 在写总结（`_summarize_list`）或读来源（`_read_matched_sources`）之前报 organizing，都只在有引文时发生，没有命中就不报写作阶段；没有新标签。设计稿加“走查后补（2026-10-28）”一段（按 Codex 提交前复核改正了两处与实现不一致的措辞）。
+- 测试：`tests/test_relevance_triage.py` 新增 1 项（默认原句逐字不变、confirmed、edited、无草稿的 edited、confirmed+screening_basis=question 两字段独立、draft_unconfirmed）；`tests/test_criterion_confirmation.py` 原确认续问断言阶段顺序 database < 最后一次 judging < organizing < citations，新增 4 项：auto 名单无 judging、确认规则走读来源分支（`native_phrase_read`，trace 有 content_reading）、确认规则零命中（有 judging、无 organizing、最后 citations）、只确认条件无规则的续问（无 judging、有 organizing）。定向：triage+confirmation+criterion_mode+golden 113 项通过，app+criterion_ui+api+answer_layout+query_progress 138 项通过；Ruff 通过。
+- 完整门禁：`.runtime/project_checks_s3d_followup_20261028`：pytest 5,084 通过、0 失败、39 跳过、335 未选（integration／live 标记）、28 个客户保留模块按清单排除；Ruff 通过；3 个 JavaScript 检查未运行（本机无 Node.js），门禁因此退出码 1。门禁开始后只改过设计稿一段文字（Codex 提交前复核指出的两处旧措辞），代码与测试未再改动。
+- Codex：计划复核通过并给两点调整（都已采纳，见上）；提交前复核一轮：无运行时阻断，只要求改正设计稿段落里两处旧措辞（已改）。
+- 没验证的：真浏览器没有再跑（改动是文案与阶段报告，HTTP 级与单元测试覆盖）；读来源分支的阶段顺序只在单元测试里验过。
+- 回滚：提交后 `git revert`；无数据、无 schema、$0。
+- 下一步：S3-e 付费复测（约 $0.08）另行申请。
+
+## 2026-10-27：S3-d 带真实模型的网页走查（$0.0258，用户批准上限 $0.20）
+
+- 结论：真服务上卡片→例句点选→（编辑后的）判定全流程跑通，8 条广告判出 4 条；我这次的卡片 + 判定共 $0.0138，同时段同一浏览器里另有一组 hydrogen／Shell 的卡片 + 判定 $0.0120（见③的更正），账本 2026-10 月敞口合计 2.14146444→2.16729850（31 行，4 行是取消的预留）。发现两处小问题（①②），第三处（③）复核后撤回。
+- 怎么跑的：凭据用原来用户环境里的旧密钥（先免费核对能看到 gpt-5.6-luna、gpt-6-luna、text-embedding-3-small），只放在演示进程环境里（`serve_real_walkthrough.py`，`load_dotenv(override=False)` 所以进程变量优先），`.env` 和用户级变量仍是密钥 #1；进程里把 `OBS_MONTHLY_BUDGET_USD` 设为“当月敞口 + 0.20”，账本自己就挡住超额。范围：Native，Sponsor = API（数据库里 8 条有正文的广告，读库选的），问题“Which API ads present natural gas as the way to lower emissions?”（自拟，不是客户题）。端口 18072，走查后进程已停。
+- 观察到的（真浏览器，桌面应用面板）：Generate 后页面进度块显示“Drafting the judging rules”；约 27 秒出卡：“All 8 ads in your selection with readable text will be judged by the rules below”，两条起草规则各带一句逐字例句（两条规则选中的是同一句）、两条例外、有效期和数据版本 e7303ff34d1d、候选段落可免费看；卡片阶段 $0.0025（计划 1 次、起草 1 次、嵌入 1 次，另一笔 $0.04 预留取消）。点第一条例句的 Counts，规则框多出一行草稿（3 行）。点 Judge：卡片控件锁住、卡片进度块显示；约 40 秒后判定结果替换卡片、进度隐藏、提示空：摘要“Found 4 matching ads among the 8 in your selection (all checked)”，“What counts for this question”列出含我加的那行的标准（服务器按草稿哈希判为 edited），分流说明“read 8 records…4 passed both machine checks, 2 need a human check, 2 were excluded”，要点带引文 [1]–[6]，名单 4 条带引句，“Needs a human check (2)”带判官概率和人工复核按钮，证据卡完整；浏览器控制台无错误，服务器日志无错误。判定阶段 $0.0233：计划 1 次（$0.0005）、嵌入 1 次、小生成 1 次、gpt-6-luna 判官 16 次（两轮各 8 条，$0.0042）、gpt-5.6-luna 筛查/组织/引文 6 次（$0.0185），另 3 笔预留取消。
+- 发现（没改）：① `relevance_eval_ui.criterion_card` 的标准区固定写“Written from the question before any record was read.”，不看 trace 的 `criterion_source`；这次标准是人改过的（edited），这句不准确，确认过的也一样。② 判定进行时卡片进度文字大部分时间是“Organizing a source-grounded answer”，后段“Checking citations against sources”：`_continue_confirmation` 在进证据路线前报一次 judging，随后 `_answer_evidence` 在逐篇筛查前报 organizing（service.py 2204 与 2623 行），所以“Judging each ad by the confirmed rules”只闪现在检索前；是服务端报告顺序，不是 S3-d 的页面问题。③ 当时写“Total API cost $0.01129 与账本 $0.0233 对不上”——2026-10-28 复核 `answer_runs` 后撤回：同一时段、同一浏览器访客 id 下还有另一组运行（19:34:21 卡片 + 19:34:51 判定，问题 “Which ads mention hydrogen?”、范围 Shell，1 条规则，$0.0006 + $0.0114），不是我发起的（内置浏览器面板用户也能操作）；去掉它之后，我这次判定的账本行（判官 8 次 $0.00229 + 筛查/总结 3 次 $0.00900）合计正好 $0.01129315，与页面一致。费用合计没有缺陷；“Question interpretation: 0 model calls”也对，续问从令牌读计划、不再调模型。另：两条规则例句同句，属例句选择按词重叠取最佳句的自然结果，是否要“不同规则不重复用句”由用户定。
+- 没验证的：浏览（Browse）、拒绝和过期在真服务上没再点（假服务已验）；判定中的进度文字只采样了 4 次（1.5／11.5／39／49 秒）。
+- 回滚：无代码改动、无数据改动；账本多 31 行是真实消费记录，不回滚。密钥：scratchpad 里的 #2、#3 临时文件已删，旧密钥备份保留给用户决定。
+- 下一步：用户定是否修上面三处；S3-e 付费复测（约 $0.08）另行申请。
+
 ## 2026-10-27：流水线第 3 步 S3-d——网页卡片与回调、网页默认 ask、进度标签
 
 - 结论：网页上名单题先出“待确认”卡片，人改规则、点例句、判定或放弃，续问走 S3-c 的 `Service.answer(continuation=)`；网页默认 ask，接口和内部调用不变。实现与检查 $0；带真实模型的走查待用户指定密钥。
@@ -13,7 +34,8 @@
 - 完整门禁：`.runtime/project_checks_s3d_final6_20261027`（最终代码）：pytest 5,079 通过、0 失败、39 跳过、335 未选（integration／live 标记）、28 个客户保留模块按清单排除（scope.json）；Ruff 通过；3 个 JavaScript 检查未运行（本机无 Node.js，FileNotFoundError），门禁因此退出码 1。前一次完整运行 `project_checks_s3d_final5_20261027`（5,078 通过、1 失败：静态日志检查，已修）与中途因代码改动停掉的 final3／final4 部分目录都保留。
 - 限制：进度登记表在进程内、条目 15 分钟过期，跑超过 15 分钟的请求会失去槽位（新提交被接纳，旧响应靠 `is_current` 不发布）；放弃后旧提示要到下一次提问才清；例句按钮判定中仍可点（改动到不了正在跑的判定，重试用存的提交）；例句按钮只做草稿行，是否保留原句由人决定（决定 2）；判定中 Generate 可点但会被拒绝并提示（各入口各管各的按钮）。
 - 回滚：提交后 `git revert`；无数据、无 schema、$0。
-- 下一步：带真实模型的网页走查（要能看到三个模型的密钥），然后申请 S3-e（约 $0.08）。
+- 下一步：带真实模型的网页走查（要能看到三个模型的密钥），然后申请 S3-e（约 $0.08）。2026-10-27 晚用户批准用密钥 #2 走查（上限 $0.20，前提是先免费确认能看到三个模型）：免费 `/v1/models` 核对结果——#2 和 #3 都只能看到 gpt-6-luna（看不到 gpt-5.6-luna 和 text-embedding-3-small），原来用户环境里的旧密钥能看到全部三个（134 个模型）；前提不成立，没有发起付费调用，$0；等用户决定用哪把密钥。`.env` 和用户级变量里仍是 #1。 2026-10-27 用户决定：先不走查，等 PM 给新密钥开通 gpt-5.6-luna 和 text-embedding-3-small 后再做（不用旧密钥）；已备好给 PM 的问题说明（新密钥看不到这两个模型，可能是问答失败的原因）。
+- 带真实模型的网页走查（2026-10-27 晚，用户改为“走查用原来用户环境里的旧密钥，上限仍是 $0.20，先免费确认能看到三个模型”，覆盖上一条“先不走查”）：沿用另一会话 19:30 用 `serve_real_walkthrough.py` 起的 18072 服务（进程内用旧密钥，启动时免费 `/v1/models` 三个模型都在；月度预算设为已花 $2.14146444 + $0.20；在 bfb1207 之后启动、之后 src 无改动；该进程不是本会话起的，未停止）。桌面应用内置浏览器，范围：原生广告、赞助方 Shell（10 篇）；问题 “Which ads mention hydrogen?”（自拟，非客户题）。①出卡：说明“All 10 ads … will be judged”，规则从问题起草（明确提到 hydrogen 或其直接变体；不算：只提燃料电池/水/清洁能源、只在网页元数据里出现），有例句按钮、两个文本框、有效期与数据版本，候选段落可免费看；16 次调用 $0.00896。②点 Judge by these rules（工具的辅助功能树在 JSON id 上报错，用 DOM click）：结果替换卡片——10 篇里 8 篇有正文全部判定，4 篇双重通过、0 篇待审、4 篇排除；名单 4 篇各带原句，有年份和媒体两张图；11 次调用 $0.01687。合计 27 次、$0.02583，uncertain 0。③免费核对（主库只读查询 current_version 正文）：Shell 10 篇里正文含 hydrogen 的正好 4 篇，与名单一致；另 2 篇正文 109 字符即“无可读正文”。这道题在字面规则下精确率和召回率都是 4/4。发现两处问题（未改代码）：a. 规则下的例句选了一句只讲 LNG、不含 hydrogen 的句子（例句按词面重叠选句，已知限制，这次真实出现）；b. 摘要句只说 NYT 和 WaPo，名单里还有 The Atlantic 一篇，要点里也没有它，摘要与名单不一致。限制：只走了一道题、一种条件（起草规则直接判定），没测改规则、点例句、放弃、并发；一道字面题不能说明语义题的质量。
 
 ## 2026-10-27：流水线第 3 步 S3-c——阶段一卡片、令牌与流程登记、续问、接口字段
 

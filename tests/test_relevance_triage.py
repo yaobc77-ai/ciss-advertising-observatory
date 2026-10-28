@@ -139,3 +139,36 @@ def test_failed_criterion_and_triage_calls_are_logged_by_type_without_the_questi
                                                 [[passage("k1", "Tidal kites cut noise.")]], "visitor", workers=1)
     assert cost == 0.0 and list(results.values()) == [None]
     assert "Triage call failed for record k1 (ConnectionError)" in caplog.text and "tidal kites" not in caplog.text
+
+
+def test_the_criterion_card_says_where_the_rules_came_from():
+    # Service._list_answer records criterion_source and screening_basis (pipeline step 3); the card's
+    # intro follows them. Without them (auto mode, older traces) the text is unchanged.
+    def text(component):
+        if component is None or isinstance(component, (str, int, float)):
+            return "" if component is None else str(component)
+        children = getattr(component, "children", None)
+        return " ".join(text(c) for c in children) if isinstance(children, (list, tuple)) else text(children)
+
+    base = {"criterion": {"counts": ["The ad presents tidal kites as a source of jobs."], "does_not_count": []},
+            "triage": {"triaged": 3, "pass": 1, "review": 1, "exclude": 1}}
+    default = text(criterion_card(base, validation={})[0])
+    assert ("Written from the question before any record was read. The judge checks every record against these rules; "
+            "separately, screening must copy a sentence from the record that answers the question. A record is listed "
+            "only when both checks agree.") in default
+    confirmed = text(criterion_card({**base, "criterion_source": "confirmed", "screening_basis": "confirmed_criterion"},
+                                    validation={})[0])
+    assert "Confirmed by the researcher before any ad was judged." in confirmed
+    assert "a sentence from the record that meets these rules" in confirmed and "Written from the question" not in confirmed
+    edited = text(criterion_card({**base, "criterion_source": "edited", "screening_basis": "confirmed_criterion"},
+                                 validation={})[0])
+    assert "Supplied or edited by the researcher before any ad was judged." in edited
+    assert "meets these rules" in edited
+    supplied = text(criterion_card({**base, "criterion_source": "edited", "screening_basis": "confirmed_criterion"},
+                                   validation={})[0])  # rules typed on a card that drafted none: no criterion_draft
+    assert "Supplied or edited by the researcher" in supplied and "Drafted from the question" not in supplied
+    mixed = text(criterion_card({**base, "criterion_source": "confirmed", "screening_basis": "question"}, validation={})[0])
+    assert "Confirmed by the researcher" in mixed and "answers the question" in mixed  # the two fields are independent
+    draft = text(criterion_card({**base, "criterion_source": "draft_unconfirmed", "screening_basis": "question"},
+                                validation={})[0])
+    assert "Written from the question before any record was read." in draft and "answers the question" in draft

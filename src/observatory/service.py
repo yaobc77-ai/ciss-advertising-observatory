@@ -2049,10 +2049,12 @@ class Service:
                 # Decision 1 (2026-10-27): an unconfirmed model draft is said so in the answer itself.
                 result.answer = mark_unconfirmed(result.answer, question)
             if plan.read_sources and result.citations:
+                _progress(progress, "organizing")  # the judging is over: the writer reads the matches
                 result, writer_cost = self._read_matched_sources(question, result, results, pool, visitor, progress,
                                                                  cost_sink=cost_sink)
                 cost += writer_cost
             elif result.citations:
+                _progress(progress, "organizing")
                 result, writer_cost = self._summarize_list(question, result, results, pool, visitor, progress,
                                                            cost_sink=cost_sink)
                 cost += writer_cost
@@ -2201,7 +2203,8 @@ class Service:
         context = data
         draft = context.get("draft")
         source = "confirmed" if criterion is None or digest == payload.get("draft_hash") else "edited"
-        _progress(progress, "judging")
+        if criterion is not None:
+            _progress(progress, "judging")  # a confirmed condition without rules is not judged "by the confirmed rules"
         try:
             result = self._answer_evidence(question, scope, visitor, audit=False, plan=plan,
                                            relation_listing=context.get("relation_listing"), criterion=criterion,
@@ -2620,7 +2623,11 @@ class Service:
                     "Data changed during retrieval; retry on a consistent version"
                 )
             dispatched = True
-            _progress(progress, "organizing")
+            # A list judged by rules a researcher confirmed or edited (phase 2 of step 3) is "judging" from
+            # here through the triage and the screening; its writer reports "organizing" when it starts
+            # (_list_answer). A confirmed condition without rules, auto mode and every other path keep
+            # "organizing", as before: the label speaks of confirmed rules.
+            _progress(progress, "judging" if list_mode and criterion is not None else "organizing")
             if list_mode:
                 # Each screening batch reserves and settles its own call.
                 self.rag.budget.cancel_unsent(reservation)
