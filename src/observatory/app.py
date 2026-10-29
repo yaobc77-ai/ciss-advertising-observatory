@@ -2073,6 +2073,9 @@ def create_app(service, settings, record_details=None) -> Dash:
     from observatory.compare_demo import register_compare_demo
 
     register_compare_demo(app.server, service, settings)
+    from observatory.depth_demo import register_depth_demo
+
+    register_depth_demo(app.server)
     if record_details is not None:
         from observatory.records import register_record_routes
 
