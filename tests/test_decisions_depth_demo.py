@@ -1,16 +1,14 @@
-"""scripts/decisions_depth_demo.py and observatory.depth_demo: the cap, the rounds, the groups and the page.
+"""scripts/decisions_depth_demo.py and observatory.depth_demo: the cap, the rounds and the groups.
 No model call; fictional ads."""
 from datetime import date
 from decimal import Decimal
 from types import SimpleNamespace
 
 import pytest
-from flask import Flask
 
 import scripts.decisions_depth_demo as demo
-from observatory import depth_demo
 from observatory.budget import LimitReached
-from observatory.depth_demo import band_counts, group_of, page_html, register_depth_demo
+from observatory.depth_demo import band_counts, group_of, load
 
 
 def numbers(meets, does_not_meet=0.0, rules=(0.0,)):
@@ -191,61 +189,15 @@ def result_of(ads):
             "questions": [question]}
 
 
-def test_page_draws_the_saved_run_and_escapes_text():
-    ads = [{"rank": 1, "record_id": "r1", "title": "Kites <b>", "publisher": "", "sponsor": "", "date": "",
-            "numbers": numbers(0.9), "group": "likely", "status": "scored", "human": True},
-           {"rank": 150, "record_id": "r2", "title": "Deep kites", "publisher": "", "sponsor": "", "date": "",
-            "numbers": numbers(0.8), "group": "likely", "status": "scored", "human": None}]
-    html = page_html(result_of(ads))
-    assert "Which ads mention &lt;tides&gt;?" in html and "Kites &lt;b&gt;" in html
-    assert 'href="/records/r2"' in html and "Likely ads past rank 120 in this ranking (1)" in html
-    assert "this run did not record which" in html and "not checked" in html
-    assert "today's list would not read" not in html
-    assert 'class="coded"' in html and "share 118 ads" in html
-    assert "No scoring run" in page_html(None) and "first 400 ranked native ads" in html
-    small = result_of(ads)
-    small["questions"][0].update(ranked=232, scope_total=263)
-    html = page_html(small)
-    assert "every native ad with searchable text (232 of the 263" in html and "Likely, ranks 121–232" in html
-
-
-def test_page_says_which_deep_ads_a_live_answer_misses_and_uses_the_saved_threshold():
-    ads = [{"rank": 150, "record_id": "r2", "title": "Deep kites", "publisher": "", "sponsor": "", "date": "",
-            "numbers": numbers(0.8), "group": "likely", "status": "scored", "human": None, "in_live_top": False},
-           {"rank": 151, "record_id": "r3", "title": "Deep sails", "publisher": "", "sponsor": "", "date": "",
-            "numbers": numbers(0.7), "group": "likely", "status": "scored", "human": None, "in_live_top": True}]
-    result = result_of(ads)
-    result["pass_at"] = 0.6
-    html = page_html(result)
-    result["live_top_checked_utc"] = "2026-10-29T08:00:00+00:00"
-    html = page_html(result)
-    assert "1 of them are not among the 120 ads the answer's search returns for this wording" in html
-    assert "checked 2026-10-29 on the same collection" in html and "Likely (P ≥ 0.6)" in html
-
-
-def test_an_empty_ranking_still_renders():
-    result = result_of([])
-    result["questions"][0]["ranked"] = 0
-    assert "No ranked ads." in page_html(result)
-
-
-def test_routes_only_when_enabled(tmp_path, monkeypatch):
+def test_load_reads_the_saved_run_or_none(tmp_path, monkeypatch):
     path = tmp_path / "result.json"
     monkeypatch.setenv("OBS_DEPTH_DEMO_RESULT", str(path))
-    monkeypatch.delenv("OBS_DEPTH_DEMO_ENABLED", raising=False)
-    off = Flask("off")
-    register_depth_demo(off)
-    assert off.test_client().get("/depth-demo").status_code == 404
-    assert off.test_client().get("/api/depth-demo").status_code == 404
-    monkeypatch.setenv("OBS_DEPTH_DEMO_ENABLED", "true")
-    on = Flask("on")
-    register_depth_demo(on)
-    client = on.test_client()
-    assert client.get("/api/depth-demo").status_code == 404
-    assert "No scoring run" in client.get("/depth-demo").get_data(as_text=True)
-    path.write_text(depth_demo.json.dumps(result_of([])), encoding="utf-8")
-    assert client.get("/api/depth-demo").get_json()["questions"][0]["label"] == "tides"
-    assert "Which ads mention" in client.get("/depth-demo").get_data(as_text=True)
+    assert load() is None
+    path.write_text('{"questions": []}', encoding="utf-8")
+    assert load() == {"questions": []}
+    path.write_text("{broken", encoding="utf-8")
+    with pytest.raises(ValueError):
+        load()
 
 
 def test_live_top_marks_membership_and_refuses_a_changed_ranking():

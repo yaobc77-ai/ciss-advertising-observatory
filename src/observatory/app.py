@@ -26,6 +26,7 @@ from observatory.analytics import (
     sponsor_display,
     sponsor_publisher_csv,
 )
+from observatory.depth_eval_ui import depth_section
 from observatory.evaluation_report import published_report
 from observatory.evaluation_ui import evaluation_panel
 from observatory.models import Filters
@@ -2073,9 +2074,6 @@ def create_app(service, settings, record_details=None) -> Dash:
     from observatory.compare_demo import register_compare_demo
 
     register_compare_demo(app.server, service, settings)
-    from observatory.depth_demo import register_depth_demo
-
-    register_depth_demo(app.server)
     if record_details is not None:
         from observatory.records import register_record_routes
 
@@ -2417,7 +2415,7 @@ def create_app(service, settings, record_details=None) -> Dash:
                             **{"aria-label": "Project wireframe"},
                         ),
                         html.Section(
-                            [evaluation_panel(published_report(settings)), validation_section()],
+                            [evaluation_panel(published_report(settings)), validation_section(), depth_section()],
                             id="evaluation-page",
                             hidden=True,
                             **{"aria-label": "Evaluation"},

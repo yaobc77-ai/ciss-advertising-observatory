@@ -6,7 +6,7 @@ for each of the five label questions of the 2026-10-24 validation (team hand cod
 questions) it ranks every native ad with the answer path's hybrid search (keyword + vector + title, RRF;
 the question text is the query), keeps the first 400 records, reads each whole (cut at MAX_AD_CHARS, as in
 the answer path) and scores it with relevance_triage.triage against the rules recorded in that run.
-Nothing is screened and no answer is written; /depth-demo (observatory.depth_demo) draws the saved result.
+Nothing is screened and no answer is written; the Evaluation page (observatory.depth_eval_ui) draws the saved result.
 
 Money: every call reserves and settles through the budget ledger. The cap covers this run and every
 earlier run of this script (ledger rows under "depth-demo:%"), so a rerun after a crash cannot spend the
