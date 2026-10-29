@@ -30,13 +30,17 @@ from observatory.depth_eval_ui import depth_section
 from observatory.evaluation_report import published_report
 from observatory.evaluation_ui import evaluation_panel
 from observatory.models import Filters
+from observatory.query_demo import demo_answers, replay, scope_size
 from observatory.quote_links import record_quote_href
 from observatory.relevance_eval_ui import (
     criterion_card,
     judge_numbers,
+    record_scores,
     register_reviews,
+    relevance_lines,
     review_section,
     route_badge,
+    score_method_note,
     validation_section,
     vote_buttons,
 )
@@ -1465,12 +1469,17 @@ def _render_answer_result(result, links_enabled, service):
     if mode == "rag" and (status == "answered" or partial):
         summary, findings = _grounded_answer_parts(result, str(result.get("answer") or ""))
         screening = (result.get("research_trace") or {}).get("list_screening") or {}
+        replay = bool(result.get("replay"))
+        if replay:
+            # A saved answer replayed on the Query page: no reader checks are saved against it.
+            screening = {**screening, "question": None}
         # The rules a listed record meets come first, then the findings (relevance_triage).
         evidence = criterion_card(screening)
         evidence.extend([_answer_section("Findings", findings)] if findings else [])
-        evidence.extend(_list_chart_cards(data))
+        evidence.extend([] if replay else _list_chart_cards(data))
         evidence.extend(review_section(screening))
-        evidence.extend(_relevance_reasoning(result))
+        evidence.extend(_relevance_reasoning({**result, "research_trace": {
+            **(result.get("research_trace") or {}), "list_screening": screening}}))
         shown_evidence = result.get("evidence") or []
         if isinstance(data.get("display_citations"), list):
             # A list answer shows the passages of the citations it displays
@@ -1479,10 +1488,13 @@ def _render_answer_result(result, links_enabled, service):
             keep = {_mapping(cited[n - 1]).get("evidence_id") for n in data["display_citations"]
                     if isinstance(n, int) and 0 < n <= len(cited)}
             shown_evidence = [e for e in shown_evidence if _mapping(e).get("evidence_id") in keep]
+        scores = record_scores(screening) if screening.get("decisions") and screening.get("criterion") else None
         if shown_evidence:
             evidence.extend([
                 html.H5("Records and quoted evidence", className="answer-evidence-title"),
-                *_evidence_cards(shown_evidence, links_enabled, result.get("citations") or []),
+                *([score_method_note()] if scores is not None else []),
+                *_evidence_cards(shown_evidence, links_enabled, result.get("citations") or [],
+                                 scores, screening.get("criterion") if scores is not None else None),
             ])
         media_cards = _media_evidence_cards(result.get("media_evidence") or [], links_enabled,
                                              result.get("citations") or [])
@@ -1664,7 +1676,9 @@ def _coverage_notice(diagnostics):
     )
 
 
-def _evidence_cards(evidence, enabled, citations=()):
+def _evidence_cards(evidence, enabled, citations=(), scores=None, criterion=None):
+    """`scores` (record id -> judge numbers) and `criterion` are given for a list answer only: each
+    card then shows its relevance score after the title and the rules it is related to."""
     citation_quotes = {}
     for number, citation in enumerate(citations, start=1):
         citation = _mapping(citation)
@@ -1683,6 +1697,8 @@ def _evidence_cards(evidence, enabled, citations=()):
             for number, quote in citation_quotes.get(item.get("evidence_id"), [])
             if quote.strip() and quote in passage
         ]
+        score, related = (relevance_lines(scores.get(item.get("record_id")), criterion)
+                          if scores is not None else (None, None))
         if supported:
             quote_blocks = [
                 html.Div(
@@ -1718,7 +1734,7 @@ def _evidence_cards(evidence, enabled, citations=()):
                         ],
                         className="evidence-heading",
                     ),
-                    html.H4(str(item.get("title") or "Untitled record")),
+                    html.H4([str(item.get("title") or "Untitled record"), *([" ", score] if score else [])]),
                     html.P(
                         " · ".join(
                             [
@@ -1732,7 +1748,7 @@ def _evidence_cards(evidence, enabled, citations=()):
                         ),
                         className="muted",
                     ),
-                    html.P(
+                    related or html.P(
                         "Matched search terms: "
                         + ", ".join(item.get("matched_terms") or [])
                         if item.get("matched_terms")
@@ -2025,6 +2041,21 @@ def _boundary_failure(where, exc):
     log.warning("Dashboard %s failed: %s", where, type(exc).__name__)
 
 
+def _demo_row(demos, error):
+    """Buttons for the saved list answers (query_demo); nothing when there are none."""
+    if error:
+        return html.P("Saved demo answers could not be read.", className="scope-note")
+    if not demos:
+        return None
+    return html.Div([
+        html.Span("Saved demo answers"),
+        *[html.Button(demo["name"], id=f"query-demo-{n}", n_clicks=0, title=demo["question"],
+                      className="query-example") for n, demo in enumerate(demos)],
+        html.Small("Each shows a list answer saved earlier, with a relevance score for every cited ad. "
+                   "No model is called and nothing is saved."),
+    ], className="query-examples query-demos")
+
+
 def _panel(dataset, links_enabled):
     from observatory.data_layout import data_panel
     return data_panel(dataset, links_enabled, _figure)
@@ -2039,6 +2070,10 @@ def create_app(service, settings, record_details=None) -> Dash:
     enabled = bool(settings.show_source_links)
     agent_enabled = bool(getattr(settings, "research_agent_enabled", False)
                          or getattr(settings, "question_intent_enabled", False))
+    try:
+        demos, demo_error = demo_answers(), False
+    except ValueError:  # a damaged file must not stop the site
+        demos, demo_error = [], True
     app = Dash(
         __name__,
         assets_folder=str(Path(__file__).parent / "assets"),
@@ -2361,6 +2396,7 @@ def create_app(service, settings, record_details=None) -> Dash:
                                                             html.Small("Choose an example, then select Generate answer. The model interprets your question; data tools calculate counts and retrieve sources." if agent_enabled else
                                                                        "Choose an example, then select Generate answer. Counts and lists use the database at no model charge."),
                                                         ], className="query-examples"),
+                                                        _demo_row(demos, demo_error),
                                                         html.Div(
                                                             id="research-stale",
                                                             role="status",
@@ -3294,6 +3330,33 @@ def create_app(service, settings, record_details=None) -> Dash:
         except Exception as exc:  # noqa: BLE001 - public boundary must hide unexpected service details.
             _boundary_failure("question answer", exc)
             return failure_view(question, filters, context), None
+
+    @app.callback(
+        Output("research-results", "children", allow_duplicate=True),
+        *[Input(f"query-demo-{n}", "n_clicks") for n in range(len(demos))],
+        prevent_initial_call=True,
+    ) if demos else (lambda function: function)
+    def show_demo_answer(*clicks):
+        """A saved answer, replayed without a model call or a database write."""
+        index = next((n for n, clicked in enumerate(clicks) if ctx.triggered_id == f"query-demo-{n}"
+                      and isinstance(clicked, int) and clicked > 0), None)
+        if index is None:
+            raise PreventUpdate
+        demo = demos[index]
+        size = scope_size(demo["result"])
+        banner = html.Div([
+            html.Span("Saved demo answer", className="eyebrow"),
+            html.P(html.Strong(demo["question"])),
+            html.P((f"Saved on {demo['saved']}" if demo["saved"] else "Saved by an earlier run")
+                   + (f" for a selection of {size} articles" if size else "")
+                   + " and replayed here without a model call. The collection may have changed since.",
+                   className="scope-note"),
+        ], className="demo-banner")
+        try:
+            return [banner, *_render_answer_result(replay(demo["result"]), enabled, service)]
+        except Exception as exc:  # noqa: BLE001 - an old saved shape must not break the page.
+            _boundary_failure("saved demo answer", exc)
+            return [banner, html.P("This saved answer could not be shown.", className="scope-note")]
 
     @app.callback(
         Output("research-results", "children", allow_duplicate=True),

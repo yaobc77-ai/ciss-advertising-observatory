@@ -2,6 +2,18 @@
 
 排序约定：新内容在上；每节对应 plan.md 同编号的一轮。
 
+## 2026-10-29：Query 页 demo——每篇引用文档写明“与什么相关”和评价分数（$0）
+
+- 结论：Query 页“Try a question”下面多了一行“Saved demo answers”，5 个按钮对应 10-24 存下的 5 道标签题答案（不是客户 24 题；范围是 15 篇人工编码文章）。点了直接显示保存的答案，不调模型、不写库、不出图表。名单答案的每张引用文档卡片标题后有绿色徽章“Relevance score NN% · 程度”，下面逐条列出“Related to:”（判定器给到 ≥ 50% 的规则原文和概率），有排除项 ≥ 50% 时另列“Exclusion that may apply”。卡片上方一次性写明“How the relevance score is worked out”。真实名单答案用同一套显示；普通问答的引文不变（只有检索名次）。
+- 做法：`relevance_eval_ui` 加 `record_scores`（按 record_id 取判定器数字；数字缺失、越界、条数与规则对不上或同一篇两套数字时不给分）、`relevance_lines`、`score_method_note`；`app._evidence_cards` 可选传入分数与规则；`_render_answer_result` 对带 `replay` 标记的结果去掉图表和读者投票。新模块 `query_demo`（读 `OBS_QUERY_DEMO_ANSWERS` 或 `.runtime/rag_validation_20261023/triage_answers.json`；没有文件整行不出现，文件坏了显示一句“could not be read”）。按钮用字符串 ID，只在有存档时注册回调。CSS 加徽章、规则列表、方法说明和 demo 横幅样式。
+- 检查：新测试 13 个（分数与 Related to、无规则过线与排除项、6 种坏数字不给分、同篇两套数字、卡片显示、方法说明只出现一次且普通答案没有、回放无图表无投票且不改原数据且不碰 service、存档文件读写与损坏）；`test_app.py` 等相关 4 个文件同跑通过（第一次失败 2 个：本机有存档时按钮用字典 ID，测试的唯一 ID 检查不能处理，改为字符串 ID 后通过）。浏览器（我启动的 18072）：5 题依次点开，卡片数 7／12／9／1／4，每张都有分数和 Related to，方法说明各 1 次，0 个投票按钮，0 张图；375 宽整页无横向滚动。
+- Codex：计划复核无阻断项；采纳：说明里不放 30/25 统计、用显式回放标记关投票和图表、数字异常显示“没有分数”、正文 `[n]` 后不重复分数。
+- Codex 提交前复核第 1 轮，4 项已改：没有排除规则时 `exclusions` 缺失或为 null 不再被当成空列表（否则显示时出错）；meets／borderline／does not meet 三项相加偏离 100% 超过 1% 不给分；横幅日期不再取文件修改时间（复制文件会变），只有默认存档写“Saved on 2026-10-24”，其他文件写“Saved by an earlier run”；plan.md 第 2 条去掉 30/25 统计的说法。补测试 4 个，共 17 通过。
+- Codex 提交前复核第 2 轮：无阻断项。可选建议（未做）：再加一个测试，确认默认存档改了文件时间后日期仍是 2026-10-24。
+- 已知：10-24 保存的一条规则原文末尾带“.],”（当时模型起草的文字），回放照原样显示。
+- 门禁（`.runtime/project_checks_querydemo_r2_20261029`，修复后的最终代码，离线）：pytest 5,149 通过、0 失败、39 跳过、335 未选（integration／live）、28 个受保护模块按清单排除；ruff 通过；三个 JavaScript 检查没跑成（本机没装 Node.js，退出码 127），所以总退出码 1。第一次门禁跑在修复前的代码上，已停掉作废。
+- 用户 2026-10-29 同意“提交，不推送”：提交到本地分支 `claude/depth-demo-20261029`，未推送。
+
 ## 2026-10-29：“读多深”改放进 Evaluation 页（$0）
 
 - 结论：用户看了独立页面 `/depth-demo` 后说“这不是本地的项目网页啊”，选“Evaluation 页”。现在项目网站工具箱 → Evaluation 里，“Relevance check against human labels”之后多了一节 “How deep should a list read?”；独立页面、`/api/depth-demo` 和开关 `OBS_DEPTH_DEMO_ENABLED` 已删。

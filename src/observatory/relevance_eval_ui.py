@@ -5,6 +5,9 @@ Two views, both plain enough for a reader without the method:
   rules written before reading, the records sent for a human check, and the
   Decisions judge's numbers per record (relevance_triage); readers can mark a
   record relevant or not (vote_buttons, saved by migration 0008).
+- record_scores / relevance_lines / score_method_note: on each cited ad of a list
+  answer, the judge's P(meets) as a relevance score and the rules it is related
+  to, with how the score is worked out stated once.
 - judge_view: the independent judge's check of a whole list (offline scripts).
 - validation_section: on the Evaluation page, how the screening and the judge
   each compare with human labels on the hand-coded articles (frozen run in
@@ -23,7 +26,8 @@ from dash import MATCH, Input, Output, State, dcc, html
 from dash.exceptions import PreventUpdate
 from flask import session
 
-from .relevance_judge import THRESHOLD, VERDICTS
+from .relevance_judge import JUDGE_MODEL, MAX_AD_CHARS, THRESHOLD, VERDICTS
+from .relevance_triage import PASS_AT
 
 VALIDATION_PATH = Path(__file__).with_name("relevance_validation.v1.json")
 VERDICT_COLORS = {"confirmed": "#2f7d4f", "doubted": "#b8402f", "possible_miss": "#c98a1b",
@@ -266,6 +270,76 @@ def judge_numbers(numbers, criterion=None):
     rules = [f"rule {n} {p:.0%}" for n, p in enumerate(numbers.get("rules") or [], 1)]
     exclusions = [f"exclusion {n} {p:.0%}" for n, p in enumerate(numbers.get("exclusions") or [], 1)]
     return html.Span("Judge: " + " · ".join(parts + rules + exclusions), className="judge-numbers")
+
+
+def _probability(value):
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and 0.0 <= value <= 1.0
+
+
+def _usable(numbers, criterion):
+    """The judge's numbers for one ad, when they are whole and line up with the rules shown above."""
+    verdict = ("meets", "borderline", "does_not_meet")
+    if not isinstance(numbers, dict) or not all(_probability(numbers.get(k)) for k in verdict):
+        return False
+    if abs(sum(numbers[k] for k in verdict) - 1.0) > 0.01:  # the three choices are one distribution (rounded to 0.001)
+        return False
+    rules, exclusions = numbers.get("rules"), numbers.get("exclusions")
+    return (isinstance(rules, list) and len(rules) == len(criterion.get("counts") or [])
+            and isinstance(exclusions, list) and len(exclusions) == len(criterion.get("does_not_count") or [])
+            and all(_probability(p) for p in rules + exclusions))
+
+
+def record_scores(trace):
+    """record id -> the judge's numbers, for a list answer whose rules are shown; an ad with no
+    usable numbers, or with two different sets, gets no score rather than a guessed one."""
+    criterion = trace.get("criterion") or {}
+    if not criterion.get("counts"):
+        return {}
+    scores, conflicts = {}, set()
+    for item in trace.get("decisions") or []:
+        rid, numbers = item.get("record_id"), item.get("triage")
+        if not isinstance(rid, str) or not rid or not _usable(numbers, criterion):
+            continue
+        if rid in scores and scores[rid] != numbers:
+            conflicts.add(rid)
+        scores[rid] = numbers
+    return {rid: numbers for rid, numbers in scores.items() if rid not in conflicts}
+
+
+def relevance_lines(numbers, criterion):
+    """The score shown after a cited ad's title, and the rules it is related to, in words."""
+    if numbers is None:
+        return html.Span("No relevance score recorded", className="relevance-score relevance-score-none"), None
+    score = f"Relevance score {numbers['meets']:.0%}"
+    if numbers.get("strength_label"):
+        score += f" · {numbers['strength_label']}"
+    def listed(title, rules, probabilities, empty=None):
+        items = [html.Li([rule, html.Span(f" {p:.0%}", className="judge-numbers")])
+                 for rule, p in zip(rules, probabilities) if p >= PASS_AT]
+        if not items and empty is None:
+            return None
+        return html.Div([html.Strong(title), html.Ul(items) if items else html.Span(empty)], className="related-to")
+
+    lines = [listed("Related to: ", criterion["counts"], numbers["rules"], f"no rule reached {PASS_AT:.0%}"),
+             listed("Exclusion that may apply: ", criterion.get("does_not_count") or [], numbers["exclusions"])]
+    return html.Span(score, className="relevance-score"), html.Div([line for line in lines if line is not None])
+
+
+def score_method_note():
+    """How the relevance score is worked out; shown once above a list answer's cited ads."""
+    return html.Div([
+        html.P(html.Strong("How the relevance score is worked out")),
+        html.P(f"A second model, the Decisions judge ({JUDGE_MODEL}), reads the ad's own text (up to "
+               f"{MAX_AD_CHARS:,} characters) against the rules under “What counts for this question”. It answers "
+               "three choices — meets the rules, borderline, does not meet — whose probabilities add up to 100%. "
+               "The relevance score is the probability it gives to “meets”. It also answers each rule separately: "
+               f"“Related to” lists the rules it gave at least {PASS_AT:.0%}, with that probability. The word after "
+               "the score is how much of the ad is about the rules (Passing, Clear or Central), a separate answer "
+               "that does not change the score."),
+        html.P("The score is the model's own estimate, not a checked accuracy and not the search rank. An ad is "
+               f"listed only when the score is at least {PASS_AT:.0%} and a second reading copied a sentence from it "
+               "that the server found word for word in the stored text.", className="scope-note"),
+    ], className="score-method")
 
 
 def route_badge(route):
