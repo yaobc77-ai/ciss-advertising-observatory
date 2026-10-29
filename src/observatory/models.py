@@ -174,6 +174,10 @@ class Evidence(_ObservationSourceMetadata):
     score: float = 0.0
     retrieval_rank: int | None = None
     retrieval_sources: list[str] = Field(default_factory=list)
+    # For the reader's retrieval score (retrieval_explain): the routes that ran, and this
+    # passage's place, words or similarity in each route that found it; the search words.
+    retrieval_routes: dict = Field(default_factory=dict)
+    retrieval_search: dict = Field(default_factory=dict)
     matched_terms: list[str] = Field(default_factory=list)
     literal_matched_terms: list[str] = Field(default_factory=list)
     source_text_quality_codes: list[TextQualityCode] = Field(default_factory=list)

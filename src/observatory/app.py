@@ -30,20 +30,27 @@ from observatory.depth_eval_ui import depth_section
 from observatory.evaluation_report import published_report
 from observatory.evaluation_ui import evaluation_panel
 from observatory.models import Filters
-from observatory.query_demo import demo_answers, replay, scope_size
+from observatory.query_demo import demo_answers, recompute_retrieval, replay, scope_size
 from observatory.quote_links import record_quote_href
 from observatory.relevance_eval_ui import (
+    card_check,
     criterion_card,
     judge_numbers,
+    list_check,
     record_scores,
     register_reviews,
     relevance_lines,
     review_section,
     route_badge,
-    score_method_note,
     validation_section,
-    vote_buttons,
 )
+from observatory.retrieval_explain import (
+    complete,
+    explanations,
+    list_ndcg,
+    searches,
+)
+from observatory.score_explain_ui import explain_block, retrieval_badge, retrieval_lines
 from observatory.social_annotations import SCHEME, STATUS, social_state_options
 from observatory.social_label_ui import (
     clicked_social_state,
@@ -561,7 +568,7 @@ def _relevance_reasoning(result):
     without screening are listed apart. Titles come from the decisions or the evidence.
     """
     trace = (result.get("research_trace") or {}).get("list_screening") or {}
-    decisions, question = trace.get("decisions") or [], trace.get("question")
+    decisions = trace.get("decisions") or []
     if not decisions:
         return []
     titles = {}
@@ -596,7 +603,7 @@ def _relevance_reasoning(result):
                 html.Span(" "), route_badge(decision.get("route")),
                 html.Blockquote(decision["quote"], className="screen-quote") if decision.get("quote") else None,
                 html.Div(judge_numbers(decision.get("triage"))) if "triage" in decision else None,
-                vote_buttons(question, decision.get("record_id"), decision.get("route"))
+                list_check(trace, decision.get("record_id"), decision.get("route"))
                 if decision.get("route") == "pass" and decision.get("decision") == "matches" else None,
             ]))
         reasoning = call[0].get("screening_reasoning")
@@ -1470,16 +1477,11 @@ def _render_answer_result(result, links_enabled, service):
         summary, findings = _grounded_answer_parts(result, str(result.get("answer") or ""))
         screening = (result.get("research_trace") or {}).get("list_screening") or {}
         replay = bool(result.get("replay"))
+        # Each listed ad's card lets a person mark it right or wrong, on a replay too.
+        asked = screening.get("question")
         if replay:
-            # A saved answer replayed on the Query page: no reader checks are saved against it.
+            # A saved answer replayed on the Query page: its checks are on the cards only.
             screening = {**screening, "question": None}
-        # The rules a listed record meets come first, then the findings (relevance_triage).
-        evidence = criterion_card(screening)
-        evidence.extend([_answer_section("Findings", findings)] if findings else [])
-        evidence.extend([] if replay else _list_chart_cards(data))
-        evidence.extend(review_section(screening))
-        evidence.extend(_relevance_reasoning({**result, "research_trace": {
-            **(result.get("research_trace") or {}), "list_screening": screening}}))
         shown_evidence = result.get("evidence") or []
         if isinstance(data.get("display_citations"), list):
             # A list answer shows the passages of the citations it displays
@@ -1489,13 +1491,40 @@ def _render_answer_result(result, links_enabled, service):
                     if isinstance(n, int) and 0 < n <= len(cited)}
             shown_evidence = [e for e in shown_evidence if _mapping(e).get("evidence_id") in keep]
         scores = record_scores(screening) if screening.get("decisions") and screening.get("criterion") else None
+        routes = _listed_routes(screening) if scores is not None and asked else {}
+        # A listed ad with a card is checked on its card only; the lists point there.
+        listed = {**screening, "card_checked": {_mapping(e).get("record_id") for e in shown_evidence} & set(routes)}
+        # The rules a listed record meets come first, then the findings (relevance_triage).
+        evidence = criterion_card(screening)
+        evidence.extend([_answer_section("Findings", findings)] if findings else [])
+        evidence.extend([] if replay else _list_chart_cards(data))
+        evidence.extend(review_section(listed))
+        evidence.extend(_relevance_reasoning({**result, "research_trace": {
+            **(result.get("research_trace") or {}), "list_screening": listed}}))
+        # Cards of an answer that ran searches say what each search matched, or that no detail was kept.
+        retrieval = explanations(result) if searches(result) else None
+        # NDCG of the ads in the order the answer shows them, each with its RAG score as its gain.
+        shown_ids = list(dict.fromkeys(_mapping(e).get("record_id") for e in shown_evidence))
+        ndcg_total, shares, ndcg_unknown = list_ndcg(result, shown_ids)
+        if retrieval:
+            retrieval = {rid: {**item, "ndcg": shares.get(rid, 0.0) if ndcg_total is not None else None,
+                               "ndcg_total": ndcg_total,
+                               "shown_at": shown_ids.index(rid) + 1 if rid in shown_ids else None}
+                         for rid, item in retrieval.items()}
+        total, examined = screening.get("scope_total"), screening.get("examined")
+        whole = (examined, total) if isinstance(total, int) and total > 0 and examined == total else None
         if shown_evidence:
             evidence.extend([
                 html.H5("Records and quoted evidence", className="answer-evidence-title"),
-                *([score_method_note()] if scores is not None else []),
                 *_evidence_cards(shown_evidence, links_enabled, result.get("citations") or [],
-                                 scores, screening.get("criterion") if scores is not None else None),
+                                 scores, screening.get("criterion") if scores is not None else None,
+                                 retrieval, bool(whole) and complete(result),
+                                 (asked, routes) if routes else None),
             ])
+        # What the two scores are based on, right under the answer's first sentence.
+        block = explain_block(result, screening, whole, ndcg_total, ndcg_unknown)
+        if block is not None:
+            summary = [*summary[:1], block, *summary[1:]]
         media_cards = _media_evidence_cards(result.get("media_evidence") or [], links_enabled,
                                              result.get("citations") or [])
         if media_cards:
@@ -1676,9 +1705,19 @@ def _coverage_notice(diagnostics):
     )
 
 
-def _evidence_cards(evidence, enabled, citations=(), scores=None, criterion=None):
-    """`scores` (record id -> judge numbers) and `criterion` are given for a list answer only: each
-    card then shows its relevance score after the title and the rules it is related to."""
+def _listed_routes(screening):
+    """record id -> the route of each ad the screening listed (pass) or sent for a check (review)."""
+    return {d["record_id"]: d.get("route") or "pass" for d in screening.get("decisions") or []
+            if isinstance(d, dict) and d.get("record_id") and d.get("decision") == "matches"}
+
+
+def _evidence_cards(evidence, enabled, citations=(), scores=None, criterion=None, retrieval=None, read_all=False,
+                    checks=None):
+    """`retrieval` (record id -> retrieval_explain) puts the retrieval score after the title and what each
+    search route found; `scores` (record id -> judge numbers) and `criterion`, given for a list answer only,
+    add the accuracy score and the rules it is related to. `read_all`: every ad in scope was read. `checks`
+    (question, record id -> route) adds a folded right/wrong choice to each listed ad. An ad with several
+    passages shown has its scores, matches, rules and choice on its first card only."""
     citation_quotes = {}
     for number, citation in enumerate(citations, start=1):
         citation = _mapping(citation)
@@ -1688,9 +1727,11 @@ def _evidence_cards(evidence, enabled, citations=(), scores=None, criterion=None
                 and citation.get("evidence_type", "article_text") == "article_text"
                 and citation.get("origin", "original_text") == "original_text"):
             citation_quotes.setdefault(evidence_id, []).append((number, quote))
-    cards = []
+    cards, seen = [], set()
     for rank, value in enumerate(evidence, start=1):
         item = _mapping(value)
+        repeat = (retrieval is not None or scores is not None or bool(checks)) and item.get("record_id") in seen
+        seen.add(item.get("record_id"))
         passage = str(item.get("text") or "")
         supported = [
             (number, quote)
@@ -1699,6 +1740,13 @@ def _evidence_cards(evidence, enabled, citations=(), scores=None, criterion=None
         ]
         score, related = (relevance_lines(scores.get(item.get("record_id")), criterion)
                           if scores is not None else (None, None))
+        explained = retrieval.get(item.get("record_id")) if retrieval is not None else None
+        found = retrieval_lines(explained, read_all) if retrieval is not None else None
+        checked = card_check(checks[0], item.get("record_id"), checks[1].get(item.get("record_id"))) if checks else None
+        badges = [badge for badge in (retrieval_badge(explained), score) if badge is not None]
+        if repeat:  # one set of scores and one choice per ad: its first card has them
+            found = related = checked = None
+            badges = []
         if supported:
             quote_blocks = [
                 html.Div(
@@ -1727,14 +1775,16 @@ def _evidence_cards(evidence, enabled, citations=(), scores=None, criterion=None
                                 else "Company social posts",
                                 className="dataset-chip",
                             ),
-                            html.Span(
+                            # With search detail the card shows its real retrieval score instead of
+                            # its position among the cards.
+                            *([] if retrieval is not None else [html.Span(
                                 f"Retrieval rank {rank}",
                                 className="evidence-code",
-                            ),
+                            )]),
                         ],
                         className="evidence-heading",
                     ),
-                    html.H4([str(item.get("title") or "Untitled record"), *([" ", score] if score else [])]),
+                    html.H4([str(item.get("title") or "Untitled record"), *[part for badge in badges for part in (" ", badge)]]),
                     html.P(
                         " · ".join(
                             [
@@ -1748,13 +1798,17 @@ def _evidence_cards(evidence, enabled, citations=(), scores=None, criterion=None
                         ),
                         className="muted",
                     ),
-                    related or html.P(
+                    # What the search matched, the rules it is related to and a reader's check, when present.
+                    *[part for part in (found, related, checked) if part is not None],
+                    *([html.P("Another passage of the ad above; its scores and your check are on that card.",
+                              className="match-note")] if repeat else []),
+                    *([] if found is not None or related is not None or repeat else [html.P(
                         "Matched search terms: "
                         + ", ".join(item.get("matched_terms") or [])
                         if item.get("matched_terms")
                         else "Ordered by retrieval relevance; rank is not a confidence score.",
                         className="match-note",
-                    ),
+                    )]),
                     *([html.P(str(item["date_notice"]), className="scope-note")]
                       if item.get("date_notice") else []),
                     *quote_blocks,
@@ -3337,7 +3391,7 @@ def create_app(service, settings, record_details=None) -> Dash:
         prevent_initial_call=True,
     ) if demos else (lambda function: function)
     def show_demo_answer(*clicks):
-        """A saved answer, replayed without a model call or a database write."""
+        """A saved answer, replayed without a model call; only a reader's own check on a card is saved."""
         index = next((n for n, clicked in enumerate(clicks) if ctx.triggered_id == f"query-demo-{n}"
                       and isinstance(clicked, int) and clicked > 0), None)
         if index is None:
@@ -3352,8 +3406,13 @@ def create_app(service, settings, record_details=None) -> Dash:
                    + " and replayed here without a model call. The collection may have changed since.",
                    className="scope-note"),
         ], className="demo-banner")
+        result = replay(demo["result"])
         try:
-            return [banner, *_render_answer_result(replay(demo["result"]), enabled, service)]
+            recompute_retrieval(result, service.db)
+        except Exception as exc:  # noqa: BLE001 - the saved answer still shows, without search detail.
+            _boundary_failure("saved demo retrieval", exc)
+        try:
+            return [banner, *_render_answer_result(result, enabled, service)]
         except Exception as exc:  # noqa: BLE001 - an old saved shape must not break the page.
             _boundary_failure("saved demo answer", exc)
             return [banner, html.P("This saved answer could not be shown.", className="scope-note")]

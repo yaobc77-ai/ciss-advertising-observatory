@@ -1,4 +1,4 @@
-"""Relevance score per cited ad on a list answer, and the saved demo answers on the Query page.
+"""Accuracy score per cited ad on a list answer, and the saved demo answers on the Query page.
 No model call; fictional ads."""
 import json
 
@@ -54,14 +54,14 @@ def passed(rid="r1", triage="default"):
 
 def test_score_and_related_rules_follow_the_rules_shown():
     score, related = relevance_lines(numbers(), CRITERION)
-    assert text(score).count("Relevance score 90% · Clear") == 1
-    assert "Mentions tidal power" in text(related) and " 95%" in text(related) and "kite farms" not in text(related)
+    assert text(score).count("Accuracy 90/100 · Clear") == 1
+    assert "Mentions tidal power" in text(related) and " 95/100" in text(related) and "kite farms" not in text(related)
 
 
 def test_no_rule_over_the_line_and_an_exclusion_are_said_in_words():
     _, related = relevance_lines(numbers(meets=0.3, rules=(0.4, 0.1), exclusions=(0.5,)), CRITERION)
-    assert "no rule reached 50%" in text(related)
-    assert "Exclusion that may apply: " in text(related) and "Weather reports only" in text(related) and " 50%" in text(related)
+    assert "no single rule is shown for this ad" in text(related) and "reached" not in text(related)
+    assert "Exclusion that may apply (1)" in text(related) and "Weather reports only" in text(related) and " 50/100" in text(related)
 
 
 @pytest.mark.parametrize("bad", [None, {"meets": "high"}, numbers(rules=(0.9,)), numbers(meets=1.4),
@@ -70,7 +70,7 @@ def test_no_rule_over_the_line_and_an_exclusion_are_said_in_words():
 def test_missing_or_unusable_numbers_give_no_score(bad):
     assert record_scores({"criterion": CRITERION, "decisions": [passed(triage=bad)]}) == {}
     score, related = relevance_lines(None, CRITERION)
-    assert "No relevance score recorded" in text(score) and related is None
+    assert "Accuracy: not assessed" in text(score) and related is None
 
 
 @pytest.mark.parametrize("exclusions", ["missing", None, []])
@@ -85,7 +85,7 @@ def test_no_exclusion_rules_need_an_empty_list(exclusions):
     assert scores == ({"r1": triage} if exclusions == [] else {})
     if scores:
         score, related = relevance_lines(scores["r1"], criterion)
-        assert "Relevance score 90%" in text(score) and "Exclusion" not in text(related)
+        assert "Accuracy 90/100" in text(score) and "Exclusion" not in text(related)
 
 
 def test_two_different_sets_for_one_ad_give_no_score():
@@ -98,18 +98,18 @@ def test_card_shows_score_after_title_and_related_instead_of_rank_note():
     card = text(_evidence_cards([evidence("r1", "Tidewater builds tidal turbines.")], True,
                                 [{"evidence_id": "e-r1", "quote": "Tidewater builds tidal turbines."}],
                                 {"r1": numbers()}, CRITERION))
-    assert "Relevance score 90%" in card and "Related to: " in card
+    assert "Accuracy 90/100" in card and "Related to (1)" in card
     assert "rank is not a confidence score" not in card
     plain = text(_evidence_cards([evidence("r1", "x")], True))
-    assert "Relevance score" not in plain and "rank is not a confidence score" in plain
+    assert "Accuracy" not in plain and "rank is not a confidence score" in plain
 
 
-def test_list_answer_states_the_method_once_and_ordinary_answers_do_not():
+def test_list_answer_shows_the_accuracy_score_and_ordinary_answers_do_not():
     page = text(_render_answer_result(answer([passed()]), True, None))
-    assert page.count("How the relevance score is worked out") == 1 and "Relevance score 90%" in page
+    assert "Accuracy 90/100" in page
     ordinary = answer([passed()])
     ordinary["research_trace"].pop("list_screening")
-    assert "Relevance score" not in text(_render_answer_result(ordinary, True, None))
+    assert "Accuracy 90/100" not in text(_render_answer_result(ordinary, True, None))
 
 
 class NoService:
@@ -117,14 +117,16 @@ class NoService:
         raise AssertionError(f"a replay must not use the service ({name})")
 
 
-def test_replay_has_no_charts_no_reader_checks_and_leaves_the_saved_answer_alone():
+def test_replay_has_no_charts_checks_only_on_cards_and_leaves_the_saved_answer_alone():
     saved = answer([passed(), {**passed("r2"), "decision": "unclear", "route": "review"}])
     before = json.dumps(saved, sort_keys=True)
     page = text(_render_answer_result(replay(saved), True, NoService()))
-    assert "rel-vote" not in page and "By publisher" not in page and "Relevance score 90%" in page
+    assert "rel-vote" not in page and "By publisher" not in page and "Accuracy 90/100" in page
+    assert "rel-card-vote" in page  # a reader may still mark a listed ad right or wrong on its card
     assert json.dumps(saved, sort_keys=True) == before
     live = text(_render_answer_result(answer([passed()]), True, None))
-    assert "rel-vote" in live and "By publisher" in live
+    assert "rel-card-vote" in live and "By publisher" in live
+    assert "Your check is under this ad's card below." in live  # one place per ad
 
 
 def test_saved_answers_file(tmp_path, monkeypatch):

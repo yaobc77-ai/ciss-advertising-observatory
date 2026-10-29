@@ -115,6 +115,10 @@ def test_query_and_single_channel_rrf_match_current_database_search(question):
         def execute(self, sql, params=None):
             if "title_coverage" in sql:
                 return Rows([])  # no native title matches: the single text channel is compared
+            if "input(term,ordinal)" in sql:  # the search words' lexemes, kept for the reader
+                return Rows([{"term": term, "lexemes": [term]} for term in params[0]])
+            if "text_hits" in sql:  # the words each returned passage matched, kept for the reader
+                return Rows([{"evidence_id": eid, "text_hits": [], "title_hits": []} for eid in params[2]])
             if params:
                 captured.append(params)
             return Rows(rows if params else [])

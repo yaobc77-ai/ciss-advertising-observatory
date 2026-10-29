@@ -65,6 +65,7 @@ from .question_plan import (
 from .rag import AnswerValidationError, Rag
 from .relevance_triage import TRIAGE_ALL_MAX, make_criterion
 from .relevance_triage import enabled as triage_enabled
+from .retrieval_explain import group_explain
 from .structured_queries import QuestionPlan, plan_question, validate_share_scope
 
 log = logging.getLogger(__name__)
@@ -2609,7 +2610,9 @@ class Service:
                                  "media_status": report["status"],
                                  "retrieved_record_ids": sorted({unit.record_id for unit in [*found, *units]}),
                                  "retrieved_evidence_ids": [unit.evidence_id for unit in [*found, *units]],
-                                 "filters": scope.model_dump(mode="json"), "query": item["query"]})
+                                 "filters": scope.model_dump(mode="json"), "query": item["query"],
+                                 # The reader's retrieval score per record and the words behind it.
+                                 "retrieval_explain": group_explain(found)})
                 evidence.extend(found)
             evidence = list({e.evidence_id: e for e in evidence}.values())
             if not list_mode:

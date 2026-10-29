@@ -2,8 +2,8 @@
 
 The answers are the 2026-10-24 validation run of five labelling questions (not the
 customer's held-out questions) over the 15 hand-coded articles: whole Service
-results, with the Decisions judge's numbers per ad. Replaying one calls no model
-and writes nothing: the reader-check buttons and the list charts are left out.
+results, with the Decisions judge's numbers per ad. Replaying one calls no model;
+the list charts are left out, and a reader's checks are offered on the ad cards only.
 The file is OBS_QUERY_DEMO_ANSWERS or the run's triage_answers.json under
 .runtime; without it the Query page shows no demo row.
 """
@@ -59,6 +59,44 @@ def replay(result):
     result["replay"] = True
     if isinstance(result.get("structured_result"), dict):
         result["structured_result"].pop("charts", None)
+    return result
+
+
+def cached_vector(db, text, model="text-embedding-3-small"):
+    """The text's vector from the embeddings cache, or None; never an API call."""
+    from .rag import digest
+
+    with db.connect(vector=True) as conn:
+        row = conn.execute("SELECT embedding FROM embeddings WHERE text_hash=%s AND model=%s",
+                           (digest(text), model)).fetchone()
+    return row["embedding"].to_list() if row else None
+
+
+def recompute_retrieval(result, db, today=None):
+    """Give a replayed answer today's retrieval explanation: its saved searches run again on the
+    current collection (free: the question's vector from the cache, else no meaning search).
+    Records whose text has changed since the answer was saved are marked. Changes `result`."""
+    from datetime import date
+
+    from .models import Filters
+    from .retrieval_explain import group_explain
+
+    saved = {item.get("record_id"): item.get("version_id") for item in result.get("evidence") or []}
+    groups = [group for group in (result.get("structured_result") or {}).get("groups") or []
+              if isinstance(group, dict) and group.get("query")]
+    fresh = []
+    for group in groups:  # every search first, then all at once: no mix of saved and today's detail
+        vector = cached_vector(db, group["query"])
+        found = db.search(group["query"], Filters.model_validate(group.get("filters") or {}), vector=vector,
+                          model="text-embedding-3-small", limit=120, chunks_per_record=2)
+        explain = group_explain(found)
+        if explain is not None:
+            for rid, item in explain["records"].items():
+                item["changed"] = rid in saved and saved[rid] != item.get("version_id")
+            explain = {**explain, "recomputed": (today or date.today()).isoformat(), "vector": vector is not None}
+        fresh.append(explain)
+    for group, explain in zip(groups, fresh):
+        group["retrieval_explain"] = explain
     return result
 
 

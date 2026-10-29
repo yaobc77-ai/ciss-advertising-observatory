@@ -5,9 +5,9 @@ Two views, both plain enough for a reader without the method:
   rules written before reading, the records sent for a human check, and the
   Decisions judge's numbers per record (relevance_triage); readers can mark a
   record relevant or not (vote_buttons, saved by migration 0008).
-- record_scores / relevance_lines / score_method_note: on each cited ad of a list
-  answer, the judge's P(meets) as a relevance score and the rules it is related
-  to, with how the score is worked out stated once.
+- record_scores / relevance_lines: on each cited ad of a list answer, the judge's
+  P(meets) as the accuracy score (out of 100) and the rules it is related to; how
+  it is worked out is in score_explain_ui.
 - judge_view: the independent judge's check of a whole list (offline scripts).
 - validation_section: on the Evaluation page, how the screening and the judge
   each compare with human labels on the hand-coded articles (frozen run in
@@ -26,7 +26,7 @@ from dash import MATCH, Input, Output, State, dcc, html
 from dash.exceptions import PreventUpdate
 from flask import session
 
-from .relevance_judge import JUDGE_MODEL, MAX_AD_CHARS, THRESHOLD, VERDICTS
+from .relevance_judge import THRESHOLD, VERDICTS
 from .relevance_triage import PASS_AT
 
 VALIDATION_PATH = Path(__file__).with_name("relevance_validation.v1.json")
@@ -307,39 +307,24 @@ def record_scores(trace):
 
 
 def relevance_lines(numbers, criterion):
-    """The score shown after a cited ad's title, and the rules it is related to, in words."""
+    """The accuracy score shown after a cited ad's title, and the rules it is related to, in words."""
     if numbers is None:
-        return html.Span("No relevance score recorded", className="relevance-score relevance-score-none"), None
-    score = f"Relevance score {numbers['meets']:.0%}"
+        return html.Span("Accuracy: not assessed", className="relevance-score relevance-score-none"), None
+    score = f"Accuracy {numbers['meets'] * 100:.0f}/100"
     if numbers.get("strength_label"):
         score += f" · {numbers['strength_label']}"
     def listed(title, rules, probabilities, empty=None):
-        items = [html.Li([rule, html.Span(f" {p:.0%}", className="judge-numbers")])
+        items = [html.Li([rule, html.Span(f" {p * 100:.0f}/100", className="judge-numbers")])
                  for rule, p in zip(rules, probabilities) if p >= PASS_AT]
         if not items and empty is None:
             return None
-        return html.Div([html.Strong(title), html.Ul(items) if items else html.Span(empty)], className="related-to")
+        if not items:
+            return html.Div([html.Strong(title + ": "), html.Span(empty)], className="related-to")
+        return html.Details([html.Summary(f"{title} ({len(items)})"), html.Ul(items)], className="related-to")
 
-    lines = [listed("Related to: ", criterion["counts"], numbers["rules"], f"no rule reached {PASS_AT:.0%}"),
-             listed("Exclusion that may apply: ", criterion.get("does_not_count") or [], numbers["exclusions"])]
+    lines = [listed("Related to", criterion["counts"], numbers["rules"], "no single rule is shown for this ad"),
+             listed("Exclusion that may apply", criterion.get("does_not_count") or [], numbers["exclusions"])]
     return html.Span(score, className="relevance-score"), html.Div([line for line in lines if line is not None])
-
-
-def score_method_note():
-    """How the relevance score is worked out; shown once above a list answer's cited ads."""
-    return html.Div([
-        html.P(html.Strong("How the relevance score is worked out")),
-        html.P(f"A second model, the Decisions judge ({JUDGE_MODEL}), reads the ad's own text (up to "
-               f"{MAX_AD_CHARS:,} characters) against the rules under “What counts for this question”. It answers "
-               "three choices — meets the rules, borderline, does not meet — whose probabilities add up to 100%. "
-               "The relevance score is the probability it gives to “meets”. It also answers each rule separately: "
-               f"“Related to” lists the rules it gave at least {PASS_AT:.0%}, with that probability. The word after "
-               "the score is how much of the ad is about the rules (Passing, Clear or Central), a separate answer "
-               "that does not change the score."),
-        html.P("The score is the model's own estimate, not a checked accuracy and not the search rank. An ad is "
-               f"listed only when the score is at least {PASS_AT:.0%} and a second reading copied a sentence from it "
-               "that the server found word for word in the stored text.", className="scope-note"),
-    ], className="score-method")
 
 
 def route_badge(route):
@@ -407,7 +392,7 @@ def review_section(trace):
                              html.Blockquote(item["quote"], className="screen-quote")
                              if item.get("quote") and item.get("decision") == "matches" else None,
                              html.Div(judge_numbers(item.get("triage"))),
-                             vote_buttons(trace.get("question"), item.get("record_id"), "review")]))
+                             list_check(trace, item.get("record_id"), "review")]))
     return [html.Details([
         html.Summary(f"Needs a human check ({len(review)})"),
         html.P("Not listed above and not excluded: the machine checks did not agree clearly enough.", className="scope-note"),
@@ -421,21 +406,45 @@ def _question_key(question):
     return hashlib.sha1((question or "").encode("utf-8")).hexdigest()[:12]
 
 
-def vote_buttons(question, record_id, route):
-    """"Relevant" / "Not relevant" for one record; the click is saved, the answer is not changed."""
+# The words a check is shown and confirmed with: in the list of decisions, and on an ad's card.
+LIST_WORDS = {"relevant": "relevant", "not_relevant": "not relevant"}
+CARD_WORDS = {"relevant": "right", "not_relevant": "wrong"}
+
+
+def vote_buttons(question, record_id, route, card=False):
+    """"Relevant" / "Not relevant" for one record (on a card: "Right" / "Wrong"); the click is saved,
+    the answer is not changed. Card buttons have their own ids, so one record can show both."""
     if not question or not record_id or route not in ("pass", "review"):
         return None
+    kind, words = ("rel-card", CARD_WORDS) if card else ("rel", LIST_WORDS)
     key = {"q": _question_key(question), "rid": record_id}
     return html.Span([
-        html.Span("Your check: ", className="judge-numbers"),
-        *[html.Button(label, id={"type": "rel-vote", **key, "route": route, "v": verdict}, n_clicks=0,
-                      className="vote-button") for verdict, label in (("relevant", "Relevant"), ("not_relevant", "Not relevant"))],
-        dcc.Store(id={"type": "rel-question", **key}, data=question),
-        html.Span(id={"type": "rel-vote-status", **key}, className="judge-numbers"),
+        None if card else html.Span("Your check: ", className="judge-numbers"),
+        *[html.Button(words[verdict].capitalize(), id={"type": f"{kind}-vote", **key, "route": route, "v": verdict},
+                      n_clicks=0, className="vote-button") for verdict in ("relevant", "not_relevant")],
+        dcc.Store(id={"type": f"{kind}-question", **key}, data=question),
+        html.Span(id={"type": f"{kind}-vote-status", **key}, className="judge-numbers"),
     ], className="vote-row")
 
 
-def save_vote(service, question, triggered, visitor):
+def list_check(trace, record_id, route):
+    """A record's check in the list of decisions, or a pointer to its card when the card has the check:
+    one place per record, so two buttons never show different saved choices."""
+    if record_id in (trace.get("card_checked") or ()):
+        return html.Span(" Your check is under this ad's card below.", className="judge-numbers")
+    return vote_buttons(trace.get("question"), record_id, route)
+
+
+def card_check(question, record_id, route):
+    """On a listed ad's card, folded: a person marks the ad right or wrong for the question."""
+    row = vote_buttons(question, record_id, route, card=True)
+    if row is None:
+        return None
+    return html.Details([html.Summary("Your check: is this ad right for the question?"), row],
+                        className="related-to your-check")
+
+
+def save_vote(service, question, triggered, visitor, words=LIST_WORDS):
     """The status text after a click; `triggered` is the clicked button's id."""
     if not isinstance(triggered, dict) or triggered.get("v") not in ("relevant", "not_relevant"):
         raise PreventUpdate
@@ -445,7 +454,7 @@ def save_vote(service, question, triggered, visitor):
         return " Saving checks is not available right now."
     if not saved:
         return " Daily limit for checks reached."
-    return " Saved: " + ("relevant" if triggered["v"] == "relevant" else "not relevant") + ". Thank you."
+    return f" Saved: {words[triggered['v']]}. Thank you."
 
 
 def reader_reviews_view(counts):
@@ -475,6 +484,17 @@ def register_reviews(app, service):
         if not any(isinstance(n, int) and n > 0 for n in clicks or []):
             raise PreventUpdate
         return save_vote(service, question, ctx.triggered_id, session.get("visitor_id") or "anonymous")
+
+    @app.callback(
+        Output({"type": "rel-card-vote-status", "q": MATCH, "rid": MATCH}, "children"),
+        Input({"type": "rel-card-vote", "q": MATCH, "rid": MATCH, "route": ALL, "v": ALL}, "n_clicks"),
+        State({"type": "rel-card-question", "q": MATCH, "rid": MATCH}, "data"),
+        prevent_initial_call=True,
+    )
+    def card_vote(clicks, question):
+        if not any(isinstance(n, int) and n > 0 for n in clicks or []):
+            raise PreventUpdate
+        return save_vote(service, question, ctx.triggered_id, session.get("visitor_id") or "anonymous", CARD_WORDS)
 
     @app.callback(Output("reader-reviews", "children"), Input("page-location", "pathname"))
     def reader_reviews(pathname):

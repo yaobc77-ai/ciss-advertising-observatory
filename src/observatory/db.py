@@ -1389,7 +1389,11 @@ class Database:
             "this",
             "with",
         }
-        terms = list(dict.fromkeys(t for t in tokens if len(t) > 1 and t not in stop))[:40]
+        kept = list(dict.fromkeys(t for t in tokens if len(t) > 1 and t not in stop))
+        terms = kept[:40]
+        # Shown to the reader (retrieval_explain): words dropped as common or one letter, and words
+        # past the first 40, which are not searched.
+        dropped, cut = [t for t in dict.fromkeys(tokens) if t not in kept], kept[40:]
         literal_allowed = (filters.dataset in {"social", "all"}
                            and 4 <= len(query.strip()) <= 2000
                            and len(re.findall(r"\w+", query)) >= 2)
@@ -1451,8 +1455,15 @@ class Database:
                 ).fetchall()
                 channels_by_collection["social" if filters.dataset == "all" else None].append(("literal", literal))
             # Reciprocal-rank fusion within each collection.
-            by_id, channels, ordered = {}, {}, {}
+            by_id, channels, ordered, routes, routes_run = {}, {}, {}, {}, {}
+            lexemes = self._term_lexemes(conn, terms)
             for collection, sources in channels_by_collection.items():
+                # The routes that ran, for the reader's score (retrieval_explain): no meaning route
+                # without a vector, no word route without words, and a title needs two meaningful
+                # words, so a one-word question has no title route.
+                ran = {"keyword": bool(terms), "vector": vector is not None, "literal": True,
+                       "title": sum(bool(v) for v in lexemes.values()) >= self.TITLE_MIN_TERMS}
+                routes_run[collection] = [channel for channel, _ in sources if ran[channel]]
                 ranking = {}
                 for channel, rows in sources:
                     for rank, row in enumerate(rows, 1):
@@ -1460,6 +1471,8 @@ class Database:
                         ranking[eid] = ranking.get(eid, 0) + 1 / (60 + rank)
                         by_id[eid] = row
                         channels.setdefault(eid, []).append(channel)
+                        routes.setdefault(eid, {})[channel] = {
+                            "rank": rank, **({"similarity": round(float(row["score"]), 3)} if channel == "vector" else {})}
                 ordered[collection] = [(eid, ranking[eid]) for eid in sorted(ranking, key=lambda k: (-ranking[k], k))]
             # Choose distinct records first, alternating between collections by
             # rank; a collection with fewer hits leaves its places to the other.
@@ -1483,7 +1496,12 @@ class Database:
                     row["score"] = score
                     row["retrieval_rank"] = rank
                     row["retrieval_sources"] = channels[eid]
-                    group.append(bind_search_row(row))
+                    row["retrieval_routes"] = {"run": routes_run[collection], **routes[eid]}
+                    row["retrieval_search"] = {"terms": terms, "dropped": dropped, "cut": cut,
+                                               "unindexed": [t for t in terms if t in lexemes and not lexemes[t]]}
+                    group.append(row)
+            self._route_words(conn, selected, lexemes)
+            selected = {rid: [bind_search_row(row) for row in rows] for rid, rows in selected.items()}
             evidence = [
                 evidence
                 for group in selected.values()
@@ -1572,6 +1590,44 @@ class Database:
     # A title must share at least this many distinct query lexemes to count as a
     # match; one common word ("energy") would otherwise match most titles.
     TITLE_MIN_TERMS = 2
+
+    @staticmethod
+    def _term_lexemes(conn, terms):
+        """Each search word's English index lexemes; an index stop word has none."""
+        if not terms:
+            return {}
+        rows = conn.execute(
+            "SELECT input.term,tsvector_to_array(to_tsvector('english',input.term)) AS lexemes "
+            "FROM unnest(%s::text[]) WITH ORDINALITY AS input(term,ordinal) ORDER BY ordinal", (terms,),
+        ).fetchall()
+        return {row["term"]: list(row["lexemes"] or []) for row in rows}
+
+    @classmethod
+    def _route_words(cls, conn, selected, lexemes):
+        """Name, for the reader, the search words a returned passage's text and its title contain.
+
+        The same English lexemes the keyword and title routes match, mapped back to the
+        question's own words; a route that did not find the passage gets no words.
+        """
+        rows = [row for group in selected.values() for row in group]
+        wanted = sorted({lexeme for values in lexemes.values() for lexeme in values})
+        if not rows or not wanted:
+            return
+        found = {item["evidence_id"]: item for item in conn.execute(
+            "SELECT c.chunk_id AS evidence_id,"
+            "ARRAY(SELECT l FROM unnest(%s::text[]) AS l WHERE l=ANY(tsvector_to_array(c.search_vector))) AS text_hits,"
+            "ARRAY(SELECT l FROM unnest(%s::text[]) AS l WHERE l=ANY(tsvector_to_array("
+            "to_tsvector('english',coalesce(v.payload->>'title',''))))) AS title_hits"
+            " FROM chunks c JOIN record_versions v ON v.version_id=c.version_id WHERE c.chunk_id=ANY(%s)",
+            [wanted, wanted, [row["evidence_id"] for row in rows]],
+        ).fetchall()}
+        for row in rows:
+            hits = found.get(row["evidence_id"]) or {}
+            for route, column in (("keyword", "text_hits"), ("title", "title_hits")):
+                if route in row["retrieval_routes"]:
+                    present = set(hits.get(column) or [])
+                    row["retrieval_routes"][route]["terms"] = [
+                        term for term, values in lexemes.items() if values and present.intersection(values)]
 
     @classmethod
     def _title_rows(cls, conn, select, join, where, params, terms, lexical_query):

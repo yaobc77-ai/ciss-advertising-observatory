@@ -43,6 +43,7 @@ from observatory.models import Answer, Citation, CitedStatement, Evidence, Filte
 from observatory.question_plan import PLAN_VERSION
 from observatory.rag import Rag
 from observatory.relevance_triage import Criterion
+from observatory.retrieval_explain import group_explain
 from observatory.service import Service
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -520,6 +521,19 @@ def test_the_list_route_reproduces_the_frozen_samples(name, plain_environment):
     for allowed in (*ALLOWED, *scenario.allowed):
         drop(expected, allowed)
         drop(actual, allowed)
+    # Two scores (2026-10-29): each retrieval group now keeps the reader's retrieval detail, accepted
+    # by an exact rule: these fake searches keep no route detail, so the explanation has exactly the
+    # group's retrieved records, each without routes, and no search words; a group that found nothing
+    # has an empty explanation. No other group field may change.
+    for group in (actual["result"].get("structured_result") or {}).get("groups") or []:
+        explain = group.pop("retrieval_explain")
+        if not group["passages"]:
+            assert explain == group_explain([]), name
+            continue
+        records = explain.pop("records")
+        assert {**explain, "records": {}} == {**group_explain([]), "partial": True}, name
+        assert sorted(records) == sorted(group["retrieved_record_ids"]), name
+        assert all(item["run"] is None and item["parts"] == [] for item in records.values()), name
     # A list judged by an unconfirmed model draft now says so (S3-c): the live answer must be the
     # frozen one plus that sentence, exactly once, at the end of the first paragraph; any other
     # list must read exactly as frozen.
