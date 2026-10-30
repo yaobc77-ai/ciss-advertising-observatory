@@ -5,13 +5,12 @@ import logging
 import re
 import time
 from collections import Counter
-from concurrent.futures import ThreadPoolExecutor
 from contextvars import ContextVar
 from copy import deepcopy
 from itertools import zip_longest
 from urllib.parse import urlsplit
 
-from .budget import QUESTIONS, LimitReached, price
+from .budget import QUESTIONS, ContextPool, LimitReached, price
 from .criterion_confirmation import (
     CONDITIONS_WITHOUT_RULES,
     CONFIRMATION_REFUSALS,
@@ -49,6 +48,7 @@ from .list_screening import (
     hidden_line,
     list_answer,
     literal_results,
+    summary_limited_line,
 )
 from .list_screening import screen as screen_list
 from .models import Answer, AnswerSection, CitedStatement, Filters
@@ -823,7 +823,8 @@ class Service:
         passages = self._public_evidence(self.db.record_passages(ids, Filters(dataset="all"), per_record=None))
         return judge_answer(self.rag, question, ads_from_passages(decisions, passages), visitor)
 
-    def answer(self, question, filters, visitor, progress=None, *, criterion_confirmation=None, continuation=None):
+    def answer(self, question, filters, visitor, progress=None, *, criterion_confirmation=None, continuation=None,
+               address=None):
         """Answer one question (step 3, S3-c: in one or two phases).
 
         `criterion_confirmation` decides how a screened list gets its criterion: "auto" (drafted
@@ -836,7 +837,9 @@ class Service:
         """
         if criterion_confirmation not in (None, "auto", "ask"):
             raise ValueError("criterion_confirmation must be 'auto' or 'ask'")
-        with QUESTIONS.question(visitor):
+        # `address` (the client's network address, from the web and the API) is counted with the
+        # visitor, so a new visitor id or cookie does not reset the question limits.
+        with QUESTIONS.question(visitor, address):
             return self._answer_question(question, filters, visitor, progress,
                                          criterion_confirmation=criterion_confirmation or "auto", continuation=continuation)
 
@@ -1911,7 +1914,7 @@ class Service:
         def each(function, items):
             """The collections are independent: one after another, or both at the same time."""
             if len(items) > 1:
-                with ThreadPoolExecutor(max_workers=len(items)) as executor:
+                with ContextPool(max_workers=len(items)) as executor:
                     return list(executor.map(function, items))
             return [function(item) for item in items]
 
@@ -2109,7 +2112,8 @@ class Service:
         except BaseException:
             self.flows.discard(flow_id)
             raise
-        if not self.flows.ready(flow_id, condition=kind, draft=criterion, examples=examples):
+        # What phase 1 spent goes with the flow: phase 2 is the same question under the same cap.
+        if not self.flows.ready(flow_id, condition=kind, draft=criterion, examples=examples, spent=QUESTIONS.spent()):
             raise FlowLost()  # forgotten while preparing: no card for a flow that cannot be continued
         candidates = candidate_summary(totals, evidence, kind, hits)
         relations = None
@@ -2202,6 +2206,7 @@ class Service:
         if outcome == "done":
             return replay(data, flow_id), None
         context = data
+        QUESTIONS.carry(context.get("spent"))
         draft = context.get("draft")
         source = "confirmed" if criterion is None or digest == payload.get("draft_hash") else "edited"
         if criterion is not None:
@@ -2254,8 +2259,11 @@ class Service:
             part = self.rag.generate(question, passages, visitor, **({"progress": progress} if progress else {}))
             if cost_sink is not None:
                 cost_sink.append(float(part.cost_usd))
-        except LimitReached:
-            raise
+        except LimitReached as exc:
+            # A spending or question limit leaves the list as screened: what was paid for still answers.
+            trace = {**listed.research_trace, "list_summary": {"status": "limited", "reason": type(exc).__name__}}
+            return listed.model_copy(update={"answer": f"{listed.answer}\n\n{summary_limited_line(question)}",
+                                             "research_trace": trace}), 0.0
         except Exception as exc:
             trace = {**listed.research_trace, "list_summary": {"status": "failed", "reason": type(exc).__name__}}
             return listed.model_copy(update={"research_trace": trace}), 0.0
@@ -2321,13 +2329,19 @@ class Service:
             passages, shard_reading = _zone_evidence(evidence, shard, match_ids)
             if kind == "shard":
                 reading.update(shard_reading)
+            if any(zone["status"] == "limited" for zone in zones):
+                # After a spending or question limit no more writer calls are tried.
+                zones.append({"records": shard, "kind": kind, "status": "limited"})
+                return
             try:
                 part = self.rag.generate(question, passages, visitor, one_claim_per_source=True,
                                          **({"progress": progress} if progress else {}))
                 if cost_sink is not None:
                     cost_sink.append(float(part.cost_usd))
-            except LimitReached:
-                raise
+            except LimitReached as exc:
+                # The screened quotes below still answer for this shard and the ones after it.
+                zones.append({"records": shard, "kind": kind, "status": "limited", "reason": type(exc).__name__})
+                return
             except Exception as exc:
                 # The screened quotes below still answer for this shard.
                 zones.append({"records": shard, "kind": kind, "status": "failed", "reason": type(exc).__name__})

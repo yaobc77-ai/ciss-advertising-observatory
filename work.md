@@ -2,6 +2,15 @@
 
 排序约定：新内容在上；每节对应 plan.md 同编号的一轮。
 
+## 2026-10-30：访客限额可绕过、单题无花费上限——按方案 A 修（$0）
+
+- 结论：按用户“按 A 修”实现，未提交。①单题花费上限 `OBS_QUESTION_BUDGET_USD`（默认 $0.50）：一道题的所有模型调用合计，已结算按实际花费，进行中/uncertain 按预留；“读”的调用（判定、筛查、补读、复核）到 80% 停，留 20% 写回答；一次“读”被拒后本题不再开新的读调用。名单题停下时返回已检查部分，没检查完的记 unclear / `question_cap` / `route: review`，正文单列“以下 N 篇没有检查完，需要人工核对”并列标题，不算已检查；写总结被拒时退回筛查名单并在正文末尾说明。两阶段名单第一阶段的花费随流程带到第二阶段。②日上限 `OBS_DAILY_BUDGET_USD`（默认 $10，UTC 自然日，账本里算）。③按请求地址限流 `OBS_ADDRESS_REQUESTS_PER_MINUTE`/`_PER_DAY`（默认 10/60），换 `X-Visitor-Id` 或 cookie 绕不开；没有地址的调用（命令行）不受影响。计数都在内存里，重启清零（已写进 `.env.example` 和 `docs/architecture/query_logic.zh-CN.md`）。
+- 做法：`budget.py` 的 `QuestionGate` 改为每题一个服务器 id（contextvar），`ContextPool` 把它带进线程池；`Budget.reserve` 先记本题再进账本，账本拒绝就退回；`cancel_unsent` 只在账本真的取消了才退回本题花费。`list_screening.screen`、`relevance_triage`、`relevance_judge`、`service` 的线程池换成 `ContextPool`；`api.py` 和 `app.py`（只改 `paid_answer` 传地址这一处）把 `request.remote_addr` 传给服务。无 schema 改动，未动 Railway。
+- 检查：新 `tests/test_question_limits.py` 19 个（实际花费而非预留、读 80%/写 100%、触限后不再读、同一访客两题各自计、ContextPool 带 id、取消已结算不退回、换访客 id 仍按地址拦、无地址不变、非法配置报错、首批/加宽/补读/复核各处触限的部分结果、同批并行结果保留、分流触限进待审、措辞与已检查数、两阶段共用上限、写总结被拒在页面上可见）；`tests/test_database_integration.py` 加日上限测试（按结算额、跨 UTC 零点），私有测试库 10 通过，用完已停。冻结样本不重录：`tests/test_list_golden.py` 加精确规则（写回答被限 = 写回答失败的结果 + `list_summary` 标 limited + 一行说明）。`tests/test_api.py`、`tests/test_criterion_ui.py` 期望值加地址。
+- Codex 提交前复核三轮：第 1 轮 2 个 P1（取消会抹掉已结算花费；同批并行里已读完的结果被丢掉）、3 个 P2（两阶段各给一份上限；嵌入调用不经准入；无分流时未读广告没进待审、措辞说成“没读”、写总结被拒只在 trace 里）——除“嵌入不经准入”外都已改并补测；嵌入那条是改动前就有的行为（准入只算生成调用），嵌入每次约 $0.000001、仍受单题/日/月上限，Codex 第 2 轮撤回。第 2 轮 2 个 P2：加宽阶段触限时没有给出停止原因（已改：被拒批次的广告也列入人工核对）；写总结被拒的提示在结构化渲染里可能看不到（核对后不成立：这条路径的答案没有 summary/sections，网页直接显示正文；补了渲染测试）。第 3 轮无阻断项。
+- 完整门禁（最终代码，`D:/Projects/549_limits/.runtime/project_checks_limits_r3b`）：pytest 5,181 通过、0 失败、39 跳过、339 未选，28 个受保护模块按 scope.json 排除；Ruff 通过；3 项浏览器 JS 检查因本机无 Node 未运行，门禁退出码 1，不能算完整通过。注意：门禁脚本会清掉 `PYTHONPATH`，第一次在工作树里跑测到的是共享目录代码，已停；改用工作树里的轻量环境 `.venv`（`00_worktree_src.pth` 把工作树 `src` 放在最前，`01_shared_packages.pth` 借用共享环境的包），报告里 19 个新测试都在，证明测的是工作树代码。
+- 未做/边界：换地址（多台机器、代理池）仍可绕开按地址限流，靠单题/日/月上限兜底；Railway 上需要设置 `OBS_TRUSTED_PROXY` 地址才是真实客户地址（部署归别人）；没有用真实模型跑过（$0）。
+
 ## 2026-10-29：两种分数与面向用户的排序说明（$0）
 
 - 结论：每个答案第一句（如 “Found 9 matching ads among the 15…”）下面多了一段分步说明 “How these ads were found and scored”：①搜索用了哪段文字、找哪些词、去掉了哪些常用词；②几种找法（正文含搜索词、标题含至少 2 个搜索词、意思相近）；③检索分规则（每种找法最多 100÷R 分，第 n 名得 这份 × 61÷(60+n)，相加）；名单题再写④规则、⑤准确分（判定器 P(meets)×100）、⑥列入条件（并说明全部 15 篇都读过）；⑦排序。每张引用卡片标题后两个徽章 “Retrieval 93.3/100” 与 “Accuracy 100/100 · Central”，下面逐路写正文命中哪些词、标题命中哪些词、意思相似度、各第几名、各加多少分，没找到的路写 +0；再列 Related to 规则。普通问答只有检索分，说明里写“准确分：这类问题不评估”。

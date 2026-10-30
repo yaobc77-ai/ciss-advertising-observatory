@@ -21,6 +21,18 @@ def apply_public_env_names(environ=None):
             environ[INTERNAL_ENV_PREFIX + key[len(PUBLIC_ENV_PREFIX):]] = value
 
 
+def _positive_usd(name, default):
+    """A dollar cap from the environment; a cap that is not a positive amount is refused."""
+    value = os.getenv(name, default)
+    try:
+        amount = Decimal(value)
+    except ArithmeticError:
+        raise ValueError(f"{name} must be a dollar amount") from None
+    if not amount.is_finite() or amount <= 0:
+        raise ValueError(f"{name} must be a positive dollar amount")
+    return amount
+
+
 @dataclass
 class Settings:
     database_url: str = field(default="", repr=False)
@@ -34,6 +46,13 @@ class Settings:
     requests_per_minute: int = 5
     requests_per_day: int = 30
     concurrency: int = 2
+    # Spending caps beside the monthly one: one question (settled cost, in-flight calls at their
+    # reservation) and one UTC day for everyone. Questions per network address bound what a
+    # client can ask by changing its visitor id or cookie.
+    question_budget_usd: Decimal = Decimal("0.50")
+    daily_budget_usd: Decimal = Decimal("10")
+    address_requests_per_minute: int = 10
+    address_requests_per_day: int = 60
     cookie_secret: str = field(default="", repr=False)
     # Hosted HTTPS deployments send session cookies only over TLS.
     secure_cookies: bool = False
@@ -94,6 +113,10 @@ class Settings:
             requests_per_minute=int(os.getenv("OBS_REQUESTS_PER_MINUTE", "5")),
             requests_per_day=int(os.getenv("OBS_REQUESTS_PER_DAY", "30")),
             concurrency=int(os.getenv("OBS_CONCURRENCY", "2")),
+            question_budget_usd=_positive_usd("OBS_QUESTION_BUDGET_USD", "0.50"),
+            daily_budget_usd=_positive_usd("OBS_DAILY_BUDGET_USD", "10"),
+            address_requests_per_minute=int(os.getenv("OBS_ADDRESS_REQUESTS_PER_MINUTE", "10")),
+            address_requests_per_day=int(os.getenv("OBS_ADDRESS_REQUESTS_PER_DAY", "60")),
             cookie_secret=os.getenv("OBS_COOKIE_SECRET", ""),
             secure_cookies=os.getenv("OBS_SECURE_COOKIES", "false").lower() == "true",
             trusted_proxy=os.getenv("OBS_TRUSTED_PROXY", ""),

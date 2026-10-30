@@ -3296,6 +3296,8 @@ def create_app(service, settings, record_details=None) -> Dash:
         arguments = {"visitor": session["visitor_id"]}
         parameters = inspect.signature(service.answer).parameters
         flexible = any(parameter.kind == inspect.Parameter.VAR_KEYWORD for parameter in parameters.values())
+        if "address" in parameters or flexible:
+            arguments["address"] = request.remote_addr  # question limits per address, not only per cookie
         if "progress" in parameters or flexible:
             arguments["progress"] = progress
         arguments.update({name: value for name, value in options.items() if name in parameters or flexible})

@@ -21,10 +21,9 @@ from __future__ import annotations
 
 import json
 import logging
-from concurrent.futures import ThreadPoolExecutor
 from decimal import Decimal
 
-from .budget import QUESTIONS, price
+from .budget import QUESTIONS, ContextPool, price, reading
 
 log = logging.getLogger(__name__)
 
@@ -82,7 +81,8 @@ def _call(rag, body, visitor, record_id, cost_sink=None):
     """
     # About 3 characters per token is a safe overestimate for English ads.
     estimate = max(price(JUDGE_MODEL, len(json.dumps(body)) // 3 + 400), Decimal("0.000001"))
-    rid = rag.budget.reserve(estimate, visitor, "generation", JUDGE_MODEL)
+    with reading():  # reads an ad for a list: stops before the question's cap
+        rid = rag.budget.reserve(estimate, visitor, "generation", JUDGE_MODEL)
     try:
         response = rag.client.post("/decisions", body=body, cast_to=object)
         usage = response.get("usage") if isinstance(response, dict) else None
@@ -188,6 +188,6 @@ def ads_from_passages(decisions, passages):
 def judge_answer(rag, question, ads, visitor, workers=WORKERS):
     """Judge every ad (in parallel); the whole run counts as one question for visitor limits."""
     with QUESTIONS.question(visitor):
-        with ThreadPoolExecutor(max_workers=workers) as pool:
+        with ContextPool(max_workers=workers) as pool:
             rows = list(pool.map(lambda ad: judge_ad(rag, question, ad, visitor), ads[:MAX_ADS]))
     return {"question": question, "summary": summarize(rows), "ads": rows}
