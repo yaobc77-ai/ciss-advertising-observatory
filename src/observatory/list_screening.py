@@ -34,7 +34,12 @@ WIDEN_WINDOW = 16
 # Batches are independent provider calls, so up to this many run at once.
 # Batch contents and the widening stop rule are unchanged: past `limit`, results
 # are applied in order and batches after the stop point are discarded.
-SCREEN_WORKERS = 8
+# 2026-11-03, whole native scope (232 ads): at 8, screening 155 and 185 ads took
+# 26 and 38 s in waves of about 4-5 s, the slowest step of the answer.
+SCREEN_WORKERS = 16
+# Batches sent per widening step past `limit`. Kept apart from SCREEN_WORKERS so
+# more workers do not mean more paid batches discarded past the stop point.
+WIDEN_WAVE = 8
 # Ads judged per call. Other ads in the batch sway a decision: replaying the
 # R round's 8-ad batches, 3 and 1 of 9 missed ads were found, alone 5; on 13
 # whole questions 4-ad batches listed every positive in 5, 8-ad ones in 2
@@ -468,7 +473,7 @@ def screen(rag, question, evidence, visitor, limit=MAX_CANDIDATES, widen_to=None
     first_wave = max(1, sum(1 for start in starts if start < limit))
     position, narrowed, refused = 0, False, []
     while position < len(starts) and not (narrowed or refused):
-        wave = starts[position:position + (first_wave if position == 0 else SCREEN_WORKERS)]
+        wave = starts[position:position + (first_wave if position == 0 else WIDEN_WAVE)]
         outcomes = _run_batches([
             _until_cap(lambda start=start: _judge(rag, question, groups[start:start + BATCH_SIZE], start + 1, phrases,
                                                   visitor, "list_screening", **sent))
