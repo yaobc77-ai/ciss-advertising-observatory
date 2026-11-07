@@ -36,6 +36,10 @@ WIDEN_WINDOW = 16
 # Batch contents and the widening stop rule are unchanged: past `limit`, results
 # are applied in order and batches after the stop point are discarded.
 SCREEN_WORKERS = 8
+# Batches dispatched per widening wave past `limit` (one SCREEN_WORKERS round until 2026-11-05).
+# Kept apart from the pool size: a larger pool (Settings.screen_workers) runs the first wave in
+# fewer rounds without reading more batches past the stop point.
+WIDEN_WAVE = 8
 # Ads judged per call. Other ads in the batch sway a decision: replaying the
 # R round's 8-ad batches, 3 and 1 of 9 missed ads were found, alone 5; on 13
 # whole questions 4-ad batches listed every positive in 5, 8-ad ones in 2
@@ -400,12 +404,18 @@ def _reread_batches(groups):
         yield batch
 
 
-def _run_batches(calls):
-    """Run independent zero-argument calls, at most SCREEN_WORKERS at once, keeping order."""
+def _run_batches(calls, workers=None):
+    """Run independent zero-argument calls, at most `workers` (SCREEN_WORKERS) at once, keeping order."""
     if len(calls) <= 1:
         return [call() for call in calls]
-    with ThreadPoolExecutor(max_workers=min(SCREEN_WORKERS, len(calls))) as pool:
+    with ThreadPoolExecutor(max_workers=min(workers or SCREEN_WORKERS, len(calls))) as pool:
         return list(pool.map(lambda call: call(), calls))
+
+
+def _workers(rag):
+    """The pool size: the settings' screen_workers when the rag carries settings and it is set, else SCREEN_WORKERS."""
+    configured = getattr(getattr(rag, "settings", None), "screen_workers", 0)
+    return int(configured) if configured else SCREEN_WORKERS
 
 
 # Appended to the question for the judge when a researcher confirmed the criterion (step 3,
@@ -446,16 +456,17 @@ def screen(rag, question, evidence, visitor, limit=MAX_CANDIDATES, widen_to=None
     if cost_sink is not None:
         sent["cost_sink"] = cost_sink  # every settled call is recorded as it happens (a later failure keeps it)
     results, cost = [], Decimal("0")
+    workers = _workers(rag)
     starts = list(range(0, len(groups), BATCH_SIZE))
     first_wave = max(1, sum(1 for start in starts if start < limit))
     position, stopped = 0, False
     while position < len(starts) and not stopped:
-        wave = starts[position:position + (first_wave if position == 0 else SCREEN_WORKERS)]
+        wave = starts[position:position + (first_wave if position == 0 else WIDEN_WAVE)]
         outcomes = _run_batches([
             (lambda start=start: _judge(rag, question, groups[start:start + BATCH_SIZE], start + 1, phrases,
                                         visitor, "list_screening", **sent))
             for start in wave
-        ])
+        ], workers)
         for start, (found, spent) in zip(wave, outcomes):
             cost += spent  # every dispatched call is paid, kept or not
             if stopped or (start >= limit and not any(
@@ -481,7 +492,7 @@ def screen(rag, question, evidence, visitor, limit=MAX_CANDIDATES, widen_to=None
             (lambda batch=batch, first=first: _judge(rag, question, batch, first, phrases, visitor,
                                                      "list_screening_reread", **sent))
             for batch, first in numbered
-        ])
+        ], workers)
         for found, spent in outcomes:
             cost += spent
             for item in found:

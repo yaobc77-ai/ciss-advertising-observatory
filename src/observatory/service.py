@@ -3,6 +3,7 @@
 import hashlib
 import logging
 import re
+import threading
 import time
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
@@ -50,6 +51,9 @@ from .list_screening import (
     list_answer,
     literal_results,
 )
+from .list_screening import (
+    _run_batches as run_batches,  # the screening's bounded runner, reused by the writer
+)
 from .list_screening import screen as screen_list
 from .models import Answer, AnswerSection, CitedStatement, Filters
 from .question_plan import (
@@ -62,7 +66,7 @@ from .question_plan import (
 from .question_plan import (
     QuestionPlan as EvidencePlan,
 )
-from .rag import AnswerValidationError, Rag
+from .rag import AnswerValidationError, Rag, reserve_through
 from .relevance_triage import TRIAGE_ALL_MAX, make_criterion
 from .relevance_triage import enabled as triage_enabled
 from .structured_queries import QuestionPlan, plan_question, validate_share_scope
@@ -360,6 +364,57 @@ def _titled_records(db, question, filters):
             [(r["record_id"], r.get("dataset", filters.dataset), r["title"]) for r in db.public_rows(filters)])
     return [(record_id, dataset or filters.dataset) for record_id, dataset, title in rows
             if len(normal(title or "")) >= 20 and normal(title or "") in query]
+
+class _OrderedReservations:
+    """Writer shards reserve budget one after another, in shard order, while their calls run at once.
+
+    Shard k reserves only once every shard before it has reserved or finished without reserving
+    (the turn moves along the finished prefix, never past an unfinished shard). A refusal while
+    earlier shards are still in flight may only mean their holds occupy the budget: the shard then
+    waits until every earlier shard has finished (and settled) and asks once more, which is the
+    order the one-after-another writer reserved in. A refusal after that is final: the later
+    shards raise the same LimitReached before reserving.
+    """
+
+    def __init__(self, budget):
+        self.budget = budget
+        self.turn, self.refused = 0, None
+        self.done, self.finished = set(), set()  # reserved-or-released; released (call over)
+        self.ready = threading.Condition()
+
+    def _advance(self):
+        while self.turn in self.done:
+            self.turn += 1
+        self.ready.notify_all()
+
+    def hook(self, index):
+        def reserve(amount, visitor, kind, model):
+            with self.ready:
+                self.ready.wait_for(lambda: self.turn >= index)
+                try:
+                    if self.refused is not None:
+                        raise LimitReached(str(self.refused))
+                    try:
+                        return self.budget.reserve(amount, visitor, kind, model)
+                    except LimitReached:
+                        self.ready.wait_for(lambda: all(i in self.finished for i in range(index)))
+                        try:
+                            return self.budget.reserve(amount, visitor, kind, model)
+                        except LimitReached as exc:
+                            self.refused = exc
+                            raise
+                finally:
+                    self.done.add(index)
+                    self._advance()
+        return reserve
+
+    def release(self, index):
+        """The shard's call is over (reserved or not): later shards may reserve and retry."""
+        with self.ready:
+            self.done.add(index)
+            self.finished.add(index)
+            self._advance()
+
 
 class Service:
     def __init__(self, settings, db=None, rag=None, research_agent=None, claims_store=None, web_research=None):
@@ -2306,6 +2361,11 @@ class Service:
         are merged with renumbered citations. A matched ad still left out, or
         one past the shards, keeps its screening quote. Each ad's reading is
         recorded, and the answer says when the content reading is partial.
+        The shards of one round are written at the same time (at most
+        CONTENT_ZONES calls); each shard's prompt holds only its own passages,
+        budget is reserved shard by shard in order and the parts are merged in
+        shard order, so the claims and numbering are those of the shards written
+        one after another (2026-11-05: three ~5 s calls in a row became one round).
         Returns the merged answer and the writer cost.
         """
         matched = [item for item in results if item["decision"] == "matches" and item.get("route", "pass") == "pass"]
@@ -2314,43 +2374,72 @@ class Service:
         claims, citations, read, zones, cost, covered = [], [], [], [], 0.0, set()
         reading = {}
 
-        def write(shard, kind):
-            """Ask the writer for one claim per matched source in this shard; record which sources it covered."""
-            nonlocal cost
-            passages, shard_reading = _zone_evidence(evidence, shard, match_ids)
-            if kind == "shard":
-                reading.update(shard_reading)
+        def call(passages):
+            """One writer call for a shard; a failure is returned, not raised, so every shard's outcome is kept."""
             try:
                 part = self.rag.generate(question, passages, visitor, one_claim_per_source=True,
                                          **({"progress": progress} if progress else {}))
-                if cost_sink is not None:
-                    cost_sink.append(float(part.cost_usd))
-            except LimitReached:
-                raise
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 - merged below: LimitReached ends the question, anything else fails the shard
+                return exc
+            if cost_sink is not None:
+                cost_sink.append(float(part.cost_usd))
+            return part
+
+        def merge(shard, kind, passages, outcome):
+            """Record one shard's outcome; an answered part's citations follow the parts merged before it."""
+            nonlocal cost
+            if isinstance(outcome, Exception):
                 # The screened quotes below still answer for this shard.
-                zones.append({"records": shard, "kind": kind, "status": "failed", "reason": type(exc).__name__})
+                zones.append({"records": shard, "kind": kind, "status": "failed", "reason": type(outcome).__name__})
                 return
-            cost += part.cost_usd
-            zones.append({"records": shard, "kind": kind, "status": part.status})
-            if part.status != "answered":
+            cost += outcome.cost_usd
+            zones.append({"records": shard, "kind": kind, "status": outcome.status})
+            if outcome.status != "answered":
                 return
             record_of = {e.evidence_id: e.record_id for e in passages}
             offset = len(citations)
-            citations.extend(part.citations)
+            citations.extend(outcome.citations)
             claims.extend(CitedStatement(text=c.text, citation_indices=[n + offset for n in c.citation_indices])
-                          for c in part.cited_claims)
+                          for c in outcome.cited_claims)
             read.extend(passages)
-            covered.update(record_of[c.evidence_id] for c in part.citations if c.evidence_id in record_of)
+            covered.update(record_of[c.evidence_id] for c in outcome.citations if c.evidence_id in record_of)
 
-        for start in range(0, len(ids), ZONE_RECORDS):
-            write(ids[start:start + ZONE_RECORDS], "shard")
+        def write(shards, kind):
+            """Write the shards of one round at once: budget reserved in shard order (_OrderedReservations),
+            parts merged in shard order. A refused reservation stops the later shards before they reserve;
+            the calls already dispatched finish and are paid; then LimitReached is raised, as one shard's
+            refusal was raised before."""
+            prepared = []
+            for shard in shards:
+                passages, shard_reading = _zone_evidence(evidence, shard, match_ids)
+                if kind == "shard":
+                    reading.update(shard_reading)
+                prepared.append((shard, passages))
+            if not prepared:
+                return
+            turnstile = _OrderedReservations(self.rag.budget)
+
+            def run(index, passages):
+                try:
+                    with reserve_through(turnstile.hook(index)):
+                        return call(passages)
+                finally:
+                    turnstile.release(index)
+
+            outcomes = run_batches([(lambda index=index, passages=passages: run(index, passages))
+                                    for index, (_, passages) in enumerate(prepared)], CONTENT_ZONES)
+            limited = next((outcome for outcome in outcomes if isinstance(outcome, LimitReached)), None)
+            if limited is not None:
+                raise limited
+            for (shard, passages), outcome in zip(prepared, outcomes):
+                merge(shard, kind, passages, outcome)
+
+        write([ids[start:start + ZONE_RECORDS] for start in range(0, len(ids), ZONE_RECORDS)], "shard")
         # The writer still skipped about one ad in five even with room to spare
         # (B1K-S); the ads it skipped get one more call of their own.
         skipped = [rid for zone in list(zones) if zone["status"] == "answered"
                    for rid in zone["records"] if rid not in covered]
-        for start in range(0, len(skipped), ZONE_RECORDS):
-            write(skipped[start:start + ZONE_RECORDS], "follow_up")
+        write([skipped[start:start + ZONE_RECORDS] for start in range(0, len(skipped), ZONE_RECORDS)], "follow_up")
         written = {rid for zone in zones if zone["status"] == "answered" for rid in zone["records"]}
         ads = []
         for item in matched:

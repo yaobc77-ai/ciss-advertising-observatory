@@ -34,6 +34,9 @@ class Settings:
     requests_per_minute: int = 5
     requests_per_day: int = 30
     concurrency: int = 2
+    # Screening batches judged at once; 0 keeps list_screening.SCREEN_WORKERS (the code's default).
+    # The batches, their order and the widening stop rule do not depend on it (2026-11-05, round 1).
+    screen_workers: int = 0
     cookie_secret: str = field(default="", repr=False)
     # Hosted HTTPS deployments send session cookies only over TLS.
     secure_cookies: bool = False
@@ -94,6 +97,7 @@ class Settings:
             requests_per_minute=int(os.getenv("OBS_REQUESTS_PER_MINUTE", "5")),
             requests_per_day=int(os.getenv("OBS_REQUESTS_PER_DAY", "30")),
             concurrency=int(os.getenv("OBS_CONCURRENCY", "2")),
+            screen_workers=int(os.getenv("OBS_SCREEN_WORKERS", "0")),
             cookie_secret=os.getenv("OBS_COOKIE_SECRET", ""),
             secure_cookies=os.getenv("OBS_SECURE_COOKIES", "false").lower() == "true",
             trusted_proxy=os.getenv("OBS_TRUSTED_PROXY", ""),

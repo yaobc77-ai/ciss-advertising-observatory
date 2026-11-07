@@ -139,6 +139,10 @@ INFERRED_DATE = ("(SELECT d.inferred_date FROM date_inferences d WHERE d.version
 # embeddings is therefore seen within READ_CACHE_SECONDS, not at once.
 READ_CACHE_VOLATILE_TABLES = ("usage_ledger", "answer_runs", "generation_outputs", "embeddings")
 READ_CACHE_SECONDS = 300
+# The health digest (8-10 s on the whole collection, 2026-11-05) is recomputed in the background
+# this long after it was stored, so a request seldom finds it past READ_CACHE_SECONDS; one that
+# does computes it as before (`refresh_read`, cli.start_health_keeper).
+HEALTH_REFRESH_SECONDS = READ_CACHE_SECONDS - 60
 READ_CACHE_ENTRIES = 32
 
 
@@ -147,6 +151,12 @@ class Database:
         self.url = url
         # Only the running application reuses reads; tools and tests read live.
         self.read_cache = read_cache
+        # The read cache's state, created once here so a request and the health keeper that first
+        # use it at the same time share one guard and one generation counter.
+        self._read_cache = OrderedDict()
+        self._read_cache_guard = threading.Lock()
+        self._read_cache_locks = {}
+        self._read_cache_generation = 0
 
     def connect(self, vector=False):
         if not self.url:
@@ -166,14 +176,16 @@ class Database:
         ).fetchone()
         return (row["writes"], row["tables"])
 
+    def _begin_computation(self):
+        """A number per computation, taken right before it starts; the later start wins when two store."""
+        with self._read_cache_guard:
+            self._read_cache_generation += 1
+            return self._read_cache_generation
+
     def _cached_read(self, key, compute):
         """Reuse a read for READ_CACHE_SECONDS until any table's write counters change (app process only)."""
         if not getattr(self, "read_cache", False):
             return compute()
-        if not hasattr(self, "_read_cache"):
-            self._read_cache = OrderedDict()
-            self._read_cache_guard = threading.Lock()
-            self._read_cache_locks = {}
         with self.connect() as conn:
             marker = self._write_marker(conn)
         with self._read_cache_guard:
@@ -185,19 +197,48 @@ class Database:
                 if hit and hit[0] == marker and time.monotonic() - hit[1] < READ_CACHE_SECONDS:
                     self._read_cache.move_to_end(key)
                     return copy.deepcopy(hit[2])
+            generation = self._begin_computation()
             try:
                 value = compute()
             except BaseException:
                 with self._read_cache_guard:
                     self._read_cache_locks.pop(key, None)
                 raise
-            with self._read_cache_guard:
-                self._read_cache[key] = (marker, time.monotonic(), value)
-                self._read_cache.move_to_end(key)
-                while len(self._read_cache) > READ_CACHE_ENTRIES:
-                    evicted, _ = self._read_cache.popitem(last=False)
-                    self._read_cache_locks.pop(evicted, None)
+            self._store_read(key, marker, value, generation)
             return copy.deepcopy(value)
+
+    def _store_read(self, key, marker, value, generation):
+        """Store the entry unless a computation that started later already stored this key (one critical
+        section decides and writes). The entry's time is the storing moment, as before."""
+        with self._read_cache_guard:
+            hit = self._read_cache.get(key)
+            if hit and hit[3] > generation:
+                return False
+            self._read_cache[key] = (marker, time.monotonic(), value, generation)
+            self._read_cache.move_to_end(key)
+            while len(self._read_cache) > READ_CACHE_ENTRIES:
+                evicted, _ = self._read_cache.popitem(last=False)
+                self._read_cache_locks.pop(evicted, None)
+            return True
+
+    def refresh_read(self, key, compute):
+        """Recompute a cached read on the caller's (background) thread without blocking readers.
+
+        For the health keeper (cli.start_health_keeper). Readers keep their own path and window: a
+        request that finds the entry past READ_CACHE_SECONDS computes it as before, and whichever
+        computation started later is the one kept (`_store_read`), so neither a slow refresh nor a
+        slow request replaces a fresher value. With the cache off it just computes.
+        """
+        if not getattr(self, "read_cache", False):
+            return compute()
+        with self.connect() as conn:
+            marker = self._write_marker(conn)
+        generation = self._begin_computation()
+        value = compute()
+        self._store_read(key, marker, value, generation)
+        return value
+    def refresh_health(self):
+        return self.refresh_read(("health",), self._compute_health)
 
     def initialize(self):
         from .indexing import bootstrap
