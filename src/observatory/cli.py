@@ -16,6 +16,39 @@ def emit(value, out=None):
         print(text)
 
 
+def start_health_keeper(service, interval=None, log=None, stop=None):
+    """Keep the health digest fresh in the background: compute it right after start, then again
+    every `interval` seconds (db.HEALTH_REFRESH_SECONDS, inside the read cache's window), so a
+    question seldom pays the 8-10 s digest (2026-11-05). Readers are never blocked by it and keep
+    their own path: a request that still finds the entry expired computes it as before. A failure
+    is logged and the next round tries again. Returns the daemon thread; `stop` (an Event) ends it.
+    Without the read cache (tools, tests) nothing would reuse the result, so no keeper is started.
+    """
+    import logging
+    import threading
+
+    from .db import HEALTH_REFRESH_SECONDS
+
+    log = log or logging.getLogger(__name__)
+    if not getattr(service.db, "read_cache", False):
+        return None
+    stop = stop or threading.Event()
+    interval = HEALTH_REFRESH_SECONDS if interval is None else interval
+
+    def keep():
+        while not stop.is_set():
+            try:
+                service.db.refresh_health()
+            except Exception as exc:  # noqa: BLE001 - the keeper must never stop the server
+                log.warning("Health refresh failed (%s); the next request computes it", type(exc).__name__)
+            if stop.wait(interval):
+                return
+
+    thread = threading.Thread(target=keep, name="health-keeper", daemon=True)
+    thread.start()
+    return thread
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="CISS Observatory local administration"
@@ -278,7 +311,9 @@ def main():
         from .api import create_api
         from .service import Service
 
-        api = create_api(Service(settings), settings)
+        service = Service(settings)
+        api = create_api(service, settings)
+        start_health_keeper(service)
         print(f"nativeADS JSON API on http://{settings.host}:{settings.api_port}/api/v1", flush=True)
         serve(api, host=settings.host, port=settings.api_port, threads=8)
     elif args.command == "serve":
@@ -289,7 +324,9 @@ def main():
 
         if settings.secure_cookies and not settings.cookie_secret:
             raise SystemExit("OBS_COOKIE_SECRET is required when OBS_SECURE_COOKIES=true")
-        app = create_app(Service(settings), settings)
+        service = Service(settings)
+        app = create_app(service, settings)
+        start_health_keeper(service)
         proxy = {}
         if settings.trusted_proxy:
             # Honour X-Forwarded-Proto/For only from the hosting platform's proxy.

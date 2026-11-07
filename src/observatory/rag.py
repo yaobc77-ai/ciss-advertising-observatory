@@ -1,7 +1,9 @@
 """Grounded Responses adapter and persistent embedding cache."""
 
+import contextvars
 import json
 import re
+from contextlib import contextmanager
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import Literal
@@ -35,6 +37,22 @@ from .segmentation import sentence_spans, text_regions
 from .source_text_quality import text_quality_context
 
 MAX_QUOTE_WORDS = 60
+# A caller may route generate()'s budget reservation through its own function for the current
+# thread (reserve_through); the writer orders its concurrent shards' reservations with it.
+_RESERVE_HOOK = contextvars.ContextVar("observatory_rag_reserve", default=None)
+
+
+@contextmanager
+def reserve_through(hook):
+    """Within the block, on this thread, generate() reserves its budget by calling
+    `hook(amount, visitor, kind, model) -> reservation id` instead of the budget directly.
+    Everything else (the estimate, settlement, uncertain marking) is unchanged."""
+    token = _RESERVE_HOOK.set(hook)
+    try:
+        yield
+    finally:
+        _RESERVE_HOOK.reset(token)
+
 MAX_SUPPORT_PASSAGES = 5
 MAX_CLAIMS = 6
 MAX_SUMMARY_POINTS = 3
@@ -892,9 +910,11 @@ class Rag:
         estimate = price(
             self.settings.generation_model, upper_input, self.settings.max_output_tokens
         ) * Decimal("1.25")
-        rid = reservation or self.budget.reserve(
-            estimate, visitor, "generation", self.settings.generation_model
-        )
+        if reservation:
+            rid = reservation
+        else:  # the budget is only touched when this call reserves (callers may pass a reservation and a bare budget)
+            reserve = _RESERVE_HOOK.get() or self.budget.reserve
+            rid = reserve(estimate, visitor, "generation", self.settings.generation_model)
         try:
             # One structured call, no reasoning and no retries (client max_retries=0).
             response = self.client.responses.parse(
