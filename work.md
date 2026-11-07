@@ -2,6 +2,20 @@
 
 排序约定：新内容在上；每节对应 plan.md 同编号的一轮。
 
+## 2026-11-05：新社交导出免费演练、导入前比对与人工确认、大文件切分（$0，主库没改，未提交）
+
+- 结论：新导出 `claims_twitter_fb_ig_sample.json`（170,560 行）在私有集群上免费演练导入，结果写在主检出 `.runtime/import_rehearsal_20261105/README.zh-CN.md`。按演练发现做了三件事：① 导入前比对，会改变已有记录的导入先停下报警、要人确认；② 切分脚本，把超过上限的导出切成导入器接受的分片；③ 修 U+2028 把一行切成两半的缺陷。
+- 演练要点（已验证）：现有导入器因 256 MiB 上限整份拒收；FB、IG 行按现有规则全部逐行拒收；Twitter 95,956 帖，19,124 帖库里已有，76,832 帖新增；upsert 下架 0、snapshot 会下架 17,058；重合帖与上一版比，存档链接丢 19,111、正文变 16、公司变 53、可检索变不可检索 26。为什么只重合 19,124（推断，没和提供方确认）：两份文件日期范围相同、每年新旧比都约 2.6～2.8、旧帖约 47% 不在新文件里且各年各公司比例相近，更像同一个约 18.2 万帖集合的两份抽样。28/109 与 16/53 是两种口径（原始导出逐条比 vs 导入后代表记录比）。FB/IG 用临时规则试导入，规模与检索变慢的数字见 README。
+- 代码：
+  - `src/observatory/import_review.py`（新）：`plan_import` 在导入锁内按当前版本把每条记录分成新增／不变／重新启用／改变，列出变化字段和损失（存档链接、可检索、正文、来源观察），算指纹（库身份：集群 system identifier、库名与 oid、`records`/`record_versions` 表 oid；模式、数据集、来源哈希、逐条表、snapshot 下架集合）。`reviewed_import`：需要确认时不写库，打印“IMPORT STOPPED”报警，写 `report.json` 和 `decisions.template.json`，返回退出码 3。两种批准：`--approve all-latest --fingerprint …`（全部最新），或 `--decisions FILE`（逐条 latest/keep，键不能重复、必须覆盖全部待定记录）。snapshot 下架另需 `--approve-retire`。`review_gate` 在写库的同一事务里重新比对，指纹不一致整批中止；分片批次拒绝 snapshot。
+  - `db.py`：`import_batch(..., review=)`，留旧的记录不写新版本，snapshot 也不会下架它们；`record_payload_version` 抽出共用。`cli.py`：三个导入命令都走审核。`import_records.py`／`social_admission.py`：`jsonl_lines` 只按 `\n` 分行。
+  - `scripts/split_social_export.py`（新）：流式读取，按帖子键分片（Twitter/X 按规范原帖链接，其他平台按平台＋帖子 ID），每片不超过上限；全部分片和 manifest 写进同目录的暂存目录，成功后一次重命名发布；失败时目标目录只有失败 manifest，没有任何分片。
+- 测试：`tests/test_import_review.py`（离线）、`tests/test_split_social_export.py`（含发布重命名失败、manifest 写失败、第二片打开失败的故障注入）、`tests/test_import_review_integration.py`（私有集群，`OBS_RUN_IMPORT_REVIEW_INTEGRATION=1`，7 项通过：批准前不写、逐条留旧、snapshot 下架需单独批准、重新启用需批准、批准后库被改则中止、写入中途失败整体回滚）；`test_canonical_import.py`、`test_social_admission.py` 加分隔符测试。
+- Codex：计划复核 2 轮、代码复核 3 轮，第 3 轮“no blocking issues”。
+- 完整门禁（`.runtime/project_checks_importreview_r4`，代码冻结后运行）：pytest 5,222 通过、0 失败、39 跳过、342 未选（integration／live 标记）、28 个保留模块按清单排除；Ruff 通过；3 个 JavaScript 检查未运行（本机无 Node.js），门禁因此退出码 1。集成测试另在私有集群 `import_review_tests` 上单独跑过（7 项通过，切分发布改动之前；该改动不涉及数据库代码）。
+- 没验证的／限制：直接调用 `Database.import_batch` 的脚本不经过审核；FB、IG 仍不被准备步骤接受（临时规则只在演练里用过）；切分后的真实分片没有在私有集群上走一遍审核通道（集成测试用虚构数据）；“进来了但不好用”和知识图谱交叉验证在另一个会话讨论。
+- 回滚：未提交；提交后 `git revert`。无 schema 改动；主库没改（演练前的备份 `.runtime/backups/observatory-import-rehearsal-20261105.dump`）。
+
 ## 2026-10-28／11-03：S3-e 付费复测——(b) 确认臂与 (a) 新鲜对照各 5 题（$0.1792 / 上限 $0.25）
 
 - 结论：按确认后的标准（(b)：卡片→用未改动草稿判定，程序化接受，不是人工校验）重跑人工标注集 5 题 × 15 篇：三组数字 **30[24]／21[5]／24[0]**，与 10-24 基线 30[25]／21[4]／24[0] 几乎一致（一个人工正例从通过组移到待审组）；最终列出 30 个“题—篇”配对（队列只有 15 篇文章，指标按配对计），其中人工正例配对 24（精确率 0.80，召回 24/29 = 0.83）。新鲜 (a) 对照 5 题（10-28 跑 4 题，11-03 用户批准把总上限提到 $0.25 后补跑第 5 题）：**34[26]／16[3]／25[0]**，列出 34 个配对含正例 26（精确率 0.76，召回 26/29 = 0.90）；基线 (a) 10-24 为 30[25]／21[4]／24[0]（精确率 0.83，召回 0.86）。(b) 比新鲜 (a) 保守：通过组少 4、待审组多 5、人工正例进通过组少 2。第 5 题（nature/animals）两次 (a) 之间就有 4 篇路由不同（基线 3／10／2，新鲜 6／6／3，(b) 5／8／2），说明这道题本身运行间波动就不小。逐篇路由变化每题 0～2 篇——这是这几次运行的观察，不是对运行间波动或策略效应的结论。**不据此调阈值**；网页展示的 track record（`relevance_validation.v1.json`）和 10-24 基线目录未动，是否换成 (b) 的数字由用户定。
