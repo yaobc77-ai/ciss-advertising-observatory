@@ -113,11 +113,21 @@ def test_missing_original_url_is_quarantined_without_guessing_identity(tmp_path)
     assert len(rows) == 1 and receipt["all_source_members_preserved"] is True
 
 
-@pytest.mark.parametrize("body", ["video", "", "privacy policy all rights reserved"])
+@pytest.mark.parametrize("body", ["video", "", "privacy policy all rights reserved",
+                                  "This content isn't available right now"])
 def test_identity_count_remains_one_while_unusable_text_is_not_retrieved(tmp_path, body):
     receipt, rows = prepare(tmp_path, [source_post(body=body)])
     assert receipt["countable_records"] == 1 and receipt["retrievable_records"] == 0
     assert rows[0]["body"] == body
+
+
+@pytest.mark.parametrize("body", [
+    "Win a fuel voucher at Example stations this weekend. Terms and conditions apply.",
+    "Our new low-carbon blend is here � ask at any Example station today.",
+])
+def test_readable_promotion_or_lost_emoji_is_retrieved(tmp_path, body):
+    receipt, rows = prepare(tmp_path, [source_post(body=body)])
+    assert receipt["retrievable_records"] == 1 and rows[0]["retrievable"] is True
 
 
 @pytest.mark.parametrize("change", ["review", "data", "choice", "unadmitted", "body_hash", "duplicate_id"])
@@ -171,3 +181,56 @@ def test_source_and_review_snapshots_are_byte_exact(tmp_path):
     prepare_social_admission(source, review_data=data, reviews=reviews, out=tmp_path / "new")
     for path, name in ((source, "source_records.original.jsonl"), (data, "review_data.original.json"), (reviews, "reviews.original.jsonl")):
         assert file_sha256(path) == before[path.name] == file_sha256(tmp_path / "new" / name)
+
+
+def with_commodity(record, commodity):
+    record.raw["source_row"]["parent_entity_info"] = {"commodity": commodity}
+    return record
+
+
+def test_cement_company_post_is_kept_but_not_counted_or_retrieved(tmp_path):
+    receipt, rows = prepare(tmp_path, [with_commodity(source_post(), "Cement")])
+    assert rows[0]["countable"] is False and rows[0]["retrievable"] is False
+    admission = rows[0]["raw"]["social_admission"]
+    assert admission["scope_status"] == "out_of_scope_commodity"
+    assert admission["retrieval_status"] == "excluded_out_of_scope_commodity"
+    assert admission["source_commodities"] == ["Cement"]
+    assert "social_out_of_scope_commodity" in {issue["code"] for issue in rows[0]["issues"]}
+    assert receipt["countable_records"] == 0 and receipt["out_of_scope_records"] == 1
+    assert rows[0]["body"] == "A short supplied post?"
+
+
+@pytest.mark.parametrize("commodity", ["Coal, Cement", "Oil & Natural Gas Liquids, Natural Gas", None])
+def test_coal_and_cement_or_fossil_or_unknown_commodity_stays_in_scope(tmp_path, commodity):
+    receipt, rows = prepare(tmp_path, [with_commodity(source_post(), commodity)])
+    assert rows[0]["countable"] is True and rows[0]["retrievable"] is True
+    assert rows[0]["raw"]["social_admission"]["scope_status"] == "in_scope"
+    assert receipt["out_of_scope_records"] == 0
+
+
+def test_post_stays_in_scope_unless_every_observation_is_out_of_scope(tmp_path):
+    cement = with_commodity(source_post(), "Cement")
+    coal = with_commodity(source_post("102", "https://x.com/EXAMPLE/status/9001/"), "Coal")
+    receipt, rows = prepare(tmp_path, [cement, coal])
+    assert receipt["unique_posts"] == 1 and receipt["out_of_scope_records"] == 0
+    assert rows[0]["countable"] is True
+    assert rows[0]["raw"]["social_admission"]["source_commodities"] == ["Cement", "Coal"]
+
+
+def test_cement_post_passes_admission_and_repair_without_being_enabled(tmp_path):
+    from observatory.social_source_retrieval import prepare_source_retrieval
+
+    cement = with_commodity(source_post("201", "https://twitter.com/cement/status/7001", "A cement post."), "Cement")
+    first = with_commodity(source_post("202", "https://twitter.com/fuel/status/7002", "A fuel post."), "Coal")
+    second = with_commodity(source_post("203", "https://x.com/FUEL/status/7002", "A fuel post. Added preview."), "Coal")
+    for record in (cement, first, second):
+        record.raw["source_row"]["post_text"] = record.body
+    receipt, rows = prepare(tmp_path, [cement, first, second])
+    assert receipt["out_of_scope_records"] == 1 and receipt["retrievable_records"] == 0
+    repaired = prepare_source_retrieval(tmp_path / "new/records.jsonl", original_source=tmp_path / "source.jsonl",
+                                       out=tmp_path / "repaired")
+    assert repaired["out_of_scope_records_skipped"] == 1
+    assert repaired["changed_records"] == 1 and repaired["change_reasons"] == {"paused_body_disagreement": 1}
+    assert repaired["original_observations_reconciled"] == 2
+    enabled = [json.loads(line) for line in (tmp_path / "repaired/records.jsonl").read_text(encoding="utf-8").splitlines()]
+    assert [row["raw"]["social_admission"]["canonical_url"] for row in enabled] == ["https://twitter.com/fuel/status/7002"]

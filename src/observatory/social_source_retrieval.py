@@ -15,13 +15,12 @@ from urllib.parse import urlsplit
 
 from .chunking import chunk_body
 from .import_records import CanonicalRecord, load_records
-from .quality import body_hash, inspect_body
+from .quality import body_hash, inspect_body, social_hard_blocks
 from .social_admission import SCHEME, canonical_post_url, file_sha256
 
 SCHEMA_VERSION = "social-source-observations-v1"
 _HASH = re.compile(r"[0-9a-f]{64}")
 _SOURCE_ID = re.compile(r"junkipedia:[0-9]+")
-_HARD_BLOCKS = {"body_missing", "body_numeric", "body_wrong_type", "body_video_placeholder", "body_garbled"}
 _REASONS = {"paused_sentence_source_validation", "paused_text_quality", "paused_body_disagreement"}
 _CONFLICTS = {"body", "sponsor", "account", "published_at", "platform", "historical_labels"}
 
@@ -98,7 +97,7 @@ def validated_observations(payload):
                 or source_row.get("post_text") != body or source_raw.get("body_sha256") != body_hash(body)):
             raise ValueError("Source observation identity, literal text or hash changed")
         quality = sorted({issue.code for issue in inspect_body(body)})
-        if set(quality) & _HARD_BLOCKS:
+        if social_hard_blocks(body):
             raise ValueError("Source observation has missing, placeholder, numeric or garbled text")
         seen.add(identifier)
         originals.append(record)
@@ -186,7 +185,7 @@ def prepare_source_retrieval(source, *, original_source, out, expected_changes=N
     input_sha, original_sha = file_sha256(source), file_sha256(original_source)
     expected_original = {}
     changed, bindings, checks = [], {}, []
-    count = observations_count = coverage_chunks = strict_failure_records = 0
+    count = observations_count = coverage_chunks = strict_failure_records = out_of_scope = 0
     reasons = Counter()
     seen = set()
     with source.open(encoding="utf-8") as stream:
@@ -195,6 +194,13 @@ def prepare_source_retrieval(source, *, original_source, out, expected_changes=N
             if row.get("record_id") in seen:
                 raise ValueError("Duplicate current post identity")
             seen.add(row.get("record_id"))
+            admission = (row.get("raw") or {}).get("social_admission") or {}
+            if admission.get("scope_status") == "out_of_scope_commodity":
+                # Excluded by scope at admission, not paused: never repaired here.
+                if row.get("countable") is not False or row.get("retrievable") is not False:
+                    raise ValueError("An out-of-scope post must be neither counted nor retrieved")
+                out_of_scope += 1
+                continue
             observations = validated_observations(row)
             count += 1
             observations_count += len(observations)
@@ -274,7 +280,8 @@ def prepare_source_retrieval(source, *, original_source, out, expected_changes=N
     targets = {r.record_id: source_version_id(r.model_dump(mode="json")) for r in batch.records}
     receipt = {"schema_version": SCHEMA_VERSION, "status": "prepared_not_imported_or_published",
                "source_sha256": input_sha, "original_source_sha256": original_sha,
-               "source_records": count, "source_observations": observations_count,
+               "source_records": count, "out_of_scope_records_skipped": out_of_scope,
+               "source_observations": observations_count,
                "original_observations_reconciled": reconciled,
                "changed_records": len(changed), "change_reasons": dict(reasons),
                "all_posts_retrievable_after_prepared_changes": count,
