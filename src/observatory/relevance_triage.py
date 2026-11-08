@@ -5,6 +5,9 @@ A list question is answered in four checkable steps:
 1. Criterion: before any ad is read, the question is turned into short
    inclusion rules and exclusions (make_criterion, gpt-5.6-luna). The answer
    page shows them, so "relevant" means "meets these rules", not "answered".
+   The same call says whether the question asks about the ads or posts at
+   all; when it does not (client meeting MT6-015, C24), the list answers
+   that and asks the user to rephrase, and nothing is triaged or screened.
 2. Triage: every ad in a small scope (or every retrieved candidate in a large
    one) is read whole by OpenAI's Decisions API (gpt-6-luna) against those
    rules. One request per ad asks several bounded questions, like the official
@@ -61,11 +64,30 @@ CRITERION_SYSTEM = """You turn a researcher's list question about advertisements
 criterion, written before any ad is read. Give 1-4 short inclusion rules (what in an ad's own text makes it
 count) and 0-3 exclusions (near misses that do not count). Each rule must be checkable against one sentence
 of ad text. Keep the question's meaning: do not broaden or narrow it, and do not add conditions it does not
-state. Write in the question's language."""
+state. Write in the question's language.
+
+First say whether the question can be answered by reading the advertisements or company posts: what their
+text says or shows. A question about any topic, claim, wording, image, product, audience, sponsor, outlet or
+date is about them, however narrow or unusual the topic. Answer false when the question makes no sense as a
+request, gives ads or posts what they cannot have (a taste, a smell, the thoughts or feelings of an object
+or animal), or asks about something outside their text (what their authors did, what will happen to them).
+Give the rules either way."""
+CRITERION_PROMPT = "criterion-v3-about-check"
+# make_criterion's reply for a question that is not about the ads or posts (C24): no criterion,
+# no triage or screening; the caller answers that the question cannot be answered from them.
+NOT_ABOUT_THE_TEXTS = "not_about_the_texts"
 
 
 class Criterion(BaseModel):
     model_config = ConfigDict(extra="forbid")
+    counts: list[str] = Field(min_length=1, max_length=4, description="Inclusion rules")
+    does_not_count: list[str] = Field(max_length=3, description="Exclusions: near misses that do not count")
+
+
+class CriterionDraft(BaseModel):
+    """The drafting call's reply: the about-check first, then the criterion."""
+    model_config = ConfigDict(extra="forbid")
+    about_the_texts: bool = Field(description="Whether the question asks about what the ads or posts say or show")
     counts: list[str] = Field(min_length=1, max_length=4, description="Inclusion rules")
     does_not_count: list[str] = Field(max_length=3, description="Exclusions: near misses that do not count")
 
@@ -78,7 +100,13 @@ def enabled(rag):
 
 
 def make_criterion(rag, question, visitor):
-    """(criterion dict or None, cost). A failed call leaves screening as it was."""
+    """(criterion dict, NOT_ABOUT_THE_TEXTS or None, cost). A failed call leaves screening as it was.
+
+    NOT_ABOUT_THE_TEXTS only when the reply says so explicitly and its rules pass the same check
+    a confirmed criterion does (normalize_criterion); otherwise the reply is handled as before, so
+    a doubtful case is still listed. A reply object without the about-check counts as about the
+    texts; a real reply missing a required field fails parsing and is no criterion, as before.
+    """
     if not enabled(rag):
         return None, 0.0
     rid = rag.budget.reserve(Decimal("0.003"), visitor, "generation", CRITERION_MODEL)
@@ -86,12 +114,13 @@ def make_criterion(rag, question, visitor):
         response = rag.client.responses.parse(
             model=CRITERION_MODEL,
             input=[{"role": "system", "content": CRITERION_SYSTEM}, {"role": "user", "content": question}],
-            text_format=Criterion, max_output_tokens=900, reasoning={"effort": "low"}, store=False)
+            text_format=CriterionDraft, max_output_tokens=900, reasoning={"effort": "low"}, store=False)
         usage = response.usage
         details = getattr(usage, "input_tokens_details", None)
         actual = price(CRITERION_MODEL, usage.input_tokens, usage.output_tokens,
                        getattr(details, "cached_tokens", 0) or 0, getattr(details, "cache_write_tokens", 0) or 0)
-        rag.budget.settle(rid, actual, {**usage.model_dump(), "observatory_request": {"policy": POLICY, "stage": "criterion"}})
+        request = {"policy": POLICY, "stage": "criterion", "prompt": CRITERION_PROMPT}
+        rag.budget.settle(rid, actual, {**usage.model_dump(), "observatory_request": request})
     except Exception as exc:  # noqa: BLE001 - the list is still screened without a criterion.
         rag.budget.uncertain(rid, type(exc).__name__)
         # Logged by type only: the failure is visible to operators, the question is not.
@@ -99,11 +128,25 @@ def make_criterion(rag, question, visitor):
         return None, 0.0
     parsed = response.output_parsed if response.status == "completed" else None
     try:
-        return Criterion.model_validate(parsed.model_dump()).model_dump(), float(actual)
+        reply = parsed.model_dump()
+        about = reply.pop("about_the_texts", True)
+        criterion = Criterion.model_validate(reply).model_dump()
     except Exception as exc:  # noqa: BLE001 - an unusable criterion is no criterion.
         log.warning("Criterion reply unusable (%s, status %s); the list is screened without a criterion",
                     type(exc).__name__, getattr(response, "status", None))
         return None, float(actual)
+    if about is False:
+        from .criterion_confirmation import (  # imports this module
+            CriterionInvalid,
+            normalize_criterion,
+        )
+
+        try:
+            normalize_criterion(criterion)
+        except CriterionInvalid:
+            return criterion, float(actual)  # unusable rules: no refusal, the callers treat them as before
+        return NOT_ABOUT_THE_TEXTS, float(actual)
+    return criterion, float(actual)
 
 
 def criterion_text(criterion):
