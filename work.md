@@ -2,6 +2,28 @@
 
 排序约定：新内容在上；每节对应 plan.md 同编号的一轮。
 
+## 2026-11-08：网页回答慢——整库计数（迁移 0009 + 精简计数 SQL；无付费调用；主库和 Railway 未动；用户同意后提交到分支 claude/great-ishizaka-0e7385，未推送）
+
+- 结论：`count_public` 对 social／all 慢在逐行解压 `record_versions.payload`（堆 35 MB、TOAST 587 MB；73,518 个版本里 73,470 个 countable，只有 48 个不是），不在计数本身。只加索引没用（现有 SQL 的 LATERAL 子查询还要读 payload），只精简 SQL 只省三分之一；两者一起，整库计数在副本上从 3 秒降到 0.02～0.03 秒（算上建连 0.08～0.10 秒），43 组筛选组合的新旧计数逐一相同。
+- 改动（工作区 `.claude/worktrees/great-ishizaka-0e7385`，分支 `claude/great-ishizaka-0e7385`，基于 `claude/sync-20261025` 8777aaa）：
+  - `src/observatory/migrations/0009_countable_version_index.sql`：`CREATE INDEX IF NOT EXISTS record_versions_countable ON record_versions(version_id) WHERE (payload->>'countable')::boolean`。回滚：`DROP INDEX record_versions_countable;`，新旧代码没有这个索引都能跑（计数退回全表扫）；只有想让以后的 `observatory migrate` 重建它时，才再删 `schema_migrations` 里第 9 版那一行。前提：建索引时对全部 73,518 个版本（含非当前版本）算 `(payload->>'countable')::boolean`，本地全是 JSON 布尔；Railway 的数据没查过，若有非布尔值，迁移失败并整体回滚（迁移跑在一个事务里）。
+  - `db.py` `count_public`：直接数 `records JOIN record_versions WHERE where()`，不再套 `_public_query`（40 列投影 + `LEFT JOIN LATERAL (… LIMIT 1)` 日期推断连接）。等价理由：WHERE 全部来自 `where()`、不引用 `di`；LEFT JOIN LATERAL … LIMIT 1 对每条外层行恰好保留一行；投影不能过滤行。缓存键不变；唯一调用方是 `service._scope_count`。
+  - `tests/test_count_public_index.py`：9 个假库单元测试（语句和参数等于 `where()`、无 LATERAL／投影、改范围先校验再发语句、读缓存在写计数不变时复用、0009 的谓词就是计数里的 countable 项）+ 1 个私有集群集成测试（自建 schema 跑全部迁移，7 条合成记录含停用／不可计数／缺标志／旧版本，`count_public == len(public_rows)` == 预期，`enable_seqscan=off` 时计划用新索引）。
+- 测量，主库只读 `EXPLAIN (ANALYZE, BUFFERS)`（PostgreSQL 18.6）：social 现有计数 2965 ms——`Seq Scan on record_versions v  Filter: ((payload ->> 'countable'::text))::boolean  Rows Removed by Filter: 48  Buffers: shared hit=270574 read=77031`（1890 ms，就是解压 TOAST）+ LATERAL 的 `One-Time Filter: (NULLIF((v.payload ->> 'published_at'::text), ''::text) IS NULL)` 跑 36,182 次（约 1 秒、16.8 万缓冲）；all 3136 ms；native 17 ms（走 records_active_dataset + pkey）。原句在 `.runtime` 外的会话临时目录 `explain_main_before.txt`，要点已抄录于此。
+- 副本（`scripts/private_test_postgres.py` 集群 `count_public_20261108`，先 `observatory migrate` 到第 8 版，再 `pg_dump --data-only` 从主库导入 records／record_versions／date_inferences／annotations，VACUUM ANALYZE；行数与主库一致；主库只读），每格三次墙钟：
+
+  | 范围 | 改前（现有 SQL） | 只精简 SQL | 只加索引（现有 SQL） | 索引 + 精简 SQL |
+  | --- | --- | --- | --- | --- |
+  | social | 3.29／3.48／3.58 s | 2.10／2.16／2.13 s | 2.93／2.80／2.82 s | 0.026／0.023／0.021 s |
+  | all | 3.51／2.93／2.73 s | 1.90／2.03／1.85 s | 3.13／3.07／2.99 s | 0.023／0.016／0.015 s |
+  | native | 0.02 s | 0.01 s | 0.01 s | 0.001 s |
+
+  改后计划：`Hash Join` ← `Seq Scan on records` + `Index Only Scan using record_versions_countable … Heap Fetches: 0`。索引 6.9 MB、73,470 项，建索引约 1 秒（CREATE INDEX 期间 record_versions 持 SHARE 锁：导入等待，读不受影响）。真实 `Database.count_public`（含建连）：social 0.085～0.103 s、all 0.079～0.081 s、native 0.055～0.057 s；读缓存命中 0.053 s（写计数查询本身的开销）。0009 经 `observatory migrate` 在副本上应用（Codex 复核后只改了注释，副本删掉第 9 版记录和索引后用最终文件重跑一次）：第 9 版入账，校验和 7f24f474…；之后 43 组组合新旧计数仍全部相同。
+- 两条路线：(a) 读缓存——代码里 `count_public` 自 10-25（cd66b97）就走 `_cached_read`，只对 300 秒内、其间没有非易失表写入的相同范围有效；进程重启、窗口过期、导入或相关性复核点击之后的第一次仍付 3 秒（11-05 记为"每次 3～4 秒"，本轮没复现命中与否，属推断）。缓存策略没改。(b) 索引 + 精简 SQL——推荐，已实现；按日期／媒体／账号筛选的范围仍要读 payload，1.3～3.5 秒不变（如实列出，不算在本轮收益里）。
+- 检查：`pytest tests/test_count_public_index.py -m "not integration"` 9 通过；私有集群 `count_public_tests_20261108` 上 `tests/test_count_public_index.py tests/test_migration_adoption.py` 32 通过（采纳测试现在覆盖 9 个迁移）；ruff 通过。离线门禁 `scripts/run_project_checks.py`（在工作树里跑；`run_masked_checks` 把工作树的 src 放在 sys.path 最前，所以测的是本分支代码）：改前基线 5,202 通过／0 失败／39 跳过／335 按标记去除；改后 5,211 通过（多出的 9 项是新单元测试）／0 失败／0 错误／39 跳过／337 去除（新集成测试和第 9 个采纳用例按 integration 标记去除），ruff 通过；3 项 JavaScript 检查（collection_graph／source_links／toolbox）因本机无 Node.js 未跑，门禁脚本因此整体报失败；28 个受保护模块按清单排除（`.runtime/project-checks-count-index-20261108/scope.json`）。
+- Codex：计划复核"方案层面未发现阻断问题"，三条提醒已照做（`where()` 保留自己的 INFERRED_DATE 子查询；索引谓词的布尔转换覆盖历史版本，经 `observatory migrate` 在副本验证；对比用同一快照、关缓存）。提交前复核："No blocking issues found in the supplied implementation"；按其意见改了表述——路线 (a) 写成对现有缓存的收益评估、亚秒只限整库范围、回滚区分删索引和删迁移记录、不笼统说"旧计数遇到非法值也一定失败"（旧查询碰不碰到某行取决于计划）；它提醒 `git commit -- work.md` 会带上该文件的全部改动，已核对 work.md 的差异只有本节一个 hunk（22 行新增、0 行删除）。
+- 提交：2026-11-08 用户同意后 `git commit -- src/observatory/migrations/0009_countable_version_index.sql src/observatory/db.py tests/test_count_public_index.py work.md`，只含这四个路径，不推送。待用户：在主库和 Railway 跑 `observatory migrate`（0009）要单独批准；两个私有集群已停、数据保留：`.runtime/private_test_postgres/count_public_20261108`（副本，含主库四张表的拷贝，连 WAL 约 1.9 GB）和 `count_public_tests_20261108`；要再看就 `.venv/Scripts/python -X utf8 scripts/private_test_postgres.py start --cluster <name>`（在主工作区跑），不要了删目录即可。
+
 ## 2026-11-05：网页回答慢——第一轮（不改回答内容；付费测量 $0.21，上限 $0.50；2026-11-06 提交，未推送）
 
 - 改动（本工作区，分支 `claude/sync-20261025`，只动自己的 hunk；db.py／service.py 里同事未提交的 hunk 不在内）：
