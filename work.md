@@ -2,6 +2,20 @@
 
 排序约定：新内容在上；每节对应 plan.md 同编号的一轮。
 
+## 2026-11-08：网页回答慢——第二轮第 1 项：规则已判定的名单题不经研究代理（开关默认关；2026-11-08 提交，未推送；没有付费调用）
+
+- 改动（本工作区，分支 `claude/sync-20261025`，只动自己的 hunk；service.py 里同事未提交的 `group_explain` 两个 hunk 不在内）：
+  - `config.py`：`Settings.list_without_agent`（`OBS_LIST_WITHOUT_AGENT`，默认 false）。看门狗会话在它的工作树里也改 config.py（claude-deadline 的声明），我改完才看到声明；已发消息协调，对方回复它的字段在 `screen_workers` 之后、与我的插入隔着几行，不冲突；协调日志记了一笔。
+  - `question_plan.py`：`agent_needed(question, filters, names, setting)` 返回代理仍要跑的原因字符串，None 表示规则名单可以不经代理；只放行"列表开头 → 紧接内容谓词 → 主题词"的正向形式，其余全部留给代理（细则见 plan.md 本项）；`build_evidence_plan` 多 `agent_route`／`route_reason` 两个可选参数（默认不变）；`SKIPPED_AGENT_REASON = "rule:list_without_agent"`；`_scope_forms` 用 entities 登记表取已选那一个名字的各种写法。注释写明：这是保守的表层启发式，不是"范围限制全在筛选里"的证明。
+  - `service.py`：`_answer_with_tools` 在建代理前先问 `agent_needed`（名字来自 `_known_source_names`，即 `db.facets`，读不到就留给代理）；快路 = `build_evidence_plan(..., agent_route="skipped")` + `_answer_evidence(audit=False, plan=plan, confirmation_flow=True)`；数据版本前后检查、来源状态检查、费用累计、审计（`_no_agent_audit`：policy `list-without-agent-v1`、transport none、`model_calls=[]`、`tools=[]`、`cost_usd=0`、`agent_skipped`）、下游 trace 键、计划记录（`_record_question_plan` 现在在没有 run 但有 plan 时也记）、联网记录、异常分支、延迟和保存运行都与代理路线共用，没有提前返回；开关开着而代理照跑时记 `agent_kept=<原因>`。
+  - 测试：`tests/test_list_without_agent.py` 83 项（守卫正反例 18 + 52、单选／多选名字豁免、开关关与名字缺失、经 `Service.answer` 的快路与共用收尾、开关关时代理照旧且筛查同一批广告与 passage、账本无悬挂预留、守卫留代理并记原因、facets 缺失、native_screen（分流关）的自动与卡片→无规则续问、两阶段卡片→续问（确认的草稿、改过的规则全文、换题／缩范围／数据版本变化三种拒绝且筛查判定调用数不增）、版本变化、路线内异常与返回后异常、设置默认值与环境变量、未登记小写来源 "in the beacon" 在代理路线（澄清→馆藏回退）与快路读同一批广告／passage 且检索词相同）。现有测试一个没改：改前基线 17 个相关模块 501 通过 5 跳过，改后同一批加 `test_config.py` 510 通过 5 跳过。
+- 设计依据与诚实说明：11-05 实测代理一步 5.2～10.5 秒（小范围）／7.9～8.1 秒（整库）、一次 428 秒；本地主库近 90 天 49 次带计划的保存回答全是规则名单题，代理收窄 1/49、改写检索词 37/37——这些计数由脚本统计，没有显示题面，可能含客户经网页问过的题，只作背景；守卫用 50 道虚构问题设计和试跑。读过受保护模块 `tests/test_research_service.py` 的前 60 行（假代理、假库的夹具）才去查排除清单，没有读到问题文本，记在这里。
+- Codex 计划复核两轮：第 1 轮 P1——黑名单守卫漏标签、记录 ID、未登记名字，建议改成只放行可接受的形式，并建议默认关、只做 native、原问题作检索词、不加改写调用——全部采纳；P2——无 run 的收尾要写明、空调用审计的含义要写明——写进代码注释和记录。第 2 轮（独立 Codex 会话，项目会话被别的写入者占着）P1 两个——谓词前夹名字（"in acme review"、'in "Acme Review"'）会漏进快路、已选名字不等于不能再缩（选了两个媒体问其中一个）——改成谓词必须紧接列表开头、该维度恰好只选一个名字才豁免；P2——异常测试要覆盖证据路线内部失败——已加。
+- Codex 提交前复核三轮：第 1 轮 P1——谓词之后带引号的来源（from "Acme Review"、by “Acme”）去引号后失去宾语而放行——改成引号内容替换为占位词再查语法，另加"介词宾语不是限定词短语就留给代理"；P2 四条——补 native_screen 场景、开关对比要比实际 passage、费用对照独立账本（金样本的写作假对象把 0.002 记在账本之外，所以只断言无悬挂预留且答案费用 ≥ 已结算）、edited 规则要比全文并补续问时范围／版本变化的拒绝——已加。第 2 轮 P1——介词后带冠词的来源（published in the "Acme Review"、published in the gazette）仍放行——改成引号内容只许作谓词直接宾语（可 or／and 连接），"published／posted… in／on／by"框架和"介词 + (限定词) + …出版物／平台／账号／记录名词"一律留给代理，"previous results" 等归入记录指代；P2——无效续问要断言筛查／判定调用数不增——已加；nit——plan.md 计数——已改。第 3 轮：**no blocking issues**；P2 两条——把代码里"范围限制全在筛选里"的绝对表述改成"保守启发式，非证明"（已改 config／service／question_plan 三处注释），加一个免费的未登记来源对照（已加，见测试末项）。
+- 完整门禁（隔离 worktree，精确候选，`.runtime/project_checks_round2_item1_20261108`）：pytest 5,285 通过、0 失败、39 跳过、335 未选（28 个受保护模块按清单排除，同第一轮）；Ruff 通过；3 项 JavaScript 检查没跑（本机没有 Node.js），门禁退出码 1 只因此。比第一轮的 5,202 多出的 83 项就是新测试模块。候选 = 工作区减去同事未提交的 hunk；plan.md／work.md 本项记录在门禁之后写入，不影响任何检查。
+- 会变的东西：检索词从代理的英文主题词变成原问题句，范围大于 30 条时前 120 候选与扩展顺序可能变；默认关，等付费对照（两道 11-05 合成题，合计上限 $0.26：① 代理检索词 vs 原问题的候选／顺序／批次对照，2 次嵌入调用；② 开关打开后浏览器重测）由用户批准后再定是否默认开。这两道题只能说明快路本身，不说明 2 分钟长尾已解决。
+- 待用户定：是否批付费对照；开关何时默认开；是否扩到 all／social；若对照显示候选差别大是否加一次小的英文改写调用。
+
 ## 2026-11-05：网页回答慢——第一轮（不改回答内容；付费测量 $0.21，上限 $0.50；2026-11-06 提交，未推送）
 
 - 改动（本工作区，分支 `claude/sync-20261025`，只动自己的 hunk；db.py／service.py 里同事未提交的 hunk 不在内）：
