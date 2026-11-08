@@ -61,6 +61,15 @@ def test_owner_only_covers_listed_spellings():
     assert current.resolve("Exxon", "sponsor").id == "org:exxonmobil"
 
 
+def test_export_spelling_variants_join_their_organization_and_lookalikes_stay_apart():
+    current = registry()
+    assert current.owner("Woodside Engergy", "sponsor").id == "org:woodside_energy"
+    assert current.owner("Australian Energy Producers", "sponsor").id == "org:australian_energy_producers"
+    assert current.owner("Arch Resources", "sponsor").id != current.owner("ARC Resources", "sponsor").id
+    assert current.owner("Cemex", "sponsor").id == "org:cemex"
+    assert current.owner("PTTEP", "sponsor").id == "org:pttep" != current.owner("ptt", "sponsor").id
+
+
 @pytest.mark.parametrize("question,value,expected", [
     ("How many BP ads ran in 2021?", "bp", True),
     ("What is the total number of ads?", "totalenergies", False),

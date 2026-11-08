@@ -160,7 +160,13 @@ def test_short_social_terms_remain_literal_and_keep_quality_note():
     assert "body_footer_only" in validated_observations(row)[0]["quality_codes"]
 
 
-@pytest.mark.parametrize("body", ["", " \n", "None", "video", "123", "bad \ufffd text"])
+def test_one_replacement_character_in_a_readable_post_is_a_note_not_a_block():
+    body = "Our new low-carbon blend is here � ask at any Example station today."
+    observation = validated_observations(admitted((body,)))[0]
+    assert observation["body"] == body and "body_garbled" in observation["quality_codes"]
+
+
+@pytest.mark.parametrize("body", [""," \n", "None", "video", "123", "bad \ufffd text"])
 def test_general_bad_source_text_is_not_autoenabled(body):
     with pytest.raises(ValueError, match="missing, placeholder, numeric or garbled"):
         validated_observations(admitted((body,)))
@@ -411,5 +417,32 @@ def test_original_snapshot_reconciliation_rejects_metadata_drift(tmp_path):
     changed["title"] = "Different metadata"
     original.write_text(json.dumps(changed) + "\n", encoding="utf-8")
     with pytest.raises(ValueError, match="snapshot"):
+        prepare_source_retrieval(source, original_source=original, out=tmp_path / "new")
+    assert not (tmp_path / "new").exists()
+
+
+def out_of_scope_row(**changes):
+    row = admitted(("A cement company post.",), reason="excluded_out_of_scope_commodity")
+    row["record_id"] = "social-post:" + body_hash("out of scope")
+    row["countable"] = False
+    row["raw"]["social_admission"]["scope_status"] = "out_of_scope_commodity"
+    row.update(changes)
+    return row
+
+
+def test_out_of_scope_posts_are_skipped_not_repaired(tmp_path):
+    source, original, _ = input_files(tmp_path, ("Source text.",), "paused_text_quality")
+    with source.open("a", encoding="utf-8") as stream:
+        stream.write(json.dumps(out_of_scope_row(), ensure_ascii=False) + "\n")
+    receipt = prepare_source_retrieval(source, original_source=original, out=tmp_path / "new")
+    assert receipt["changed_records"] == 1 and receipt["source_records"] == 1
+    assert receipt["out_of_scope_records_skipped"] == 1
+
+
+def test_out_of_scope_post_that_is_counted_fails(tmp_path):
+    source, original, _ = input_files(tmp_path, ("Source text.",), "paused_text_quality")
+    with source.open("a", encoding="utf-8") as stream:
+        stream.write(json.dumps(out_of_scope_row(countable=True), ensure_ascii=False) + "\n")
+    with pytest.raises(ValueError, match="out-of-scope"):
         prepare_source_retrieval(source, original_source=original, out=tmp_path / "new")
     assert not (tmp_path / "new").exists()
