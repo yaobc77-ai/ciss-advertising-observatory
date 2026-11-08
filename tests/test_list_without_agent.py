@@ -1,5 +1,6 @@
 """Latency round 2, item 1: a list question the surface rule recognises, whose whole restriction is the
-active filters, may run without the research agent (Settings.list_without_agent, default off).
+active filters, may run without the research agent (Settings.list_without_agent; on by default since
+2026-11-08, OBS_LIST_WITHOUT_AGENT=false turns the skip off).
 
 Fictional questions, names and records only (the golden fixtures of test_list_golden); every model call
 is mocked. `question_plan.agent_needed` is pure and tested as a table: the accepted form is a list head,
@@ -429,9 +430,11 @@ def test_a_failure_after_the_list_keeps_the_downstream_cost(monkeypatch):
     assert result.research_trace["question_plan"]["agent_route"] == "skipped"
 
 
-def test_the_setting_defaults_off_and_reads_the_environment(monkeypatch):
-    assert Settings().list_without_agent is False
+def test_the_setting_defaults_on_and_reads_the_environment(monkeypatch):
+    assert Settings().list_without_agent is True
     monkeypatch.delenv("OBS_LIST_WITHOUT_AGENT", raising=False)
+    assert Settings.from_env().list_without_agent is True
+    monkeypatch.setenv("OBS_LIST_WITHOUT_AGENT", "false")
     assert Settings.from_env().list_without_agent is False
     monkeypatch.setenv("OBS_LIST_WITHOUT_AGENT", "true")
     assert Settings.from_env().list_without_agent is True

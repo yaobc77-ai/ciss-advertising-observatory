@@ -46,8 +46,9 @@ class Settings:
     # A list question the surface rule already recognises, in which question_plan.agent_needed finds
     # no scope word, name, date or shape the agent could act on (a conservative heuristic over the
     # question's surface, not a proof), may skip the agent's model calls (latency round 2, 2026-11-08).
-    # Off until the user confirms the measured effect on the candidates.
-    list_without_agent: bool = False
+    # On by default (user decision 2026-11-08, after the paid comparison recorded in plan.md).
+    # OBS_LIST_WITHOUT_AGENT=false turns the skip off; the agent itself is research_agent_enabled.
+    list_without_agent: bool = True
     # One typed interpretation compiled to existing reads; opt in after validation.
     question_intent_enabled: bool = False
     # Two-phase list questions (pipeline step 3): "ask" (the default, S3-d) shows the drafted
@@ -107,7 +108,7 @@ class Settings:
             secure_cookies=os.getenv("OBS_SECURE_COOKIES", "false").lower() == "true",
             trusted_proxy=os.getenv("OBS_TRUSTED_PROXY", ""),
             research_agent_enabled=os.getenv("OBS_RESEARCH_AGENT_ENABLED", "false").lower() == "true",
-            list_without_agent=os.getenv("OBS_LIST_WITHOUT_AGENT", "false").lower() == "true",
+            list_without_agent=os.getenv("OBS_LIST_WITHOUT_AGENT", "true").lower() == "true",
             question_intent_enabled=os.getenv("OBS_QUESTION_INTENT_ENABLED", "false").lower() == "true",
             criterion_confirmation="auto" if os.getenv("OBS_CRITERION_CONFIRMATION", "ask").strip().lower() == "auto" else "ask",
             compare_demo_enabled=os.getenv("OBS_COMPARE_DEMO_ENABLED", "false").lower() == "true",

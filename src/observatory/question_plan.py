@@ -316,9 +316,10 @@ def build_evidence_plan(question: str, filters, *, search_query=None, declared_s
 # no scope word, name, date or shape the agent could act on, the service may skip it
 # (Settings.list_without_agent). The checks are a conservative heuristic over the question's
 # surface, not a proof that the agent would have changed nothing (an unregistered lowercase
-# source after a determiner, "in the beacon", passes them), which is why the switch stays off
-# until the effect is measured. `agent_needed` says why the agent still runs; None means the
-# list may skip it. The form accepted is positive and narrow: a list head ("which/list/show/find
+# source after a determiner, "in the beacon", passes them), which is why the switch exists; it
+# is on by default since 2026-11-08, after the effect was measured on two questions (plan.md).
+# `agent_needed` says why the agent still runs; None means the list may skip it. The form
+# accepted is positive and narrow: a list head ("which/list/show/find
 # ... ads/articles/records (that)"), then a content condition over topic words, over the native
 # collection, with no name, date, label, record reference, dataset word, grouping, comparison,
 # exclusion, digit, acronym or capitalised word left in it, and nothing between the source noun
