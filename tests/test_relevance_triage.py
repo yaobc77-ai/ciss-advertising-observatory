@@ -84,7 +84,7 @@ def test_triaged_screen_skips_excluded_ads_and_routes_the_rest():
 
     answer = list_answer("Which ads mention tidal kites?", results, [*evidence], scope_total=3,
                          criterion=CRITERION, triage=summary)
-    assert answer.answer.startswith("Found 1 matching ad among the 3")
+    assert answer.answer.startswith("1 of the 3 ads in your selection matches the question; every ad was read.")
     assert "1 more need a human check" in answer.answer and "Kite notice k3" in answer.answer
     trace = answer.research_trace["list_screening"]
     assert trace["criterion"] == CRITERION and trace["review"] == 1
@@ -92,7 +92,8 @@ def test_triaged_screen_skips_excluded_ads_and_routes_the_rest():
     # Read in full by the triage: the records not read have no text, they were not skipped.
     whole = list_answer("Which ads mention tidal kites?", results, [*evidence], scope_total=5,
                         criterion=CRITERION, triage={**summary, "whole_scope": True})
-    assert "all 3 with readable text were checked, the other 2 have no readable text" in whole.answer
+    assert whole.answer.startswith("1 of the 5 ads in your selection matches the question. All 3 ads with text were "
+                                   "read; the other 2 have no text to read.\n\n")
 
     def text(component):
         if component is None or isinstance(component, (str, int, float)):
