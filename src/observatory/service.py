@@ -58,6 +58,8 @@ from .list_screening import screen as screen_list
 from .models import Answer, AnswerSection, CitedStatement, Filters
 from .question_plan import (
     COLLECTION_ONLY,
+    SKIPPED_AGENT_REASON,
+    agent_needed,
     build_evidence_plan,
     build_question_plan,
     list_requested,
@@ -120,6 +122,8 @@ EVIDENCE_CHAR_BUDGET = 30_000
 # A selection this small is read whole: ranking 27 posts and reading the top 5
 # missed the asked-about post (B1K-Q009). The prompt budget still applies.
 SMALL_SCOPE_RECORDS = 30
+# The run record's policy of a list that ran without the research agent (question_plan.agent_needed).
+NO_AGENT_POLICY = "list-without-agent-v1"
 
 
 def _fit_evidence_budget(evidence, budget=EVIDENCE_CHAR_BUDGET):
@@ -1088,6 +1092,30 @@ class Service:
         except Exception:
             log.warning("Final answer audit log unavailable")
 
+    def _known_source_names(self, dataset):
+        """The collection's sponsors, publishers and accounts (db.facets, read-cached), or None when unavailable."""
+        try:
+            facets = self.facets(dataset)
+            return {dimension: [value for value in facets.get(dimension, []) if value and value != "(Unknown)"]
+                    for dimension in ("sponsors", "publishers", "accounts")}
+        except Exception:
+            log.debug("Source names unavailable; the research agent runs", exc_info=True)
+            return None
+
+    @staticmethod
+    def _no_agent_audit(question, filters, skipped):
+        """The run record of a list that skipped the research agent (latency round 2, item 1).
+
+        Empty `model_calls` and `tools` mean the understanding stage made no model call and no
+        tool read; the answer's cost_usd still carries every downstream call of the list route.
+        """
+        from .question_policy import question_contract
+
+        return {"policy": NO_AGENT_POLICY, "transport": "none", "original_question": question,
+                "base_filters": filters.model_dump(mode="json"), "route": "evidence", "cost_usd": 0.0,
+                "model_calls": [], "tools": [], "failure_reason": "", "question_contract": question_contract(question),
+                "agent_skipped": dict(skipped)}
+
     @staticmethod
     def _record_question_plan(result, question, filters, run, narrowed=None, plan=None):
         """Write the handling decision into the run record (pipeline step 1).
@@ -1098,8 +1126,8 @@ class Service:
         _check_question_plan is an independent comparison. A failure here leaves
         the answer exactly as it was.
         """
-        if run is None:
-            return
+        if run is None and plan is None:
+            return  # a list that skipped the agent has no run and passes the plan it ran with
         try:
             plan = plan or build_question_plan(question, filters, run, narrowed)
             result.research_trace["question_plan"] = plan.as_dict()
@@ -1122,6 +1150,16 @@ class Service:
 
         `criterion_confirmation` (step 3) travels into the plan and down to every list this
         question reaches: the evidence route, compound parts, the collection-first fallback.
+
+        With Settings.list_without_agent on, a list question the surface rule recognises, in which
+        question_plan.agent_needed finds nothing the agent could act on (a conservative heuristic
+        over the question's surface, not a proof of equivalence), runs the evidence route without
+        the agent's model calls (latency round 2, item 1): the plan is built from
+        the same inputs with `agent_route="skipped"`, the question is its search query, and the
+        data-version guard, the source-state check, the audit, the plan record and the saved run
+        are the same as for the agent's routes (the record's `agent_skipped` says so, its
+        `model_calls` and `tools` are empty). When the agent still runs with the switch on, the
+        record's `agent_kept` names the check that kept it.
         """
         from .research_agent import ResearchAgent, _cjk_dominant_query
         from .research_tools import ToolCatalog
@@ -1136,6 +1174,8 @@ class Service:
         version = "unavailable"
         plan_scope = None  # the evidence route's narrowed scope, recorded in the question plan
         plan = None  # the evidence route's plan (pipeline step 2); other routes record one afterwards
+        skipped = None  # set when a rule-detected list ran without the agent (latency round 2, item 1)
+        kept = None  # why the agent ran although the switch is on (recorded, nothing else)
         try:
             _progress(progress, "database")
             before = self.health()
@@ -1143,18 +1183,37 @@ class Service:
             if before.get("status") != "ok" or not isinstance(candidate_version, str) or not candidate_version or candidate_version == "unavailable":
                 raise ValueError("A healthy source version is required for question tools")
             version = candidate_version
-            catalog = ToolCatalog(self, filters)
-            agent = self.research_agent or ResearchAgent(
-                self.rag, catalog,
-                intent_enabled=getattr(self.settings, "question_intent_enabled", False),
-                max_output_tokens=1600 if getattr(self.settings, "question_intent_enabled", False) else 900,
-                repairs=1,
-            )
-            _progress(progress, "interpreting")
-            run = agent.run(question, filters, visitor,
-                            **({"progress": lambda stage: _progress(progress, stage)} if progress else {}))
-            data = run.result
-            if run.route == "statistics":
+            without_agent = bool(getattr(self.settings, "list_without_agent", False))
+            reason = agent_needed(question, filters, self._known_source_names(filters.dataset) if without_agent else None,
+                                  setting=without_agent)
+            if reason is None:
+                # A complete list with a content condition in which the checks find nothing the agent
+                # could narrow or reroute (agent_needed, a conservative heuristic): the evidence route
+                # runs with the plan built from the same inputs, the question as its search query. The
+                # data-version, source-state and audit steps below are shared with the agent's routes.
+                skipped = {"reason": SKIPPED_AGENT_REASON, "policy": NO_AGENT_POLICY}
+                plan = build_evidence_plan(question, filters, triage_enabled=lambda: triage_enabled(self.rag),
+                                           criterion_confirmation=criterion_confirmation,
+                                           agent_route="skipped", route_reason=SKIPPED_AGENT_REASON)
+                data = {"filters": filters.model_dump(mode="json")}
+                result = self._answer_evidence(question, filters, visitor, audit=False, plan=plan, confirmation_flow=True,
+                                               **({"progress": progress} if progress else {}))
+            else:
+                kept = reason if without_agent else None
+                catalog = ToolCatalog(self, filters)
+                agent = self.research_agent or ResearchAgent(
+                    self.rag, catalog,
+                    intent_enabled=getattr(self.settings, "question_intent_enabled", False),
+                    max_output_tokens=1600 if getattr(self.settings, "question_intent_enabled", False) else 900,
+                    repairs=1,
+                )
+                _progress(progress, "interpreting")
+                run = agent.run(question, filters, visitor,
+                                **({"progress": lambda stage: _progress(progress, stage)} if progress else {}))
+                data = run.result
+            if skipped is not None:
+                pass  # the list is answered above; the agent's routes follow
+            elif run.route == "statistics":
                 result = self._tool_statistics_answer(data, base_filters=filters)
             elif run.route == "evidence":
                 narrowed = Filters.model_validate(data["filters"])
@@ -1208,7 +1267,7 @@ class Service:
                     answer="Question understanding is temporarily unavailable. Browse the collection or use keyword search.",
                 )
             collection_first = ""
-            if result.status == "insufficient_evidence" and run.route in {"clarify", "composite"} \
+            if run is not None and result.status == "insufficient_evidence" and run.route in {"clarify", "composite"} \
                     and _collection_search_applies(run) and not _deferred_confirmation(result):
                 # The plan or title lookup failed, not the collection: search the
                 # saved text with the original question before any web lookup.
@@ -1247,10 +1306,12 @@ class Service:
                 # Bind later record pagination to the same source snapshot that
                 # passed the query's before/after guard, not a model-supplied ID.
                 result.structured_result = {**result.structured_result, "data_version": version}
-            result.cost_usd += run.cost_usd
+            result.cost_usd += run.cost_usd if run is not None else 0.0
             downstream_trace = result.research_trace
-            result.research_trace = run.audit()
+            result.research_trace = run.audit() if run is not None else self._no_agent_audit(question, filters, skipped)
             result.research_trace["data_version"] = version
+            if kept is not None:
+                result.research_trace["agent_kept"] = kept
             if collection_first:
                 result.research_trace["collection_first_fallback"] = collection_first
             for key in ("external_web", "media_retrieval", "generation_failure", "list_screening", "coverage_note",
@@ -1278,6 +1339,9 @@ class Service:
             if run:
                 result.research_trace = run.audit()
                 self._record_question_plan(result, question, filters, run, plan_scope, plan)
+            elif skipped is not None:
+                result.research_trace = self._no_agent_audit(question, filters, skipped)
+                self._record_question_plan(result, question, filters, None, None, plan)
         result.latency_ms = int((time.monotonic() - start) * 1000)
         if not _FINAL_AUDIT_CONTEXT.get():
             try:
