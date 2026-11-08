@@ -69,7 +69,7 @@ from .question_plan import (
     QuestionPlan as EvidencePlan,
 )
 from .rag import AnswerValidationError, Rag, reserve_through
-from .relevance_triage import TRIAGE_ALL_MAX, make_criterion
+from .relevance_triage import NOT_ABOUT_THE_TEXTS, TRIAGE_ALL_MAX, make_criterion
 from .relevance_triage import enabled as triage_enabled
 from .structured_queries import QuestionPlan, plan_question, validate_share_scope
 
@@ -354,6 +354,25 @@ def examples_note(question, result):
         return f"以上是最相关广告中的 {count} 个例子，不是完整名单，可能还有其他符合的广告。"
     return (f"These are {count} example{'s' if count != 1 else ''} from the most relevant ads, not a complete "
             "list; other ads may also match.")
+
+
+def not_about_the_texts(question, datasets, cost):
+    """A list question whose criterion draft says it is not about the ads or posts (C24, MT6-015).
+
+    Nothing was triaged or screened, so the answer lists nothing and shows no candidate as
+    read; it says why and asks for another wording. The draft's cost stays recorded.
+    """
+    english, chinese = {("native",): ("ads", "广告"), ("social",): ("company posts", "公司社交帖子")}.get(
+        tuple(datasets), ("ads or company posts", "广告或公司社交帖子"))
+    if re.search(r"[一-鿿]", question):
+        text = (f"这个问题看起来不是在问{chinese}里的内容，所以没有逐条去看。请换个问法，问它们说了什么或展示了什么，"
+                "例如某个话题、说法、产品、公司、媒体或时间段。")
+    else:
+        text = (f"This question does not seem to ask about anything the {english} say or show, so none of them was "
+                "read for it. Please ask it another way: about what they say or show, for example a topic, a claim, "
+                "a product, a company, an outlet or a period.")
+    return Answer(status="insufficient_evidence", answer_mode="clarification", failure_reason=NOT_ABOUT_THE_TEXTS,
+                  answer=text, research_trace={"criterion_draft": {"status": NOT_ABOUT_THE_TEXTS, "cost_usd": cost}})
 
 
 def _titled_records(db, question, filters):
@@ -977,7 +996,10 @@ class Service:
                      "media_evidence_mismatch", "duplicate_evidence_identity",
                      # A list waiting for the researcher's criterion, and a refused or deferred
                      # continuation, are not evidence shortfalls (step 3).
-                     "criterion_confirmation_required", *CONFIRMATION_REFUSALS}
+                     "criterion_confirmation_required", *CONFIRMATION_REFUSALS,
+                     # A question that is not about the ads or posts asks for another wording, not for
+                     # web pages (C24).
+                     NOT_ABOUT_THE_TEXTS}
         if (not 1 <= len(question.strip()) <= 2000
                 or result.failure_reason.startswith("data_changed") or result.failure_reason in protected
                 or research_failure_status(result.failure_reason)):
@@ -1965,7 +1987,9 @@ class Service:
         quoted phrases, exact wording or a relation hint): after the preparation for one
         collection, before the collections' parallel work for two, as before the merge. The
         results are joined in collection order (tagged with their collection when there are
-        two) and listed once; a screened list is then summarised or its matches read.
+        two) and listed once; a screened list is then summarised or its matches read. A draft
+        that says the question is not about the ads or posts (C24) ends the list there, before
+        anything is judged (not_about_the_texts).
         Returns (Answer, cost).
 
         `criterion` (step 3, S3-b) is a criterion a researcher confirmed ({counts, does_not_count};
@@ -2118,11 +2142,15 @@ class Service:
                 # judges on its own, at the same time.
                 criterion, criterion_cost = draft()
                 charged(criterion_cost)
+                if criterion == NOT_ABOUT_THE_TEXTS:
+                    return not_about_the_texts(question, plan.datasets, criterion_cost), criterion_cost
                 outcomes = each(lambda scope: judge(prepare(scope)), scopes)
             else:
                 prepared = prepare(scopes[0])
                 criterion, criterion_cost = draft()
                 charged(criterion_cost)
+                if criterion == NOT_ABOUT_THE_TEXTS:
+                    return not_about_the_texts(question, plan.datasets, criterion_cost), criterion_cost
                 outcomes = [judge(prepared)]
             results, pool, cost, totals, triages, first_reads = [], [], criterion_cost, {}, {}, {}
             for dataset, total, found, spent, items, summary, first_read in outcomes:
@@ -2194,7 +2222,9 @@ class Service:
         collection (design 3.9, exactly what _list_answer does), and a signed token bound to this
         visitor, question, scope, plan, draft and data version. The flow is registered before the
         drafting call, so a full registry refuses before anything is spent. `filters` is the scope
-        this route was called with; `version` the data version of the retrieval.
+        this route was called with; `version` the data version of the retrieval. A draft that
+        says the question is not about the ads or posts (C24) gives no card: the flow is
+        discarded and the answer says so (not_about_the_texts).
         Returns (Answer, drafting cost).
         """
         triage_on = triage_enabled(self.rag)
@@ -2211,6 +2241,9 @@ class Service:
                 criterion, cost = self._draft_criterion(question, visitor)  # the question only (design 3.3)
                 if cost_sink is not None and cost:
                     cost_sink.append(float(cost))
+                if criterion == NOT_ABOUT_THE_TEXTS:
+                    self.flows.discard(flow_id)  # nothing to confirm or continue
+                    return not_about_the_texts(question, plan.datasets, cost), cost
                 try:
                     criterion = normalize_criterion(criterion) if criterion else None
                 except CriterionInvalid:

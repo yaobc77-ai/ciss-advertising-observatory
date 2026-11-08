@@ -42,7 +42,7 @@ from observatory.list_screening import (
 from observatory.models import Answer, Citation, CitedStatement, Evidence, Filters
 from observatory.question_plan import PLAN_VERSION
 from observatory.rag import Rag
-from observatory.relevance_triage import Criterion
+from observatory.relevance_triage import Criterion, CriterionDraft
 from observatory.service import Service
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -379,7 +379,7 @@ def golden_rag(db, scenario, ledger, calls):
         return reply(CRITERION, 20, 10)
 
     def parse(**request):
-        handler = {Batch: screening, Verdicts: verify, Criterion: criterion}.get(request["text_format"])
+        handler = {Batch: screening, Verdicts: verify, CriterionDraft: criterion}.get(request["text_format"])
         assert handler is not None, f"unexpected structured call: {request['text_format']}"
         return handler(request)
 
