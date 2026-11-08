@@ -477,6 +477,77 @@ def drop(data, path):
         data.pop(path[-1], None)
 
 
+# The opening line of a screened list was reworded on purpose (client meeting MT6-016, 2026-11-08:
+# the client did not understand "57 matching, screened 120 of 263"). These are the reviewed new
+# opening lines, written out per sample; they replace the frozen line only in the answer's first
+# paragraph and in the first summary statement, which repeat it. Everything else reads as frozen.
+REWORDED = {
+    "both_literal": (
+        "Found 3 matching ads and 2 matching posts. Read: all 6 native ads; all 4 company social posts. "
+        "Matching means containing “tidal kite” (exact wording)."),
+    "both_many_phrase": (
+        "Found 17 matching ads and 2 matching posts. Read: the 49 native ads closest to the question, "
+        "out of 51 (2 not read); the 3 company social posts closest to the question, out of 4 (1 not "
+        "read). Those not read may hold more matches. Narrowing the selection (company, date or "
+        "platform) lets a larger share be read."),
+    "both_phrase_read": (
+        "Found 2 matching ads and 2 matching posts. Read: the 4 native ads closest to the question, out "
+        "of 6 (2 not read); the 3 company social posts closest to the question, out of 4 (1 not read). "
+        "Those not read may hold more matches. Narrowing the selection (company, date or platform) lets "
+        "a larger share be read."),
+    "both_screen": (
+        "Found 2 matching ads and 1 matching post. Read: the 3 native ads closest to the question, out "
+        "of 6 (3 not read); the 2 company social posts closest to the question, out of 4 (2 not read). "
+        "Those not read may hold more matches. Narrowing the selection (company, date or platform) lets "
+        "a larger share be read."),
+    "both_triage": (
+        "Found 2 matching ads and 2 matching posts. Read: all 6 native ads; all 4 company social posts."),
+    "native_many_phrase": (
+        "17 of the 49 ads that were read match the question. Your selection has 51 ads; the search "
+        "picked the 49 closest to the question for reading, and the other 2 were not read, so there may "
+        "be more matches. Narrowing the selection (company, date or platform) lets a larger share be "
+        "read."),
+    "native_phrase_read": (
+        "2 of the 4 ads that were read match the question. Your selection has 6 ads; the search picked "
+        "the 4 closest to the question for reading, and the other 2 were not read, so there may be more "
+        "matches. Narrowing the selection (company, date or platform) lets a larger share be read."),
+    "native_screen": (
+        "2 of the 3 ads that were read match the question. Your selection has 6 ads; the search picked "
+        "the 3 closest to the question for reading, and the other 3 were not read, so there may be more "
+        "matches. Narrowing the selection (company, date or platform) lets a larger share be read."),
+    "native_screen_zh_planner": (
+        "看过的 3 篇里有 2 篇符合问题。所选范围共 6 篇，系统先挑出和问题最接近的 3 篇来看，"
+        "其余 3 篇没有看，所以可能还有符合的。缩小范围（公司、日期或平台）可以看得更全。"),
+    "native_triage": (
+        "2 of the 6 ads in your selection match the question; every ad was read."),
+    "native_triage_large": (
+        "2 of the 3 ads that were read match the question. Your selection has 450 ads; the search picked "
+        "the 3 closest to the question for reading, and the other 447 were not read, so there may be "
+        "more matches. Narrowing the selection (company, date or platform) lets a larger share be read."),
+    "native_zero_match": (
+        "0 of the 3 ads that were read match the question. Your selection has 6 ads; the search picked "
+        "the 3 closest to the question for reading, and the other 3 were not read, so there may be more "
+        "matches. Narrowing the selection (company, date or platform) lets a larger share be read. If "
+        "you expected matches, try asking the question another way."),
+    "social_relation_hint": (
+        "1 of the 1 ad that was read matches the question. Your selection has 3 ads; the search picked "
+        "the 1 closest to the question for reading, and the other 2 were not read, so there may be more "
+        "matches. Narrowing the selection (company, date or platform) lets a larger share be read."),
+}
+
+
+def reword(expected, name):
+    """Replace a frozen sample's opening line by the reviewed new one where the sample repeats it."""
+    if name not in REWORDED:
+        return
+    result = expected["result"]
+    frozen, separator, rest = result["answer"].partition("\n\n")
+    result["answer"] = REWORDED[name] + separator + rest
+    summary = result.get("summary") or []
+    if summary and frozen in summary[0][0]:
+        summary[0][0] = summary[0][0].replace(frozen, REWORDED[name])
+
+
 def git(*args):
     return subprocess.run(["git", *args], capture_output=True, text=True, cwd=ROOT, check=True).stdout.strip()
 
@@ -520,6 +591,7 @@ def test_the_list_route_reproduces_the_frozen_samples(name, plain_environment):
     for allowed in (*ALLOWED, *scenario.allowed):
         drop(expected, allowed)
         drop(actual, allowed)
+    reword(expected, name)
     # A list judged by an unconfirmed model draft now says so (S3-c): the live answer must be the
     # frozen one plus that sentence, exactly once, at the end of the first paragraph; any other
     # list must read exactly as frozen.
