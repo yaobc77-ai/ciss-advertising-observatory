@@ -31,6 +31,17 @@ def _invalid_constant(value):
     raise ValueError("JSON must not contain NaN or Infinity")
 
 
+def jsonl_lines(text: str) -> list[str]:
+    """Split JSONL on newlines only. str.splitlines() also breaks at U+2028, U+2029, U+0085 and
+    control characters that JSON writers leave unescaped inside strings (2026-11-05: six post
+    bodies with U+2028 split their records in two). One trailing carriage return per line is
+    dropped for CRLF files."""
+    lines = text.split("\n")
+    if lines and lines[-1] == "":
+        lines.pop()
+    return [line[:-1] if line.endswith("\r") else line for line in lines]
+
+
 def load_records(path: Path, *, dataset: str | None = None) -> ImportBatch:
     """Keep explicit IDs, original bodies, eligibility and source metadata unchanged.
 
@@ -44,7 +55,7 @@ def load_records(path: Path, *, dataset: str | None = None) -> ImportBatch:
     batch = ImportBatch(source_hashes={source: checksum})
     ids: set[str] = set()
     errors = []
-    for number, line in enumerate(data.decode("utf-8-sig").splitlines(), 1):
+    for number, line in enumerate(jsonl_lines(data.decode("utf-8-sig")), 1):
         if not line.strip():
             continue
         try:
