@@ -40,6 +40,13 @@ labels or CLAIMS2.
 | Source export: False | The applicable historical export explicitly recorded the boolean `false`. This is not a reviewed negative or proof that greenwashing is absent. |
 | Unknown | No single usable historical annotation is bound to this stored post text. Missing fields are not converted to False. |
 
+A post with no usable text (blank, a missing-value placeholder, `video`, a number, or
+Facebook's "This content isn't available" notice) gets no historical annotation, and its
+import carries `social_historical_labels_without_text`, so every code reads Unknown. The
+supplied `post_text` is unusable, so no label can be bound to the stored text: on the
+5,450 empty Facebook rows of the 2026-11-05 export every code is False, which is not a
+negative. What the labelling model actually received is not recorded in the export.
+
 The scheme remains `historical_automatic_unverified`, including when all file and
 text checks pass. Historical model explanations are shown separately from the
 post, in a disclosure section. They are not source quotations or new findings.

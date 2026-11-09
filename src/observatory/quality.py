@@ -162,6 +162,48 @@ def inspect_body(body: str) -> list[Issue]:
     return issues
 
 
+# Social posts are the whole post, not text extracted from a web page, so the article
+# checks block too much there: "Terms and conditions apply" is part of a promotion,
+# and one replacement character is usually a lost emoji. In the 2026-11-05 export,
+# all 141 footer-flagged posts and 64 of 65 garbled-flagged posts were readable.
+SOCIAL_HARD_BLOCKS = frozenset(
+    {"body_missing", "body_numeric", "body_wrong_type", "body_video_placeholder", "body_garbled"}
+)
+# Mojibake markers, as a share of non-space characters, from which a post is unreadable.
+SOCIAL_GARBLED_SHARE = 0.1
+# Facebook's notice for a post the collector could not read (72 rows of the
+# 2026-10-30 export, all 13 labels False); the post's own text is missing.
+_SOCIAL_UNAVAILABLE = re.compile(r"this content isn['’]t available(?: right now| in [^.\n]{1,60})?\.?")
+
+
+def social_hard_blocks(body: str) -> set[str]:
+    """Codes that keep a social post's text out of retrieval on every route.
+
+    Garbled text blocks only when the markers are at least SOCIAL_GARBLED_SHARE of
+    the non-space characters; otherwise ``body_garbled`` stays a quality note.
+    A platform "content isn't available" notice is ``body_unavailable_placeholder``.
+    """
+    codes = {issue.code for issue in inspect_body(body)} & SOCIAL_HARD_BLOCKS
+    if isinstance(body, str) and _SOCIAL_UNAVAILABLE.fullmatch(body.strip().casefold()):
+        codes.add("body_unavailable_placeholder")
+    if "body_garbled" in codes:
+        marked = sum(len(m.group()) for m in _MOJIBAKE.finditer(body))
+        if marked < SOCIAL_GARBLED_SHARE * len(re.sub(r"\s", "", body)):
+            codes.discard("body_garbled")
+    return codes
+
+
+def social_text_blockers(body: str) -> set[str]:
+    """Codes that pause a social post at admission: the hard blocks, plus a post
+    whose text is mostly footer boilerplate (``body_footer_only`` is otherwise a note)."""
+    codes = social_hard_blocks(body)
+    stripped = body.strip() if isinstance(body, str) else ""
+    footer = sum(m.end() - m.start() for m in _FOOTER.finditer(stripped))
+    if stripped and footer > len(stripped) / 2:
+        codes.add("body_footer_only")
+    return codes
+
+
 def mark_duplicate_bodies(records: list[RecordInput]) -> None:
     """Keep distinct URLs and counts; flag exact text duplicates, not placeholders."""
     groups: dict[str, list[RecordInput]] = {}

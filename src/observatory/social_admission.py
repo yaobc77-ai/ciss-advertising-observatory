@@ -14,12 +14,22 @@ from urllib.parse import urlsplit
 
 from .import_records import CanonicalRecord, jsonl_lines, load_records
 from .models import Issue
-from .quality import body_hash, inspect_body, valid_url
+from .quality import body_hash, social_text_blockers, valid_url
 from .social_annotations import social_annotation_details
 
 SCHEME = "collected-company-posts-unique-url-v1"
 _POST = re.compile(r"/([A-Za-z0-9_]+)/status/(\d+)/?")
-_BLOCK_TEXT = {"body_missing", "body_numeric", "body_video_placeholder", "body_garbled", "body_footer_only"}
+# The client asked (2026-11-06 meeting) to filter cement companies out by the
+# export's Carbon Majors commodity. "Coal, Cement" (Adani) also mines coal and stays.
+OUT_OF_SCOPE_COMMODITIES = frozenset({"Cement"})
+
+
+def source_commodity(record):
+    """The supplied parent_entity_info.commodity, or None when absent."""
+    row = record.raw.get("source_row") if isinstance(record.raw, dict) else None
+    info = row.get("parent_entity_info") if isinstance(row, dict) else None
+    value = info.get("commodity") if isinstance(info, dict) else None
+    return value if isinstance(value, str) else None
 
 
 def file_sha256(path):
@@ -113,9 +123,13 @@ def _admit_group(members, canonical, source_sha, binding):
         payload["published_at"] = None
     if "historical_labels" in conflicts or "body" in conflicts:
         payload["annotations"] = []
-    blockers = {issue.code for issue in inspect_body(selected.body)} & _BLOCK_TEXT
-    retrievable = bool(selected.body.strip()) and not blockers and "body" not in conflicts
-    payload["countable"] = True
+    # Excluded only when every observation names an out-of-scope commodity.
+    commodities = {source_commodity(record) for _, record in ordered}
+    out_of_scope = commodities <= OUT_OF_SCOPE_COMMODITIES
+    blockers = social_text_blockers(selected.body)
+    retrievable = (bool(selected.body.strip()) and not blockers and "body" not in conflicts
+                   and not out_of_scope)
+    payload["countable"] = not out_of_scope
     payload["retrievable"] = retrievable
     payload["retrieval_end"] = None
     payload["retrieval_ranges"] = None
@@ -128,6 +142,11 @@ def _admit_group(members, canonical, source_sha, binding):
         payload["issues"].append(Issue(
             code="social_source_variants_disagree", detail="Source observations disagree; affected public metadata is unknown, and differing bodies are excluded from retrieval.",
         ).model_dump())
+    if out_of_scope:
+        payload["issues"].append(Issue(
+            code="social_out_of_scope_commodity", severity="info",
+            detail="The company's supplied commodity is outside the study scope; the post is kept but not counted or retrieved.",
+        ).model_dump())
     payload["raw"]["admission_status"] = "user_confirmed_company_post_policy"
     payload["raw"]["social_admission"] = {
         "scheme": SCHEME, "scope": "collected_company_posts", "paid_ad_status": "unknown",
@@ -138,7 +157,10 @@ def _admit_group(members, canonical, source_sha, binding):
         "source_sha256": source_sha, "review_data_sha256": binding["data_sha256"],
         "decision_event_ids": {key: item["id"] for key, item in binding["selections"].items()},
         "retrieval_status": "enabled_source_post_text_only" if retrievable else (
+            "excluded_out_of_scope_commodity" if out_of_scope else
             "paused_body_disagreement" if "body" in conflicts else "paused_text_quality"),
+        "scope_status": "out_of_scope_commodity" if out_of_scope else "in_scope",
+        "source_commodities": sorted(value for value in commodities if value),
         "customer_acceptance": False,
     }
     # Duplicate records retain every complete observation, including old values
@@ -184,13 +206,14 @@ def prepare_social_admission(source, *, review_data, reviews, out):
     records_path = out / "records.jsonl"
     conflict_groups, count_conflicts = [], Counter()
     source_members = {}
-    countable, retrievable = 0, 0
+    countable, retrievable, out_of_scope = 0, 0, 0
     with records_path.open("x", encoding="utf-8", newline="\n") as stream:
         for (_, canonical), members in sorted(groups.items()):
             record, conflicts = _admit_group(members, canonical, source_sha, binding)
             stream.write(record.model_dump_json() + "\n")
             countable += int(record.countable)
             retrievable += int(record.retrievable)
+            out_of_scope += record.raw["social_admission"]["scope_status"] != "in_scope"
             source_members[record.record_id] = [item.record_id for _, item in members]
             if conflicts:
                 count_conflicts.update(conflicts)
@@ -219,6 +242,8 @@ def prepare_social_admission(source, *, review_data, reviews, out):
         "duplicate_groups": sum(len(members) > 1 for members in groups.values()),
         "duplicate_rows": sum(len(members) for members in groups.values() if len(members) > 1),
         "countable_records": countable, "retrievable_records": retrievable,
+        "out_of_scope_records": out_of_scope,
+        "excluded_commodities": sorted(OUT_OF_SCOPE_COMMODITIES),
         "conflict_counts": dict(count_conflicts), "conflict_groups": conflict_groups,
         "all_source_members_preserved": sum(map(len, source_members.values())) + len(quarantined) == len(seen),
         "originals": originals, "review_binding": binding,
