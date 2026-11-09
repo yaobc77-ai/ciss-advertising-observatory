@@ -92,7 +92,7 @@ positions and full original fields remain private provenance.
 | Twitter `date_time.published_at` | Timezone-qualified timestamp converted to UTC calendar date | Payload source date; original timestamp in raw | Date filters and labeled counts; invalid values remain missing |
 | Twitter `parent_entity` | `sponsor` as company affiliation; explicit `sponsor_basis` | Payload company plus bounded known affiliation basis | Company filter/detail; never presented as proof of paid sponsorship |
 | Twitter `channel.name`, `platform` | `account`, `platform`; publisher stays blank | Public account/platform; complete filtered SQL account groups | Local social account/platform filters, account bar→Records, Query and CSV. Groups are source names, not unique channel identities; no inferred news outlet |
-| Twitter `junkipedia_link` | Valid supplied `archive_url`, otherwise empty with issue | Public archive reference | Recorded archive link; page content and availability are unverified |
+| Twitter `junkipedia_link` | Valid supplied `archive_url`; if absent, `https://www.junkipedia.org/posts/{id}` for a numeric source `id` (`raw.archive_url_basis`, info issue `social_archive_url_derived_from_id`); otherwise empty with issue | Public archive reference | Recorded or derived archive link; page content and availability are unverified per record |
 | Twitter thirteen booleans and explanations | `claims-social-export-v1`, `historical_automatic_unverified` | Version-bound annotations; exact source fields retained | Separate historical scheme; not the native label filter, not CLAIMS2, and not published as reviewed findings |
 | Explicitly reviewed CLAIMS2 result batch | Record/body/taxonomy-bound assignments | `claims2_*` tables | CLAIMS views, matching results and graph evidence after publication; candidate results remain on hold |
 
@@ -168,6 +168,30 @@ It permits the observed social `body_footer_only` cases without treating that
 article heuristic as proof that the complete saved post has no useful text.
 It does not automatically enable missing, placeholder, numeric-only or garbled
 bodies, or change native body gates.
+
+Since 2026-11-05, admission and the source-retrieval policy share one social rule
+(`quality.social_text_blockers` and `quality.social_hard_blocks`). A post is paused
+for footer text only when footer phrases make up more than half of it, and blocked
+as garbled only when mojibake markers are at least 10% of its non-space characters.
+Otherwise both codes stay quality notes. In the 2026-11-05 Junkipedia export this
+cut non-empty blocked posts from 207 to 3: every footer-flagged post was a readable
+promotion ("Terms and conditions apply"), and all but one garbled-flagged post had
+only a lost emoji. Native body gates are unchanged.
+
+Since 2026-11-08 (after the client meeting of 2026-11-06):
+
+- Facebook's notice "This content isn't available right now" (or "… in <country>")
+  is `body_unavailable_placeholder`, a hard block: the post's own text is missing,
+  so its historical labels read Unknown (72 rows in the 2026-10-30 export).
+- The 2026-10-30 export dropped `junkipedia_link`. Every supplied link in the earlier
+  export (37,048 of 37,048) was `https://www.junkipedia.org/posts/{id}`, so a missing
+  link is built from a numeric source `id`; 16 rebuilt pages were opened and showed
+  the same text. A supplied link always wins.
+- Admission keeps a post whose every observation has `parent_entity_info.commodity`
+  exactly `Cement`, but neither counts nor retrieves it (`scope_status`
+  `out_of_scope_commodity`, retrieval status `excluded_out_of_scope_commodity`), as
+  the client asked. "Coal, Cement" stays in scope. The source-retrieval policy skips
+  such posts instead of repairing them.
 
 Without a validated range review, the explicit markers `For more on the subject:` and `Read More Stories` set `retrieval_end` to the first marker; only that prefix is checked and indexed. The 20 known boundaries have now received AI source-text review and engineering adoption through the body manifest: the importer excludes the specifically reviewed navigation intervals and retains later article text. It does not rewrite the source or infer missing material. Selected text is joined only for body-quality checks; indexing and quotations keep intervals separate. The original suspected-truncation issue is preserved, and an explicit metadata-only admission cannot be overridden by this repair. See the [boundary review](../../reports/data_audits/prefix_boundary_review.md).
 
