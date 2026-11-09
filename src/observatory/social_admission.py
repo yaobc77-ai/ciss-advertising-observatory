@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from .import_records import CanonicalRecord, load_records
+from .import_records import CanonicalRecord, jsonl_lines, load_records
 from .models import Issue
 from .quality import body_hash, inspect_body, valid_url
 from .social_annotations import social_annotation_details
@@ -54,7 +54,7 @@ def _decision_binding(data_path, log_path):
     data = json.loads(Path(data_path).read_text(encoding="utf-8-sig"))
     decisions = {item["id"]: item for item in data.get("decision_items", [])}
     latest = {}
-    for line in Path(log_path).read_text(encoding="utf-8-sig").splitlines():
+    for line in jsonl_lines(Path(log_path).read_bytes().decode("utf-8-sig")):
         if line.strip():
             event = json.loads(line)
             if event.get("item_id") in {"D02", "D03"}:
@@ -165,7 +165,7 @@ def prepare_social_admission(source, *, review_data, reviews, out):
     groups, quarantined, seen = defaultdict(list), [], set()
     # CanonicalRecord permits a blank URL; quarantine preserves such rows while
     # valid output is subsequently checked by the ordinary import loader.
-    for line_number, line in enumerate(source.read_text(encoding="utf-8-sig").splitlines(), 1):
+    for line_number, line in enumerate(jsonl_lines(source.read_bytes().decode("utf-8-sig")), 1):
         if not line.strip():
             continue
         record = CanonicalRecord.model_validate_json(line)

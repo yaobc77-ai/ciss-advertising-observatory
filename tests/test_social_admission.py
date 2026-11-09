@@ -171,3 +171,14 @@ def test_source_and_review_snapshots_are_byte_exact(tmp_path):
     prepare_social_admission(source, review_data=data, reviews=reviews, out=tmp_path / "new")
     for path, name in ((source, "source_records.original.jsonl"), (data, "review_data.original.json"), (reviews, "reviews.original.jsonl")):
         assert file_sha256(path) == before[path.name] == file_sha256(tmp_path / "new" / name)
+
+
+def test_line_separator_inside_a_post_body_survives_preparation_and_import_loading(tmp_path):
+    # 2026-11-05 rehearsal: model_dump_json leaves U+2028 unescaped, and the readers split on it.
+    body = "Line one\u2028line two"
+    source, data, reviews = files(tmp_path, [source_post(body=body), source_post("102", "https://twitter.com/example/status/9002")])
+    receipt = prepare_social_admission(source, review_data=data, reviews=reviews, out=tmp_path / "new")
+    assert receipt["unique_posts"] == 2
+    assert "\u2028" in (tmp_path / "new/records.jsonl").read_text(encoding="utf-8")
+    bodies = {record.body for record in load_records(tmp_path / "new/records.jsonl", dataset="social").records}
+    assert body in bodies

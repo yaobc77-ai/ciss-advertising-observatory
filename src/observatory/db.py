@@ -44,6 +44,13 @@ def digest(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
+def record_payload_version(record):
+    """A record's stored payload and its version id: the hash of the canonical payload JSON."""
+    payload = record.model_dump(mode="json")
+    serialized = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return payload, digest(serialized)
+
+
 class ImportPreconditionFailed(ValueError):
     """A reviewed update no longer targets the active source it was bound to."""
 
@@ -72,10 +79,9 @@ def _guarded_import_inputs(batch, snapshot_dataset, expected_current):
                 or supplied["dataset"] != record.dataset):
             raise ValueError("Invalid expected current source binding")
         bindings[record.record_id] = dict(supplied)
-        payload = record.model_dump(mode="json")
-        serialized = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        payload, version = record_payload_version(record)
         targets[record.record_id] = {
-            "payload": payload, "version_id": digest(serialized), "body_sha256": digest(record.body),
+            "payload": payload, "version_id": version, "body_sha256": digest(record.body),
         }
     return frozen, bindings, targets
 
@@ -252,13 +258,17 @@ class Database:
     def import_batch(
         self, batch: ImportBatch, snapshot_dataset=None, *,
         expected_current: dict[str, dict[str, str]] | None = None,
+        review=None,
     ):
         """Write a batch of records as new immutable versions, with chunks, annotations and profile updates.
 
         A version id is the hash of the record payload, so a changed payload is a new version; an
         unchanged one only re-activates the record. With expected_current, every target must still be
-        at its reviewed version before anything is written (guarded corrections). Runs under advisory
-        lock 54901 so imports and retrieval preparation never interleave.
+        at its reviewed version before anything is written (guarded corrections). With review
+        (import_review.review_gate), the reviewed plan is re-checked on this transaction before any
+        write; it returns the records to write and snapshot members, so a record kept at its old
+        version is never retired. Runs under advisory lock 54901 so imports and retrieval
+        preparation never interleave.
         """
         from .chunking import retrieval_spans
         from .indexing import (
@@ -276,6 +286,8 @@ class Database:
         validate_postgres_text([item.model_dump() for item in batch.rejected])
         validate_postgres_text(batch.candidates)
         validate_postgres_text(batch.source_hashes)
+        if review is not None and expected_current is not None:
+            raise ValueError("A reviewed import and a guarded update cannot be combined")
         bindings, targets = None, None
         if expected_current is not None:
             batch, bindings, targets = _guarded_import_inputs(batch, snapshot_dataset, expected_current)
@@ -304,19 +316,19 @@ class Database:
             if bindings is not None:
                 report["already_applied"] = _check_current_import_sources(conn, bindings, targets)
                 report["precondition_checked"] = len(bindings)
+            records, members = batch.records, [r.record_id for r in batch.records]
+            if review is not None:
+                records, review_receipt = review(conn, batch)
+                report["review"] = review_receipt
             profile_id = active_profile(conn)
             touched_profiles = {profile_id}
-            for record in batch.records:
+            for record in records:
                 # Records are mutable after validation; reject invalid edited ranges
                 # even when this particular record is not currently retrievable.
                 if record.retrieval_ranges is not None:
                     retrieval_spans(record.body, retrieval_ranges=record.retrieval_ranges)
                 if targets is None:
-                    payload = record.model_dump(mode="json")
-                    serialized = json.dumps(
-                        payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")
-                    )
-                    version = digest(serialized)
+                    payload, version = record_payload_version(record)
                 else:
                     payload = targets[record.record_id]["payload"]
                     version = targets[record.record_id]["version_id"]
@@ -371,7 +383,7 @@ class Database:
             if snapshot_dataset:
                 retired = conn.execute(
                     "UPDATE records SET active=false WHERE dataset=%s AND active AND NOT (record_id=ANY(%s)) RETURNING record_id",
-                    (snapshot_dataset, [r.record_id for r in batch.records]),
+                    (snapshot_dataset, members),
                 ).fetchall()
                 report["deactivated"] = [r["record_id"] for r in retired]
             for prepared_profile in sorted(touched_profiles):

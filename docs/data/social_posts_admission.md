@@ -66,6 +66,54 @@ Repeat the same import to verify idempotency. New canonical IDs are listed in `m
 
 The default collection-level total counts unique posts once. Source company/account disagreements are unknown groups. Company affiliations are not paid sponsorship relationships. The detail projection exposes only permitted source text, company, account, publication date, original/archive URLs, source record references and historical states; local paths, complete raw JSON and generated explanations are not exposed.
 
+## Review before an import changes existing records (2026-11-05)
+
+`import-native`, `import-social` and `import-records` now compare a batch with the database before they write (`src/observatory/import_review.py`).
+
+- **What goes through as before:** a batch that only adds new records, or repeats unchanged ones.
+- **What stops:** a batch that would change the current version of an existing record, re-activate a retired one, or retire records in snapshot mode. The command writes nothing, prints an alert ("IMPORT STOPPED") and exits with code 3.
+- **What the alert shows:**
+  - counts per action and per changed field;
+  - what would be lost: archive link, retrievability, body, source observations;
+  - the plan's fingerprint.
+- **Where the details are:**
+  - `report.json` has the old and new values;
+  - `decisions.template.json` is the template for per-item decisions.
+
+  Both are written to `--review-dir`, or by default to `.runtime/import_review/<UTC time>/`.
+
+A person then chooses one of two modes:
+
+```sh
+# all-latest: take this batch's version for every changed record
+python -m observatory.cli import-records records.jsonl --dataset social \
+  --approve all-latest --fingerprint <fingerprint from the alert>
+
+# per-item: copy the template, set each record to "latest" or "keep", fill in reviewer and decided_at
+python -m observatory.cli import-records records.jsonl --dataset social --decisions decisions.json
+```
+
+- **"Latest" means the version in this file.** It is not a judgement that the file is newer or more complete. In the 2026-11-05 rehearsal the new export had dropped every Junkipedia archive link; all-latest would have removed the archive link from 19,111 posts.
+- **"Keep" changes nothing for that record.** It keeps its current version and its active state, and a snapshot never retires it.
+- **Snapshot retirements need their own approval:** add `--approve-retire`, or set `"approve_retirements": true` in the decisions file.
+- **Shards cannot run as a snapshot.** A batch prepared from one shard of a split export (`*.shard-NN-of-NN.*`) is refused in snapshot mode, because it would retire the other shards' records. Import every shard with `--mode upsert`. There is no cross-shard snapshot yet.
+- **The approval is bound to the exact plan.** The plan covers:
+  - the database cluster, name and oid;
+  - the mode and the batch hashes;
+  - every record's current version, new version and active flag;
+  - the exact retirement set, with versions.
+
+  `Database.import_batch` re-plans inside its own transaction, under import lock 54901, before writing. If anything differs, it raises `ImportReviewMismatch` and writes nothing.
+- **What is not covered:** scripts that call `Database.import_batch` directly keep their own guards and skip this review:
+  - `prepare_native_body_update.py`, which uses `expected_current`;
+  - the fresh-database verifier.
+
+Large exports go through `scripts/split_social_export.py EXPORT.json --out NEW_DIR --shards N` first.
+
+- It streams the export and keeps every row of one post in one shard. The key for Twitter is the canonical status URL; for other platforms it is the platform plus the post ID.
+- Each shard is checked against the 256 MiB preparation limit.
+- Facebook and Instagram shards are written, but preparation still accepts only Twitter.
+
 ## Validation boundary
 
 The new policy and detail projections have 27 focused checks. Combined with existing detail and historical-label regressions, 80 offline checks pass, including unchanged native detail rendering. The private row reconciliation separately compares every source observation and every canonical group's membership and unresolved fields. These checks establish source preservation and deterministic policy behavior; they do not establish semantic classification quality, independent usability, verified paid-ad status or client acceptance.
