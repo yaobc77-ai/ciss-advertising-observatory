@@ -31,6 +31,13 @@ SOCIAL_LABELS = (
 MAX_JSON_BYTES = 256 * 1024 * 1024
 _SOURCE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,180}")
 _POST_PATH = re.compile(r"/[^/]+/status/(\d+)/?")
+# Facebook and Instagram posts are identified by platform + Junkipedia post uid (the 2026-11-06
+# export: Facebook uids are mostly digits or "digits_digits", Instagram uids are shortcodes).
+# Their URLs are checked for the platform's host, but only Instagram's carries the uid.
+PLATFORMS = {"twitter": "Twitter", "facebook": "Facebook", "instagram": "Instagram"}
+_FACEBOOK_HOSTS = {"facebook.com", "www.facebook.com", "web.facebook.com", "m.facebook.com"}
+_INSTAGRAM_HOSTS = {"instagram.com", "www.instagram.com"}
+_INSTAGRAM_PATH = re.compile(r"/(?:p|reel|tv)/([^/]+)/?")
 EXPLANATION_FIELDS = ("green_explanation", "fossil_fuel_explanation", "explanation")
 EXPLANATION_ENCODING = "json-string-nul-v1"
 JUNKIPEDIA_POST_URL = "https://www.junkipedia.org/posts/"
@@ -127,6 +134,47 @@ def _source_id(row: dict) -> str:
     return value
 
 
+def platform_post_uid(value) -> str | None:
+    """A supplied Junkipedia post uid usable as a Facebook/Instagram identity, else None.
+
+    Any nonempty printable string without whitespace (at most 512 characters) is accepted: the
+    identity is a hash of platform + uid, and the uid is never interpreted.
+    """
+    if (not isinstance(value, str) or not 0 < len(value) <= 512
+            or any(char.isspace() or not char.isprintable() for char in value)):
+        return None
+    return value
+
+
+def platform_post_url(platform, url, uid) -> bool:
+    """Whether ``url`` is a plain supplied post URL of ``platform`` (Facebook/Instagram) for ``uid``."""
+    if not isinstance(url, str) or url != url.strip() or not valid_url(url):
+        return False
+    try:
+        parsed = urlsplit(url)
+        port = parsed.port
+    except ValueError:
+        return False
+    if parsed.username or parsed.password or parsed.fragment or port not in {None, 80, 443}:
+        return False
+    if platform == "Facebook":
+        return parsed.hostname in _FACEBOOK_HOSTS
+    if platform == "Instagram":
+        match = _INSTAGRAM_PATH.fullmatch(parsed.path)
+        return (parsed.hostname in _INSTAGRAM_HOSTS and not parsed.query
+                and bool(match) and match.group(1) == uid)
+    return False
+
+
+def _supplied_platform(row: dict) -> str:
+    """The platform's documented name; the supplied spelling is what the record stores."""
+    platform = row.get("platform")
+    name = PLATFORMS.get(platform.casefold()) if isinstance(platform, str) else None
+    if name is None:
+        raise ValueError("This adapter requires the documented Twitter, Facebook or Instagram platform.")
+    return name
+
+
 def _original_url(row: dict) -> str:
     urls = row.get("urls", {}).get("post_url") if isinstance(row.get("urls"), dict) else None
     if isinstance(urls, str):
@@ -135,6 +183,19 @@ def _original_url(row: dict) -> str:
         raise ValueError("Original post URLs must be a string or list of strings.")
     post = row.get("post")
     uid = post.get("junkipedia_uid") if isinstance(post, dict) else None
+    supplied = row.get("platform")
+    # Identity matching treats X as Twitter (the splitter keys X rows with Twitter's); _record still
+    # admits only the documented platform names.
+    platform = ("Twitter" if isinstance(supplied, str) and supplied.casefold() in {"twitter", "x"}
+                else _supplied_platform(row))
+    if platform != "Twitter":
+        uid = platform_post_uid(uid)
+        if uid is None:
+            raise ValueError("A usable source platform post ID is required for platform identity.")
+        candidates = {url for url in urls if platform_post_url(platform, url, uid)}
+        if len(candidates) != 1:
+            raise ValueError(f"Original post URL requires one unambiguous {platform} post URL.")
+        return candidates.pop()
     if not isinstance(uid, str) or not uid.isdigit():
         raise ValueError("The source platform post ID is required for URL identity matching.")
     candidates = set()
@@ -159,9 +220,10 @@ def _record(row: dict, number: int, receipt: dict) -> RecordInput:
     source_id = _source_id(row)
     url = _original_url(row)
     body = row.get("post_text")
-    platform = row.get("platform")
-    if not isinstance(body, str) or not isinstance(platform, str) or platform.casefold() != "twitter":
-        raise ValueError("This adapter requires textual post_text and the documented Twitter platform.")
+    platform_name = _supplied_platform(row)
+    platform = row["platform"]
+    if not isinstance(body, str):
+        raise ValueError("This adapter requires textual post_text.")
     issues = [
         Issue(code="social_ad_status_unknown", detail="The export contains company social posts; paid-ad status has not been verified."),
         Issue(code="social_admission_pending", detail="Preparation does not admit records to advertising counts or RAG retrieval."),
@@ -244,7 +306,7 @@ def _record(row: dict, number: int, receipt: dict) -> RecordInput:
     return RecordInput(
         record_id=f"junkipedia:{source_id}", dataset="social", url=url,
         published_at=published_at, sponsor=company, platform=platform, account=account,
-        body=body, title=f"{account or 'Twitter'} post · {source_id}",
+        body=body, title=f"{account or platform_name} post · {source_id}",
         archive_url=archive_url, countable=False, retrievable=False,
         raw={
             "source_row": row, "source_post_id": source_id, "ad_status": "unknown",

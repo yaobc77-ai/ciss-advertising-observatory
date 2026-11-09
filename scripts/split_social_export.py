@@ -14,8 +14,13 @@ re-serialized (same JSON values, not the original bytes); manifest.json reconcil
 the input's SHA-256. All shards and the manifest are written into a staging directory next to NEW_DIR,
 which is renamed to NEW_DIR in one step only after the whole export parsed and every shard is within
 the preparation limit. On a failure the staging directory is removed and NEW_DIR, if it can be created,
-holds only the failure manifest, so no importable prefix is ever published. Facebook and Instagram
-shards are written too, but preparation still accepts only Twitter.
+holds only the failure manifest, so no importable prefix is ever published.
+
+Facebook and Instagram posts are counted per post ID, but one post can appear under two IDs with the
+same URL, and those two IDs can land in different shards. So the whole export is scanned for post IDs
+sharing a URL, and the list is written as identity_conflicts.json, bound to the export's and every
+shard's SHA-256. scripts/prepare_social_admission.py needs it (--identity-conflicts) for any shard
+with Facebook/Instagram rows, and pauses retrieval of every listed post.
 """
 
 from __future__ import annotations
@@ -30,7 +35,12 @@ from collections import Counter
 from pathlib import Path
 from uuid import uuid4
 
-from observatory.social_admission import canonical_post_url
+from observatory.social_admission import (
+    IDENTITY_CONFLICTS_SCHEMA,
+    canonical_post_url,
+    export_uid_entry,
+    shared_url_keys,
+)
 from observatory.social_archive import (
     MAX_JSON_BYTES,
     _invalid_constant,
@@ -127,14 +137,19 @@ def _safe(platform):
 
 
 def _write_shards(source, staging, shards):
-    """Write every row into its shard under ``staging``; return (shard names, row counts, rows, failure)."""
-    handles, counts, rows = {}, Counter(), 0
+    """Write every row into its shard under ``staging``.
+
+    Returns (shard names, row counts, rows, failure, Facebook/Instagram (key, URL) entries).
+    """
+    handles, counts, rows, entries = {}, Counter(), 0, []
     failure = None
     try:
         with source.open(encoding="utf-8") as stream:
             for row in iter_array(stream):
                 rows += 1
                 platform, key = post_key(row)
+                if _safe(platform) != "twitter" and (entry := export_uid_entry(row)) is not None:
+                    entries.append(entry)
                 bucket = int(hashlib.sha256(key.encode("utf-8")).hexdigest(), 16) % shards
                 name = f"{source.stem}.{_safe(platform)}.shard-{bucket + 1:02d}-of-{shards:02d}.json"
                 # allow_nan=False: an overflowing number such as 1e400 parses to inf and must not
@@ -154,7 +169,31 @@ def _write_shards(source, staging, shards):
             if failure is None:
                 handle.write("]\n")
             handle.close()
-    return sorted(handles), counts, rows, failure
+    return sorted(handles), counts, rows, failure, entries
+
+
+def _file_sha256(path):
+    digest = hashlib.sha256()
+    with path.open("rb") as raw:
+        for block in iter(lambda: raw.read(1 << 20), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def _write_identity_conflicts(staging, names, export_sha, entries):
+    """Write identity_conflicts.json; return its manifest entry."""
+    ambiguous = dict(sorted(shared_url_keys(entries).items()))
+    listing = {
+        "schema_version": IDENTITY_CONFLICTS_SCHEMA, "export_sha256": export_sha,
+        "shard_sha256": {name: _file_sha256(staging / name) for name in names},
+        "basis": "Facebook/Instagram post IDs whose post URL (host without www./web./m., path without a "
+                 "trailing slash, query kept, case kept) also belongs to another post ID in the whole export",
+        "ambiguous": ambiguous,
+    }
+    path = staging / "identity_conflicts.json"
+    path.write_text(json.dumps(listing, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    return {"file": path.name, "sha256": _file_sha256(path), "post_id_rows": len(entries),
+            "ambiguous_post_ids": len(ambiguous)}
 
 
 def _write_manifest(directory, manifest):
@@ -178,7 +217,7 @@ def split_export(source, out, shards, limit=MAX_JSON_BYTES):
     staging = out.parent / f".{out.name}.staging-{uuid4().hex}"
     staging.mkdir()
     try:
-        names, counts, rows, failure = _write_shards(source, staging, shards)
+        names, counts, rows, failure, entries = _write_shards(source, staging, shards)
         sizes = {name: (staging / name).stat().st_size for name in names}
         too_big = sorted(name for name, size in sizes.items() if size > limit)
         if failure is None and too_big:
@@ -196,6 +235,8 @@ def split_export(source, out, shards, limit=MAX_JSON_BYTES):
             "too_big": too_big,
         }
         if failure is None:
+            manifest["identity_conflicts"] = _write_identity_conflicts(staging, names, manifest["input_sha256"],
+                                                                       entries)
             _write_manifest(staging, manifest)
             os.rename(staging, out)
             return manifest

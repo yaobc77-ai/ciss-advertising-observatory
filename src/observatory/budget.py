@@ -99,21 +99,45 @@ class QuestionGate:
 QUESTIONS = QuestionGate()
 
 
+def task_cap_text(value):
+    """A positive, finite task cap in USD as its canonical text (1, 1.0 and 1.00 are one cap)."""
+    try:
+        cap = Decimal(str(value))
+    except ArithmeticError as exc:
+        raise ValueError("A task cap needs a positive amount and a 'task:<name>' visitor") from exc
+    if not cap.is_finite() or cap <= 0:
+        raise ValueError("A task cap needs a positive amount and a 'task:<name>' visitor")
+    return format(cap.normalize(), "f")
+
+
 class Budget:
     def __init__(self, db, settings):
         self.db = db
         self.settings = settings
 
-    def reserve(self, amount, visitor, kind, model):
+    def reserve(self, amount, visitor, kind, model, *, task_cap=None):
         """Hold an estimated amount before a model call; refuse when a limit would be exceeded.
 
         Expired pending holds become 'uncertain' and still count. The monthly cap applies to every
         kind; per-visitor minute/day limits and concurrency apply to generation and are counted once
         per question by QUESTIONS (in memory), falling back to the ledger outside Service.answer.
+
+        ``task_cap`` bounds everything this ``visitor`` (a persistent task name) has ever reserved:
+        settled, pending and uncertain entries all count, in every month. It is checked under the
+        same lock and transaction as the new hold, so concurrent runs, retries and restarts of one
+        task cannot pass the cap together. The cap is recorded on every hold of the task: a later run
+        with another cap, or without one, is refused, so a cap cannot be raised or dropped by rerunning.
+        A 'task:' visitor always needs a cap.
         """
         amount = Decimal(str(amount))
-        if amount <= 0:
+        if not amount.is_finite() or amount <= 0:
             raise ValueError("Reservation must be positive")
+        if task_cap is not None:
+            task_cap = task_cap_text(task_cap)
+            if not str(visitor).startswith("task:"):
+                raise ValueError("A task cap needs a positive amount and a 'task:<name>' visitor")
+        elif str(visitor).startswith("task:"):
+            raise ValueError("A 'task:<name>' visitor needs its task cap")
         rid = uuid4().hex
         with self.db.connect() as conn:
             conn.execute("SELECT pg_advisory_xact_lock(54902)")
@@ -132,6 +156,25 @@ class Budget:
                 raise LimitReached(
                     "Monthly API budget reached. Browsing and keyword search remain available."
                 )
+            if task_cap is not None:
+                caps = {row["cap"] for row in conn.execute(
+                    "SELECT DISTINCT usage->>'task_cap' AS cap FROM usage_ledger WHERE visitor=%s", (visitor,)
+                ).fetchall()}
+                if caps - {task_cap}:
+                    raise ValueError(
+                        f"{visitor} was approved with another cap ({', '.join(sorted(str(c) for c in caps))} USD); "
+                        "a task's cap cannot change. Use a new task name for a new approval."
+                    )
+                task_spent = conn.execute(
+                    "SELECT COALESCE(sum(COALESCE(actual_usd,reserved_usd)),0) AS n FROM usage_ledger "
+                    "WHERE visitor=%s AND state<>'cancelled'",
+                    (visitor,),
+                ).fetchone()["n"]
+                if task_spent + amount > Decimal(task_cap):
+                    raise LimitReached(
+                        f"Task cap reached for {visitor}: {task_spent} of {task_cap} USD used, "
+                        f"next call would hold {amount}."
+                    )
             # A call inside an open question counts as that question, once.
             if kind == "generation" and not QUESTIONS.admit(visitor, self.settings):
                 count = conn.execute(
@@ -153,8 +196,9 @@ class Budget:
                         "Two answers are already in progress. Please try again shortly."
                     )
             conn.execute(
-                "INSERT INTO usage_ledger(reservation_id,month,visitor,kind,model,reserved_usd,state,expires_at) VALUES (%s,%s,%s,%s,%s,%s,'pending',now()+interval '180 seconds')",
-                (rid, month, visitor, kind, model, amount),
+                "INSERT INTO usage_ledger(reservation_id,month,visitor,kind,model,reserved_usd,state,expires_at,usage) VALUES (%s,%s,%s,%s,%s,%s,'pending',now()+interval '180 seconds',%s)",
+                (rid, month, visitor, kind, model, amount,
+                 Jsonb({"task_cap": task_cap} if task_cap is not None else {})),
             )
         return rid
 
@@ -170,14 +214,14 @@ class Budget:
             if row["state"] not in ("pending", "uncertain"):
                 raise ValueError("Reservation already reconciled")
             conn.execute(
-                "UPDATE usage_ledger SET actual_usd=%s,state='settled',usage=%s WHERE reservation_id=%s",
+                "UPDATE usage_ledger SET actual_usd=%s,state='settled',usage=COALESCE(usage,'{}'::jsonb)||%s WHERE reservation_id=%s",
                 (actual, Jsonb(usage), rid),
             )
 
     def uncertain(self, rid, error_type):
         with self.db.connect() as conn:
             conn.execute(
-                "UPDATE usage_ledger SET state='uncertain',usage=%s WHERE reservation_id=%s AND state='pending'",
+                "UPDATE usage_ledger SET state='uncertain',usage=COALESCE(usage,'{}'::jsonb)||%s WHERE reservation_id=%s AND state='pending'",
                 (Jsonb({"error_type": error_type}), rid),
             )
 
@@ -188,6 +232,22 @@ class Budget:
                 "UPDATE usage_ledger SET state='cancelled',actual_usd=0 WHERE reservation_id=%s AND state='pending'",
                 (rid,),
             )
+
+    def task_caps(self, visitor):
+        """The caps recorded on this task's holds (normally one; an uncapped hold shows as None)."""
+        with self.db.connect() as conn:
+            return sorted((row["cap"] for row in conn.execute(
+                "SELECT DISTINCT usage->>'task_cap' AS cap FROM usage_ledger WHERE visitor=%s", (visitor,)
+            ).fetchall()), key=str)
+
+    def task_spent(self, visitor):
+        """Everything a task has held or spent (settled, pending and uncertain), as the task cap counts it."""
+        with self.db.connect() as conn:
+            return conn.execute(
+                "SELECT COALESCE(sum(COALESCE(actual_usd,reserved_usd)),0) AS n FROM usage_ledger "
+                "WHERE visitor=%s AND state<>'cancelled'",
+                (visitor,),
+            ).fetchone()["n"]
 
     def summary(self):
         with self.db.connect() as conn:

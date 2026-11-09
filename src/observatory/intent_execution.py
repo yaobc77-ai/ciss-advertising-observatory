@@ -58,7 +58,7 @@ def _collections(rows, dataset):
         if type(total) is not int or total < 0:
             raise ValueError("A count must be a nonnegative integer")
         if current == "social" and "count_unit" in row and row["count_unit"] not in {
-            "platform_canonical_original_post_url", "source_record",
+            "platform_canonical_original_post_url", "platform_source_post_uid", "source_record",
         }:
             raise ValueError("An explicit count unit must retain an existing record unit")
         for field in ("retrievable", "unknown_dates", "source_unknown_dates", "inferred_dates"):

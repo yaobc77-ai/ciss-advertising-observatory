@@ -16,7 +16,13 @@ from urllib.parse import urlsplit
 from .chunking import chunk_body
 from .import_records import CanonicalRecord, load_records
 from .quality import body_hash, inspect_body, social_hard_blocks
-from .social_admission import SCHEME, canonical_post_url, file_sha256
+from .social_admission import (
+    COUNT_UNITS,
+    SCHEME,
+    admitted_identity_ok,
+    file_sha256,
+    observation_matches,
+)
 
 SCHEMA_VERSION = "social-source-observations-v1"
 _HASH = re.compile(r"[0-9a-f]{64}")
@@ -63,17 +69,16 @@ def validated_observations(payload):
     variants = raw.get("source_variants") if isinstance(raw, dict) else None
     if (not isinstance(admission, dict) or admission.get("scheme") != SCHEME
             or admission.get("scope") != "collected_company_posts"
-            or admission.get("count_unit") != "platform_canonical_original_post_url"
+            or admission.get("count_unit") not in COUNT_UNITS
             or admission.get("paid_ad_status") != "unknown"
             or not isinstance(variants, list) or not variants
             or type(admission.get("member_count")) is not int
             or admission["member_count"] != len(variants)
             or not _hash(admission.get("source_sha256"))):
         raise ValueError("Invalid source admission or observation membership")
-    canonical = canonical_post_url(payload.get("platform"), payload.get("url"))
-    if (not canonical or canonical != payload.get("url") or canonical != admission.get("canonical_url")
-            or payload.get("record_id") != "social-post:" + body_hash("twitter\n" + canonical)):
-        raise ValueError("Social post identity does not match its canonical source URL")
+    if not admitted_identity_ok(payload, admission):
+        raise ValueError("Social post identity does not match its canonical source URL or post ID")
+    canonical = admission["canonical_url"]
     conflicts = admission.get("conflicting_fields")
     if (not isinstance(conflicts, list) or any(not isinstance(v, str) or v not in _CONFLICTS for v in conflicts)
             or len(set(conflicts)) != len(conflicts)):
@@ -92,7 +97,7 @@ def validated_observations(payload):
                 or record.get("countable") is not False or record.get("retrievable") is not False
                 or type(entry.get("source_line")) is not int or entry["source_line"] < 1
                 or entry.get("source_sha256") != admission["source_sha256"]
-                or canonical_post_url(record.get("platform"), record.get("url")) != canonical
+                or not observation_matches(record, admission, payload["platform"])
                 or not isinstance(body, str) or not isinstance(source_row, dict)
                 or source_row.get("post_text") != body or source_raw.get("body_sha256") != body_hash(body)):
             raise ValueError("Source observation identity, literal text or hash changed")
@@ -186,6 +191,7 @@ def prepare_source_retrieval(source, *, original_source, out, expected_changes=N
     expected_original = {}
     changed, bindings, checks = [], {}, []
     count = observations_count = coverage_chunks = strict_failure_records = out_of_scope = 0
+    identity_ambiguous = 0
     reasons = Counter()
     seen = set()
     with source.open(encoding="utf-8") as stream:
@@ -200,6 +206,12 @@ def prepare_source_retrieval(source, *, original_source, out, expected_changes=N
                 if row.get("countable") is not False or row.get("retrievable") is not False:
                     raise ValueError("An out-of-scope post must be neither counted nor retrieved")
                 out_of_scope += 1
+                continue
+            if admission.get("identity_ambiguous") is True:
+                # Possibly one post under two IDs: retrieval stays paused, never repaired here.
+                if row.get("retrievable") is not False:
+                    raise ValueError("A post with an ambiguous identity must not be retrieved")
+                identity_ambiguous += 1
                 continue
             observations = validated_observations(row)
             count += 1
@@ -281,6 +293,7 @@ def prepare_source_retrieval(source, *, original_source, out, expected_changes=N
     receipt = {"schema_version": SCHEMA_VERSION, "status": "prepared_not_imported_or_published",
                "source_sha256": input_sha, "original_source_sha256": original_sha,
                "source_records": count, "out_of_scope_records_skipped": out_of_scope,
+               "identity_ambiguous_records_skipped": identity_ambiguous,
                "source_observations": observations_count,
                "original_observations_reconciled": reconciled,
                "changed_records": len(changed), "change_reasons": dict(reasons),

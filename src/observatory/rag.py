@@ -14,7 +14,7 @@ from psycopg.types.json import Jsonb
 from pydantic import BaseModel, Field, StrictInt, create_model
 
 from .answer_norms import general_norm, load_norms
-from .budget import Budget, price
+from .budget import Budget, LimitReached, price, task_cap_text
 from .db import digest
 from .language import POLICY_VERSION, answer_language, check_claim_languages
 from .models import (
@@ -641,6 +641,26 @@ def materialize_selections(parsed, catalog):
     )
 
 
+def pending_embedding_estimate(rows, batch_size, model):
+    """What indexing ``rows`` would cost, without calling anything: chunk count, UTF-8 bytes, the
+    sum of the per-batch reservations Rag.embed would hold, and (when tiktoken is installed) a
+    cl100k token count with its price. Reservations bound each call; the token price is the estimate."""
+    sizes = [len(row["text"].encode("utf-8")) for row in rows]
+    reserved = sum((price(model, sum(sizes[i:i + batch_size]) + 100)
+                    for i in range(0, len(sizes), batch_size)), Decimal(0))
+    result = {"pending_chunks": len(rows), "calls": -(-len(rows) // batch_size), "batch_size": batch_size,
+              "utf8_bytes": sum(sizes), "reservation_total_usd": float(reserved)}
+    try:
+        import tiktoken
+    except ImportError:
+        result["tokens"] = None
+        return result
+    encoding = tiktoken.get_encoding("cl100k_base")
+    tokens = sum(len(encoding.encode(row["text"], disallowed_special=())) for row in rows)
+    result.update(tokens=tokens, estimated_usd=float(price(model, tokens)), token_basis="tiktoken cl100k_base")
+    return result
+
+
 class Rag:
     def __init__(self, db, settings, client=None):
         self.db = db
@@ -657,8 +677,11 @@ class Rag:
             )
         return self._client
 
-    def embed(self, texts, visitor="maintenance", cost_sink=None):
-        """Embed texts with text-embedding-3-small, reusing vectors cached by text hash in `embeddings`."""
+    def embed(self, texts, visitor="maintenance", cost_sink=None, *, task_cap=None):
+        """Embed texts with text-embedding-3-small, reusing vectors cached by text hash in `embeddings`.
+
+        ``task_cap`` (with a "task:<name>" visitor) makes the reservation refuse once the task's
+        ledger total would pass it; see Budget.reserve."""
         model = self.settings.embedding_model
         if model != "text-embedding-3-small":
             raise ValueError("Unconfigured embedding price/dimension")
@@ -679,7 +702,10 @@ class Rag:
             estimate = price(
                 model, sum(len(t.encode("utf-8")) for t in missing.values()) + 100
             )
-            rid = self.budget.reserve(estimate, visitor, "embedding", model)
+            if task_cap is None:
+                rid = self.budget.reserve(estimate, visitor, "embedding", model)
+            else:
+                rid = self.budget.reserve(estimate, visitor, "embedding", model, task_cap=task_cap)
             try:
                 response = self.client.embeddings.create(
                     model=model, input=list(missing.values()), dimensions=1536
@@ -708,23 +734,54 @@ class Rag:
                 raise
         return [result[digest(t)] for t in texts]
 
-    def index(self, batch_size=32, *, profile_id=None, visitor="maintenance"):
-        """Fill the selected profile's cache; historical chunks stay untouched."""
+    def index(self, batch_size=32, *, profile_id=None, visitor="maintenance", max_usd=None,
+              dry_run=False):
+        """Fill the selected profile's cache; historical chunks stay untouched.
+
+        ``max_usd`` (needs a "task:<name>" visitor) is a cap on everything the task has reserved,
+        read from the ledger at each reservation, so a resumed run continues from what was spent.
+        When the next batch would pass it, indexing stops before that call and says so.
+        ``dry_run`` only counts what is missing: no API client, no ledger entry, no write.
+        """
         if batch_size < 1:
             raise ValueError("batch_size must be positive")
+        is_task = str(visitor).startswith("task:")
+        if max_usd is not None:
+            max_usd = task_cap_text(max_usd)
+            if not is_task:
+                raise ValueError("--max-usd needs a task")
+        elif is_task and not dry_run:
+            raise ValueError("A task always runs with its approved cap (--max-usd)")
         rows = self.db.pending_embeddings(
             self.settings.embedding_model, profile_id=profile_id
         )
-        processed = 0
+        if dry_run:
+            return {"dry_run": True, **pending_embedding_estimate(rows, batch_size, self.settings.embedding_model),
+                    "model": self.settings.embedding_model, "profile": profile_id or "active",
+                    **({"task": visitor, "task_spent_usd": float(self.budget.task_spent(visitor)),
+                        "recorded_task_caps": self.budget.task_caps(visitor)} if is_task else {}),
+                    **({"max_usd": float(max_usd)} if max_usd is not None else {})}
+        processed, stopped = 0, None
         for start in range(0, len(rows), batch_size):
             group = rows[start : start + batch_size]
-            self.embed([r["text"] for r in group], visitor=visitor)
+            try:
+                self.embed([r["text"] for r in group], visitor=visitor,
+                           **({"task_cap": max_usd} if max_usd is not None else {}))
+            except LimitReached as exc:
+                if max_usd is None:
+                    raise
+                stopped = str(exc)
+                break
             processed += len(group)
-        return {
+        result = {
             "embedded_chunks": processed,
             "model": self.settings.embedding_model,
             "profile": profile_id or "active",
         }
+        if max_usd is not None:
+            result.update(task=visitor, max_usd=float(max_usd), remaining_chunks=len(rows) - processed,
+                          task_spent_usd=float(self.budget.task_spent(visitor)), stopped=stopped)
+        return result
 
     def generate(self, question, evidence, visitor, reservation=None, *, progress=None,
                  media_evidence=(), validate_media=None, one_claim_per_source=False):

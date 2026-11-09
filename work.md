@@ -2,6 +2,37 @@
 
 排序约定：新内容在上；每节对应 plan.md 同编号的一轮。
 
+## 2026-11-09：11-06 社交导出正式导入——S2 代码（FB/IG 适配、向量任务上限、导入只出报告）（$0，主库没改，未提交）
+
+- 结论：S2 的三块代码都写完并通过离线测试和私有集群测试；主库没碰，没有付费调用。还没提交（要先问用户）。
+- A. FB/IG 适配：
+  - `social_archive.py`：`_original_url` 按平台判断。FB 只认 facebook.com 及 www./web./m. 主机，允许查询串；IG 路径必须是 `/p|reel|tv/<uid>`，uid 区分大小写，不许查询串。新增 `platform_post_uid`、`platform_post_url`。
+  - `social_admission.py`：`post_identity`。Twitter 不变，仍按规范原帖链接，所以已有记录 ID 不变；FB/IG 按“平台＋junkipedia_uid”，计数单位 `platform_source_post_uid`。同一 URL 被几个 uid 共用的帖子，按整份导出判断：切分脚本写 `identity_conflicts.json`，绑定导出和每个分片的 SHA-256；准备 FB/IG 分片时必须带上这个文件，否则拒绝。准备时会校验：清单所在目录的分片文件、manifest、各分片哈希都对得上，并从所有分片按每行的实际平台重新算一遍共用 URL，结果必须和清单完全一致（删减或添加条目都会被拒绝）。这类帖子照样计数，但暂停检索（`paused_identity_ambiguous`）。
+  - 决定绑定：只有 Twitter 行时用 10-06 的选择；只要有一行 FB/IG，就要 D02' `collected_posts_all_platforms` 和 D03' `unique_post_platform_uid`；只要有一行公司商品是 Cement（混合帖也算），就要 D09。
+  - 混合帖（来源里既有水泥公司又有别的公司）按 D09：保留计数，公司记为未知（`sponsor` 为空，`company_status: unknown_mixed_commodity`）。
+  - Twitter 准入记录的键和标题与以前完全相同。
+  - `social_source_retrieval.py`、`public_social_admission`：两种计数单位都接受；观察记录必须和帖子的平台＋uid 对得上；`prepare_source_retrieval` 跳过身份存疑的帖子，不做修复。
+  - 计数单位的使用方同步改：`db.py`、`intent_execution.py`、`research_tools.py`、`record_view.py`、`scripts/audit_retrieval_quality.py`。
+- B. `observatory index --task/--max-usd/--dry-run/--batch-size`：
+  - `Budget.reserve(task_cap=)` 和月度上限在同一把锁、同一个事务里检查。累计算法：这个任务在账本里的全部金额，已结算、待结算、不确定都算，跨月、重启后也算，只有已取消的不算。
+  - 碰到任务上限时干净地停下，报告还剩多少片段没生成向量。`--dry-run` 不碰 API 客户端，也不写账本。
+  - 每次预留都把批准的上限写进账本行的 `usage.task_cap`；同一任务换上限、不带上限、上限为 inf/NaN/0 都会被拒绝，想换上限只能换任务名。`task:` 开头的访客不带上限一律拒绝（`reserve`、`Rag.index`、命令行三处都拦）。结算和标记不确定时改为合并 `usage`，不再覆盖。
+  - 不带 `--task` 的旧用法保持原样。
+- C. 导入审核：
+  - `--review-only` 只出报告和 `new_records.json`，从不导入；同时带批准或指纹时直接拒绝。
+  - 只带 `--fingerprint` 等于“按审过的指纹自动批准”：库状态一变就中止；只要有改变或下架，仍然停下等人批。
+- 真实导出免费复算（只看计数，用这版代码）：
+  - FB：56,985 行，54,176 个帖子 ID；IG：13,317 行，13,268 个帖子 ID；隔离 0 行。
+  - FB uid 形态：纯数字 40,118，数字_数字 16,840，其他 27。其他里 23 个是 `pfbid…` 不透明 ID，4 个像查询串。这补上了上一轮差的 23 行。
+  - 按“保留大小写”的规则，82 个 FB 帖子 ID 共用 41 个 URL，这 82 帖会暂停检索。上一轮 46 个 URL／985 个 uid 的数字用的是小写路径，不再使用。
+- 测试：
+  - 新增离线测试，全部用虚构数据：`tests/test_social_platforms.py`（44 项）、`tests/test_import_review_report_only.py`（7 项）、`tests/test_index_task_cap.py`（20 项）。`test_social_source_retrieval.py` 加 2 项。
+  - 私有集群 `count_public_tests_20261108`（`OBS_RUN_TASK_CAP_INTEGRATION=1`）：`tests/test_budget_task_cap_integration.py` 3 项通过：8 个线程各预留 $0.30、上限 $1，结果正好 3 个成功；已结算、不确定、已取消各自按规则计入；首次上限固定，换上限或不带上限被拒。导入审核集成测试 9 项通过，新加的 2 项是“两个分片先统一出报告，再依次按原指纹导入”和“报告后记录被改，原指纹被拒绝、不写入”。
+  - 全部集成测试（第 2 轮修复后）：212 通过。第一版改坏了 `_admit_group` 的旧调用方式，已改回兼容。剩下 2 个失败在 HEAD 上一样失败，不是这次改动造成的（`test_versioned_record_integration::test_real_native_social_and_all_exact_detail`、`test_failure_paths::…[concurrency]`）。28 个报错缺私有管理员设置，没跑。
+- 门禁（`.runtime/project_checks_s2r4_20261109`，最终候选）：pytest 5,443 通过、0 失败、39 跳过、347 未选（integration／live 标记）；28 个受保护模块按清单排除；Ruff 通过；3 项 JavaScript 检查通过（用 Codex 自带的 Node）；退出码 0。前一次门禁（s2r3）有 2 个失败：`Rag.index` 总是给 `embed` 传 `task_cap`，旧测试的替身函数不收这个参数；改成只在有上限时才传（一行，Codex 第 3 轮之后改的），重跑后全部通过。
+- Codex：计划复核一轮，提出 3 个阻断项（路径大小写、跨分片判断、混合帖的 D09），都已处理。代码复核 3 轮。第 1 轮 3 个阻断项：任务上限可绕过、删减过的冲突清单仍能通过、混合帖公司没记为未知。第 2 轮 1 个阻断项：按文件名跳过分片可被绕开。第 3 轮结论是“no blocking issues”。
+- 回滚：未提交；提交后 `git revert`。没有 schema 改动；主库没改。
+
 ## 2026-11-08：网页回答慢——第二轮第 1 项：规则已判定的名单题不经研究代理（2026-11-08 提交，未推送；付费对照 $0.188，上限 $0.26；开关 2026-11-08 起默认开，待提交）
 
 - 改动（本工作区，分支 `claude/sync-20261025`，只动自己的 hunk；service.py 里同事未提交的 `group_explain` 两个 hunk 不在内）：

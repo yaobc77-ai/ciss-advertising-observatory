@@ -1155,14 +1155,16 @@ class ToolCatalog:
             if (isinstance(admission, dict)
                     and admission.get("scheme") == "collected-company-posts-unique-url-v1"
                     and admission.get("scope") == "collected_company_posts"
-                    and admission.get("count_unit") == "platform_canonical_original_post_url"
+                    and admission.get("count_unit") in {"platform_canonical_original_post_url",
+                                                        "platform_source_post_uid"}
                     and admission.get("paid_ad_status") == "unknown"
                     and type(admission.get("member_count")) is int and admission["member_count"] > 0
                     and isinstance(admission.get("conflicting_fields"), list)
                     and all(isinstance(field, str) and field in allowed_conflicts for field in admission["conflicting_fields"])
                     and admission.get("retrieval_status") in {
                         "enabled_source_post_text_only", "paused_body_disagreement", "paused_text_quality",
-                        "paused_sentence_source_validation", "enabled_source_observations"}):
+                        "paused_sentence_source_validation", "enabled_source_observations",
+                        "paused_identity_ambiguous", "excluded_out_of_scope_commodity"}):
                 result["social_admission"] = {key: admission[key] for key in (
                     "scope", "count_unit", "paid_ad_status", "member_count", "conflicting_fields", "retrieval_status")}
                 result["social_admission"]["source_variants_access"] = "human_record_detail_only"
