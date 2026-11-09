@@ -179,6 +179,7 @@ def plan_import(conn, batch, snapshot_dataset=None):
         "database": basis["database"], "source_hashes": batch.source_hashes,
         "counts": counts | {"retire": len(retire)}, "changed_fields": field_counts,
         "losses": loss_counts, "changes": changes, "retire": retire,
+        "new_records": sorted(row[0] for row in table if row[4] == "new"),
     }
 
 
@@ -282,12 +283,37 @@ def review_gate(approval, snapshot_dataset=None):
     return check
 
 
+def report_only(db, batch, snapshot_dataset=None, *, review_dir):
+    """Plan read-only and write the review files; never import, even a batch that only adds records.
+
+    ``new_records.json`` lists the records the batch would add, so every shard of a split export can be
+    reviewed before the first one is written. The fingerprint printed here is what a later
+    ``--fingerprint`` import must still match.
+    """
+    with db.connect() as conn:
+        conn.execute("SET TRANSACTION READ ONLY")
+        plan = plan_import(conn, batch, snapshot_dataset)
+    write_review(review_dir, plan)
+    (Path(review_dir) / "new_records.json").write_text(
+        json.dumps(plan["new_records"], ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    pending, retire = needs_approval(plan)
+    return {"status": "report_only", "written": False, "fingerprint": plan["fingerprint"],
+            "counts": plan["counts"], "changed_fields": plan["changed_fields"], "losses": plan["losses"],
+            "needs_approval": bool(pending or retire), "review_dir": str(review_dir)}
+
+
 def reviewed_import(db, batch, snapshot_dataset=None, *, review_dir, approve=None, fingerprint=None,
-                    decisions=None, approve_retire=False):
+                    decisions=None, approve_retire=False, review_only=False):
     """The CLI path: plan and stop for a decision, or import under an approval.
 
     Returns (exit code, report). Code 3 means a decision is needed and nothing was written.
+    ``review_only`` writes the review files and returns without importing. A ``fingerprint`` without
+    an approval imports only a batch that needs none and only while it still matches that reviewed plan.
     """
+    if review_only:
+        if approve is not None or decisions is not None or approve_retire or fingerprint:
+            raise ValueError("--review-only cannot be combined with an approval or a fingerprint")
+        return 0, report_only(db, batch, snapshot_dataset, review_dir=review_dir)
     if decisions is not None and approve is not None:
         raise ValueError("Use either --approve all-latest or --decisions, not both")
     if approve is not None and approve != "all-latest":
@@ -300,6 +326,10 @@ def reviewed_import(db, batch, snapshot_dataset=None, *, review_dir, approve=Non
         if not fingerprint:
             raise ValueError("An approval needs the reviewed --fingerprint")
         approval = Approval(fingerprint, approve or "retire-only", retire_approved=approve_retire)
+    elif fingerprint:
+        # A reviewed plan that needs no approval (e.g. a shard of new records): the in-transaction
+        # re-plan must still match it, and still stops if the batch would now change records.
+        approval = Approval(fingerprint, "automatic")
     else:
         with db.connect() as conn:
             conn.execute("SET TRANSACTION READ ONLY")

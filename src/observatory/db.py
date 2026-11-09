@@ -489,8 +489,9 @@ class Database:
          CASE WHEN r.dataset='social' AND v.payload#>>'{{raw,social_admission,scheme}}'
                    ='collected-company-posts-unique-url-v1'
                    AND v.payload#>>'{{raw,social_admission,scope}}'='collected_company_posts'
-                   AND v.payload#>>'{{raw,social_admission,count_unit}}'='platform_canonical_original_post_url'
-              THEN 'platform_canonical_original_post_url'
+                   AND v.payload#>>'{{raw,social_admission,count_unit}}'
+                       IN ('platform_canonical_original_post_url','platform_source_post_uid')
+              THEN v.payload#>>'{{raw,social_admission,count_unit}}'
               WHEN r.dataset='social' THEN 'source_record' END AS count_unit,
          CASE WHEN r.dataset='social' THEN 'not_verified' END AS paid_ad_status,
          CASE WHEN NULLIF(v.payload->>'published_at','') IS NOT NULL THEN 'source'

@@ -140,6 +140,27 @@ def test_reactivating_a_retired_record_needs_approval(db, tmp_path):
     assert code == 3 and report["counts"]["reactivate"] == 1 and state(db, "b")["active"] is False
 
 
+def test_disjoint_shards_reported_first_import_one_after_another_with_their_fingerprints(db, tmp_path):
+    reviewed_import(db, batch(rec("old")), review_dir=tmp_path / "r0")
+    first, second = batch(rec("s1-a"), rec("s1-b")), batch(rec("s2-a"), rec("old"))
+    reports = [reviewed_import(db, shard, review_dir=tmp_path / f"report{n}", review_only=True)[1]
+               for n, shard in enumerate((first, second))]
+    assert [r["needs_approval"] for r in reports] == [False, False] and state(db, "s1-a") is None
+    for n, (shard, report) in enumerate(zip((first, second), reports)):
+        code, result = reviewed_import(db, shard, review_dir=tmp_path / f"import{n}", fingerprint=report["fingerprint"])
+        assert code == 0 and result["review"]["approval"] == "automatic"
+    assert all(state(db, rid)["active"] for rid in ("s1-a", "s1-b", "s2-a", "old"))
+
+
+def test_a_reviewed_shard_fingerprint_is_refused_after_its_records_changed(db, tmp_path):
+    shard = batch(rec("t-a"))
+    _, report = reviewed_import(db, shard, review_dir=tmp_path / "report", review_only=True)
+    reviewed_import(db, batch(rec("t-a", body="Another fictional text.")), review_dir=tmp_path / "other")
+    with pytest.raises(ImportReviewMismatch):
+        reviewed_import(db, shard, review_dir=tmp_path / "import", fingerprint=report["fingerprint"])
+    assert state(db, "t-a")["body"] == "Another fictional text."
+
+
 def test_a_change_made_after_the_review_aborts_the_approved_import(db, tmp_path):
     reviewed_import(db, batch(rec("a")), review_dir=tmp_path / "r0")
     changed = batch(rec("a", body="Reviewed fictional change."))

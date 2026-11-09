@@ -56,11 +56,15 @@ def add_review_arguments(command):
                               "(default .runtime/import_review/<UTC time>)")
     command.add_argument("--approve", choices=["all-latest"],
                          help="Take the batch's version for every changed record of the reviewed plan")
-    command.add_argument("--fingerprint", help="The reviewed plan's fingerprint (with --approve all-latest)")
+    command.add_argument("--fingerprint",
+                         help="The reviewed plan's fingerprint: with --approve all-latest, or alone to import a "
+                              "reviewed batch that needs no approval only while it still matches")
     command.add_argument("--decisions", type=Path,
                          help="Per-record decisions ('latest' or 'keep') for the reviewed plan")
     command.add_argument("--approve-retire", action="store_true",
                          help="Also approve the reviewed plan's snapshot retirements (needs --fingerprint)")
+    command.add_argument("--review-only", action="store_true",
+                         help="Write the comparison report and new_records.json, then stop; nothing is imported")
 
 
 def run_import(db, batch, snapshot_dataset, args):
@@ -72,7 +76,8 @@ def run_import(db, batch, snapshot_dataset, args):
         "%Y%m%dT%H%M%S%fZ")
     code, report = reviewed_import(db, batch, snapshot_dataset, review_dir=review_dir,
                                    approve=args.approve, fingerprint=args.fingerprint,
-                                   decisions=args.decisions, approve_retire=args.approve_retire)
+                                   decisions=args.decisions, approve_retire=args.approve_retire,
+                                   review_only=getattr(args, "review_only", False))
     emit(report, args.out)
     if code:
         print(report["alert"])
@@ -160,7 +165,13 @@ def main():
     retract.add_argument("--reason", required=True)
     retract.add_argument("--reviewed-at", required=True, help="ISO timestamp with timezone")
     retract.add_argument("--out")
-    sub.add_parser("index")
+    index = sub.add_parser("index", help="Embed the active profile's chunks that have no vector yet (paid)")
+    index.add_argument("--task", help="Persistent task name; its ledger total is what --max-usd caps")
+    index.add_argument("--max-usd", type=float,
+                       help="Cap on everything the task has reserved (settled, pending, uncertain); needs --task")
+    index.add_argument("--dry-run", action="store_true",
+                       help="Only count the missing chunks, bytes, reservations and tokens; no API call")
+    index.add_argument("--batch-size", type=int, default=32)
     for command in ("index-prepare", "index-status", "index-activate"):
         p = sub.add_parser(command)
         p.add_argument("profile", nargs="?" if command == "index-status" else None)
@@ -308,7 +319,13 @@ def main():
     elif args.command == "index":
         from .rag import Rag
 
-        emit(Rag(db, settings).index())
+        if args.max_usd is not None and not args.task:
+            parser.error("--max-usd needs --task")
+        if args.task and args.max_usd is None and not args.dry_run:
+            parser.error("--task needs its approved --max-usd")
+        visitor = f"task:{args.task}" if args.task else "maintenance"
+        emit(Rag(db, settings).index(args.batch_size, visitor=visitor, max_usd=args.max_usd,
+                                     dry_run=args.dry_run))
     elif args.command in ("index-prepare", "index-status", "index-activate"):
         from .indexing import IndexManager
 

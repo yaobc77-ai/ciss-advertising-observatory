@@ -446,3 +446,30 @@ def test_out_of_scope_post_that_is_counted_fails(tmp_path):
     with pytest.raises(ValueError, match="out-of-scope"):
         prepare_source_retrieval(source, original_source=original, out=tmp_path / "new")
     assert not (tmp_path / "new").exists()
+
+
+def ambiguous_row(**changes):
+    row = admitted(("A post whose URL another post ID shares.",), reason="paused_identity_ambiguous")
+    row["record_id"] = "social-post:" + body_hash("ambiguous identity")
+    row["retrievable"] = False
+    row["raw"]["social_admission"]["identity_ambiguous"] = True
+    row.update(changes)
+    return row
+
+
+def test_identity_ambiguous_posts_are_skipped_not_repaired(tmp_path):
+    source, original, _ = input_files(tmp_path, ("Source text.",), "paused_text_quality")
+    with source.open("a", encoding="utf-8") as stream:
+        stream.write(json.dumps(ambiguous_row(), ensure_ascii=False) + "\n")
+    receipt = prepare_source_retrieval(source, original_source=original, out=tmp_path / "new")
+    assert receipt["changed_records"] == 1 and receipt["source_records"] == 1
+    assert receipt["identity_ambiguous_records_skipped"] == 1
+
+
+def test_identity_ambiguous_post_that_is_retrievable_fails(tmp_path):
+    source, original, _ = input_files(tmp_path, ("Source text.",), "paused_text_quality")
+    with source.open("a", encoding="utf-8") as stream:
+        stream.write(json.dumps(ambiguous_row(retrievable=True), ensure_ascii=False) + "\n")
+    with pytest.raises(ValueError, match="ambiguous identity"):
+        prepare_source_retrieval(source, original_source=original, out=tmp_path / "new")
+    assert not (tmp_path / "new").exists()

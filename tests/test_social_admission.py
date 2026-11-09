@@ -41,11 +41,13 @@ def files(tmp_path, records):
     data.write_text(json.dumps({"decision_items": [
         {"id": "D02", "decision": {"options": [{"id": "collected_posts"}]}},
         {"id": "D03", "decision": {"options": [{"id": "unique_post"}]}},
+        {"id": "D09", "decision": {"options": [{"id": "exclude_cement_commodity"}]}},
     ]}), encoding="utf-8")
     reviews = tmp_path / "reviews.jsonl"
     reviews.write_text("".join(json.dumps({"id": key + "-event", "item_id": key, "status": "confirmed",
                                         "decision_choice": choice, "source_data_sha256": file_sha256(data)}) + "\n"
-                               for key, choice in (("D02", "collected_posts"), ("D03", "unique_post"))), encoding="utf-8")
+                               for key, choice in (("D02", "collected_posts"), ("D03", "unique_post"),
+                                                   ("D09", "exclude_cement_commodity"))), encoding="utf-8")
     return source, data, reviews
 
 
