@@ -153,6 +153,14 @@ class _ObservationSourceMetadata(BaseModel):
         return self
 
 
+class SameTextPost(BaseModel):
+    """Another post in the selection whose current text is exactly the evidence's (C22, MT6-009)."""
+    record_id: str
+    account: str = ""
+    platform: str = ""
+    published_at: date | None = None
+
+
 class Evidence(_ObservationSourceMetadata):
     evidence_id: str
     record_id: str
@@ -177,6 +185,14 @@ class Evidence(_ObservationSourceMetadata):
     matched_terms: list[str] = Field(default_factory=list)
     literal_matched_terms: list[str] = Field(default_factory=list)
     source_text_quality_codes: list[TextQualityCode] = Field(default_factory=list)
+    # The record's current body hash, used only to tell posts with the same text apart; not published.
+    body_hash: str = Field(default="", exclude=True)
+    # A post standing for others with exactly its text (C22): the others in the selection, earliest
+    # first. Empty for ads and for a post whose text is its own.
+    same_text_posts: list[SameTextPost] = Field(default_factory=list)
+    # The earliest of those posts (user 2026-11-08), when the passages cited are not its own: it may
+    # lack the retrieved passages or have none that can be quoted.
+    same_text_first_post: SameTextPost | None = None
 
     @model_validator(mode="before")
     @classmethod

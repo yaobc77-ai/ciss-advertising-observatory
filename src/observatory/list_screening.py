@@ -561,6 +561,44 @@ def _verify(rag, question, listed, texts, visitor, cost_sink=None):
 DATASET_NAMES = {"native": ("Native ads", "原生广告"), "social": ("Company posts", "公司社交帖子")}
 
 
+def _same_text_groups(matched, by_id):
+    """{position of a written line: (position of the post written, positions of the others)}, in list order.
+
+    Matched posts whose current text is exactly the same are written once, by the earliest
+    published (missing dates last, then record_id; user 2026-11-08, C22). Every other match
+    is its own group. Each post stays a match in the counts, charts and citations.
+    """
+    groups = {}
+    for position, item in enumerate(matched):
+        passage = by_id.get(item["evidence_id"])
+        # The same rule as the search's (db._same_text_key): a social text from the current body.
+        same = (passage is not None and passage.dataset == "social" and passage.body_hash and passage.text.strip()
+                and passage.source_body_hash in (None, passage.body_hash))
+        groups.setdefault(passage.body_hash if same else ("own", position), []).append(position)
+
+    def published(n):
+        when = matched[n]["published_at"]
+        return (when is None, when.isoformat() if when else "", matched[n]["record_id"])
+
+    written = {}
+    for positions in groups.values():
+        lead = min(positions, key=published)
+        written[positions[0]] = (lead, [n for n in positions if n != lead])
+    return dict(sorted(written.items()))
+
+
+def same_text_note(others, chinese):
+    """What a written post adds about the other matched posts with its text (C22, MT6-009)."""
+    names = list(dict.fromkeys(item.get("publisher") or sponsor_display(item.get("sponsor") or "") or item["record_id"]
+                               for item in others))
+    shown = "、".join(names[:5]) if chinese else ", ".join(names[:5])
+    if len(names) > 5:
+        shown += f" 等 {len(names)} 个账号" if chinese else f" and {len(names) - 5} more"
+    if chinese:
+        return f"（另有 {len(others)} 条帖子正文相同：{shown}）"
+    return f" — {len(others)} more post{'s' if len(others) != 1 else ''} with the same text: {shown}"
+
+
 def _display_order(matched, limit):
     """Matches reordered so the shown ones come first, each collection keeping a fair share.
 
@@ -673,7 +711,7 @@ def list_answer(question, results, evidence, *, scope_total, literal=None, scope
     counts["matches"] = sum(item["decision"] == "matches" and item.get("route", "pass") == "pass" for item in results)
     examined = len(results)
     by_id = {item.evidence_id: item for item in evidence}
-    citations, lines, claims = [], [], []
+    citations, lines, claims, written_lines = [], [], [], []
     for number, item in enumerate(matched, 1):
         passage = by_id[item["evidence_id"]]
         citations.append(Citation(evidence_id=passage.evidence_id, quote=item["quote"],
@@ -689,12 +727,18 @@ def list_answer(question, results, evidence, *, scope_total, literal=None, scope
             # Display names ("TotalEnergies", not the stored "totalenergies").
             line = (f"{item['title']} — {item['publisher']}, {sponsor_display(item['sponsor'])}, {date}: "
                     f"“{item['quote']}” [{number}]")
-        if number <= DISPLAY_LIMIT:
-            lines.append(f"{number}. {line}")
+        written_lines.append(line)
         claims.append(CitedStatement(text=line, citation_indices=[number]))
     # Every match stays in the citations (for review and scoring); the answer
-    # shows the first DISPLAY_LIMIT and says how many more there are.
-    hidden = len(matched) - min(len(matched), DISPLAY_LIMIT)
+    # shows the first DISPLAY_LIMIT lines and says how many more matches there are.
+    # Posts with the same text share one line (C22).
+    shown, covered = [], 0
+    for lead, others in list(_same_text_groups(matched, by_id).values())[:DISPLAY_LIMIT]:
+        note = same_text_note([matched[n] for n in others], chinese) if others else ""
+        lines.append(f"{len(shown) + 1}. {written_lines[lead]}{note}")
+        shown.append(lead + 1)
+        covered += 1 + len(others)
+    hidden = len(matched) - covered
     if hidden:
         lines.append(hidden_line(hidden, chinese, both=bool(scopes)))
     if review:
@@ -766,8 +810,9 @@ def list_answer(question, results, evidence, *, scope_total, literal=None, scope
                                        "AI check of retrieved passages; not reviewed membership or a "
                                        "complete-collection result."),
                            "charts": list_charts(matched, chinese, both=bool(scopes)),
-                           # Citation numbers the page shows (the first DISPLAY_LIMIT matches).
-                           "display_citations": list(range(1, min(len(matched), DISPLAY_LIMIT) + 1))},
+                           # Citation numbers the page shows (the first DISPLAY_LIMIT lines; a post
+                           # standing for others with its text shows its own number).
+                           "display_citations": shown},
         research_trace={"list_screening": trace},
     )
 
