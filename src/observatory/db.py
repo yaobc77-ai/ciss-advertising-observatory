@@ -17,6 +17,7 @@ from .models import (
     Evidence,
     Filters,
     ImportBatch,
+    SameTextPost,
     validate_historical_label_scope,
     validate_postgres_text,
 )
@@ -42,6 +43,59 @@ from .social_annotations import (
 
 def digest(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def _same_text_key(row):
+    """A social post with text whose passage comes from its current body: posts sharing its body
+    hash share one search place (C22). A passage bound to a source body other than the current
+    one (a known handful) stays on its own."""
+    return (row.get("dataset") == "social" and bool(row.get("body_hash")) and bool((row.get("text") or "").strip())
+            and row.get("source_body_hash") in (None, row.get("body_hash")))
+
+
+def _first_per_text(queue, text_of):
+    """A ranked queue of record_ids keeping the first post of each text (posts without a key all stay)."""
+    seen, kept = set(), []
+    for record_id in queue:
+        key = text_of.get(record_id)
+        if key is not None:
+            if key in seen:
+                continue
+            seen.add(key)
+        kept.append(record_id)
+    return kept
+
+
+def _exact_passages(rows, picked):
+    """The representative's passages with exactly the chosen passages' texts, or None when one is missing."""
+    pool, found = list(rows), []
+    for item in picked:
+        match = next((row for row in pool if row["text"] == item.text), None)
+        if match is None:
+            return None
+        pool.remove(match)
+        found.append(match)
+    return found
+
+
+def _clear_mixed_texts(conn, rows):
+    """Clear the text identity of social posts with a passage from another source text (C22).
+
+    A post admitted from several saved observations can carry passages of a body other than its
+    current one; such a post is never grouped with posts of its current text. One indexed query.
+    """
+    ids = sorted({row["record_id"] for row in rows if row.get("dataset") == "social" and row.get("body_hash")})
+    if not ids:
+        return
+    mixed = {row["record_id"] for row in conn.execute(
+        "SELECT DISTINCT c.record_id FROM chunks c JOIN records r ON r.current_version=c.version_id "
+        "AND r.record_id=c.record_id JOIN record_versions v ON v.version_id=c.version_id "
+        "WHERE c.record_id=ANY(%s) AND c.source_body_hash IS NOT NULL AND c.source_body_hash<>v.body_hash",
+        [ids],
+    ).fetchall()}
+    for row in rows:
+        if row["record_id"] in mixed:
+            row["body_hash"] = ""
 
 
 class ImportPreconditionFailed(ValueError):
@@ -1374,7 +1428,7 @@ class Database:
     c.start_char AS start,c.end_char AS end,c.paragraph_ids,
     c.source_observation_id,c.source_version_id,c.source_body_hash,
     CASE WHEN c.source_observation_id IS NOT NULL THEN v.payload END AS observation_payload,
-    CASE WHEN r.dataset='native' THEN v.payload->'issues' END AS source_text_issues"""
+    CASE WHEN r.dataset='native' THEN v.payload->'issues' END AS source_text_issues,v.body_hash"""
     _SEARCH_JOIN = (
         " FROM chunks c JOIN records r ON r.current_version=c.version_id "
         "AND r.record_id=c.record_id JOIN record_versions v ON v.version_id=c.version_id "
@@ -1391,6 +1445,7 @@ class Database:
         model="text-embedding-3-small",
         chunks_per_record=1,
         _include_diagnostics=False,
+        fold_same_text=False,
     ):
         """Hybrid passage search over current versions of the active retrieval profile.
 
@@ -1402,6 +1457,10 @@ class Database:
         4. Reciprocal rank fusion, 1/(60+rank) per channel, equal weights.
         5. Take `limit` distinct records, alternating between collections, and keep at most
            `chunks_per_record` passages each; social passages are bound to their source observation.
+        6. With `fold_same_text` (C22, MT6-009; RAG answers only), social posts with exactly the same
+           current text take one place: the first ranked is chosen and the rest are skipped, then the
+           earliest published post in the selection with the same passages stands for them
+           (_fold_same_text). Every other caller keeps one place per post.
         """
         where, params = self.where(filters)
         select = self._SEARCH_SELECT
@@ -1502,10 +1561,17 @@ class Database:
                         by_id[eid] = row
                         channels.setdefault(eid, []).append(channel)
                 ordered[collection] = [(eid, ranking[eid]) for eid in sorted(ranking, key=lambda k: (-ranking[k], k))]
+            _clear_mixed_texts(conn, list(by_id.values()))  # every caller's text identity (C22)
             # Choose distinct records first, alternating between collections by
             # rank; a collection with fewer hits leaves its places to the other.
             records = []
             queues = [list(dict.fromkeys(by_id[eid]["record_id"] for eid, _ in items)) for items in ordered.values()]
+            if fold_same_text:
+                # Posts with the same text share one place: each ranked queue keeps the first
+                # post of each text before the collections alternate. Candidates beyond the
+                # channels' rows are not fetched, so fewer than `limit` texts may remain.
+                text_of = {row["record_id"]: row["body_hash"] for row in by_id.values() if _same_text_key(row)}
+                queues = [_first_per_text(queue, text_of) for queue in queues]
             for position in range(max((len(queue) for queue in queues), default=0)):
                 for queue in queues:
                     if position < len(queue) and len(records) < limit and queue[position] not in records:
@@ -1530,6 +1596,8 @@ class Database:
                 for group in selected.values()
                 for evidence in sorted(group, key=lambda e: (e.source_observation_id or "", e.start))
             ]
+            if fold_same_text:
+                evidence = self._fold_same_text(conn, select, join, where, params, evidence)
             if _include_diagnostics:
                 if literal:
                     diagnostics = {
@@ -1545,6 +1613,76 @@ class Database:
                     diagnostics = self._coverage(conn, terms, join, where, params, evidence)
                 return {"evidence": evidence, "diagnostics": diagnostics}
             return evidence
+
+    def _fold_same_text(self, conn, select, join, where, params, evidence):
+        """Each social post chosen for its text, with the other posts in the selection that share it.
+
+        Two queries, whatever the number of texts: every post in the selection with exactly the
+        chosen text (earliest first: missing dates last, then record_id; dates are days), leaving out
+        posts with passages of another source text; and the quotable passages (same scope and
+        retrieval profile, source text = current body) of those posts. The earliest post is the
+        group's first post (user 2026-11-08). The citation moves to it only when it has every chosen
+        passage's exact text, so the retrieved content stays whole; otherwise to the earliest post
+        that has, else it stays on the chosen post. The cited post lists the others in
+        `same_text_posts` and, when it is not the earliest, names it in `same_text_first_post`.
+        """
+        from .social_source_binding import bind_search_row
+
+        chosen = {}
+        for item in evidence:
+            if _same_text_key({"dataset": item.dataset, "body_hash": item.body_hash, "text": item.text,
+                               "source_body_hash": item.source_body_hash}):
+                chosen.setdefault(item.body_hash, {}).setdefault(item.record_id, []).append(item)
+        if not chosen:
+            return evidence
+        hashes = sorted(chosen)
+        members = {}  # body hash -> member rows, earliest first
+        for row in conn.execute(
+            "SELECT r.record_id,v.body_hash,COALESCE(v.payload->>'account','') AS account,"
+            "COALESCE(v.payload->>'platform','') AS platform,(v.payload->>'published_at')::date AS published_at "
+            "FROM records r JOIN record_versions v ON v.version_id=r.current_version AND v.record_id=r.record_id "
+            f"WHERE {where} AND r.dataset='social' AND v.body_hash=ANY(%s) "
+            "AND NOT EXISTS (SELECT 1 FROM chunks x WHERE x.record_id=r.record_id AND x.version_id=v.version_id "
+            "AND x.source_body_hash IS NOT NULL AND x.source_body_hash<>v.body_hash) "
+            "ORDER BY (v.payload->>'published_at')::date NULLS LAST,r.record_id",
+            [*params, hashes],
+        ).fetchall():
+            members.setdefault(row["body_hash"], []).append(row)
+        passages = {}  # record_id -> its quotable passage rows, in text order
+        for row in conn.execute(
+            select + join + f" WHERE {where} AND r.dataset='social' AND v.body_hash=ANY(%s) "
+            "AND (c.source_body_hash IS NULL OR c.source_body_hash=v.body_hash) "
+            "ORDER BY c.record_id,c.start_char,c.chunk_id",
+            [*params, hashes],
+        ).fetchall():
+            passages.setdefault(row["record_id"], []).append(row)
+
+        def post(row):
+            return SameTextPost(record_id=row["record_id"], account=row["account"], platform=row["platform"],
+                                published_at=row["published_at"])
+
+        replaced = {}
+        for key, by_record in chosen.items():
+            ((record_id, picked),) = by_record.items()  # one place per text
+            group = members.get(key) or []
+            cited, rows = record_id, None
+            for member in group:
+                if member["record_id"] == record_id:
+                    break  # no earlier post carries the chosen passages exactly
+                rows = _exact_passages(passages.get(member["record_id"], []), picked)
+                if rows is not None:
+                    cited = member["record_id"]
+                    break
+            update = {"same_text_posts": [post(m) for m in group if m["record_id"] != cited],
+                      "same_text_first_post": (post(group[0]) if group and group[0]["record_id"] != cited else None)}
+            if cited == record_id:
+                new = [item.model_copy(update=update) for item in picked]
+            else:
+                new = [bind_search_row({**row, "score": item.score, "retrieval_rank": item.retrieval_rank,
+                                        "retrieval_sources": list(item.retrieval_sources)}).model_copy(update=update)
+                       for item, row in zip(picked, rows)]
+            replaced.update({item.evidence_id: replacement for item, replacement in zip(picked, new)})
+        return [replaced.get(item.evidence_id, item) for item in evidence]
 
     def phrase_search(self, phrases, filters: Filters, limit_records=80):
         """The first passage of every record whose indexed text contains each quoted phrase.
@@ -1572,6 +1710,7 @@ class Database:
                 "ORDER BY c.record_id,c.start_char LIMIT %s",
                 [*params, *patterns, limit_records],
             ).fetchall()
+            _clear_mixed_texts(conn, rows)
         return [bind_search_row({**row, "retrieval_rank": rank, "retrieval_sources": ["phrase"]})
                 for rank, row in enumerate(rows, 1)]
 
@@ -1596,6 +1735,7 @@ class Database:
                 + f" WHERE {where} AND c.record_id = ANY(%s) ORDER BY c.record_id,c.start_char,c.chunk_id",
                 [*params, ids],
             ).fetchall()
+            _clear_mixed_texts(conn, rows)
         grouped = {rid: [] for rid in ids}
         for row in rows:
             group = grouped.get(row["record_id"])

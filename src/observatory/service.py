@@ -2781,10 +2781,11 @@ class Service:
             evidence = []
             for ((item, scope), vector, (_, report, units)) in zip(scoped, vectors, media_groups):
                 whole = self._small_scope_size(scope) if not (retrieval_groups or list_mode) else 0
-                # Step 4: hybrid search (keyword + vector + title, RRF) per retrieval group.
+                # Step 4: hybrid search (keyword + vector + title, RRF) per retrieval group. An answer
+                # reads each social text once (C22); a list judges every post, so it keeps them all.
                 found = self._public_evidence(self.db.search(
                     item["query"], scope, vector=vector, model=self.settings.embedding_model,
-                    chunks_per_record=2 if list_mode else 3,
+                    chunks_per_record=2 if list_mode else 3, fold_same_text=not list_mode,
                     **({"limit": 3} if retrieval_groups else {"limit": MAX_WIDENED} if list_mode
                        else {"limit": whole} if whole > 5 else {}),
                 ))
