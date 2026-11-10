@@ -36,6 +36,10 @@ class Connection:
             return Rows()
         if "title_coverage" in sql:
             return Rows(self.titles)
+        if "input(term,ordinal)" in sql:  # the search words' lexemes, kept for the reader
+            return Rows({"term": term, "lexemes": [term]} for term in params[0])
+        if "text_hits" in sql:  # the words each returned passage matched, kept for the reader
+            return Rows({"evidence_id": eid, "text_hits": [], "title_hits": []} for eid in params[2])
         dataset = next((p for p in params if isinstance(p, str) and p in ("native", "social")), None)
         rows = [r for r in self.hits if dataset in (None, r["dataset"])]
         if "WITH ann" in sql:

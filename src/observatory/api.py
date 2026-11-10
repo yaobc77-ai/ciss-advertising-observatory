@@ -7,6 +7,7 @@ comma-separated query parameters (?sponsors=Shell&sponsors=BP or ?sponsors=Shell
 """
 
 import hashlib
+import inspect
 import json
 import logging
 from datetime import date, datetime
@@ -131,8 +132,15 @@ def _first_error(exc):
     return f"{where}: {err.get('msg', 'invalid value')}" if where else err.get("msg", "invalid value")
 
 
+def _accepts(function, name):
+    """Whether `function` takes keyword `name` (a service without it keeps its plain call)."""
+    parameters = inspect.signature(function).parameters
+    return name in parameters or any(p.kind == inspect.Parameter.VAR_KEYWORD for p in parameters.values())
+
+
 def _visitor():
-    """A stable per-client id for rate limits; never a credential."""
+    """A stable per-client id for rate limits; never a credential. The client can choose it, so each
+    question is also counted by request address (QuestionGate.admit)."""
     supplied = (request.headers.get("X-Visitor-Id") or "").strip()
     if supplied and len(supplied) <= 128:
         return "api:" + supplied
@@ -298,6 +306,8 @@ def create_api(service, settings, record_details=None) -> Flask:
             options["continuation"] = payload.continuation.model_dump()
         elif payload.criterion_confirmation is not None:
             options["criterion_confirmation"] = payload.criterion_confirmation
+        if _accepts(service.answer, "address"):
+            options["address"] = request.remote_addr  # question limits per address, not only per X-Visitor-Id
         result = service.answer(payload.question, payload.filters, _visitor(), **options)
         status = 429 if result.status == "limited" else 200
         body = result.model_dump(mode="json")

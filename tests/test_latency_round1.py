@@ -15,8 +15,6 @@ from decimal import Decimal
 from types import SimpleNamespace
 from unittest.mock import Mock
 
-import pytest
-
 from observatory import cli as cli_module
 from observatory import db as db_module
 from observatory import list_screening
@@ -477,19 +475,26 @@ def test_a_tight_budget_completes_exactly_as_the_sequential_writer_would():
     assert abs(cost - 0.006) < 1e-9
 
 
-def test_a_final_refusal_stops_the_later_shards_before_they_reserve_and_raises():
+def test_a_final_refusal_stops_the_later_shards_before_they_reserve_and_marks_them_limited():
+    # Since the per-question cap (a14d3a0) a limit no longer ends the answer: the refused shard and
+    # the ones after it keep their screening quotes, and no follow-up call is tried.
     ads, listed, results = _twelve()
     budget = _RecordingBudget(refuse_from=2)  # every reservation after the first is refused, retries included
     rag = _WriterRag(budget, delays={"m00": 0.1})
     sink = []
 
-    with pytest.raises(LimitReached):
-        _service(rag)._read_matched_sources(ASK, listed, results, ads, "offline", cost_sink=sink)
+    merged, cost = _service(rag)._read_matched_sources(ASK, listed, results, ads, "offline", cost_sink=sink)
 
     # Shard 2: refused, waited for shard 1 to finish, refused again (final). Shard 3 never reached the budget.
     assert budget.order == [("reserved", 1), ("refused", 2), ("refused", 3)]
     assert [c["shard"] for c in rag.calls] == ["m00"]  # the dispatched first shard finished and was paid
-    assert sink == [0.002]
+    assert sink == [0.002] and abs(cost - 0.002) < 1e-9
+    assert merged.research_trace["content_zones"] == [
+        {"records": [e.record_id for e in ads[0:4]], "kind": "shard", "status": "answered"},
+        {"records": [e.record_id for e in ads[4:8]], "kind": "shard", "status": "limited", "reason": "LimitReached"},
+        {"records": [e.record_id for e in ads[8:12]], "kind": "shard", "status": "limited"}]
+    assert merged.structured_result["content_reading"]["status"] == "partial"
+    assert "screening quote only" in merged.answer
 
 
 def _reserve_in_thread(turnstile, index, out):

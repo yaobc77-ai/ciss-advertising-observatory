@@ -21,7 +21,7 @@ import os
 import subprocess
 import threading
 from collections import Counter
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import date
 from pathlib import Path
 from types import SimpleNamespace
@@ -38,11 +38,13 @@ from observatory.list_screening import (
     Verdict,
     Verdicts,
     _phrase_pattern,
+    summary_limited_line,
 )
 from observatory.models import Answer, Citation, CitedStatement, Evidence, Filters
 from observatory.question_plan import PLAN_VERSION
 from observatory.rag import Rag
 from observatory.relevance_triage import Criterion, CriterionDraft
+from observatory.retrieval_explain import group_explain
 from observatory.service import Service
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -195,9 +197,9 @@ SCENARIOS = {s.name: s for s in [
     Scenario("both_social_prepare_fails", JOBS, {"dataset": "all"}, triage=True, fail_social_count=True, allowed=BOTH,
              note="one collection's scope count fails: the criterion and the other collection's calls happen as before"),
     Scenario("native_writer_limit", JOBS, {"dataset": "native"}, writer="limit",
-             note="the writer hits the limit after a successful re-reading: the passages read, each once"),
+             note="the writer hits the limit after a successful re-reading: the screened list stands (2026-10-30)"),
     Scenario("both_writer_limit", JOBS, {"dataset": "all"}, writer="limit", allowed=BOTH,
-             note="the writer hits the limit over two collections: the retrieval candidates are shown, as before"),
+             note="the writer hits the limit over two collections: the screened list stands (2026-10-30)"),
     Scenario("social_relation_list", HASHTAG, {"dataset": "social", "record_ids": ["s1", "s3", "s4"]},
              relation_listing=LISTING, note="every selected post listed without a model call"),
     Scenario("social_relation_list_groups", HASHTAG, {"dataset": "social", "record_ids": ["s1", "s3", "s4"]},
@@ -592,6 +594,19 @@ def test_the_list_route_reproduces_the_frozen_samples(name, plain_environment):
         drop(expected, allowed)
         drop(actual, allowed)
     reword(expected, name)
+    # Two scores (2026-10-29): each retrieval group now keeps the reader's retrieval detail, accepted
+    # by an exact rule: these fake searches keep no route detail, so the explanation has exactly the
+    # group's retrieved records, each without routes, and no search words; a group that found nothing
+    # has an empty explanation. No other group field may change.
+    for group in (actual["result"].get("structured_result") or {}).get("groups") or []:
+        explain = group.pop("retrieval_explain")
+        if not group["passages"]:
+            assert explain == group_explain([]), name
+            continue
+        records = explain.pop("records")
+        assert {**explain, "records": {}} == {**group_explain([]), "partial": True}, name
+        assert sorted(records) == sorted(group["retrieved_record_ids"]), name
+        assert all(item["run"] is None and item["parts"] == [] for item in records.values()), name
     # A list judged by an unconfirmed model draft now says so (S3-c): the live answer must be the
     # frozen one plus that sentence, exactly once, at the end of the first paragraph; any other
     # list must read exactly as frozen.
@@ -614,6 +629,22 @@ def test_the_list_route_reproduces_the_frozen_samples(name, plain_environment):
             item[2] for item in actual["ledger"] if item[3] == "uncertain" and item[4] == "usage_missing")
         live_cost, frozen_cost = actual["result"].pop("cost_usd"), expected["result"].pop("cost_usd")
         assert live_cost == pytest.approx(frozen_cost + embedded + charged), name
+    # Spending caps (2026-10-30): a writer refused by a limit leaves the screened list as the answer;
+    # before, the whole answer was limited. Accepted exactly: the live answer is the one the same
+    # scenario gives when the writer fails, its list summary marked limited instead of failed and
+    # one line saying why there is no written summary. The model calls, database reads and ledger
+    # stay as frozen.
+    if scenario.writer == "limit":
+        failed = run(replace(scenario, writer="fail"))
+        for allowed in (*ALLOWED, *scenario.allowed):
+            drop(failed, allowed)
+        for group in (failed["result"].get("structured_result") or {}).get("groups") or []:
+            group.pop("retrieval_explain")
+        summary = failed["result"]["research_trace"]["list_summary"]
+        failed["result"]["research_trace"]["list_summary"] = {**summary, "status": "limited", "reason": "LimitReached"}
+        failed["result"]["answer"] += "\n\n" + summary_limited_line(scenario.question)
+        assert actual.pop("result") == failed["result"], name
+        expected.pop("result")
     assert actual == expected, name
 
 
@@ -684,14 +715,16 @@ def test_more_than_forty_phrase_hits_are_all_read_first_in_each_collection(plain
     assert single["first_read"] == 48 and "first_read_by_dataset" not in single
 
 
-def test_a_limited_one_collection_list_shows_each_passage_read_once(plain_environment):
+def test_a_writer_refused_by_a_limit_leaves_the_screened_list_with_each_passage_once(plain_environment):
     recorded = run(SCENARIOS["native_writer_limit"])
     result = recorded["result"]
-    assert result["status"] == "limited" and result["answer"] == "Daily question limit reached"
-    # The eight passages shown first, the two other candidates, and the ninth passage found on re-reading.
-    assert len(result["evidence_ids"]) == len(set(result["evidence_ids"])) == 11 and "n1-e9" in result["evidence_ids"]
+    # The screened list stands; the summary was not written and the trace says a limit stopped it.
+    assert result["status"] == "answered" and "Daily question limit reached" not in result["answer"]
+    assert result["research_trace"]["list_summary"] == {"status": "limited", "reason": "LimitReached"}
+    assert len(result["evidence_ids"]) == len(set(result["evidence_ids"]))
+    assert [call["role"] for call in recorded["model_calls"]["shared"]].count("writer") == 1
     both = run(SCENARIOS["both_writer_limit"])["result"]
-    assert both["status"] == "limited" and both["evidence_ids"] == ["n1-e1", "n2-e1", "n3-e1", "s1-e1", "s2-e1"]
+    assert both["status"] == "answered" and both["research_trace"]["list_summary"]["status"] == "limited"
 
 
 def test_the_list_wiring_exists_once():
@@ -702,5 +735,5 @@ def test_the_list_wiring_exists_once():
     assert not hasattr(Service, "_screen_both")
     source = inspect.getsource(module)
     for call in ("screen_list(", "make_criterion(", "self._triaged_screen(", "self._relation_list(",
-                 "self._summarize_list(", "self._read_matched_sources(", "self._list_answer(", "ThreadPoolExecutor("):
+                 "self._summarize_list(", "self._read_matched_sources(", "self._list_answer(", "ContextPool("):
         assert source.count(call) == 1, call

@@ -6,13 +6,12 @@ import re
 import threading
 import time
 from collections import Counter
-from concurrent.futures import ThreadPoolExecutor
 from contextvars import ContextVar
 from copy import deepcopy
 from itertools import zip_longest
 from urllib.parse import urlsplit
 
-from .budget import QUESTIONS, LimitReached, price
+from .budget import QUESTIONS, ContextPool, LimitReached, price
 from .criterion_confirmation import (
     CONDITIONS_WITHOUT_RULES,
     CONFIRMATION_REFUSALS,
@@ -50,6 +49,7 @@ from .list_screening import (
     hidden_line,
     list_answer,
     literal_results,
+    summary_limited_line,
 )
 from .list_screening import (
     _run_batches as run_batches,  # the screening's bounded runner, reused by the writer
@@ -71,6 +71,7 @@ from .question_plan import (
 from .rag import AnswerValidationError, Rag, reserve_through
 from .relevance_triage import NOT_ABOUT_THE_TEXTS, TRIAGE_ALL_MAX, make_criterion
 from .relevance_triage import enabled as triage_enabled
+from .retrieval_explain import group_explain
 from .structured_queries import QuestionPlan, plan_question, validate_share_scope
 
 log = logging.getLogger(__name__)
@@ -900,7 +901,8 @@ class Service:
         passages = self._public_evidence(self.db.record_passages(ids, Filters(dataset="all"), per_record=None))
         return judge_answer(self.rag, question, ads_from_passages(decisions, passages), visitor)
 
-    def answer(self, question, filters, visitor, progress=None, *, criterion_confirmation=None, continuation=None):
+    def answer(self, question, filters, visitor, progress=None, *, criterion_confirmation=None, continuation=None,
+               address=None):
         """Answer one question (step 3, S3-c: in one or two phases).
 
         `criterion_confirmation` decides how a screened list gets its criterion: "auto" (drafted
@@ -913,7 +915,9 @@ class Service:
         """
         if criterion_confirmation not in (None, "auto", "ask"):
             raise ValueError("criterion_confirmation must be 'auto' or 'ask'")
-        with QUESTIONS.question(visitor):
+        # `address` (the client's network address, from the web and the API) is counted with the
+        # visitor, so a new visitor id or cookie does not reset the question limits.
+        with QUESTIONS.question(visitor, address):
             return self._answer_question(question, filters, visitor, progress,
                                          criterion_confirmation=criterion_confirmation or "auto", continuation=continuation)
 
@@ -2053,7 +2057,7 @@ class Service:
         def each(function, items):
             """The collections are independent: one after another, or both at the same time."""
             if len(items) > 1:
-                with ThreadPoolExecutor(max_workers=len(items)) as executor:
+                with ContextPool(max_workers=len(items)) as executor:
                     return list(executor.map(function, items))
             return [function(item) for item in items]
 
@@ -2260,7 +2264,8 @@ class Service:
         except BaseException:
             self.flows.discard(flow_id)
             raise
-        if not self.flows.ready(flow_id, condition=kind, draft=criterion, examples=examples):
+        # What phase 1 spent goes with the flow: phase 2 is the same question under the same cap.
+        if not self.flows.ready(flow_id, condition=kind, draft=criterion, examples=examples, spent=QUESTIONS.spent()):
             raise FlowLost()  # forgotten while preparing: no card for a flow that cannot be continued
         candidates = candidate_summary(totals, evidence, kind, hits)
         relations = None
@@ -2353,6 +2358,7 @@ class Service:
         if outcome == "done":
             return replay(data, flow_id), None
         context = data
+        QUESTIONS.carry(context.get("spent"))
         draft = context.get("draft")
         source = "confirmed" if criterion is None or digest == payload.get("draft_hash") else "edited"
         if criterion is not None:
@@ -2405,8 +2411,11 @@ class Service:
             part = self.rag.generate(question, passages, visitor, **({"progress": progress} if progress else {}))
             if cost_sink is not None:
                 cost_sink.append(float(part.cost_usd))
-        except LimitReached:
-            raise
+        except LimitReached as exc:
+            # A spending or question limit leaves the list as screened: what was paid for still answers.
+            trace = {**listed.research_trace, "list_summary": {"status": "limited", "reason": type(exc).__name__}}
+            return listed.model_copy(update={"answer": f"{listed.answer}\n\n{summary_limited_line(question)}",
+                                             "research_trace": trace}), 0.0
         except Exception as exc:
             trace = {**listed.research_trace, "list_summary": {"status": "failed", "reason": type(exc).__name__}}
             return listed.model_copy(update={"research_trace": trace}), 0.0
@@ -2476,15 +2485,24 @@ class Service:
             try:
                 part = self.rag.generate(question, passages, visitor, one_claim_per_source=True,
                                          **({"progress": progress} if progress else {}))
-            except Exception as exc:  # noqa: BLE001 - merged below: LimitReached ends the question, anything else fails the shard
+            except Exception as exc:  # noqa: BLE001 - merged below: a limit marks the shard limited, anything else fails it
                 return exc
             if cost_sink is not None:
                 cost_sink.append(float(part.cost_usd))
             return part
 
+        def limited():
+            return any(zone["status"] == "limited" for zone in zones)
+
         def merge(shard, kind, passages, outcome):
             """Record one shard's outcome; an answered part's citations follow the parts merged before it."""
             nonlocal cost
+            if isinstance(outcome, LimitReached):
+                # The screened quotes below still answer for this shard and the ones after it;
+                # the first refusal is named, the shards it stopped are only marked.
+                zones.append({"records": shard, "kind": kind, "status": "limited",
+                              **({} if limited() else {"reason": type(outcome).__name__})})
+                return
             if isinstance(outcome, Exception):
                 # The screened quotes below still answer for this shard.
                 zones.append({"records": shard, "kind": kind, "status": "failed", "reason": type(outcome).__name__})
@@ -2503,9 +2521,10 @@ class Service:
 
         def write(shards, kind):
             """Write the shards of one round at once: budget reserved in shard order (_OrderedReservations),
-            parts merged in shard order. A refused reservation stops the later shards before they reserve;
-            the calls already dispatched finish and are paid; then LimitReached is raised, as one shard's
-            refusal was raised before."""
+            parts merged in shard order. A refused reservation stops the later shards before they reserve
+            and the calls already dispatched finish and are paid. The refused shard and the ones after it
+            are marked 'limited' and keep their screening quotes; after a limit no more writer calls are
+            tried, in this round or the next (the one-after-another writer behaved the same way)."""
             prepared = []
             for shard in shards:
                 passages, shard_reading = _zone_evidence(evidence, shard, match_ids)
@@ -2513,6 +2532,10 @@ class Service:
                     reading.update(shard_reading)
                 prepared.append((shard, passages))
             if not prepared:
+                return
+            if limited():
+                for shard, _ in prepared:
+                    zones.append({"records": shard, "kind": kind, "status": "limited"})
                 return
             turnstile = _OrderedReservations(self.rag.budget)
 
@@ -2525,9 +2548,6 @@ class Service:
 
             outcomes = run_batches([(lambda index=index, passages=passages: run(index, passages))
                                     for index, (_, passages) in enumerate(prepared)], CONTENT_ZONES)
-            limited = next((outcome for outcome in outcomes if isinstance(outcome, LimitReached)), None)
-            if limited is not None:
-                raise limited
             for (shard, passages), outcome in zip(prepared, outcomes):
                 merge(shard, kind, passages, outcome)
 
@@ -2796,7 +2816,9 @@ class Service:
                                  "media_status": report["status"],
                                  "retrieved_record_ids": sorted({unit.record_id for unit in [*found, *units]}),
                                  "retrieved_evidence_ids": [unit.evidence_id for unit in [*found, *units]],
-                                 "filters": scope.model_dump(mode="json"), "query": item["query"]})
+                                 "filters": scope.model_dump(mode="json"), "query": item["query"],
+                                 # The reader's retrieval score per record and the words behind it.
+                                 "retrieval_explain": group_explain(found)})
                 evidence.extend(found)
             evidence = list({e.evidence_id: e for e in evidence}.values())
             if not list_mode:

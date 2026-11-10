@@ -14,7 +14,6 @@ from __future__ import annotations
 import json
 import re
 from collections import Counter, defaultdict
-from concurrent.futures import ThreadPoolExecutor
 from decimal import Decimal
 from typing import Literal
 
@@ -22,7 +21,7 @@ from pydantic import BaseModel, Field
 
 from .analytics import sponsor_display
 from .answer_norms import load_norms, norms_tag, screening_prompt, split_tagged
-from .budget import price
+from .budget import ContextPool, QuestionCapReached, price, reading
 from .models import Answer, Citation, CitedStatement
 from .relevance_triage import criterion_text
 
@@ -35,7 +34,9 @@ WIDEN_WINDOW = 16
 # Batches are independent provider calls, so up to this many run at once.
 # Batch contents and the widening stop rule are unchanged: past `limit`, results
 # are applied in order and batches after the stop point are discarded.
-SCREEN_WORKERS = 8
+# 2026-11-03, whole native scope (232 ads): at 8, screening 155 and 185 ads took
+# 26 and 38 s in waves of about 4-5 s, the slowest step of the answer.
+SCREEN_WORKERS = 16
 # Batches dispatched per widening wave past `limit` (one SCREEN_WORKERS round until 2026-11-05).
 # Kept apart from the pool size: a larger pool (Settings.screen_workers) runs the first wave in
 # fewer rounds without reading more batches past the stop point.
@@ -307,7 +308,8 @@ def _judge_structured(rag, payload, size, visitor, stage, refs, cost_sink=None):
     # judged not to (L3D replay: recall 0.625 with none, 0.925 with low).
     max_output = 300 * size + 200 + REASONING_TOKENS
     estimate = price(rag.settings.generation_model, upper_input, max_output) * Decimal("1.25")
-    rid = rag.budget.reserve(estimate, visitor, "generation", rag.settings.generation_model)
+    with reading():  # reads ads for a list: stops before the question's cap, leaving room to write
+        rid = rag.budget.reserve(estimate, visitor, "generation", rag.settings.generation_model)
     try:
         response = rag.client.responses.parse(
             model=rag.settings.generation_model,
@@ -344,7 +346,8 @@ def _judge_tagged(rag, prompt, size, visitor, stage, refs, request, cost_sink=No
     upper_input = len((SYSTEM + prompt).encode("utf-8")) + 2048
     max_output = (300 + THINK_TOKENS_PER_AD) * size + 200 + REASONING_TOKENS
     estimate = price(rag.settings.generation_model, upper_input, max_output) * Decimal("1.25")
-    rid = rag.budget.reserve(estimate, visitor, "generation", rag.settings.generation_model)
+    with reading():  # reads ads for a list: stops before the question's cap, leaving room to write
+        rid = rag.budget.reserve(estimate, visitor, "generation", rag.settings.generation_model)
     try:
         response = rag.client.responses.create(
             model=rag.settings.generation_model,
@@ -404,11 +407,28 @@ def _reread_batches(groups):
         yield batch
 
 
+def _unread(groups):
+    """Results for ads the question's spending cap stopped before they were read: left for a human check."""
+    return [{"record_id": first.record_id, "title": first.title, "publisher": first.publisher,
+             "sponsor": first.sponsor, "published_at": first.published_at, "decision": "unclear",
+             "reason": "question_cap", "route": "review"} for first, *_ in groups]
+
+
+def _until_cap(call):
+    """A zero-argument batch call, or None when the question's spending cap refused it before it was sent."""
+    def run():
+        try:
+            return call()
+        except QuestionCapReached:
+            return None
+    return run
+
+
 def _run_batches(calls, workers=None):
     """Run independent zero-argument calls, at most `workers` (SCREEN_WORKERS) at once, keeping order."""
     if len(calls) <= 1:
         return [call() for call in calls]
-    with ThreadPoolExecutor(max_workers=min(workers or SCREEN_WORKERS, len(calls))) as pool:
+    with ContextPool(max_workers=min(workers or SCREEN_WORKERS, len(calls))) as pool:
         return list(pool.map(lambda call: call(), calls))
 
 
@@ -459,22 +479,34 @@ def screen(rag, question, evidence, visitor, limit=MAX_CANDIDATES, widen_to=None
     workers = _workers(rag)
     starts = list(range(0, len(groups), BATCH_SIZE))
     first_wave = max(1, sum(1 for start in starts if start < limit))
-    position, stopped = 0, False
-    while position < len(starts) and not stopped:
+    position, narrowed, refused = 0, False, []
+    while position < len(starts) and not (narrowed or refused):
         wave = starts[position:position + (first_wave if position == 0 else WIDEN_WAVE)]
         outcomes = _run_batches([
-            (lambda start=start: _judge(rag, question, groups[start:start + BATCH_SIZE], start + 1, phrases,
-                                        visitor, "list_screening", **sent))
+            _until_cap(lambda start=start: _judge(rag, question, groups[start:start + BATCH_SIZE], start + 1, phrases,
+                                                  visitor, "list_screening", **sent))
             for start in wave
         ], workers)
-        for start, (found, spent) in zip(wave, outcomes):
+        for start, outcome in zip(wave, outcomes):
+            if outcome is None:  # the question's spending cap: no more waves; batches already read still count
+                refused.append(start)
+                continue
+            found, spent = outcome
             cost += spent  # every dispatched call is paid, kept or not
-            if stopped or (start >= limit and not any(
+            if narrowed or (start >= limit and not any(
                     item["decision"] == "matches" for item in results[-WIDEN_WINDOW:])):
-                stopped = True
+                narrowed = True
                 continue
             results.extend(found)
         position += len(wave)
+    if refused:
+        # Left for a human check: the ads that had to be read (the first `limit`) and were not, and
+        # those of a refused widening batch (matches were still turning up when the cap ended it).
+        read = {item["record_id"] for item in results}
+        left = {group[0].record_id for group in groups[:limit]}
+        left.update(group[0].record_id for start in refused for group in groups[start:start + BATCH_SIZE])
+        results.extend(item for item in _unread([group for group in groups if group[0].record_id in left])
+                       if item["record_id"] not in read)
     if reread is not None:
         shown = {group[0].record_id: {p.evidence_id for p in group} for group in groups}
         open_ids = [item["record_id"] for item in results if item["decision"] != "matches"]
@@ -489,11 +521,18 @@ def screen(rag, question, evidence, visitor, limit=MAX_CANDIDATES, widen_to=None
             numbered.append((batch, number + 1))
             number += len(batch)
         outcomes = _run_batches([
-            (lambda batch=batch, first=first: _judge(rag, question, batch, first, phrases, visitor,
-                                                     "list_screening_reread", **sent))
+            _until_cap(lambda batch=batch, first=first: _judge(rag, question, batch, first, phrases, visitor,
+                                                               "list_screening_reread", **sent))
             for batch, first in numbered
         ], workers)
-        for found, spent in outcomes:
+        for (batch, _), outcome in zip(numbered, outcomes):
+            if outcome is None:
+                # Not read whole because of the cap: unfinished, so a human check, not a dropped ad.
+                for item in _unread(batch):
+                    first = results[position[item["record_id"]]]["decision"]
+                    results[position[item["record_id"]]] = {**item, "reread_from": first}
+                continue
+            found, spent = outcome
             cost += spent
             for item in found:
                 first = results[position[item["record_id"]]]["decision"]
@@ -509,8 +548,16 @@ def screen(rag, question, evidence, visitor, limit=MAX_CANDIDATES, widen_to=None
         listed = [item for item in results if item["decision"] == "matches"]
         position = {item["record_id"]: n for n, item in enumerate(results)}
         for start in range(0, len(listed), BATCH_SIZE):
-            removed, spent = _verify(rag, asked, listed[start:start + BATCH_SIZE], texts, visitor,
-                                     **({"cost_sink": cost_sink} if cost_sink is not None else {}))
+            try:
+                removed, spent = _verify(rag, asked, listed[start:start + BATCH_SIZE], texts, visitor,
+                                         **({"cost_sink": cost_sink} if cost_sink is not None else {}))
+            except QuestionCapReached:
+                # Listed ads the second check could not reach are unfinished: a human check, not listed.
+                for item in listed[start:]:
+                    results[position[item["record_id"]]] = {
+                        key: value for key, value in item.items() if key not in ("evidence_id", "quote")} | {
+                        "decision": "unclear", "verified_from": "matches", "reason": "question_cap", "route": "review"}
+                break
             cost += spent
             for rid, reason in removed.items():
                 item = results[position[rid]]
@@ -532,7 +579,8 @@ def _verify(rag, question, listed, texts, visitor, cost_sink=None):
     max_output = 120 * len(listed) + 200 + REASONING_TOKENS
     upper_input = len((VERIFY_SYSTEM + payload).encode("utf-8")) + 2048
     estimate = price(rag.settings.generation_model, upper_input, max_output) * Decimal("1.25")
-    rid = rag.budget.reserve(estimate, visitor, "generation", rag.settings.generation_model)
+    with reading():  # reads ads for a list: stops before the question's cap, leaving room to write
+        rid = rag.budget.reserve(estimate, visitor, "generation", rag.settings.generation_model)
     try:
         response = rag.client.responses.parse(
             model=rag.settings.generation_model,
@@ -620,14 +668,17 @@ REPHRASE_NOTE = (" If you expected matches, try asking the question another way.
                  "如果觉得应该有结果，可以换个问法再问。")
 
 
-def opening_line(chinese, matches, examined, scope_total, whole_scope=False):
+def opening_line(chinese, matches, examined, scope_total, whole_scope=False, capped=False):
     """Opening line of a list screened in one collection.
 
     `whole_scope`: the triage read every record with text; the records it did not read have none.
+    `capped`: the question's spending cap stopped the reading before every chosen ad was checked.
     """
     zh = int(bool(chinese))
     if chinese:
-        head = (f"所选的 {scope_total:,} 篇广告中有 {matches} 篇符合问题；每一篇都看过了。" if examined >= scope_total else
+        head = (f"看过的 {examined:,} 篇里有 {matches} 篇符合问题。所选范围共 {scope_total:,} 篇，看到第 {examined:,} 篇时"
+                f"这道题达到了单题花费上限，其余的没有看完，所以可能还有符合的。" + NOT_READ_NOTE[zh] if capped else
+                f"所选的 {scope_total:,} 篇广告中有 {matches} 篇符合问题；每一篇都看过了。" if examined >= scope_total else
                 f"所选的 {scope_total:,} 篇广告中有 {matches} 篇符合问题。有正文的 {examined:,} 篇都看过了，"
                 f"另外 {scope_total - examined:,} 篇没有正文可看。" if whole_scope else
                 f"所选的 {scope_total:,} 篇广告一篇也没看：检索没找到和问题相关的。" if not examined else
@@ -636,7 +687,10 @@ def opening_line(chinese, matches, examined, scope_total, whole_scope=False):
                 + NOT_READ_NOTE[zh])
     else:
         verb = "matches" if matches == 1 else "match"
-        head = (f"{matches} of the {scope_total:,} ads in your selection {verb} the question; every ad was read."
+        head = (f"{matches} of the {examined:,} {'ad that was' if examined == 1 else 'ads that were'} read {verb} the "
+                f"question. Your selection has {scope_total:,} ads; this question reached its spending limit after "
+                f"{examined:,} were read, so there may be more matches." + NOT_READ_NOTE[zh] if capped else
+                f"{matches} of the {scope_total:,} ads in your selection {verb} the question; every ad was read."
                 if examined >= scope_total else
                 f"{matches} of the {scope_total:,} ads in your selection {verb} the question. All {examined:,} ads "
                 f"with text were read; the other {scope_total - examined:,} have no text to read." if whole_scope else
@@ -650,21 +704,24 @@ def opening_line(chinese, matches, examined, scope_total, whole_scope=False):
     return head + (REPHRASE_NOTE[zh] if not matches else "")
 
 
-def _both_head(chinese, scopes, by_dataset, whole=()):
+def _both_head(chinese, scopes, by_dataset, whole=(), capped=()):
     """Opening line of a list screened in both collections: what was found, and what was read in each.
 
     A collection in `whole` was read in full by the triage; the records it did not read have no text.
+    In a collection in `capped` the question's spending limit stopped the reading.
     """
-    found, read, capped = [], [], False
+    found, read, left = [], [], False  # some records in scope were not read
     for dataset in ("native", "social"):
         total, examined, count = scopes[dataset], by_dataset[dataset]["examined"], by_dataset[dataset]["matches"]
         # Records left unread, as opposed to records the triage skipped because they have no text.
         unread = 0 if dataset in whole else max(total - examined, 0)
-        capped = capped or bool(unread)
+        left = left or bool(unread)
         if chinese:
             unit, name = ("篇" if dataset == "native" else "条"), DATASET_NAMES[dataset][1]
             found.append(f"{name} {count} {unit}")
-            read.append(f"全部 {total:,} {unit}{name}" if examined >= total else
+            read.append(f"{total:,} {unit}{name}中看了 {examined:,} {unit}后达到单题花费上限（其余 {unread:,} {unit}没有看完）"
+                        if dataset in capped else
+                        f"全部 {total:,} {unit}{name}" if examined >= total else
                         f"有正文的 {examined:,} {unit}{name}（另有 {total - examined:,} {unit}没有正文）"
                         if dataset in whole else
                         f"{name}一{unit}也没看（{total:,} {unit}里检索没找到相关的）" if not examined else
@@ -673,7 +730,9 @@ def _both_head(chinese, scopes, by_dataset, whole=()):
             noun = "native ads" if dataset == "native" else "company social posts"
             kind = ("ad" if count == 1 else "ads") if dataset == "native" else ("post" if count == 1 else "posts")
             found.append(f"{count} matching {kind}")
-            read.append((f"the 1 {noun[:-1]}" if total == 1 else f"all {total:,} {noun}") if examined >= total else
+            read.append(f"{examined:,} of the {total:,} {noun}, then the question's spending limit stopped the "
+                        f"reading ({unread:,} not finished)" if dataset in capped else
+                        (f"the 1 {noun[:-1]}" if total == 1 else f"all {total:,} {noun}") if examined >= total else
                         (f"the 1 {noun[:-1]}" if examined == 1 else f"all {examined:,} {noun}")
                         + f" with text ({total - examined:,} have none)" if dataset in whole else
                         f"none of the {total:,} {noun} (the search found nothing related)" if not examined else
@@ -683,10 +742,10 @@ def _both_head(chinese, scopes, by_dataset, whole=()):
     zh = int(bool(chinese))
     if chinese:
         head = f"找到符合的{found[0]}、{found[1]}。看过的范围：{read[0]}；{read[1]}。"
-        head += ("没看的里面可能还有符合的；" + NOT_READ_NOTE[zh]) if capped else ""
+        head += ("没看的里面可能还有符合的；" + NOT_READ_NOTE[zh]) if left else ""
     else:
         head = f"Found {found[0]} and {found[1]}. Read: {read[0]}; {read[1]}."
-        head += (" Those not read may hold more matches." + NOT_READ_NOTE[zh]) if capped else ""
+        head += (" Those not read may hold more matches." + NOT_READ_NOTE[zh]) if left else ""
     return head + (REPHRASE_NOTE[zh] if nothing else "")
 
 
@@ -702,14 +761,18 @@ def list_answer(question, results, evidence, *, scope_total, literal=None, scope
     """
     chinese = bool(re.search(r"[一-鿿]", question))
     matched = [item for item in results if item["decision"] == "matches" and item.get("route", "pass") == "pass"]
-    review = [item for item in results if item.get("route") == "review"]
+    # Ads the question's spending cap left unchecked are listed apart from the judge's unclear ones.
+    unchecked = [item for item in results if item.get("reason") == "question_cap"]
+    review = [item for item in results if item.get("route") == "review" and item.get("reason") != "question_cap"]
     if scopes:
         matched = _display_order(matched, DISPLAY_LIMIT)
     counts = {name: sum(item["decision"] == name for item in results)
               for name in ("matches", "does_not_match", "unclear")}
     # A match routed to a human check is not counted as listed.
     counts["matches"] = sum(item["decision"] == "matches" and item.get("route", "pass") == "pass" for item in results)
-    examined = len(results)
+    # Ads the question's spending cap stopped before they were read are not counted as checked.
+    unread = len(unchecked)
+    examined = len(results) - unread
     by_id = {item.evidence_id: item for item in evidence}
     citations, lines, claims, written_lines = [], [], [], []
     for number, item in enumerate(matched, 1):
@@ -741,6 +804,14 @@ def list_answer(question, results, evidence, *, scope_total, literal=None, scope
     hidden = len(matched) - covered
     if hidden:
         lines.append(hidden_line(hidden, chinese, both=bool(scopes)))
+    if unchecked:
+        # Some were read on their shown passages before a reread or second check was cut: "not finished".
+        lines.append(f"这道题达到了单题花费上限，以下 {unread} 篇没有检查完，需要人工核对：" if chinese else
+                     f"This question reached its spending limit before {unread} "
+                     f"{'ad was' if unread == 1 else 'ads were'} fully checked; they need a human check:")
+        lines.extend(f"- {item.get('title') or item['record_id']}" for item in unchecked[:DISPLAY_LIMIT])
+        if unread > DISPLAY_LIMIT:
+            lines.append(f"……另有 {unread - DISPLAY_LIMIT} 篇。" if chinese else f"…and {unread - DISPLAY_LIMIT} more.")
     if review:
         # Not dropped and not listed: the judge and the screening did not agree clearly enough.
         lines.append((f"另有 {len(review)} 篇需要人工核对（机器判断不够确定）：" if chinese else
@@ -760,13 +831,15 @@ def list_answer(question, results, evidence, *, scope_total, literal=None, scope
     by_dataset = ({dataset: {"scope_total": scopes[dataset],
                              # An exact text search reads every record in scope.
                              "examined": (scopes[dataset] if literal is not None else
-                                          sum(item.get("dataset") == dataset for item in results)),
+                                          sum(item.get("dataset") == dataset and item.get("reason") != "question_cap"
+                                              for item in results)),
                              "matches": sum(item.get("dataset") == dataset for item in matched)}
                    for dataset in ("native", "social")} if scopes else None)
     if scopes:
         whole = {dataset for dataset, item in ((triage or {}).get("by_dataset") or {}).items()
                  if item.get("whole_scope")}
-        head = _both_head(chinese, scopes, by_dataset, whole)
+        capped = {item.get("dataset") for item in results if item.get("reason") == "question_cap"}
+        head = _both_head(chinese, scopes, by_dataset, whole, capped)
         if literal is not None:
             head += (f"符合指含有“{literal}”（只按字面查找）。" if chinese else
                      f" Matching means containing “{literal}” (exact wording).")
@@ -775,11 +848,11 @@ def list_answer(question, results, evidence, *, scope_total, literal=None, scope
     elif literal is not None:
         head = f"{m} of the {scope_total} ads in your selection contain “{literal}” (exact wording)."
     else:
-        head = opening_line(chinese, m, examined, scope_total, bool((triage or {}).get("whole_scope")))
+        head = opening_line(chinese, m, examined, scope_total, bool((triage or {}).get("whole_scope")), capped=bool(unread))
     trace = {"policy": POLICY_VERSION, "method": "exact_text" if literal is not None else "ai_screening",
              "question": question,
              **({"criterion": criterion} if criterion else {}), **({"triage": triage} if triage else {}),
-             "review": len(review),
+             "review": len(review) + unread, **({"question_cap": unread} if unread else {}),
              "scope_total": scope_total, "examined": scope_total if literal is not None else examined, **counts,
              # Each decision keeps its quote and, on the tagged path, the model's reasoning, so
              # why an ad was judged relevant can be read back (API detail=full, answer_runs).
@@ -823,6 +896,13 @@ CHART_MIN_ADS = 3
 # Matching ads written out in the answer; the rest are counted (user, 2026-10-19).
 DISPLAY_LIMIT = 10
 CHART_MAX_BARS = 12
+
+
+def summary_limited_line(question):
+    """The line saying a list has no written summary because a spending or question limit refused it."""
+    if re.search(r"[一-鿿]", question):
+        return "已达到花费或问题次数上限，没有写总结；以上是筛查结果。"
+    return "No written summary: a spending or question limit was reached. The list above is as screened."
 
 
 def hidden_line(hidden, chinese, both=False):
