@@ -35,3 +35,6 @@ deliverables/**/*.zip.sha256
 
 # Personal Claude Code instructions for this machine (ports, local state).
 CLAUDE.local.md
+
+# RAG metrics report: Spark coding sentences and ad excerpts; sharing scope undecided (2026-11-10)
+reports/rag_metrics_20261029/

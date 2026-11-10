@@ -565,6 +565,10 @@ def test_the_human_runs_score_an_empty_answer_zero_and_list_a_question_with_only
 
 def _dashboard_tables():
     path = Path(report.ROOT) / "reports/rag_metrics_20261029/dashboard_tables.py"
+    if not path.exists():
+        # The published report folder is kept out of git until the user decides its sharing scope
+        # (2026-11-10); these checks run only where the local copy exists.
+        pytest.skip("reports/rag_metrics_20261029 is a local, unpublished report")
     spec = importlib.util.spec_from_file_location("dashboard_tables_under_test", path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
