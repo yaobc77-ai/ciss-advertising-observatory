@@ -1986,16 +1986,17 @@ class Database:
             "SELECT count(DISTINCT r.record_id) AS scope_records,count(*) AS scope_chunks"
             + join + f" WHERE {where}", params,
         ).fetchone()
+        # Each term reads only its own text-index matches; filtering the whole scope
+        # once per query cost 8 s on 172k social passages (2026-11-09 import).
         coverage = conn.execute(
-            "WITH scope AS MATERIALIZED (SELECT c.chunk_id,r.record_id,c.search_vector"
-            + join + f" WHERE {where}) "
-            "SELECT input.term,count(DISTINCT scope.record_id) AS matching_records,"
-            "array_agg(DISTINCT scope.chunk_id) FILTER (WHERE scope.chunk_id=ANY(%s::text[])) "
-            "AS returned_ids FROM unnest(%s::text[]) WITH ORDINALITY AS input(term,ordinal) "
-            "LEFT JOIN scope ON scope.search_vector @@ "
-            "websearch_to_tsquery('english', '\"' || input.term || '\"') "
-            "GROUP BY input.term,input.ordinal ORDER BY input.ordinal",
-            [*params, [row.evidence_id for row in evidence], meaningful],
+            "SELECT input.term,hit.matching_records,hit.returned_ids "
+            "FROM unnest(%s::text[]) WITH ORDINALITY AS input(term,ordinal) CROSS JOIN LATERAL ("
+            "SELECT count(DISTINCT r.record_id) AS matching_records,"
+            "array_agg(DISTINCT c.chunk_id) FILTER (WHERE c.chunk_id=ANY(%s::text[])) AS returned_ids"
+            + join + f" WHERE {where} AND c.search_vector @@ "
+            "websearch_to_tsquery('english', '\"' || input.term || '\"')) AS hit "
+            "ORDER BY input.ordinal",
+            [meaningful, [row.evidence_id for row in evidence], *params],
         ).fetchall()
         lexemes = {row["term"]: row["lexemes"] for row in analyzed}
         for row in evidence:
