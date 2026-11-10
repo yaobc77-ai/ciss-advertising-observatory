@@ -561,6 +561,44 @@ def _verify(rag, question, listed, texts, visitor, cost_sink=None):
 DATASET_NAMES = {"native": ("Native ads", "原生广告"), "social": ("Company posts", "公司社交帖子")}
 
 
+def _same_text_groups(matched, by_id):
+    """{position of a written line: (position of the post written, positions of the others)}, in list order.
+
+    Matched posts whose current text is exactly the same are written once, by the earliest
+    published (missing dates last, then record_id; user 2026-11-08, C22). Every other match
+    is its own group. Each post stays a match in the counts, charts and citations.
+    """
+    groups = {}
+    for position, item in enumerate(matched):
+        passage = by_id.get(item["evidence_id"])
+        # The same rule as the search's (db._same_text_key): a social text from the current body.
+        same = (passage is not None and passage.dataset == "social" and passage.body_hash and passage.text.strip()
+                and passage.source_body_hash in (None, passage.body_hash))
+        groups.setdefault(passage.body_hash if same else ("own", position), []).append(position)
+
+    def published(n):
+        when = matched[n]["published_at"]
+        return (when is None, when.isoformat() if when else "", matched[n]["record_id"])
+
+    written = {}
+    for positions in groups.values():
+        lead = min(positions, key=published)
+        written[positions[0]] = (lead, [n for n in positions if n != lead])
+    return dict(sorted(written.items()))
+
+
+def same_text_note(others, chinese):
+    """What a written post adds about the other matched posts with its text (C22, MT6-009)."""
+    names = list(dict.fromkeys(item.get("publisher") or sponsor_display(item.get("sponsor") or "") or item["record_id"]
+                               for item in others))
+    shown = "、".join(names[:5]) if chinese else ", ".join(names[:5])
+    if len(names) > 5:
+        shown += f" 等 {len(names)} 个账号" if chinese else f" and {len(names) - 5} more"
+    if chinese:
+        return f"（另有 {len(others)} 条帖子正文相同：{shown}）"
+    return f" — {len(others)} more post{'s' if len(others) != 1 else ''} with the same text: {shown}"
+
+
 def _display_order(matched, limit):
     """Matches reordered so the shown ones come first, each collection keeping a fair share.
 
@@ -574,34 +612,82 @@ def _display_order(matched, limit):
     return [*native[:shown_native], *social[:shown_social], *native[shown_native:], *social[shown_social:]]
 
 
+# Plain wording for the opening line (client meeting MT6-016, 2026-11-06: "57 matching, screened
+# 120 of 263" was not understood). It says what was read, why the rest was not, and what to do.
+NOT_READ_NOTE = (" Narrowing the selection (company, date or platform) lets a larger share be read.",
+                 "缩小范围（公司、日期或平台）可以看得更全。")
+REPHRASE_NOTE = (" If you expected matches, try asking the question another way.",
+                 "如果觉得应该有结果，可以换个问法再问。")
+
+
+def opening_line(chinese, matches, examined, scope_total, whole_scope=False):
+    """Opening line of a list screened in one collection.
+
+    `whole_scope`: the triage read every record with text; the records it did not read have none.
+    """
+    zh = int(bool(chinese))
+    if chinese:
+        head = (f"所选的 {scope_total:,} 篇广告中有 {matches} 篇符合问题；每一篇都看过了。" if examined >= scope_total else
+                f"所选的 {scope_total:,} 篇广告中有 {matches} 篇符合问题。有正文的 {examined:,} 篇都看过了，"
+                f"另外 {scope_total - examined:,} 篇没有正文可看。" if whole_scope else
+                f"所选的 {scope_total:,} 篇广告一篇也没看：检索没找到和问题相关的。" if not examined else
+                f"看过的 {examined:,} 篇里有 {matches} 篇符合问题。所选范围共 {scope_total:,} 篇，系统先挑出和问题"
+                f"最接近的 {examined:,} 篇来看，其余 {scope_total - examined:,} 篇没有看，所以可能还有符合的。"
+                + NOT_READ_NOTE[zh])
+    else:
+        verb = "matches" if matches == 1 else "match"
+        head = (f"{matches} of the {scope_total:,} ads in your selection {verb} the question; every ad was read."
+                if examined >= scope_total else
+                f"{matches} of the {scope_total:,} ads in your selection {verb} the question. All {examined:,} ads "
+                f"with text were read; the other {scope_total - examined:,} have no text to read." if whole_scope else
+                f"None of the {scope_total:,} ads in your selection was read: the search found nothing related "
+                f"to the question." if not examined else
+                f"{matches} of the {examined:,} {'ad that was' if examined == 1 else 'ads that were'} read {verb} the "
+                f"question. Your selection has "
+                f"{scope_total:,} ads; the search picked the {examined:,} closest to the question for reading, and "
+                f"the other {scope_total - examined:,} were not read, so there may be more matches."
+                + NOT_READ_NOTE[zh])
+    return head + (REPHRASE_NOTE[zh] if not matches else "")
+
+
 def _both_head(chinese, scopes, by_dataset, whole=()):
-    """Opening line of a list screened in both collections: what was read and found in each.
+    """Opening line of a list screened in both collections: what was found, and what was read in each.
 
     A collection in `whole` was read in full by the triage; the records it did not read have no text.
     """
-    parts = []
+    found, read, capped = [], [], False
     for dataset in ("native", "social"):
-        total, examined, found = scopes[dataset], by_dataset[dataset]["examined"], by_dataset[dataset]["matches"]
+        total, examined, count = scopes[dataset], by_dataset[dataset]["examined"], by_dataset[dataset]["matches"]
+        # Records left unread, as opposed to records the triage skipped because they have no text.
+        unread = 0 if dataset in whole else max(total - examined, 0)
+        capped = capped or bool(unread)
         if chinese:
-            unit = "篇" if dataset == "native" else "条"
-            read = (f"全部 {total:,} {unit}{DATASET_NAMES[dataset][1]}" if examined >= total else
-                    f"全部 {examined:,} {unit}有正文的{DATASET_NAMES[dataset][1]}（{total:,} {unit}中另有 "
-                    f"{total - examined:,} {unit}没有可读正文）" if dataset in whole else
-                    f"{total:,} {unit}{DATASET_NAMES[dataset][1]}（检索没有找到相关的）" if not examined else
-                    f"{total:,} {unit}{DATASET_NAMES[dataset][1]}中最相关的 {examined} {unit}")
-            parts.append((read, f"{DATASET_NAMES[dataset][1]} {found} {unit}"))
+            unit, name = ("篇" if dataset == "native" else "条"), DATASET_NAMES[dataset][1]
+            found.append(f"{name} {count} {unit}")
+            read.append(f"全部 {total:,} {unit}{name}" if examined >= total else
+                        f"有正文的 {examined:,} {unit}{name}（另有 {total - examined:,} {unit}没有正文）"
+                        if dataset in whole else
+                        f"{name}一{unit}也没看（{total:,} {unit}里检索没找到相关的）" if not examined else
+                        f"{total:,} {unit}{name}中和问题最接近的 {examined:,} {unit}（其余 {unread:,} {unit}没有看）")
         else:
             noun = "native ads" if dataset == "native" else "company social posts"
-            read = (f"all {total:,} {noun}" if examined >= total else
-                    f"all {examined:,} {noun} with readable text ({total - examined:,} of the {total:,} have none)"
-                    if dataset in whole else
-                    f"the {total:,} {noun} (none came up in the search)" if not examined else
-                    f"the {examined} most relevant of the {total:,} {noun}")
-            kind = ("ad" if found == 1 else "ads") if dataset == "native" else ("post" if found == 1 else "posts")
-            parts.append((read, f"{found} matching {kind}"))
+            kind = ("ad" if count == 1 else "ads") if dataset == "native" else ("post" if count == 1 else "posts")
+            found.append(f"{count} matching {kind}")
+            read.append((f"the 1 {noun[:-1]}" if total == 1 else f"all {total:,} {noun}") if examined >= total else
+                        (f"the 1 {noun[:-1]}" if examined == 1 else f"all {examined:,} {noun}")
+                        + f" with text ({total - examined:,} have none)" if dataset in whole else
+                        f"none of the {total:,} {noun} (the search found nothing related)" if not examined else
+                        f"the {examined:,} {noun[:-1] if examined == 1 else noun} closest to the question, out of "
+                        f"{total:,} ({unread:,} not read)")
+    nothing = not any(by_dataset[dataset]["matches"] for dataset in ("native", "social"))
+    zh = int(bool(chinese))
     if chinese:
-        return f"检查了所选范围内{parts[0][0]}，以及{parts[1][0]}：找到符合的{parts[0][1]}、{parts[1][1]}。"
-    return f"Checked {parts[0][0]} and {parts[1][0]} in your selection: found {parts[0][1]} and {parts[1][1]}."
+        head = f"找到符合的{found[0]}、{found[1]}。看过的范围：{read[0]}；{read[1]}。"
+        head += ("没看的里面可能还有符合的；" + NOT_READ_NOTE[zh]) if capped else ""
+    else:
+        head = f"Found {found[0]} and {found[1]}. Read: {read[0]}; {read[1]}."
+        head += (" Those not read may hold more matches." + NOT_READ_NOTE[zh]) if capped else ""
+    return head + (REPHRASE_NOTE[zh] if nothing else "")
 
 
 def list_answer(question, results, evidence, *, scope_total, literal=None, scopes=None, criterion=None, triage=None):
@@ -625,7 +711,7 @@ def list_answer(question, results, evidence, *, scope_total, literal=None, scope
     counts["matches"] = sum(item["decision"] == "matches" and item.get("route", "pass") == "pass" for item in results)
     examined = len(results)
     by_id = {item.evidence_id: item for item in evidence}
-    citations, lines, claims = [], [], []
+    citations, lines, claims, written_lines = [], [], [], []
     for number, item in enumerate(matched, 1):
         passage = by_id[item["evidence_id"]]
         citations.append(Citation(evidence_id=passage.evidence_id, quote=item["quote"],
@@ -641,12 +727,18 @@ def list_answer(question, results, evidence, *, scope_total, literal=None, scope
             # Display names ("TotalEnergies", not the stored "totalenergies").
             line = (f"{item['title']} — {item['publisher']}, {sponsor_display(item['sponsor'])}, {date}: "
                     f"“{item['quote']}” [{number}]")
-        if number <= DISPLAY_LIMIT:
-            lines.append(f"{number}. {line}")
+        written_lines.append(line)
         claims.append(CitedStatement(text=line, citation_indices=[number]))
     # Every match stays in the citations (for review and scoring); the answer
-    # shows the first DISPLAY_LIMIT and says how many more there are.
-    hidden = len(matched) - min(len(matched), DISPLAY_LIMIT)
+    # shows the first DISPLAY_LIMIT lines and says how many more matches there are.
+    # Posts with the same text share one line (C22).
+    shown, covered = [], 0
+    for lead, others in list(_same_text_groups(matched, by_id).values())[:DISPLAY_LIMIT]:
+        note = same_text_note([matched[n] for n in others], chinese) if others else ""
+        lines.append(f"{len(shown) + 1}. {written_lines[lead]}{note}")
+        shown.append(lead + 1)
+        covered += 1 + len(others)
+    hidden = len(matched) - covered
     if hidden:
         lines.append(hidden_line(hidden, chinese, both=bool(scopes)))
     if review:
@@ -682,21 +774,8 @@ def list_answer(question, results, evidence, *, scope_total, literal=None, scope
         head = f"所选的 {scope_total} 篇广告中，有 {m} 篇含有“{literal}”（只按字面查找）。"
     elif literal is not None:
         head = f"{m} of the {scope_total} ads in your selection contain “{literal}” (exact wording)."
-    elif chinese:
-        head = (f"在所选的 {scope_total} 篇广告中找到 {m} 篇符合（已全部检查）。" if examined >= scope_total else
-                f"在所选的 {scope_total} 篇广告中找到 {m} 篇符合；有正文的 {examined} 篇已全部检查，"
-                f"另有 {scope_total - examined} 篇没有可读正文。" if (triage or {}).get("whole_scope") else
-                f"在所选的 {scope_total} 篇广告中，检查了最相关的 {examined} 篇，找到 {m} 篇符合；"
-                f"其余 {scope_total - examined} 篇未检查。")
     else:
-        ads = "matching ad" if m == 1 else "matching ads"
-        head = (f"Found {m} {ads} among the {scope_total} in your selection (all checked)."
-                if examined >= scope_total else
-                f"Found {m} {ads} among the {scope_total} in your selection; all {examined} with readable text "
-                f"were checked, the other {scope_total - examined} have no readable text."
-                if (triage or {}).get("whole_scope") else
-                f"Found {m} {ads} among the {examined} most relevant of the {scope_total} in your selection; "
-                f"the other {scope_total - examined} were not checked.")
+        head = opening_line(chinese, m, examined, scope_total, bool((triage or {}).get("whole_scope")))
     trace = {"policy": POLICY_VERSION, "method": "exact_text" if literal is not None else "ai_screening",
              "question": question,
              **({"criterion": criterion} if criterion else {}), **({"triage": triage} if triage else {}),
@@ -731,8 +810,9 @@ def list_answer(question, results, evidence, *, scope_total, literal=None, scope
                                        "AI check of retrieved passages; not reviewed membership or a "
                                        "complete-collection result."),
                            "charts": list_charts(matched, chinese, both=bool(scopes)),
-                           # Citation numbers the page shows (the first DISPLAY_LIMIT matches).
-                           "display_citations": list(range(1, min(len(matched), DISPLAY_LIMIT) + 1))},
+                           # Citation numbers the page shows (the first DISPLAY_LIMIT lines; a post
+                           # standing for others with its text shows its own number).
+                           "display_citations": shown},
         research_trace={"list_screening": trace},
     )
 

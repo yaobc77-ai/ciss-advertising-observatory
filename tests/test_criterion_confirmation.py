@@ -47,7 +47,7 @@ from observatory.criterion_confirmation import (
     pending_confirmation,
 )
 from observatory.models import Answer, Citation, Evidence, Filters
-from observatory.relevance_triage import Criterion
+from observatory.relevance_triage import Criterion, CriterionDraft
 from observatory.research_agent import ResearchRun
 from observatory.service import Service
 
@@ -398,7 +398,7 @@ def test_a_card_without_a_draft_requires_rules_and_judges_by_them(monkeypatch):
     parse = service.rag.client.responses.parse
 
     def failing_draft(**request):
-        if request["text_format"] is Criterion:
+        if request["text_format"] is CriterionDraft:
             raise ConnectionError("drafting unavailable")
         return parse(**request)
 
@@ -857,7 +857,7 @@ def test_a_blank_draft_is_a_failed_draft_with_its_cost_kept(monkeypatch):
     parse = service.rag.client.responses.parse
 
     def blank_draft(**request):
-        if request["text_format"] is Criterion:
+        if request["text_format"] is CriterionDraft:
             calls.add(None, "criterion", {"model": request["model"], "messages": len(request["input"]),
                                           "question": request["input"][-1]["content"]})
             return reply(Criterion(counts=["   "], does_not_count=[]), 20, 10)
