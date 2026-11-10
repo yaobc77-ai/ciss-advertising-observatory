@@ -125,6 +125,12 @@ def test_nested_export_maps_exact_source_fields_and_validates_canonical_contract
     assert receipt["output_sha256"] == hashlib.sha256(out.read_bytes()).hexdigest()
     assert receipt == json.loads(report.read_text(encoding="utf-8"))
     assert len(load_records(out, dataset="social").records) == 1
+    # Only the file name is stored: no part of this machine's folder layout reaches the records.
+    assert receipt["source"] == source.name
+    assert str(tmp_path) not in out.read_text(encoding="utf-8")
+    assert str(tmp_path).replace("\\", "\\\\") not in out.read_text(encoding="utf-8")
+    assert record["raw"]["date_source"] == source.name
+    assert {item["source"] for item in record["provenance"]} == {source.name}
     if zipped:
         assert receipt["documentation_sha256"] == hashlib.sha256(b"documentation").hexdigest()
 
@@ -139,6 +145,24 @@ def test_source_social_labels_are_separate_and_not_converted_to_native_taxonomy(
     assert annotation["explanations"]["green_explanation"] == "Historical model explanation"
     assert "green_labels.viable_solutions" not in annotation["values"]
     assert receipt["historical_annotations"] == 1
+
+
+@pytest.mark.parametrize("body", ["", "  \n", "video", "N/A", "This content isn't available right now"])
+def test_labels_of_a_post_with_no_text_are_unknown_not_false(tmp_path, body):
+    original = post()
+    original["post_text"] = body
+    records, receipt, *_ = prepare(tmp_path, [original])
+    assert records[0]["annotations"] == []
+    assert records[0]["raw"]["source_row"]["green_binary"] is True
+    assert receipt["historical_annotations"] == 0
+    assert receipt["issue_counts"]["social_historical_labels_without_text"] == 1
+
+
+def test_labels_of_a_post_with_a_lost_emoji_stay_attached(tmp_path):
+    original = post()
+    original["post_text"] = "Our new low-carbon blend is here � ask at any Example station today."
+    records, receipt, *_ = prepare(tmp_path, [original])
+    assert records[0]["annotations"][0]["values"]["green_binary"] is True
 
 
 @pytest.mark.parametrize("value", ["true", 1, None])
@@ -221,11 +245,34 @@ def test_media_and_reference_text_are_preserved_but_never_added_to_citable_body(
     assert "Audio transcript" not in records[0]["body"]
 
 
-def test_missing_archive_url_is_explicit_and_does_not_replace_original(tmp_path):
-    original = post()
+@pytest.mark.parametrize("link", [None, "not a url"])
+def test_missing_archive_url_is_built_from_the_numeric_source_id(tmp_path, link):
+    original = post("556129866")
+    if link is None:
+        del original["junkipedia_link"]
+    else:
+        original["junkipedia_link"] = link
+    records, receipt, *_ = prepare(tmp_path, [original])
+    assert records[0]["archive_url"] == "https://www.junkipedia.org/posts/556129866"
+    assert records[0]["raw"]["archive_url_basis"] == "derived_from_source_post_id"
+    assert records[0]["url"].startswith("https://twitter.com/")
+    assert receipt["derived_archive_links"] == receipt["valid_archive_links"] == 1
+    assert "social_archive_url_missing_or_invalid" not in receipt["issue_counts"]
+
+
+def test_supplied_archive_url_is_kept_as_supplied(tmp_path):
+    records, receipt, *_ = prepare(tmp_path, [post()])
+    assert records[0]["archive_url"] == "https://www.junkipedia.org/posts/101"
+    assert records[0]["raw"]["archive_url_basis"] == "supplied_junkipedia_link"
+    assert receipt["derived_archive_links"] == 0
+
+
+def test_missing_archive_url_with_a_non_numeric_source_id_stays_missing(tmp_path):
+    original = post("abc-101")
     original["junkipedia_link"] = None
     records, receipt, *_ = prepare(tmp_path, [original])
     assert records[0]["archive_url"] == ""
+    assert records[0]["raw"]["archive_url_basis"] == "none"
     assert records[0]["url"].startswith("https://twitter.com/")
     assert receipt["issue_counts"]["social_archive_url_missing_or_invalid"] == 1
 

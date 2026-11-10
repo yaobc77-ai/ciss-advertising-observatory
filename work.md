@@ -2,9 +2,417 @@
 
 排序约定：新内容在上；每节对应 plan.md 同编号的一轮。
 
+## 2026-11-09：11-06 社交导出正式导入——S7 生成向量（$0.201，上限 $1.00）与 S8 验收（$0）
+
+- 结论：新导入的帖子在主库里可检索；导入的三条完成标准（主库可检索、各平台帖数与第 3 节一致、门禁通过）都已满足。检索变慢约 4–5 倍，单列为后续问题。
+- S7（用户 2026-11-09 点"Approve $1.00 cap"）：`index --task social-import-20261109-embeddings --max-usd 1.00`，生成 124,828 块向量，3,901 次调用全部结算，实花 $0.20138138（与免费预估一致），没有待定或不确定的账本行；账本里该任务的上限记为 1。之后 `index-status`：172,587 块，缺向量 0，准备快照一致；embeddings 表 161,934 行（= 37,106 + 124,828）。全库账本已结算合计 $4.3766。
+- S8 覆盖（`.runtime/social_import_20261109/imported/s8_acceptance.json`）：新导出可检索帖 Twitter 88,657、FB 47,029、IG 12,068 全部有当前版本的检索块，块全部有向量；不可检索的帖子（水泥、身份存疑、正文不一致等）没有一条进检索块。
+- S8 检索（免费：用帖子自身某块的前 12 个词作查询词、该块已存的向量作查询向量，代替付费的问题向量；走 `Database.search`，按平台筛选，取前 5）：每个平台抽 20 条可检索帖（固定种子），FB 20/20、IG 20/20、Twitter 19/20 找回本帖；每个平台抽 5 条不可检索帖，0 条被找回（符合预期）。没找回的 1 条（`social-post:70dbf553…`）：另有 7 条当前帖与它的检索块文字完全相同，前 20 名里出现了其中 2 条；只在这条记录里搜时能找回（关键词和向量两路都命中）。推断是相同文字的帖子之间并列、只排进前几条，不是导入缺失；原因没有进一步确认。
+- S8 计时（`imported/s8_timing.json`，30 个查询、已存向量、无模型调用，同一批查询分别打到两个库）：导入前的恢复库 social 中位 1,059 ms（p90 1,736），all 1,320 ms；导入后主库 social 中位 5,097 ms（p90 7,549，最高 11,569），all 4,893 ms。各表统计信息已被自动 ANALYZE 更新过，所以不是统计过期；社交记录从 36,182 增到 180,458（约 5 倍）。哪一路检索变慢没有诊断。
+- 没做：计划第 8 步里"团队自拟问题的付费检索冒烟"（用已存向量代替了，没有新的模型调用）；网页上的检索没有试（本地网站在维护窗口里没开）。
+- 维护窗口到此关闭（已 post）。回滚库 `observatory_pre_social_import_20261109` 保留，没删。
+
+## 2026-11-09：11-06 社交导出正式导入——S6 只出报告（$0，主库只读，没写库）
+
+- 结论：12 个准入分片都对主库跑了 `--review-only`（`reviewed_import(review_only=True)`），一条都没写。共 163,400 帖：新增 144,276，与库里重合 19,124（与 D11 的重合数一致），没有"未变"、"重新上架"或"下架"；分片之间 record_id 没有重复。FB 8 片、IG 4 片只有新增，不需批准；Twitter 4 片各有约 4,750 条改动，需要批准。
+- 报告在 `.runtime/social_import_20261109/review/<分片>/`（report.json、decisions.template.json、new_records.json），汇总在 `review/summary.json`（每片指纹），改动拆分在 `review/change_breakdown.json`。目标库核对为 127.0.0.1:55432/observatory，脚本不打印连接串。
+- 19,124 条改动拆开看：
+  - 17,300 条只是标注出处变了（新文件名、行号），内容没变。
+  - 1,372 条存档链接变化：1,359 条换成从 ID 生成的地址，13 条原来没有、现在补上。
+  - 来源行数：1,102 条变多，200 条变少（新导出里同一帖的行少了；旧版本仍留在 record_versions）。
+  - 公司：37 条清空（26 条是同一帖的几行公司不一致，11 条是含水泥的混合帖，按 D09 记为未知），8 条改名，7 条补上；账号同样随之变化。
+  - 正文：16 条改了（9 条变长、7 条变短，没有被清空的）。
+  - 停止检索：22 条（21 条是同一帖的几行正文不一致，暂停检索；1 条是纯水泥帖，按 D09 不再检索），其中这条水泥帖也不再计数。
+- 发现的问题（写库前要处理）：新准备的记录在 `issues[].source`、`provenance[].source`、`raw.date_source`（以及各来源行副本里的同名字段）里存的是本机绝对路径 `D:\Projects\549 native ads\.runtime\...\split\<分片>.json`；库里旧社交记录 36,182 条都只存文件名，0 条含本机路径。原因：`social_archive._read_source` 用 `str(source.resolve())`（自 60ec5e9 起）。路径进了记录内容，所以也进了指纹；改了以后要重新准备、准入、出报告，指纹会变，数量应当不变。
+- 修正（用户选"先修路径"）：`_read_source` 只存文件名（`source.name`），与 `import_records`、`social_source_retrieval` 的做法一致；`tests/test_social_archive.py` 加断言：receipt、`raw.date_source`、`provenance[].source` 只是文件名，输出里不含临时目录路径。社交相关 4 个测试模块 125 passed。
+- 重跑（旧输出改名为 `prepared_abspath/`、`admitted_abspath/`、`review_abspath/` 保留）：准备 0 拒收；准入总数与修正前完全相同（163,400 帖、可计数 152,760、可检索 147,754、水泥 10,640、身份存疑 82）；所有准备和准入输出里本机路径出现 0 次；12 片报告的数量与修正前逐片相同，改动拆分（change_breakdown.json）完全相同；只有指纹变了，新指纹在 `review/summary.json`。
+- 完成门禁 `.runtime/project_checks_s6path_20261109`：5,443 passed、0 failed、39 skipped、347 deselected，28 个受保护模块按清单排除；ruff 通过；3 个 JavaScript 检查（用 Codex 自带的 Node）通过；退出码 0。
+- 写库（用户 2026-11-09 点"Import all 12"）：写前复核前提——18072、8060 没有监听，主库没有别的连接，主库的表行数和五个指纹与备份时完全相同。每片一个事务、带审过的指纹：FB/IG 8 片按自动批准（只新增），Twitter 4 片 `all-latest`；12 片全部写入，每片 new_versions 等于输入数，下架 0。回执 `.runtime/social_import_20261109/imported/receipts.json`。
+- 写后核对（`imported/verify_counts.json`）：记录 180,733（原生 275、社交 180,458，全部 active），版本 236,918（= 73,518 + 163,400）；当前版本里本机路径 0 条。新导出各平台：Twitter 95,956（可计数 88,696，可检索 88,657）、Facebook 54,176（51,995／47,029，身份存疑暂停 80，另 2 条存疑帖是水泥帖）、Instagram 13,268（12,069／12,068）；合计可计数 152,760、可检索 147,754，与准入结果一致。只在旧库的 Twitter 17,058 帖保持不变。
+- S7 免费预估（`index --task social-import-20261109-embeddings --dry-run`）：缺向量的块 124,828，3,901 次调用，约 1,007 万 token，预计 $0.20，预留合计 $0.82，该任务已花 $0。
+- 还没做：提交这次修正（要问用户）；S7 生成向量（要用户批上限）；S8。
+
+## 2026-11-09：11-06 社交导出正式导入——S5 备份与恢复核对（$0，主库只读）
+
+- 结论：回滚点已建好并核对过。维护窗口从这时开始，到导入和生成向量结束为止。
+- 前提核实：本地网站没在运行（18072、8060 都没有监听）；除我之外没有连到主库的会话；协调日志里只有我自己的认领。已 post 维护窗口通知。
+- 备份：`.runtime/backups/observatory-pre-social-import-20261109.dump`，custom 格式，385,287,294 字节，sha256 6833e937…（复算一致）。用导出快照拍：`pg_dump --snapshot` 和清单出自同一个 repeatable read 事务。
+- 清单：`.manifest/inventory.json` 记录全部表行数；records 36,457（原生 275，社交 36,182，全部有效）；record_versions 73,518；embeddings 37,106；usage_ledger 8,425（已结算 8,332 条 $4.175、不确定 6 条 $0.018、已取消 87 条）；schema 第 1 至 8 版。另有 `records.jsonl.gz`（每条记录的 ID、数据集、当前版本、是否有效）。
+- 恢复核对：恢复到新库 `observatory_pre_social_import_20261109`。主库、恢复库、清单三方比对：
+  - 表行数全部一致；
+  - records、record_versions、embeddings、usage_ledger、schema_migrations 的指纹，主库和恢复库一致；
+  - 记录清单一致。清单 gzip 在 Windows 上用文本模式写成了 CRLF，换成 LF 后逐字节一致；这件事已写进 `restore_check.json`。
+- 回滚：导入或生成向量出错时，把 `.env` 的主库连接指向 `observatory_pre_social_import_20261109`，重启用到主库的进程。账本按计划第 5 节，把备份之后的新行按 reservation_id 写回。出错的主库保留不删。
+
+## 2026-11-09：11-06 社交导出正式导入——S3 决定记录与离线准入（$0，主库没改）
+
+- 结论：S3 完成。决定记录由用户在对话里逐项确认；用它在本机离线跑完切分、来源准备和准入，数字和计划第 3 部分对得上。主库没碰，没有付费调用。
+- 决定记录 `.runtime/social_import_20261109/decisions/`（不进 git）：`review_data.json`（D02、D03、D09、D10、D11，sha256 3f2a153b…，绑定导出 sha256 5584b2ba… 和切分 manifest）；`reviews.jsonl` 5 条已确认事件，每条写用户原话：
+  - D02'：“都作为收集的公司帖子（推荐）”；
+  - D10：“公司记为未知，照常计数（推荐）”；
+  - D03'：“每个 uid 算一条（推荐）”；
+  - D09：“保留，公司记为未知（推荐）”；
+  - D11：“A 并集（建议）”。
+  后三条是用户当天早先的回答，用户随后确认“写，按原话（推荐）”。
+- 离线结果（`.runtime/social_import_20261109/`）：
+  - `split/`：12 片，170,560 行全部对上；`identity_conflicts.json` 列 82 个共用链接的 FB 帖子 ID。
+  - `prepared/`：12 片来源准备，0 行拒收。
+  - `admitted/`：准入结果为 163,400 帖（Twitter 95,956、FB 54,176、IG 13,268）。其中可计数 152,760；纯水泥排除 10,640（Twitter 7,260、FB 2,181、IG 1,199）；身份存疑 82（计数、不检索）；可检索 147,754；隔离 0。
+  - 抽查：74 个混合帖都计数，公司为空；31 个无公司帖都计数。
+- 还没做：S5（备份主库、停本地网站）、S6（全部分片先只出报告，用户批准后再写库）、S7（生成向量，要用户批上限）、S8。
+
+## 2026-11-09：11-06 社交导出正式导入——S2 代码（FB/IG 适配、向量任务上限、导入只出报告）（$0，主库没改，未提交）
+
+- 结论：S2 的三块代码都写完并通过离线测试和私有集群测试；主库没碰，没有付费调用。还没提交（要先问用户）。
+- A. FB/IG 适配：
+  - `social_archive.py`：`_original_url` 按平台判断。FB 只认 facebook.com 及 www./web./m. 主机，允许查询串；IG 路径必须是 `/p|reel|tv/<uid>`，uid 区分大小写，不许查询串。新增 `platform_post_uid`、`platform_post_url`。
+  - `social_admission.py`：`post_identity`。Twitter 不变，仍按规范原帖链接，所以已有记录 ID 不变；FB/IG 按“平台＋junkipedia_uid”，计数单位 `platform_source_post_uid`。同一 URL 被几个 uid 共用的帖子，按整份导出判断：切分脚本写 `identity_conflicts.json`，绑定导出和每个分片的 SHA-256；准备 FB/IG 分片时必须带上这个文件，否则拒绝。准备时会校验：清单所在目录的分片文件、manifest、各分片哈希都对得上，并从所有分片按每行的实际平台重新算一遍共用 URL，结果必须和清单完全一致（删减或添加条目都会被拒绝）。这类帖子照样计数，但暂停检索（`paused_identity_ambiguous`）。
+  - 决定绑定：只有 Twitter 行时用 10-06 的选择；只要有一行 FB/IG，就要 D02' `collected_posts_all_platforms` 和 D03' `unique_post_platform_uid`；只要有一行公司商品是 Cement（混合帖也算），就要 D09。
+  - 混合帖（来源里既有水泥公司又有别的公司）按 D09：保留计数，公司记为未知（`sponsor` 为空，`company_status: unknown_mixed_commodity`）。
+  - Twitter 准入记录的键和标题与以前完全相同。
+  - `social_source_retrieval.py`、`public_social_admission`：两种计数单位都接受；观察记录必须和帖子的平台＋uid 对得上；`prepare_source_retrieval` 跳过身份存疑的帖子，不做修复。
+  - 计数单位的使用方同步改：`db.py`、`intent_execution.py`、`research_tools.py`、`record_view.py`、`scripts/audit_retrieval_quality.py`。
+- B. `observatory index --task/--max-usd/--dry-run/--batch-size`：
+  - `Budget.reserve(task_cap=)` 和月度上限在同一把锁、同一个事务里检查。累计算法：这个任务在账本里的全部金额，已结算、待结算、不确定都算，跨月、重启后也算，只有已取消的不算。
+  - 碰到任务上限时干净地停下，报告还剩多少片段没生成向量。`--dry-run` 不碰 API 客户端，也不写账本。
+  - 每次预留都把批准的上限写进账本行的 `usage.task_cap`；同一任务换上限、不带上限、上限为 inf/NaN/0 都会被拒绝，想换上限只能换任务名。`task:` 开头的访客不带上限一律拒绝（`reserve`、`Rag.index`、命令行三处都拦）。结算和标记不确定时改为合并 `usage`，不再覆盖。
+  - 不带 `--task` 的旧用法保持原样。
+- C. 导入审核：
+  - `--review-only` 只出报告和 `new_records.json`，从不导入；同时带批准或指纹时直接拒绝。
+  - 只带 `--fingerprint` 等于“按审过的指纹自动批准”：库状态一变就中止；只要有改变或下架，仍然停下等人批。
+- 真实导出免费复算（只看计数，用这版代码）：
+  - FB：56,985 行，54,176 个帖子 ID；IG：13,317 行，13,268 个帖子 ID；隔离 0 行。
+  - FB uid 形态：纯数字 40,118，数字_数字 16,840，其他 27。其他里 23 个是 `pfbid…` 不透明 ID，4 个像查询串。这补上了上一轮差的 23 行。
+  - 按“保留大小写”的规则，82 个 FB 帖子 ID 共用 41 个 URL，这 82 帖会暂停检索。上一轮 46 个 URL／985 个 uid 的数字用的是小写路径，不再使用。
+- 测试：
+  - 新增离线测试，全部用虚构数据：`tests/test_social_platforms.py`（44 项）、`tests/test_import_review_report_only.py`（7 项）、`tests/test_index_task_cap.py`（20 项）。`test_social_source_retrieval.py` 加 2 项。
+  - 私有集群 `count_public_tests_20261108`（`OBS_RUN_TASK_CAP_INTEGRATION=1`）：`tests/test_budget_task_cap_integration.py` 3 项通过：8 个线程各预留 $0.30、上限 $1，结果正好 3 个成功；已结算、不确定、已取消各自按规则计入；首次上限固定，换上限或不带上限被拒。导入审核集成测试 9 项通过，新加的 2 项是“两个分片先统一出报告，再依次按原指纹导入”和“报告后记录被改，原指纹被拒绝、不写入”。
+  - 全部集成测试（第 2 轮修复后）：212 通过。第一版改坏了 `_admit_group` 的旧调用方式，已改回兼容。剩下 2 个失败在 HEAD 上一样失败，不是这次改动造成的（`test_versioned_record_integration::test_real_native_social_and_all_exact_detail`、`test_failure_paths::…[concurrency]`）。28 个报错缺私有管理员设置，没跑。
+- 门禁（`.runtime/project_checks_s2r4_20261109`，最终候选）：pytest 5,443 通过、0 失败、39 跳过、347 未选（integration／live 标记）；28 个受保护模块按清单排除；Ruff 通过；3 项 JavaScript 检查通过（用 Codex 自带的 Node）；退出码 0。前一次门禁（s2r3）有 2 个失败：`Rag.index` 总是给 `embed` 传 `task_cap`，旧测试的替身函数不收这个参数；改成只在有上限时才传（一行，Codex 第 3 轮之后改的），重跑后全部通过。
+- Codex：计划复核一轮，提出 3 个阻断项（路径大小写、跨分片判断、混合帖的 D09），都已处理。代码复核 3 轮。第 1 轮 3 个阻断项：任务上限可绕过、删减过的冲突清单仍能通过、混合帖公司没记为未知。第 2 轮 1 个阻断项：按文件名跳过分片可被绕开。第 3 轮结论是“no blocking issues”。
+- 回滚：未提交；提交后 `git revert`。没有 schema 改动；主库没改。
+
+## 2026-11-08：网页回答慢——第二轮第 1 项：规则已判定的名单题不经研究代理（2026-11-08 提交，未推送；付费对照 $0.188，上限 $0.26；开关 2026-11-08 起默认开，待提交）
+
+- 改动（本工作区，分支 `claude/sync-20261025`，只动自己的 hunk；service.py 里同事未提交的 `group_explain` 两个 hunk 不在内）：
+  - `config.py`：`Settings.list_without_agent`（`OBS_LIST_WITHOUT_AGENT`，提交 e18d110 时默认 false；2026-11-08 用户看完对照后定为默认 true，见本项末条）。看门狗会话在它的工作树里也改 config.py（claude-deadline 的声明），我改完才看到声明；已发消息协调，对方回复它的字段在 `screen_workers` 之后、与我的插入隔着几行，不冲突；协调日志记了一笔。
+  - `question_plan.py`：`agent_needed(question, filters, names, setting)` 返回代理仍要跑的原因字符串，None 表示规则名单可以不经代理；只放行"列表开头 → 紧接内容谓词 → 主题词"的正向形式，其余全部留给代理（细则见 plan.md 本项）；`build_evidence_plan` 多 `agent_route`／`route_reason` 两个可选参数（默认不变）；`SKIPPED_AGENT_REASON = "rule:list_without_agent"`；`_scope_forms` 用 entities 登记表取已选那一个名字的各种写法。注释写明：这是保守的表层启发式，不是"范围限制全在筛选里"的证明。
+  - `service.py`：`_answer_with_tools` 在建代理前先问 `agent_needed`（名字来自 `_known_source_names`，即 `db.facets`，读不到就留给代理）；快路 = `build_evidence_plan(..., agent_route="skipped")` + `_answer_evidence(audit=False, plan=plan, confirmation_flow=True)`；数据版本前后检查、来源状态检查、费用累计、审计（`_no_agent_audit`：policy `list-without-agent-v1`、transport none、`model_calls=[]`、`tools=[]`、`cost_usd=0`、`agent_skipped`）、下游 trace 键、计划记录（`_record_question_plan` 现在在没有 run 但有 plan 时也记）、联网记录、异常分支、延迟和保存运行都与代理路线共用，没有提前返回；开关开着而代理照跑时记 `agent_kept=<原因>`。
+  - 测试：`tests/test_list_without_agent.py` 83 项（守卫正反例 18 + 52、单选／多选名字豁免、开关关与名字缺失、经 `Service.answer` 的快路与共用收尾、开关关时代理照旧且筛查同一批广告与 passage、账本无悬挂预留、守卫留代理并记原因、facets 缺失、native_screen（分流关）的自动与卡片→无规则续问、两阶段卡片→续问（确认的草稿、改过的规则全文、换题／缩范围／数据版本变化三种拒绝且筛查判定调用数不增）、版本变化、路线内异常与返回后异常、设置默认值与环境变量、未登记小写来源 "in the beacon" 在代理路线（澄清→馆藏回退）与快路读同一批广告／passage 且检索词相同）。现有测试一个没改：改前基线 17 个相关模块 501 通过 5 跳过，改后同一批加 `test_config.py` 510 通过 5 跳过。
+- 设计依据与诚实说明：11-05 实测代理一步 5.2～10.5 秒（小范围）／7.9～8.1 秒（整库）、一次 428 秒；本地主库近 90 天 49 次带计划的保存回答全是规则名单题，代理收窄 1/49、改写检索词 37/37——这些计数由脚本统计，没有显示题面，可能含客户经网页问过的题，只作背景；守卫用 50 道虚构问题设计和试跑。读过受保护模块 `tests/test_research_service.py` 的前 60 行（假代理、假库的夹具）才去查排除清单，没有读到问题文本，记在这里。
+- Codex 计划复核两轮：第 1 轮 P1——黑名单守卫漏标签、记录 ID、未登记名字，建议改成只放行可接受的形式，并建议默认关、只做 native、原问题作检索词、不加改写调用——全部采纳；P2——无 run 的收尾要写明、空调用审计的含义要写明——写进代码注释和记录。第 2 轮（独立 Codex 会话，项目会话被别的写入者占着）P1 两个——谓词前夹名字（"in acme review"、'in "Acme Review"'）会漏进快路、已选名字不等于不能再缩（选了两个媒体问其中一个）——改成谓词必须紧接列表开头、该维度恰好只选一个名字才豁免；P2——异常测试要覆盖证据路线内部失败——已加。
+- Codex 提交前复核三轮：第 1 轮 P1——谓词之后带引号的来源（from "Acme Review"、by “Acme”）去引号后失去宾语而放行——改成引号内容替换为占位词再查语法，另加"介词宾语不是限定词短语就留给代理"；P2 四条——补 native_screen 场景、开关对比要比实际 passage、费用对照独立账本（金样本的写作假对象把 0.002 记在账本之外，所以只断言无悬挂预留且答案费用 ≥ 已结算）、edited 规则要比全文并补续问时范围／版本变化的拒绝——已加。第 2 轮 P1——介词后带冠词的来源（published in the "Acme Review"、published in the gazette）仍放行——改成引号内容只许作谓词直接宾语（可 or／and 连接），"published／posted… in／on／by"框架和"介词 + (限定词) + …出版物／平台／账号／记录名词"一律留给代理，"previous results" 等归入记录指代；P2——无效续问要断言筛查／判定调用数不增——已加；nit——plan.md 计数——已改。第 3 轮：**no blocking issues**；P2 两条——把代码里"范围限制全在筛选里"的绝对表述改成"保守启发式，非证明"（已改 config／service／question_plan 三处注释），加一个免费的未登记来源对照（已加，见测试末项）。
+- 完整门禁（隔离 worktree，精确候选，`.runtime/project_checks_round2_item1_20261108`）：pytest 5,285 通过、0 失败、39 跳过、335 未选（28 个受保护模块按清单排除，同第一轮）；Ruff 通过；3 项 JavaScript 检查没跑（本机没有 Node.js），门禁退出码 1 只因此。比第一轮的 5,202 多出的 83 项就是新测试模块。候选 = 工作区减去同事未提交的 hunk；plan.md／work.md 本项记录在门禁之后写入，不影响任何检查。
+- 付费对照（2026-11-08，用户批 $0.26，实付 $0.1880；账本访客 `latency-compare:20261108` 与 `latency-measure:r2-*`）：
+  - ① 检索对照（$0.0000005：代理检索词 11-05 已嵌入并缓存，只新嵌入原问题）：小题（API 赞助 8 篇）两种检索词候选集相同，8 篇里 6 篇位置不变、最大移 1 位；整库题（263 篇）前 120 候选 109 个相同、各 11 个不同，先读的前 40 有 34 个相同、各 6 个不同，位移平均 12 位、最大 80 位；11-05 的 19 个命中里 18 个在两种候选里都有、15 个在两种顺序下都在前 40，1 个两种顺序都不在检索候选里（它是 Decisions 判全库时进来的，不靠检索）。明细在 `.runtime/latency_20261105/retrieval_compare_20261108.json`。
+  - ② 浏览器重测（内置浏览器面板处于隐藏状态，用 JavaScript 驱动页面并计时：点 Generate 到结果容器变化；括号里是服务端请求时间；span 在 `.runtime/latency_20261105/r2-*.spans.jsonl`）。小题改用 "Which ads present natural gas as the way to lower emissions?" 加赞助商筛选 API（原题 "Which API ads …" 因 API 夹在 Which 和 ads 之间不走快路，见下一条）：开关关——卡片 9.3 秒（8.9）、判定 11.3 秒（10.8）；开关开——卡片 4.1 秒（3.6）、判定 10.8 秒（10.6）；两次都是 4/8 命中、同一批。卡片少的 5 秒就是代理那一步（5.0 秒），剩下 3.6 秒里起草规则占 2.3 秒。整库题（auto）：第一次被测量守卫拦在筛查第二波（守卫按每次调用的最大可能费用计占用，上限 0.15 不够，实付 $0.069 作废；用户批准把守卫放到 $0.30 后重跑），第二次 29.8 秒（29.4）答完，"Found 23 matching ads among the 263"；阶段：起草 2.1、Decisions 判全库 6.7（232 篇可读）、筛查 11.9（60 篇）、总结 5.7，没有代理那一步；11-05 同题开关关（第一轮代码）51 秒（代理 7.9、起草 5.9、Decisions 7.8、筛查 18.4、总结 6.3）。今天的 23 个命中包含 11-05 的全部 19 个，多出 4 个（它们在两种检索顺序下的名次分别为代理 23～43、原问题 13～31，都在读取范围内）；Decisions 分流判的是全库，检索顺序不决定通过组，多出的 4 个更可能是判定模型的运行间波动（11-03 记录过每题 0～2 篇路由变化），但今天没有同题开关关的对照跑，不能精确归因。
+  - 花费：① $0.0000005；小题关 $0.0133、开 $0.0104；整库拦停 $0.0690、完成 $0.0953；合计 $0.1880。这两道题只说明快路本身，2 分钟长尾（挂住的调用）由看门狗任务处理。
+- 发现的扩展点："Which API ads …" 这种把已选的那一个赞助商名放在 Which 和 ads 之间的问法，现在因列表开头只允许 native 一个修饰词而留给代理；若允许"该维度恰好只选了这一个名字"的名字作开头修饰词，用户最自然的问法也能走快路。要再过 Codex 复核、门禁和提交，等用户定。
+- 会变的东西：检索词从代理的英文主题词变成原问题句，范围大于 30 条时前 120 候选与扩展顺序可能变；提交 e18d110 时默认关，等付费对照（两道 11-05 合成题，合计上限 $0.26：① 代理检索词 vs 原问题的候选／顺序／批次对照，2 次嵌入调用；② 开关打开后浏览器重测）由用户批准后再定是否默认开——对照后用户 2026-11-08 定为默认开（见末条）。这两道题只能说明快路本身，不说明 2 分钟长尾已解决。
+- 默认开（2026-11-08，用户看完对照后定「改成默认开」）：`config.py` 数据类默认 `True`、`from_env` 缺省按 "true" 读（`OBS_LIST_WITHOUT_AGENT=false` 关闭这条跳过逻辑；代理本身仍由 `OBS_RESEARCH_AGENT_ENABLED` 决定）；`question_plan.py` 注释从"开关先关、等测量"改成"2026-11-08 起默认开"；`tests/test_list_without_agent.py` 的默认值测试改为 `test_the_setting_defaults_on_and_reads_the_environment`（默认 True、env false→False、env true→True），模块说明同步；其他文件和测试不改。生效：本地重启服务即生效；Railway 要等别人部署本分支（未推送）。检查：相关模块 623 通过、5 未选（integration／live 标记）、0 失败（18 个与代理路线相关的模块，103 秒）；完整门禁（隔离 worktree `candidate_r3`，候选 = HEAD e18d110 + 这 3 个文件 + .env.example + plan.md／work.md 本项，`.runtime/project_checks_default_on_20261108`）：第 1 次（Codex nit 改法和 .env.example 进候选之前，回执 `.runtime/project_checks_default_on_20261108_run1_nojs`）：pytest 5,285 通过、0 失败、39 跳过、335 未选（28 个受保护模块按清单排除），Ruff 通过，3 项 JavaScript 检查没跑（PATH 没有 node）；第 2 次（最终候选，PATH 加上 Codex 运行时自带的 Node 24.22.1，回执 `.runtime/project_checks_default_on_20261108`）：pytest 5,285 通过、0 失败、39 跳过、335 未选，Ruff 通过，3 项 JavaScript 检查（`node --check`）通过，门禁退出码 0——本项目的门禁第一次连 JS 检查一起过。测试数与 e18d110 的门禁相同（默认值测试是改写，不是新增）；Codex 提交前复核（独立会话，cwd 为候选 worktree；它的命令工具通信失败，只审了所附 diff）：P1 无、no blocking issues；两条 nit 已采纳——"false 让每题都经代理"改成"关闭这条跳过逻辑"（代理本身由 `OBS_RESEARCH_AGENT_ENABLED` 决定），config.py 注释删掉"省 5～21 秒"（大题无同日对照，不能全归于跳过代理）；P2 交付检查——门禁结果要补齐、.env.example 要进候选、以前没跑的 JS 检查不算通过——见门禁条。未提交，等用户批准（不推送）。
+- 待用户定：是否允许已选的那一个名字作列表开头修饰词（"Which API ads …"）；是否扩到 all／social。对照没有显示候选差别大，小的英文改写调用暂不需要。
+
+## 2026-11-08：网页回答慢——整库计数（迁移 0009 + 精简计数 SQL；无付费调用；主库和 Railway 未动；用户同意后提交到分支 claude/great-ishizaka-0e7385，未推送）
+
+- 结论：`count_public` 对 social／all 慢在逐行解压 `record_versions.payload`（堆 35 MB、TOAST 587 MB；73,518 个版本里 73,470 个 countable，只有 48 个不是），不在计数本身。只加索引没用（现有 SQL 的 LATERAL 子查询还要读 payload），只精简 SQL 只省三分之一；两者一起，整库计数在副本上从 3 秒降到 0.02～0.03 秒（算上建连 0.08～0.10 秒），43 组筛选组合的新旧计数逐一相同。
+- 改动（工作区 `.claude/worktrees/great-ishizaka-0e7385`，分支 `claude/great-ishizaka-0e7385`，基于 `claude/sync-20261025` 8777aaa）：
+  - `src/observatory/migrations/0009_countable_version_index.sql`：`CREATE INDEX IF NOT EXISTS record_versions_countable ON record_versions(version_id) WHERE (payload->>'countable')::boolean`。回滚：`DROP INDEX record_versions_countable;`，新旧代码没有这个索引都能跑（计数退回全表扫）；只有想让以后的 `observatory migrate` 重建它时，才再删 `schema_migrations` 里第 9 版那一行。前提：建索引时对全部 73,518 个版本（含非当前版本）算 `(payload->>'countable')::boolean`，本地全是 JSON 布尔；Railway 的数据没查过，若有非布尔值，迁移失败并整体回滚（迁移跑在一个事务里）。
+  - `db.py` `count_public`：直接数 `records JOIN record_versions WHERE where()`，不再套 `_public_query`（40 列投影 + `LEFT JOIN LATERAL (… LIMIT 1)` 日期推断连接）。等价理由：WHERE 全部来自 `where()`、不引用 `di`；LEFT JOIN LATERAL … LIMIT 1 对每条外层行恰好保留一行；投影不能过滤行。缓存键不变；唯一调用方是 `service._scope_count`。
+  - `tests/test_count_public_index.py`：9 个假库单元测试（语句和参数等于 `where()`、无 LATERAL／投影、改范围先校验再发语句、读缓存在写计数不变时复用、0009 的谓词就是计数里的 countable 项）+ 1 个私有集群集成测试（自建 schema 跑全部迁移，7 条合成记录含停用／不可计数／缺标志／旧版本，`count_public == len(public_rows)` == 预期，`enable_seqscan=off` 时计划用新索引）。
+- 测量，主库只读 `EXPLAIN (ANALYZE, BUFFERS)`（PostgreSQL 18.6）：social 现有计数 2965 ms——`Seq Scan on record_versions v  Filter: ((payload ->> 'countable'::text))::boolean  Rows Removed by Filter: 48  Buffers: shared hit=270574 read=77031`（1890 ms，就是解压 TOAST）+ LATERAL 的 `One-Time Filter: (NULLIF((v.payload ->> 'published_at'::text), ''::text) IS NULL)` 跑 36,182 次（约 1 秒、16.8 万缓冲）；all 3136 ms；native 17 ms（走 records_active_dataset + pkey）。原句在 `.runtime` 外的会话临时目录 `explain_main_before.txt`，要点已抄录于此。
+- 副本（`scripts/private_test_postgres.py` 集群 `count_public_20261108`，先 `observatory migrate` 到第 8 版，再 `pg_dump --data-only` 从主库导入 records／record_versions／date_inferences／annotations，VACUUM ANALYZE；行数与主库一致；主库只读），每格三次墙钟：
+
+  | 范围 | 改前（现有 SQL） | 只精简 SQL | 只加索引（现有 SQL） | 索引 + 精简 SQL |
+  | --- | --- | --- | --- | --- |
+  | social | 3.29／3.48／3.58 s | 2.10／2.16／2.13 s | 2.93／2.80／2.82 s | 0.026／0.023／0.021 s |
+  | all | 3.51／2.93／2.73 s | 1.90／2.03／1.85 s | 3.13／3.07／2.99 s | 0.023／0.016／0.015 s |
+  | native | 0.02 s | 0.01 s | 0.01 s | 0.001 s |
+
+  改后计划：`Hash Join` ← `Seq Scan on records` + `Index Only Scan using record_versions_countable … Heap Fetches: 0`。索引 6.9 MB、73,470 项，建索引约 1 秒（CREATE INDEX 期间 record_versions 持 SHARE 锁：导入等待，读不受影响）。真实 `Database.count_public`（含建连）：social 0.085～0.103 s、all 0.079～0.081 s、native 0.055～0.057 s；读缓存命中 0.053 s（写计数查询本身的开销）。0009 经 `observatory migrate` 在副本上应用（Codex 复核后只改了注释，副本删掉第 9 版记录和索引后用最终文件重跑一次）：第 9 版入账，校验和 7f24f474…；之后 43 组组合新旧计数仍全部相同。
+- 两条路线：(a) 读缓存——代码里 `count_public` 自 10-25（cd66b97）就走 `_cached_read`，只对 300 秒内、其间没有非易失表写入的相同范围有效；进程重启、窗口过期、导入或相关性复核点击之后的第一次仍付 3 秒（11-05 记为"每次 3～4 秒"，本轮没复现命中与否，属推断）。缓存策略没改。(b) 索引 + 精简 SQL——推荐，已实现；按日期／媒体／账号筛选的范围仍要读 payload，1.3～3.5 秒不变（如实列出，不算在本轮收益里）。
+- 检查：`pytest tests/test_count_public_index.py -m "not integration"` 9 通过；私有集群 `count_public_tests_20261108` 上 `tests/test_count_public_index.py tests/test_migration_adoption.py` 32 通过（采纳测试现在覆盖 9 个迁移）；ruff 通过。离线门禁 `scripts/run_project_checks.py`（在工作树里跑；`run_masked_checks` 把工作树的 src 放在 sys.path 最前，所以测的是本分支代码）：改前基线 5,202 通过／0 失败／39 跳过／335 按标记去除；改后 5,211 通过（多出的 9 项是新单元测试）／0 失败／0 错误／39 跳过／337 去除（新集成测试和第 9 个采纳用例按 integration 标记去除），ruff 通过；3 项 JavaScript 检查（collection_graph／source_links／toolbox）因本机无 Node.js 未跑，门禁脚本因此整体报失败；28 个受保护模块按清单排除（`.runtime/project-checks-count-index-20261108/scope.json`）。
+- Codex：计划复核"方案层面未发现阻断问题"，三条提醒已照做（`where()` 保留自己的 INFERRED_DATE 子查询；索引谓词的布尔转换覆盖历史版本，经 `observatory migrate` 在副本验证；对比用同一快照、关缓存）。提交前复核："No blocking issues found in the supplied implementation"；按其意见改了表述——路线 (a) 写成对现有缓存的收益评估、亚秒只限整库范围、回滚区分删索引和删迁移记录、不笼统说"旧计数遇到非法值也一定失败"（旧查询碰不碰到某行取决于计划）；它提醒 `git commit -- work.md` 会带上该文件的全部改动，已核对 work.md 的差异只有本节一个 hunk（22 行新增、0 行删除）。
+- 提交：2026-11-08 用户同意后 `git commit -- src/observatory/migrations/0009_countable_version_index.sql src/observatory/db.py tests/test_count_public_index.py work.md`，只含这四个路径，不推送。待用户：在主库和 Railway 跑 `observatory migrate`（0009）要单独批准；两个私有集群已停、数据保留：`.runtime/private_test_postgres/count_public_20261108`（副本，含主库四张表的拷贝，连 WAL 约 1.9 GB）和 `count_public_tests_20261108`；要再看就 `.venv/Scripts/python -X utf8 scripts/private_test_postgres.py start --cluster <name>`（在主工作区跑），不要了删目录即可。
+
+## 2026-11-05：网页回答慢——第一轮（不改回答内容；付费测量 $0.21，上限 $0.50；2026-11-06 提交，未推送）
+
+- 改动（本工作区，分支 `claude/sync-20261025`，只动自己的 hunk；db.py／service.py 里同事未提交的 hunk 不在内）：
+  - `db.refresh_read` / `refresh_health`：在后台线程重算一个缓存读并写回；每次计算（读者的或守护线程的）开始时取一个代次，`_store_read` 在同一临界区里检查并写入，只有更晚开始的计算能覆盖，所以慢刷新不会盖掉更新的值，慢请求也不会盖掉刚刷新的值。读者路径只多了这一条"后开始者赢"的规则，窗口和标记规则不变；缓存关着时不起守护线程。`cli.start_health_keeper`：`serve`／`api` 启动后立刻算一次 health，之后每 `HEALTH_REFRESH_SECONDS`（240 秒，在 300 秒窗口内）再算，失败记日志继续；代价是进程活着时每 4 分钟约 10 秒的只读摘要查询。（第一版是"过期先返旧值、后台刷新"，Codex 指出它改变了 300 秒新鲜度保证——embeddings 等表不在写计数器里——已撤。）
+  - `Settings.screen_workers`（`OBS_SCREEN_WORKERS`，0 = 代码常量）经 `list_screening._workers(rag)` 决定池大小；扩展每波固定 `WIDEN_WAVE = 8`；`_run_batches(calls, workers)`。
+  - `rag.reserve_through(hook)`：当前线程内 `generate()` 经 hook 预留预算（contextvar），其余不变。`service._OrderedReservations`：分片按序预留，轮次只沿已完成的前缀推进（早失败的后一分片不会让再后面的抢先）；被拒时先等前面的分片结清再问一次（余额紧时结果与逐个写作一致），再被拒后续分片不再预留。`_read_matched_sources`：一轮的分片同时发出（≤ CONTENT_ZONES，复用 `list_screening._run_batches`，service.py 仍只有一个 ThreadPoolExecutor），按分片顺序合并；LimitReached 等在途调用结束后抛出；单分片失败照旧记 failed。
+  - 测试：`tests/test_latency_round1.py` 23 项（守护刷新：刷新后读者命中、过期照旧同步算、慢刷新不覆盖新值、早开始的慢请求不覆盖晚开始的刷新、刷新不阻塞读者、标记变了照旧重算、缓存关着只算不存且不起守护线程、线程按间隔跑且失败记日志；筛查：池大小来自设置、第一波一轮跑完且结果相同、停读规则与池无关；写作：三分片同时跑（按预留之后的模型调用区间算重叠）且按序合并、补读在分片之后、单分片失败、余额紧（0.015 余额、每次预留 0.010、结算 0.002）三分片都完成、最终被拒时后续分片不预留、早失败的分片不跳过前面的、首分片被拒即终、被拒分片等结清再问；hook 只在块内且按线程）。`test_health_cache.py` 不变。
+- 测量（真实浏览器，`performance.now()` 从点 Generate 到答案可见；服务端 span 在 `.runtime/latency_20261105/*.spans.jsonl`；访客 `latency-measure:*`）：
+  - 小范围两阶段（Native · API，8 篇）：改前卡片 11.3 秒、判定 16.3 秒（答"4 of 8"）；改后 11.1 / 17.0 秒，同答。判定 = Decisions 8 篇 1.0 秒 + 筛查 2 批 7.8 秒 + 总结 6.4 秒（模型 3.4 秒，其余是本地准备和校验）。
+  - 整个 native（263 篇，auto）：改前 54 秒被守卫拦住（health 8.2、代理 8.1、起草 2.3、Decisions 19.5、筛查第二波中）；改后 51 秒答完（health 0、代理 7.9、起草 5.9、Decisions 7.8、筛查 18.4 = 14 批两波 + 1 次结构化回退 5 秒 + 重读 2.8、总结 6.3），"Found 19 matching ads among the 263"。
+  - 改前 Decisions 的 19.5 秒里，每次预留中位 0.87 秒，是守卫在进程锁里多做一次账本查询造成的（11-03 实测同样结论）；改后守卫改成内存记账，产品自己的预留中位 0.11 秒。所以 Decisions 的"提速"不是产品改动。
+  - 代理调用：今天三次都命中自动缓存（cached 7,616／8,710），单次 2.2～3.9 秒；3 小时后无命中也只 3.6 秒。10-23 那次每次 17 秒不是缓存问题。`prompt_cache_key` 试验没花。
+  - 失败一次：第一次小范围改前测量，代理第二次调用挂 419 秒后 APIConnectionError（账本 uncertain $0.0149），总请求 437 秒，页面没显示失败。
+  - 守卫两次误拦（改前整库 cap $0.18、改后小范围 cap $0.04）：预留是上限的 4～29 倍，并行挂着就占满；`_answer_evidence` 还有一笔 $0.04 的占位预留（随后取消）。教训同 11-05 另一会话。
+- Codex 提交前复核第 1 轮（21:24Z）：4 个 P1（缓存新鲜度、刷新覆盖、release 跳过、并发预算早失败）如上全部改掉并加测；接受 contextvar hook；另要求在隔离候选上验证补丁。已做：HEAD 新开 worktree，候选 = 工作区减去同事未提交的 hunk（按精确行号撤销，不再用零上下文补丁——第一次用补丁时同事的一行导入被去掉后，我的类插错了一行，是这一步抓到的）；同事的 `group_explain` 导入和调用都不在；Ruff 通过、237 项定向测试通过。提交（2026-11-06）：候选内容写进隔离 worktree 后在那里 `git add`，再把它的索引项搬进主仓库索引后提交——仓库约定 `text=auto eol=lf`，而工作区的 cli.py／rag.py／plan.md／work.md 是 CRLF，原打算的 `hash-object --stdin` 会把 CRLF 原样写进仓库，是暂存前 git 的警告抓到的；提交里不含同事未提交的 hunk。候选上第一次完整门禁（11-05 21:30Z 起，14.5 分钟）：5,188 通过、12 失败、39 跳过、335 未选；12 个失败全是 `generate()` 的假预算测试：我把 `self.budget.reserve` 的取值提到了 `reservation` 判断之外，传了 reservation 又只给空预算的假对象就报 AttributeError——已改回"只在自己预留时才碰预算"，这 5 个模块在主工作区重跑通过。Codex 第 2 轮（21:43Z）：预算顺序与临时占用两项修复成立、hook 可留；两个 P1 仍在缓存刷新：检查与写入不在同一临界区、早开始的慢请求能盖掉刚刷新的值——已改成每次计算按开始顺序取代次、`_store_read` 在同一临界区里"后开始者赢"，读者与守护线程同一规则；缓存关着不起守护线程；各加测试。Codex 第 3 轮（11-06 16:47Z）：只剩一个 P2——读缓存的状态是首次使用时懒初始化的，请求线程和守护线程同时首次使用可能各建一套 guard、代次归零；已改成在 `Database.__init__` 里一次建好，冷启动并发测试断言 guard 唯一、代次不重置。Codex 第 4 轮（11-06 16:50Z）：无阻断项（静态审查），不需要再加测或付费；提醒不能据此宣称 2 分钟长尾已解决、JS 检查未跑不算通过。最终候选上的完整门禁（隔离 worktree，`.runtime/project_checks_latency_20261106_final`，11-06 16:50Z 起 14 分钟）：pytest 5,202 通过、0 失败、39 跳过、335 未选（28 个客户保留相关模块按规则排除：19 直接、9 依赖）；Ruff 通过；3 项 JavaScript 检查没跑（本机没有 Node.js），门禁退出码 1 只因此。改构造函数前一版的门禁（`..._20261106_candidate_prefix`）同样 5,202 通过、0 失败。
+- 没做／待定：后台保存（Codex 反对）；计数部分索引（迁移 0009，要批准，先私有副本验证）；模型调用看门狗（改失败路径）；第二轮各项。
+
+## 2026-11-05：新社交导出免费演练、导入前比对与人工确认、大文件切分（$0，主库没改，未提交）
+
+- 结论：新导出 `claims_twitter_fb_ig_sample.json`（170,560 行）在私有集群上免费演练导入，结果写在主检出 `.runtime/import_rehearsal_20261105/README.zh-CN.md`。按演练发现做了三件事：① 导入前比对，会改变已有记录的导入先停下报警、要人确认；② 切分脚本，把超过上限的导出切成导入器接受的分片；③ 修 U+2028 把一行切成两半的缺陷。
+- 演练要点（已验证）：现有导入器因 256 MiB 上限整份拒收；FB、IG 行按现有规则全部逐行拒收；Twitter 95,956 帖，19,124 帖库里已有，76,832 帖新增；upsert 下架 0、snapshot 会下架 17,058；重合帖与上一版比，存档链接丢 19,111、正文变 16、公司变 53、可检索变不可检索 26。为什么只重合 19,124（推断，没和提供方确认）：两份文件日期范围相同、每年新旧比都约 2.6～2.8、旧帖约 47% 不在新文件里且各年各公司比例相近，更像同一个约 18.2 万帖集合的两份抽样。28/109 与 16/53 是两种口径（原始导出逐条比 vs 导入后代表记录比）。FB/IG 用临时规则试导入，规模与检索变慢的数字见 README。
+- 代码：
+  - `src/observatory/import_review.py`（新）：`plan_import` 在导入锁内按当前版本把每条记录分成新增／不变／重新启用／改变，列出变化字段和损失（存档链接、可检索、正文、来源观察），算指纹（库身份：集群 system identifier、库名与 oid、`records`/`record_versions` 表 oid；模式、数据集、来源哈希、逐条表、snapshot 下架集合）。`reviewed_import`：需要确认时不写库，打印“IMPORT STOPPED”报警，写 `report.json` 和 `decisions.template.json`，返回退出码 3。两种批准：`--approve all-latest --fingerprint …`（全部最新），或 `--decisions FILE`（逐条 latest/keep，键不能重复、必须覆盖全部待定记录）。snapshot 下架另需 `--approve-retire`。`review_gate` 在写库的同一事务里重新比对，指纹不一致整批中止；分片批次拒绝 snapshot。
+  - `db.py`：`import_batch(..., review=)`，留旧的记录不写新版本，snapshot 也不会下架它们；`record_payload_version` 抽出共用。`cli.py`：三个导入命令都走审核。`import_records.py`／`social_admission.py`：`jsonl_lines` 只按 `\n` 分行。
+  - `scripts/split_social_export.py`（新）：流式读取，按帖子键分片（Twitter/X 按规范原帖链接，其他平台按平台＋帖子 ID），每片不超过上限；全部分片和 manifest 写进同目录的暂存目录，成功后一次重命名发布；失败时目标目录只有失败 manifest，没有任何分片。
+- 测试：`tests/test_import_review.py`（离线）、`tests/test_split_social_export.py`（含发布重命名失败、manifest 写失败、第二片打开失败的故障注入）、`tests/test_import_review_integration.py`（私有集群，`OBS_RUN_IMPORT_REVIEW_INTEGRATION=1`，7 项通过：批准前不写、逐条留旧、snapshot 下架需单独批准、重新启用需批准、批准后库被改则中止、写入中途失败整体回滚）；`test_canonical_import.py`、`test_social_admission.py` 加分隔符测试。
+- Codex：计划复核 2 轮、代码复核 3 轮，第 3 轮“no blocking issues”。
+- 完整门禁（`.runtime/project_checks_importreview_r4`，代码冻结后运行）：pytest 5,222 通过、0 失败、39 跳过、342 未选（integration／live 标记）、28 个保留模块按清单排除；Ruff 通过；3 个 JavaScript 检查未运行（本机无 Node.js），门禁因此退出码 1。集成测试另在私有集群 `import_review_tests` 上单独跑过（7 项通过，切分发布改动之前；该改动不涉及数据库代码）。
+- 没验证的／限制：直接调用 `Database.import_batch` 的脚本不经过审核；FB、IG 仍不被准备步骤接受（临时规则只在演练里用过）；切分后的真实分片没有在私有集群上走一遍审核通道（集成测试用虚构数据）；“进来了但不好用”和知识图谱交叉验证在另一个会话讨论。
+- 回滚：未提交；提交后 `git revert`。无 schema 改动；主库没改（演练前的备份 `.runtime/backups/observatory-import-rehearsal-20261105.dump`）。
+
+## 2026-10-28／11-03：S3-e 付费复测——(b) 确认臂与 (a) 新鲜对照各 5 题（$0.1792 / 上限 $0.25）
+
+- 结论：按确认后的标准（(b)：卡片→用未改动草稿判定，程序化接受，不是人工校验）重跑人工标注集 5 题 × 15 篇：三组数字 **30[24]／21[5]／24[0]**，与 10-24 基线 30[25]／21[4]／24[0] 几乎一致（一个人工正例从通过组移到待审组）；最终列出 30 个“题—篇”配对（队列只有 15 篇文章，指标按配对计），其中人工正例配对 24（精确率 0.80，召回 24/29 = 0.83）。新鲜 (a) 对照 5 题（10-28 跑 4 题，11-03 用户批准把总上限提到 $0.25 后补跑第 5 题）：**34[26]／16[3]／25[0]**，列出 34 个配对含正例 26（精确率 0.76，召回 26/29 = 0.90）；基线 (a) 10-24 为 30[25]／21[4]／24[0]（精确率 0.83，召回 0.86）。(b) 比新鲜 (a) 保守：通过组少 4、待审组多 5、人工正例进通过组少 2。第 5 题（nature/animals）两次 (a) 之间就有 4 篇路由不同（基线 3／10／2，新鲜 6／6／3，(b) 5／8／2），说明这道题本身运行间波动就不小。逐篇路由变化每题 0～2 篇——这是这几次运行的观察，不是对运行间波动或策略效应的结论。**不据此调阈值**；网页展示的 track record（`relevance_validation.v1.json`）和 10-24 基线目录未动，是否换成 (b) 的数字由用户定。
+- 费用：账本按臂访客归因 (b) $0.0910（117 行：生成 36 行 $0.0727、判官 75 行 $0.0183、嵌入 6 行）、(a) $0.0882（131 行，含 11-03 补跑的第 5 题 $0.0187）；合计 **$0.1792** ≤ $0.25（10-28 两次运行 $0.1605 在 10 月账本，11-03 的 $0.0187 在 11 月账本）。每题：(b) $0.018～0.022（含卡片 $0.001～0.003），(a) $0.006～0.019。
+- 怎么跑的：`scripts/relevance_triage_validation.py` 改为可测的两臂脚本（`--strategy auto|confirmed`、`--only`、`--manifest`、`--cap-usd`、`--reserve-usd`、`--block`、`--doc-map`）：每次付费返回即落盘、拒绝/limited/异常停下不重试、不覆盖已有块、随附记录只接受块 `triage`；冻结输入逐篇校验（manifest：两文件 sha256、15 篇映射、各标签正例集合、标签行覆盖）；访客每块唯一；额度由 `AllowanceBudget` 在每次预留前按真实上界检查并按上界入账（判官 ×3，起草固定 $0.003 ≥ 冻结问题最大 $0.0014），超限只报告（退出码 3）。23 项假服务测试。协议冻结在 `.runtime/s3e_20261028/protocol.md`。凭据：走查用的旧密钥，只进进程环境；启动器把评估进程的每访客问题闸门提到 60/分钟、200/天。
+- 执行中的两次停顿（都按规则停下、结果保留；脚本本身不做自动重试，(b) 第 5 题的补跑是执行者的决定——新块、新访客、草稿重新生成，已记为偏差）：① (b) 第 5 题判定被服务的每访客问题闸门（5 题/分钟）拒绝——两阶段臂每题两次 answer 调用；第 5 题作为独立块 `triage_confirmed_rest`（新访客）补跑，被拒那次 $0，第一块里第 5 题的卡片 $0.0013 计入费用不计入指标；报告中 (b) = 两块合并。② (a) 第 5 题被本脚本的额度检查拒绝：剩余额度 $0.109 内已持有 $0.104（已结算 $0.0695 + 未结算上界），放不下下一次生成预留 $0.0073——按上界入账的保守设计使然；该题实际约 $0.016～0.018，但需要约 $0.05 的持有空间。用户 11-03 先定“不补跑”，随后贴来密钥并明确要求补跑、总上限 $0.25：第 5 题作为块 `triage_auto_rest`（新访客）跑完，$0.0187。补跑在干净的分离工作树（HEAD b984a32）上进行，名单路径代码与前几块的 a650f6f 逐字节相同，数据版本相同；主检出当时含其他会话未提交的 service.py／db.py 改动，所以不在主检出跑。凭据：三把密钥 11-03 免费核对都已能看到三个模型（10-27 时不能），用的是 .env 里现成的 #1，只进进程环境。
+- Codex：计划复核 1 轮（通过，补要求）+ 执行前实现复核 8 轮（逐轮关闭：每阶段落盘与费用保留、无草稿/来源不符拦截、冻结队列身份、按访客归因、原子接纳、预留规则、账本内按上界入账、超限报告），第 8 轮“无阻断预算缺陷”；其要求的私有测试库 + 模拟传输的真 Budget 测试未做（已声明）。
+- 完整门禁（`.runtime/project_checks_s3e_final_20261028`，含脚本与 22 项测试，测试里桩掉 git 子进程后掩码检查无拦截）：pytest 5,110 通过、0 失败、39 跳过、335 未选、28 个保留模块按清单排除；Ruff 通过；3 个 JavaScript 检查未运行（本机无 Node.js），门禁因此退出码 1。
+- 没验证的：(a) 第 5 题；真 Budget 下的 AllowanceBudget 行为（仅用记录型假账本测试）；(b) 的例句/卡片文案没有人看过（程序化接受）。
+- 回滚：无数据、无 schema 改动；账本新增 226 行是真实消费记录，不回滚；脚本改动未提交。
+
+## 2026-10-30：访客限额可绕过、单题无花费上限——按方案 A 修（$0）
+
+- 结论：按用户“按 A 修”实现，未提交。①单题花费上限 `OBS_QUESTION_BUDGET_USD`（默认 $0.50）：一道题的所有模型调用合计，已结算按实际花费，进行中/uncertain 按预留；“读”的调用（判定、筛查、补读、复核）到 80% 停，留 20% 写回答；一次“读”被拒后本题不再开新的读调用。名单题停下时返回已检查部分，没检查完的记 unclear / `question_cap` / `route: review`，正文单列“以下 N 篇没有检查完，需要人工核对”并列标题，不算已检查；写总结被拒时退回筛查名单并在正文末尾说明。两阶段名单第一阶段的花费随流程带到第二阶段。②日上限 `OBS_DAILY_BUDGET_USD`（默认 $10，UTC 自然日，账本里算）。③按请求地址限流 `OBS_ADDRESS_REQUESTS_PER_MINUTE`/`_PER_DAY`（默认 10/60），换 `X-Visitor-Id` 或 cookie 绕不开；没有地址的调用（命令行）不受影响。计数都在内存里，重启清零（已写进 `.env.example` 和 `docs/architecture/query_logic.zh-CN.md`）。
+- 做法：`budget.py` 的 `QuestionGate` 改为每题一个服务器 id（contextvar），`ContextPool` 把它带进线程池；`Budget.reserve` 先记本题再进账本，账本拒绝就退回；`cancel_unsent` 只在账本真的取消了才退回本题花费。`list_screening.screen`、`relevance_triage`、`relevance_judge`、`service` 的线程池换成 `ContextPool`；`api.py` 和 `app.py`（只改 `paid_answer` 传地址这一处）把 `request.remote_addr` 传给服务。无 schema 改动，未动 Railway。
+- 检查：新 `tests/test_question_limits.py` 19 个（实际花费而非预留、读 80%/写 100%、触限后不再读、同一访客两题各自计、ContextPool 带 id、取消已结算不退回、换访客 id 仍按地址拦、无地址不变、非法配置报错、首批/加宽/补读/复核各处触限的部分结果、同批并行结果保留、分流触限进待审、措辞与已检查数、两阶段共用上限、写总结被拒在页面上可见）；`tests/test_database_integration.py` 加日上限测试（按结算额、跨 UTC 零点），私有测试库 10 通过，用完已停。冻结样本不重录：`tests/test_list_golden.py` 加精确规则（写回答被限 = 写回答失败的结果 + `list_summary` 标 limited + 一行说明）。`tests/test_api.py`、`tests/test_criterion_ui.py` 期望值加地址。
+- Codex 提交前复核三轮：第 1 轮 2 个 P1（取消会抹掉已结算花费；同批并行里已读完的结果被丢掉）、3 个 P2（两阶段各给一份上限；嵌入调用不经准入；无分流时未读广告没进待审、措辞说成“没读”、写总结被拒只在 trace 里）——除“嵌入不经准入”外都已改并补测；嵌入那条是改动前就有的行为（准入只算生成调用），嵌入每次约 $0.000001、仍受单题/日/月上限，Codex 第 2 轮撤回。第 2 轮 2 个 P2：加宽阶段触限时没有给出停止原因（已改：被拒批次的广告也列入人工核对）；写总结被拒的提示在结构化渲染里可能看不到（核对后不成立：这条路径的答案没有 summary/sections，网页直接显示正文；补了渲染测试）。第 3 轮无阻断项。
+- 完整门禁（最终代码，`D:/Projects/549_limits/.runtime/project_checks_limits_r3b`）：pytest 5,181 通过、0 失败、39 跳过、339 未选，28 个受保护模块按 scope.json 排除；Ruff 通过；3 项浏览器 JS 检查因本机无 Node 未运行，门禁退出码 1，不能算完整通过。注意：门禁脚本会清掉 `PYTHONPATH`，第一次在工作树里跑测到的是共享目录代码，已停；改用工作树里的轻量环境 `.venv`（`00_worktree_src.pth` 把工作树 `src` 放在最前，`01_shared_packages.pth` 借用共享环境的包），报告里 19 个新测试都在，证明测的是工作树代码。
+- 未做/边界：换地址（多台机器、代理池）仍可绕开按地址限流，靠单题/日/月上限兜底；Railway 上需要设置 `OBS_TRUSTED_PROXY` 地址才是真实客户地址（部署归别人）；没有用真实模型跑过（$0）。
+
+## 2026-10-29：两种分数与面向用户的排序说明（$0）
+
+- 结论：每个答案第一句（如 “Found 9 matching ads among the 15…”）下面多了一段分步说明 “How these ads were found and scored”：①搜索用了哪段文字、找哪些词、去掉了哪些常用词；②几种找法（正文含搜索词、标题含至少 2 个搜索词、意思相近）；③检索分规则（每种找法最多 100÷R 分，第 n 名得 这份 × 61÷(60+n)，相加）；名单题再写④规则、⑤准确分（判定器 P(meets)×100）、⑥列入条件（并说明全部 15 篇都读过）；⑦排序。每张引用卡片标题后两个徽章 “Retrieval 93.3/100” 与 “Accuracy 100/100 · Central”，下面逐路写正文命中哪些词、标题命中哪些词、意思相似度、各第几名、各加多少分，没找到的路写 +0；再列 Related to 规则。普通问答只有检索分，说明里写“准确分：这类问题不评估”。
+- 做法：`db.search` 融合时记下每段落每一路的名次（向量路另记相似度），返回后一次 SQL 查出正文和标题含哪些搜索词的英文词干，再对回问题原词；存进 Evidence 新字段 `retrieval_routes`（含本次实际运行的路）和 `retrieval_search`（搜索词、去掉的词、索引不收的词）。标题路只有搜索词 ≥ 2 个时才计入 R。排序、筛选、判定、阈值、模型调用都没改。服务端在每个检索组 `structured_result.groups[]` 存 `retrieval_explain`（`retrieval_explain.group_explain`：每篇记录取最高分段落）。界面在 `score_explain_ui`；准确分沿用判定器数字，改写成 “/100”；原先的 “How the relevance score is worked out” 由分步说明取代。存档 demo 回放时按原检索文字在今天的库上重跑检索（问题向量只从缓存表读，读不到就不跑意思这一路并写明），标“按今天的库重算”，文章版本变了会标出。
+- 检查：新测试 `tests/test_retrieval_explain.py` 12 个（公式、与原 RRF 换算一致、无明细不给分、每篇取最好段落、说明块位置与内容、两徽章与逐路明细、没找到的路、普通答案不评估、检索没找到但读过的篇、无明细不出说明、回放重算只读缓存且标出文本变化）；`tests/test_query_demo.py` 改成新措辞 18 个；相关旧测试 17 个文件 321 通过、10 跳过（需数据库）。私有测试库 `twoscores`（127.0.0.1，非主集群端口）上跑检索相关集成测试 86 通过，社交帖集成测试 28 通过（需显式管理员连接，进程内构造、未打印）；用完已停。本地库实跑一题：按新公式算出的分数与原 RRF 换算一致（97.86653 两边相同）。浏览器：5 题点开，每张卡片都有两个分数，说明块各 1 次且在第一句之后，375 宽无横向滚动。
+- 中途事故：16:26:39 `app.py` 和 `service.py` 同时被改回本轮改动前的内容（git 无操作，疑似编辑器保存了旧缓冲）。经用户同意已重新应用，并重跑相关测试（88 通过）。
+- Codex：计划复核无阻断项；采纳：分数写成 “/100”；准确分写明是模型对照规则的判断；普通答案写“不评估”；R 按实际运行的路计、零命中也算；标题路要 ≥ 2 个词才算；最终排序写明；demo 的检索分与准确分分别标时间。
+- Codex 提交前复核第 1 轮：3 个 P1——①答案有多次检索时只解释第一次；②检索零命中时连准确分的说明也消失；③“按分数排序”不符合原生广告与社交帖交替选取的实际行为；另两处措辞——判定器只读每篇前 12,000 字符（`MAX_AD_CHARS`），“太常见被去掉”还漏了超过 40 个词被截掉的情况。已改：说明逐个列出每次检索，卡片写明由哪次检索计分（重复的取第一次）；没有检索明细但有名单规则时仍写规则、准确分和列入条件；混合集合时写明“集合内按分数、两个集合轮流”，R 不同时分别列出每份分值；措辞改为 “up to 12,000 characters”、“too common or one letter”，`db.search` 新增 `cut` 字段，说明写 “Not searched, as only the first 40 words are used”。
+- 补数据库测试时自己发现：没有向量时“意思相近”也被算进 R（没有检索词时文字路同理），会把每路满分错分成 3 份；已改为向量路仅在给了向量时计入、文字路仅在有词时计入。另外旧测试 `tests/test_vector_search_balance.py` 的假连接对所有 SQL 都返回广告行，新加的两条只读说明查询因此报 KeyError，已让假连接回答这两条查询。
+- 第 2 轮前的检查：`tests/test_retrieval_explain.py` 新增 5 个（两次检索且有重复记录、零命中名单仍公示准确分、混合集合、40 词截断、12,000 字符）；新文件 `tests/test_retrieval_routes_integration.py`（新 schema、虚构渡轮广告：正文词与标题词分开、去掉/截掉的词、无向量时只计两路、一个词的问题没有标题路、每行新分数 = RRF×61÷R×100）。私有测试库 `twoscores` 上新集成测试与检索/社交相关测试共 99 通过，用完已停；工作树里用 `PYTHONPATH` 指向工作树代码跑相关测试 48 通过；ruff 通过；浏览器重启服务后回放 demo，新措辞生效、7 张卡片都有两个分数。限制：完整门禁脚本会清掉 `PYTHONPATH`，在工作树里跑会测到共享目录的代码，所以完整门禁在共享目录跑（这些文件两边一致）。
+- 用户改向（原话）：“不要具体规则，与计算只要参与评分的具体元素”。与前面“公示标准、解释排序与评分规则”的要求冲突，按最新这句做：说明块改名 “What the scores are based on”，去掉公式、份额、百分比、列入条件和排序规则，只列元素；卡片去掉 “→ +分”，只留命中词、相似度、名次。两个分数和 Related to 规则条目保留。
+- Codex 第 2 轮：2 个 P1——①没有明细的检索组被过滤掉，缺明细会被说成“检索没找到”；②回放重算时零命中的组保留旧分数，中途出错会留下一半更新。2 个 P2——③“两个集合轮流”的排序说法在部分卡片未列入时不准，没明细时卡片序号被叫作 “Retrieval rank”；④40 词上限只作用于文字和标题匹配，向量没缓存不能全局声明。已改：每次检索都列出并分别写“found no ads”/“No search detail was recorded”；只有全部检索都有明细时卡片才说“检索没排到这篇”；回放先把所有检索算完再一次性替换，零命中写空结果；排序规则随改向删除；跑过检索的答案不再显示卡片序号式的 “Retrieval rank”；40 词那句写成“Not used for word and title matching”；向量是否运行体现在每次检索的 “Ways used” 里。补测：三次检索（含零命中和缺明细）、缺明细不说成零命中、回放零命中不留旧分、回放中途失败不改任何组、混合集合各列找法、说明里不出现公式。
+- Codex 第 3 轮：无 P1，四处小修正——卡片上 “no match” 说过头（某路没返回不等于没有匹配），改为 “not returned by this way”；全部零命中时不再接着说“没记录明细”，检索分一项分三种写法（没返回广告 / 没返回或没明细 / 没明细）；`relevance_lines` 去掉阈值措辞 “no rule reached 50”，改为 “no single rule is shown for this ad”；同一检索组里部分段落缺明细时标 `partial`，`complete()` 不再把这种情况当完整。补测 4 处。改后共享目录相关测试 57 通过，工作树（`PYTHONPATH` 指向工作树代码）51 通过，ruff 通过；第 4 轮确认复核和完整门禁在跑。
+- 用户追加：可折叠，并在准确分后加可折叠的人工标注。先做成了显示原有逐句人工标注（`handcoded_labels.csv`），用户澄清（原话）：“人工标注排不是这个意思，是加一个让人工可以选择对不对的”，已撤掉那部分。现在：说明块、检索命中、Related to/Exclusion 都是默认收起的 `html.Details`，分数徽章不折叠；名单题每张卡片在 Related to 后有默认收起的 “Your check: is this ad right for the question?”（Right / Wrong），复用 `relevance_reviews` 的保存逻辑（`relevance_eval_ui.card_check`，组件类型 `rel-card-vote`，单独的回调，提示 “Saved: right/wrong”）。卡片的路由（pass/review）取自筛选决定；普通问答没有这个选择。回放 demo 也能点，这改变了“回放不写库”的旧约定，只限卡片上的读者选择。补测 4 个（位置与默认收起、与列表按钮无重复 ID、回放只在卡片、review 路由与普通答案、保存提示）；相关测试 66 通过，ruff 通过；浏览器 demo 1 七张卡片都有收起的选择，展开见 Right / Wrong，两个保存回调都已注册。没有在浏览器里点 Right/Wrong（会往本地主库写一行），保存路径由单元测试和已有的 `relevance_reviews` 测试覆盖。
+- 回归（本轮自己发现）：一次全量掩码测试（报告 `.runtime/masked_cardcheck_20261029/junit.xml`，保留）5,178 通过、26 失败，都由本组改动引起，从第 1 轮起就存在，之前的门禁每次都在跑完前被我停掉重跑，所以没暴露。①`tests/test_retrieval_comparison.py` 的假连接对所有 SQL 都返回广告行，新加的两条只读说明查询报 KeyError 'term'（3 个）——假连接改为回答这两条查询；②`tests/test_research_ui.py` 逐个读卡片子元素，卡片里出现了 None（1 个）——卡片改为过滤掉空项；③`tests/test_list_golden.py` 冻结样本（22 个）唯一的真实差异是检索组多了 `retrieval_explain`（用测试自己的 fixture 探查确认）；按该测试“不重录、差异要列明”的规矩加了一条精确规则：假检索没有路由明细，所以有段落的组必须是 None、零命中的组必须是空结果，核对后去掉该字段，其余必须与冻结样本一致。修后这三个文件 54 通过，工作树相关 8 个文件 114 通过。
+- NDCG（用户：“Retrieval 86.0/100换成NGCG分”“用直接用rag后给的分”）：`retrieval_explain.ndcg`，`group_explain` 记下每篇最佳段落的 RAG 融合分 `rag_score`；app 按卡片顺序算 NDCG 和每篇贡献；徽章 “NDCG x/100”，说明块写本列表总分。演示题 1：七篇贡献 31.6、14.4、11.3、9.3、8.9、12.8、6.3，总分 94.7（第 6 篇的 RAG 分高于前面三篇，所以不到 100）。显示位置用户没答，按推荐做。同时按 Codex 第 5 轮 P2 改为每篇一个对/错入口（`list_check`）。补测：NDCG 公式与零增益占位、卡片贡献与总分、没卡片的列表项保留按钮、通过已注册的卡片回调保存三次选择（假服务）。工作树 8 个受影响文件 118 通过，ruff 通过。
+- Codex 第 6 轮：P1——卡片上写 “NDCG x/100” 不对，那是这篇对整份列表 NDCG 的贡献，不是它自己的 NDCG（只有一张卡片时恒为 100）；已改为 “NDCG share 31.6 of 94.7”，原始 RAG 分照写，说明里写清总分比较的是“展示顺序”和“按 RAG 分排序”。P2——缺路由明细的段落连原始分一起被丢掉、按 0 计入，会压低总分；已改为单独保留每篇原始 RAG 分（`rag_scores`），只有全部检索都有明细时，没返回的广告才按 0 计；否则不给总分，并写明原因。另按它的提醒，在私有测试库用真实驱动验证 `cached_vector`（写入 1536 维向量再读回，读不到的返回 None）：私有库 58 通过，已停。工作树 8 个受影响文件 120 通过。
+- Codex 第 7 轮：NDCG 标注问题已关闭；3 个 P2 都是“分数和明细对不上”：①整个检索都没留路由明细时 `group_explain` 返回 None，分数全丢；②有分数没明细的广告卡片上既没分数也没贡献；③分数取自“第一个有分数的检索、最高分段落”，明细取自“第一个有明细的检索、路由分最高的段落”，可能不是同一个来源。已改：每篇只选一个段落（RAG 原始分最高，同分时看路由分），分数和明细都取自这一段、这一次检索；没明细的段落也保留分数（`run` 为 None），空 `records` 只表示检索什么都没返回；`rag_scores` 由 `explanations` 推出；新 `list_ndcg` 统一判断“未知”（返回了但没分数，或检索明细不全时没被返回）。卡片在有分数时总写 “RAG score …, shown at place …” 和贡献，没明细就写 “Which words or ways found this ad was not recorded.”；说明块对“只有分数”的检索写 “This search's words and ways were not recorded; its RAG scores were.”。冻结样本不重录，对照规则改为：有段落的组记录集合 = `retrieved_record_ids`、都无路由。补测 3 个（只有分数的检索、两次检索分数冲突与同篇两段、返回但无分数时不给 NDCG），并在原“混合明细”测试里补两张卡片的原始分与贡献。共享 checkout 受影响 3 个文件 77 通过；工作树 7 个文件 124 通过；ruff 通过。旧门禁 `…029i` 跑的是第 7 轮前的代码，改代码前已停止（未完成），新门禁 `.runtime/project_checks_twoscores_20261029j`。
+- Codex 第 8 轮：第 7 轮三项确认解决；新 P2——同一篇有两段被展示时会出两张卡片，Right/Wrong 的组件 ID 重复（Dash 里点选不可靠），NDCG 贡献也重复显示。已改：卡片照旧每段一张（引文和引用锚点都保留），同一篇的第二张起不再显示分数徽章、检索命中、规则和选择，改写 “Another passage of the ad above; its scores and your check are on that card.”；普通问答不变。补测 1 个（两段都在、分数和选择各一份、所有组件 ID 唯一）。共享 checkout 4 个文件 89 通过，工作树 8 个文件 133 通过，ruff 通过。`…029j` 门禁因代码又改而停止（未完成），新门禁 `.runtime/project_checks_twoscores_20261029k`。
+- Codex 第 9 轮：第 8 轮问题已解决，无 P0/P1/P2，无需用户确认，不需再补测；只要求在这份代码上跑完完整门禁再报告。
+- 完整门禁（最终代码，`.runtime/project_checks_twoscores_20261029k`，开跑后没再改代码）：pytest 5,212 通过、0 失败、39 跳过、338 未选，28 个受保护模块按 scope.json 排除；Ruff 通过；3 项浏览器 JS 检查因本机无 Node 未运行，门禁退出码 1，不能算完整通过；2 条警告仍是 `tests/test_task_contract.py` 的 pydantic 提示。此前 `…029i`、`…029j` 两次因代码再改而停止，未完成。浏览器复验演示题 1：7 张卡片 NDCG 贡献 31.6…6.3、总分 94.7/100，各有原始 RAG 分和展示位置，7 个对/错入口，页面组件 ID 无重复，无横向滚动。尚未提交。
+- 提交：用户同意“提交，不推送”（2026-10-29），在隔离工作树 `claude/depth-demo-20261029` 分支提交；未推送、未部署。
+
+## 2026-10-29：Query 页 demo——每篇引用文档写明“与什么相关”和评价分数（$0）
+
+- 结论：Query 页“Try a question”下面多了一行“Saved demo answers”，5 个按钮对应 10-24 存下的 5 道标签题答案（不是客户 24 题；范围是 15 篇人工编码文章）。点了直接显示保存的答案，不调模型、不写库、不出图表。名单答案的每张引用文档卡片标题后有绿色徽章“Relevance score NN% · 程度”，下面逐条列出“Related to:”（判定器给到 ≥ 50% 的规则原文和概率），有排除项 ≥ 50% 时另列“Exclusion that may apply”。卡片上方一次性写明“How the relevance score is worked out”。真实名单答案用同一套显示；普通问答的引文不变（只有检索名次）。
+- 做法：`relevance_eval_ui` 加 `record_scores`（按 record_id 取判定器数字；数字缺失、越界、条数与规则对不上或同一篇两套数字时不给分）、`relevance_lines`、`score_method_note`；`app._evidence_cards` 可选传入分数与规则；`_render_answer_result` 对带 `replay` 标记的结果去掉图表和读者投票。新模块 `query_demo`（读 `OBS_QUERY_DEMO_ANSWERS` 或 `.runtime/rag_validation_20261023/triage_answers.json`；没有文件整行不出现，文件坏了显示一句“could not be read”）。按钮用字符串 ID，只在有存档时注册回调。CSS 加徽章、规则列表、方法说明和 demo 横幅样式。
+- 检查：新测试 13 个（分数与 Related to、无规则过线与排除项、6 种坏数字不给分、同篇两套数字、卡片显示、方法说明只出现一次且普通答案没有、回放无图表无投票且不改原数据且不碰 service、存档文件读写与损坏）；`test_app.py` 等相关 4 个文件同跑通过（第一次失败 2 个：本机有存档时按钮用字典 ID，测试的唯一 ID 检查不能处理，改为字符串 ID 后通过）。浏览器（我启动的 18072）：5 题依次点开，卡片数 7／12／9／1／4，每张都有分数和 Related to，方法说明各 1 次，0 个投票按钮，0 张图；375 宽整页无横向滚动。
+- Codex：计划复核无阻断项；采纳：说明里不放 30/25 统计、用显式回放标记关投票和图表、数字异常显示“没有分数”、正文 `[n]` 后不重复分数。
+- Codex 提交前复核第 1 轮，4 项已改：没有排除规则时 `exclusions` 缺失或为 null 不再被当成空列表（否则显示时出错）；meets／borderline／does not meet 三项相加偏离 100% 超过 1% 不给分；横幅日期不再取文件修改时间（复制文件会变），只有默认存档写“Saved on 2026-10-24”，其他文件写“Saved by an earlier run”；plan.md 第 2 条去掉 30/25 统计的说法。补测试 4 个，共 17 通过。
+- Codex 提交前复核第 2 轮：无阻断项。可选建议（未做）：再加一个测试，确认默认存档改了文件时间后日期仍是 2026-10-24。
+- 已知：10-24 保存的一条规则原文末尾带“.],”（当时模型起草的文字），回放照原样显示。
+- 门禁（`.runtime/project_checks_querydemo_r2_20261029`，修复后的最终代码，离线）：pytest 5,149 通过、0 失败、39 跳过、335 未选（integration／live）、28 个受保护模块按清单排除；ruff 通过；三个 JavaScript 检查没跑成（本机没装 Node.js，退出码 127），所以总退出码 1。第一次门禁跑在修复前的代码上，已停掉作废。
+- 用户 2026-10-29 同意“提交，不推送”：提交到本地分支 `claude/depth-demo-20261029`，未推送。
+
+## 2026-10-29：“读多深”改放进 Evaluation 页（$0）
+
+- 结论：用户看了独立页面 `/depth-demo` 后说“这不是本地的项目网页啊”，选“Evaluation 页”。现在项目网站工具箱 → Evaluation 里，“Relevance check against human labels”之后多了一节 “How deep should a list read?”；独立页面、`/api/depth-demo` 和开关 `OBS_DEPTH_DEMO_ENABLED` 已删。
+- 做法：新模块 `depth_eval_ui.depth_section()`，全部用站点自己的写法（`judge-tiles`、`statistics-table`、Data 页同款 `dcc.Tabs`、Plotly `plotly_white`）：五题汇总表（各名次段可能相关数、第 120 名之后不在检索 120 篇里的数、打分数、费用）；每题一个标签页（切换在浏览器里完成，无回调）：规则、覆盖说明、分段瓦片、得分 × 名次散点（人工编码文章加圈、第 40／120 名虚线，标签放在图上方）、累计曲线、规则命中表、第 120 名之后可能相关广告表（链到记录页，“In the search's 120” 为 yes／no／not checked）、人工编码文章表。只读 `result.json`；没有文件不出现（线上没有这个文件），文件损坏只显示一句“could not be read”，不影响其他页面。`depth_demo.py` 只留分组、分档、读取函数，脚本和新一节共用。
+- 检查：新测试 6 个（无文件不出现、损坏文件、分段与表格与链接、未核对显示 not checked、每题一个标签页并用保存的阈值、空排序）；原脚本测试去掉独立页面的 4 个、加读取测试 1 个，两文件共 19 通过；ruff 通过。本地服务器（我启动的 18072）上从工具箱进 Evaluation 核对：桌面 1280 宽汇总表与图正常，切换到“Fossil infrastructure”显示 29／37／40 与累计 29／66／106；手机 375 宽整页无横向滚动（宽表在框内滚动）；记录链接返回 200；控制台无报错。修了两处：竖线标签压住点、H4 比 H3 大（本站 CSS）导致小标题比题目大。
+- Codex：计划复核和提交前复核都无阻断项（计划复核采纳：损坏文件不拖垮页面、未核对写 not checked、链接用普通 `<a>`、保留脚本用的函数）。
+- 门禁（`.runtime/project_checks_deptheval_final_20261029`，最终代码，离线）：pytest 5,132 通过、0 失败、39 跳过、335 未选（integration／live）、28 个受保护模块按清单排除；ruff 通过；三个 JavaScript 检查没跑成（本机没装 Node.js，退出码 127），所以总退出码 1。
+- 用户 2026-10-29 同意“提交，不推送”：提交到本地分支 `claude/depth-demo-20261029`，未推送。线上部署不含此结果文件，所以线上 Evaluation 页不会出现这一节。
+
+## 2026-10-29：Decisions 决定读多深的演示页（$0.2857 / 上限 $0.60）
+
+- 结论：本地库原生广告 263 篇，其中有可检索文字的 232 篇，5 道 10-24 标签题全部打了分（不是客户 24 题）。判定器单票“可能相关”的广告落在第 120 名之后的：减排 8、气候政策 21、化石设施 40、回收 0、自然 31。其中不在现行检索所取 120 篇候选里的（现行名单最多读这 120 篇，所以一定读不到）：减排 8、气候政策 20、化石设施 39、回收 0、自然 30。15 篇人工编码文章里，有 2 篇人工判相关的排在第 136、138 名，也都不在那 120 篇里；判定器给了 0.60 和 0.99。判定器单票与人工编码一致 64/75。这是模型把握，不是准确率；人工真值只有这 15 篇。
+- 更正（提交前复核后）：初稿页面和我对用户的说明写“现行流程读不到第 120 名之后这些”，当时没有证据——两次检索的前 120 名只重合 111–118 篇。后用 `--live-top-only` 免费补核（问题向量走缓存，守卫拒绝任何付费预留，账本行数前后都是 5019；先核对 400 名顺序与保存结果一致），结果写入 result.json 的 `in_live_top`（改前备份 `result.before_live_top.json`）。上面的数字是补核后的。前提：现行名单题用问题原文检索；若正式流程改写查询，候选会不同。
+- 页面：`/depth-demo`（`OBS_DEPTH_DEMO_ENABLED=true` 才注册，只读 `.runtime/decisions_depth_demo/result.json`，不调模型）。每题一张“得分 × 检索名次”散点（标出第 40、120 名，人工编码文章加圈）、累计“可能相关”曲线、各规则命中数、第 120 名之后的可能相关广告表（链到记录页）、人工编码文章表。浏览器核过：切换题目每次只显示一题，图上标签不被遮挡（修了 `hidden` 被 `display:grid` 覆盖和标签位置两处）。
+- 怎么跑的：`scripts/decisions_depth_demo.py`，混合检索（问题原文作查询）取前 400 篇（本地只有 232 篇可排），读整篇（17 篇超过 12,000 字被截断，与正式流程相同），按名次每 100 篇一轮、5 题轮流，用 10-24 运行记录的规则逐篇调 `relevance_triage.triage`。额度守卫把以前同类运行在账本里的花费、已结算、不确定和未结算预留都算进上限，每批只发能放进剩余额度的广告。前 120 名与按 120 篇检索的候选重合 111–118 篇。
+- 费用：账本访客 `depth-demo:20261029T035001`，1,159 行结算 $0.28539，1 行不确定 $0.00035（一次 InternalServerError，那篇广告未打分）；试跑嵌入 $0.0000012。
+- Codex：计划复核 1 轮（无阻断项，采纳：5 题轮流防止最后一题没跑、上限计入以往运行、区分额度不足和调用失败、记录截断、核对前 120 重合）。提交前复核第 1 轮两条阻断项，已改：① 守卫按判定器估算预留，结算可能超出估算，上限不是硬保证——改为每次调用按 3 倍估算占额（一个 token 至少占请求的一个字符），不确定的调用和以往运行未结算的行也按 3 倍计，运行后与本访客账本行对账，不符、有未结算预留或超上限则退出码 3（本次已跑的运行实际未超）；② 页面“现行流程读不到”无证据——改为“本次排序第 120 名之后”，并补核现行 120 篇候选（见上）。同时改：某题一篇放不下后该题更深的都记“额度不足”，保证打分是前缀；守卫在 triage 内拒绝记为额度不足而非调用失败；空排序不报错；图例用结果里保存的阈值。第 2 轮（原会话 Codex 工具出错，只列了意见；采纳“守卫拒绝后该题停止后续批次”）。第 3 轮（新会话）三条，已改：对账逐项核对已结算、不确定、未结算行与守卫记数（不只看是否超上限）；名次核对要求重排结果与保存结果逐名相同（严格核对下重跑补核，结果不变，账本行数仍 5019）；页面写明“按问题原文检索、在同一数据上核对”的前提。
+- 门禁（`.runtime/project_checks_depthdemo_20261029`）：pytest 5,121 通过、0 失败、39 跳过、335 按保留规则排除（28 个受保护模块），掩码回执 exit 0；ruff 通过；3 项 JavaScript 检查没跑（本机没有 Node.js），所以门禁记为失败。新增测试 8 个（虚构数据）。复核修改后测试增至 16 个。最终版本门禁（`.runtime/project_checks_depthdemo_final_20261029`）：pytest 5,129 通过、0 失败、39 跳过、335 按保留规则排除（28 个受保护模块），掩码回执 exit 0、receipt_errors 为空；ruff 通过；3 项 JavaScript 检查仍因没有 Node.js 无法启动，门禁退出码 1。中途一次门禁（`_r2_`）跑在旧版本上，被我停掉，不作数。Codex 提交前复核第 4 轮：无阻断项。
+- 分支：按用户选择（“建一个 git 分支”），提交在 `claude/depth-demo-20261029`（基于 `claude/sync-20261025` 的 e1ed05d，因为依赖其中未推送的提交；`origin/main` 没有新提交），在独立 worktree `D:/Projects/549_depth_demo` 里只放本条相关文件和段落。共享检出里的这些改动没动，仍未提交。未推送。
+- 没做：没改正式的停止规则；深处高分广告没有经过筛查原句核实；客户 2,063 篇的数据不在本地库。
+
+## 2026-10-28：S3-d 走查后补——标准区按来源措辞、判定中报 judging
+
+- 结论：走查发现的两处已修，第三处（费用合计）复核后撤回（见前一条目③的更正）。$0，未提交。
+- 改动：① `relevance_eval_ui.criterion_card` 的开头按 trace 的 `criterion_source` 措辞——confirmed：“Confirmed by the researcher before any ad was judged.”；edited：“Supplied or edited by the researcher before any ad was judged.”（Codex 计划复核指出：人在没有草稿的卡片上自己写的规则也是 edited，不能写成“从问题起草”）；其余（auto 草稿、旧记录）原句不变；筛查那句按 `screening_basis`：confirmed_criterion 写“meets these rules”，否则仍是“answers the question”。② `service.py`：`_answer_evidence` 在名单分支前只在 `criterion` 非空（人确认或改过的规则）时报 judging，否则仍报 organizing；`_continue_confirmation` 入口那次早报同样只在有规则时发（Codex：只确认条件没有规则时，“by the confirmed rules”不成立）；`_list_answer` 在写总结（`_summarize_list`）或读来源（`_read_matched_sources`）之前报 organizing，都只在有引文时发生，没有命中就不报写作阶段；没有新标签。设计稿加“走查后补（2026-10-28）”一段（按 Codex 提交前复核改正了两处与实现不一致的措辞）。
+- 测试：`tests/test_relevance_triage.py` 新增 1 项（默认原句逐字不变、confirmed、edited、无草稿的 edited、confirmed+screening_basis=question 两字段独立、draft_unconfirmed）；`tests/test_criterion_confirmation.py` 原确认续问断言阶段顺序 database < 最后一次 judging < organizing < citations，新增 4 项：auto 名单无 judging、确认规则走读来源分支（`native_phrase_read`，trace 有 content_reading）、确认规则零命中（有 judging、无 organizing、最后 citations）、只确认条件无规则的续问（无 judging、有 organizing）。定向：triage+confirmation+criterion_mode+golden 113 项通过，app+criterion_ui+api+answer_layout+query_progress 138 项通过；Ruff 通过。
+- 完整门禁：`.runtime/project_checks_s3d_followup_20261028`：pytest 5,084 通过、0 失败、39 跳过、335 未选（integration／live 标记）、28 个客户保留模块按清单排除；Ruff 通过；3 个 JavaScript 检查未运行（本机无 Node.js），门禁因此退出码 1。门禁开始后只改过设计稿一段文字（Codex 提交前复核指出的两处旧措辞），代码与测试未再改动。
+- Codex：计划复核通过并给两点调整（都已采纳，见上）；提交前复核一轮：无运行时阻断，只要求改正设计稿段落里两处旧措辞（已改）。
+- 没验证的：真浏览器没有再跑（改动是文案与阶段报告，HTTP 级与单元测试覆盖）；读来源分支的阶段顺序只在单元测试里验过。
+- 回滚：提交后 `git revert`；无数据、无 schema、$0。
+- 下一步：S3-e 付费复测（约 $0.08）另行申请。
+
+## 2026-10-27：S3-d 带真实模型的网页走查（$0.0258，用户批准上限 $0.20）
+
+- 结论：真服务上卡片→例句点选→（编辑后的）判定全流程跑通，8 条广告判出 4 条；我这次的卡片 + 判定共 $0.0138，同时段同一浏览器里另有一组 hydrogen／Shell 的卡片 + 判定 $0.0120（见③的更正），账本 2026-10 月敞口合计 2.14146444→2.16729850（31 行，4 行是取消的预留）。发现两处小问题（①②），第三处（③）复核后撤回。
+- 怎么跑的：凭据用原来用户环境里的旧密钥（先免费核对能看到 gpt-5.6-luna、gpt-6-luna、text-embedding-3-small），只放在演示进程环境里（`serve_real_walkthrough.py`，`load_dotenv(override=False)` 所以进程变量优先），`.env` 和用户级变量仍是密钥 #1；进程里把 `OBS_MONTHLY_BUDGET_USD` 设为“当月敞口 + 0.20”，账本自己就挡住超额。范围：Native，Sponsor = API（数据库里 8 条有正文的广告，读库选的），问题“Which API ads present natural gas as the way to lower emissions?”（自拟，不是客户题）。端口 18072，走查后进程已停。
+- 观察到的（真浏览器，桌面应用面板）：Generate 后页面进度块显示“Drafting the judging rules”；约 27 秒出卡：“All 8 ads in your selection with readable text will be judged by the rules below”，两条起草规则各带一句逐字例句（两条规则选中的是同一句）、两条例外、有效期和数据版本 e7303ff34d1d、候选段落可免费看；卡片阶段 $0.0025（计划 1 次、起草 1 次、嵌入 1 次，另一笔 $0.04 预留取消）。点第一条例句的 Counts，规则框多出一行草稿（3 行）。点 Judge：卡片控件锁住、卡片进度块显示；约 40 秒后判定结果替换卡片、进度隐藏、提示空：摘要“Found 4 matching ads among the 8 in your selection (all checked)”，“What counts for this question”列出含我加的那行的标准（服务器按草稿哈希判为 edited），分流说明“read 8 records…4 passed both machine checks, 2 need a human check, 2 were excluded”，要点带引文 [1]–[6]，名单 4 条带引句，“Needs a human check (2)”带判官概率和人工复核按钮，证据卡完整；浏览器控制台无错误，服务器日志无错误。判定阶段 $0.0233：计划 1 次（$0.0005）、嵌入 1 次、小生成 1 次、gpt-6-luna 判官 16 次（两轮各 8 条，$0.0042）、gpt-5.6-luna 筛查/组织/引文 6 次（$0.0185），另 3 笔预留取消。
+- 发现（没改）：① `relevance_eval_ui.criterion_card` 的标准区固定写“Written from the question before any record was read.”，不看 trace 的 `criterion_source`；这次标准是人改过的（edited），这句不准确，确认过的也一样。② 判定进行时卡片进度文字大部分时间是“Organizing a source-grounded answer”，后段“Checking citations against sources”：`_continue_confirmation` 在进证据路线前报一次 judging，随后 `_answer_evidence` 在逐篇筛查前报 organizing（service.py 2204 与 2623 行），所以“Judging each ad by the confirmed rules”只闪现在检索前；是服务端报告顺序，不是 S3-d 的页面问题。③ 当时写“Total API cost $0.01129 与账本 $0.0233 对不上”——2026-10-28 复核 `answer_runs` 后撤回：同一时段、同一浏览器访客 id 下还有另一组运行（19:34:21 卡片 + 19:34:51 判定，问题 “Which ads mention hydrogen?”、范围 Shell，1 条规则，$0.0006 + $0.0114），不是我发起的（内置浏览器面板用户也能操作）；去掉它之后，我这次判定的账本行（判官 8 次 $0.00229 + 筛查/总结 3 次 $0.00900）合计正好 $0.01129315，与页面一致。费用合计没有缺陷；“Question interpretation: 0 model calls”也对，续问从令牌读计划、不再调模型。另：两条规则例句同句，属例句选择按词重叠取最佳句的自然结果，是否要“不同规则不重复用句”由用户定。
+- 没验证的：浏览（Browse）、拒绝和过期在真服务上没再点（假服务已验）；判定中的进度文字只采样了 4 次（1.5／11.5／39／49 秒）。
+- 回滚：无代码改动、无数据改动；账本多 31 行是真实消费记录，不回滚。密钥：scratchpad 里的 #2、#3 临时文件已删，旧密钥备份保留给用户决定。
+- 下一步：用户定是否修上面三处；S3-e 付费复测（约 $0.08）另行申请。
+
+## 2026-10-27：流水线第 3 步 S3-d——网页卡片与回调、网页默认 ask、进度标签
+
+- 结论：网页上名单题先出“待确认”卡片，人改规则、点例句、判定或放弃，续问走 S3-c 的 `Service.answer(continuation=)`；网页默认 ask，接口和内部调用不变。实现与检查 $0；带真实模型的走查待用户指定密钥。
+- 代码：新模块 `src/observatory/criterion_ui.py`——`card(result, submission)`（文案、规则各带一句逐字例句与来源和“Counts／Does not count”按钮、例外、两个文本框及上限、“Judge by these rules／Judge by my rules／Confirm and judge”按条件、“Browse the candidates without judging”（独占一个 span，放弃只替换它）、有效期与数据版本；两个 `dcc.Store`：卡片数据含令牌、例句选择），组件 id 都是模式 id 带问题哈希 `q` 和 `flow_id` `f`；`parse_lines`、`criterion_from_text`（只有例外、起草卡片空规则、超 4 条规则或 3 条例外本地拒绝；没起草的卡片两框皆空 = 确认所述条件）、`append_example`（每句一行、不重复）、`refusal_notice`、`REFUSAL_TITLES`／`REFUSAL_NEXT_STEPS`、`browse_note`（按流程状态：判定中→“再点一次判定看结果”，冲突→“已按其他规则判定，请重新提问”，失效→“请重新提问”，否则“没有从这张卡片判定，仍可判定”）；`register_criterion_card`：例句点选（MATCH q/f + ALL n/choice）把草稿行加到对应框并记选择，放弃读固定的流程状态 store 后只替换自己的按钮，都不调服务。`app.py`——`_render_answer_result` 先出卡片，再出候选段落（免费可看）和研究步骤，`failure_reason` 在拒绝清单里的回答（含状态 limited／service_unavailable 的两种）按原因显示标题、服务器原句和下一步；`run_research` 拆出 `paid_answer`（只在服务接受时传 `criterion_confirmation`／`continuation`）和 `failure_view`（日志仍在 except 处记，`failure_view` 只渲染回退），返回 `(children, flow_id)`，待确认结果附 `card_submission`（范围用 `exclude_unset` 导出）；`research` 回调多两个输出 `criterion-notice`、`criterion-flow-state`（每次提交清空）、签名带 `flow_id`，另有提交在跑时直接提示不调用，服务返回后核 `ProgressRegistry.is_current`；新 `continue_card` 回调（`allow_duplicate` 输出结果区、签名、固定 id 提示区和流程状态）：忽略零点击、无卡片数据、`flow_id` 不是当前提交的点击；“正在判定”之后的重试重发流程状态里存的那份规则与例句选择；否则先本地查规则框（只改提示，不发请求）；另有提交在跑时直接提示不调用；按卡片存的问题和范围续问；整个响应拼好后再核 `is_current`，不是最新提交就不发布；`criterion_invalid`／`continuation_invalid`／`continuation_conflict`／`continuation_in_progress` 只改提示并把原因和提交的规则记进流程状态（卡片、已改规则、令牌、候选原样）；判定成功替换结果并清空流程状态，控件已变时加一句“按卡片原范围判定”；`running` 只管卡片两个按钮、两个文本框和卡片自己的进度块；`research_stale` 忽略 `flow_id`；卡片有自己的进度块 `criterion-progress` 与轮询回调；`research` 的 `running` 只管页面两个按钮和它的进度块。`query_progress.py`——`try_begin`（一把锁内判断“有请求在跑”并登记，同时到达的请求只接纳一个；两个入口都把槽位持有到整个响应拼好——含失败回退的关键词搜索、渲染和新鲜度检查——才在外层 `finally` 里 `finish`）、`is_current`（最新一次登记的请求号才算当前）。`config.py`／`.env.example`：开关默认 ask，只有 `auto` 关闭；`observatory.css` 加 `.criterion-confirm` 样式；无浏览器端 JS。进度标签 drafting／judging 由 S3-c 已加入的 `STAGES` 显示。
+- 与设计稿的差别（设计稿 3.10 实现说明）：续问是独立回调而非扩展 `research`；提示区和流程状态是静态布局里的固定 id（真浏览器里 Dash 拒绝固定输出与 MATCH 输出混在一个回调，HTTP 测试测不出）；放弃不能顺带清提示；两个文本框代替“一个文本框 + 不算：”；控件变了按卡片范围判定并说明，而不是拒绝；提交按页面令牌串行、以最新请求号为准；两个入口各有自己的进度块。
+- 测试：新 `tests/test_criterion_ui.py` 32 项（三种条件的渲染与按钮文案、拒绝按原因显示标题/原句/下一步且不走通用文案、文本助手、进度标签、Generate answer 出卡并记 flow 与模式（ask／auto）且范围不钉死 `include_inferred_dates`、续问带规则与例句选择、无规则确认条件、四种坏规则框只改提示且不调服务、四种服务端拒绝只改提示并记流程状态、被替换卡片的点击忽略、控件已变按卡片范围判定并说明、例句点选到对应框且不重复且零点击/越界忽略、放弃只换自己的按钮且按流程状态改文案、服务失败退回关键词证据、新卡片不被标为过期、不是最新提交的响应不发布（两个回调，含慢回退）、判定中重试重发原提交且判定后清状态、冲突后本地错误不动状态且放弃照说、新提交清状态、另有提交在跑时两个入口都只提示不调用（真并发：判定卡在回退搜索时、放行后再接纳）、进度登记表的最新请求与原子接纳、两个回调的 running 输出不相交且卡片进度标签回调可用（登记表没有阶段时保持判定文字）、真 Service 在 all 和 native 两种范围下卡片→续问成功而钉死 False 的范围被拒）。连同 test_app、test_answer_layout、test_web_completion_display、test_composite_web_boundaries_p52、test_media_answer_ui、test_config、test_criterion_confirmation、test_list_golden、test_api、test_list_criterion_mode、test_query_progress：全部通过（最后一轮静态日志检查+卡片+进度+网页 97 项）。Ruff 通过。
+- 真浏览器走查（桌面应用内置浏览器，假服务 `tests/test_criterion_ui.CardService`，端口 18073，$0）：即时假服务——卡片完整渲染；点第一条例句的 Counts，规则框末尾多出 `A statement like "Tidal kites will bring 400 jobs to the harbor." also counts.`；点 Judge by these rules，卡片被判定结果替换、提示区清空；再出一张卡片，清空规则框只留例外点 Judge，结果区上方出现“Check the rules. Add at least one rule: exclusions alone cannot judge an ad.”，卡片与文本框原样、未发请求；点 Browse，放弃按钮处变为“Not judged from this card…”，候选段落仍在；修正后的页面 Dash dev tools 无错误（修正前报“Mismatched MATCH wildcards across Outputs”，已改为固定提示区）；卡片出现时不再误报“Results are from an earlier selection”。延时假服务（起草 3 秒、判定 6 秒）——判定中卡片两个按钮和两个文本框被禁用、卡片自己的进度块显示“Judging each ad by the confirmed rules”、页面的进度块不显示、Generate 可点；判定中点 Generate，提示“Another submission is still running”、判定的锁和进度不受影响、不发请求；判定完成后结果替换卡片、进度块隐藏、提示清空、控件恢复。反过来慢提问中点卡片判定，提示“…then select Judge again”，提问的进度块照旧、Generate 仍禁用，提问完成后新卡片出现、提示清空。修正前曾看到共享 `running` 的缺口（慢提问结束时把 Generate 重新启用并藏掉转圈而判定还在跑），已按“各管各的 + 串行”改掉并复验。第四轮改为原子接纳后又走查两次：即时假服务——出卡、判定、结果替换、提示空、dev tools 无错误；失败回退场景（第一次判定抛错、回退关键词搜索 6 秒、第二次判定 4 秒）——回退期间卡片两个按钮和两个文本框禁用、卡片进度块显示、页面进度块隐藏、Generate 可点；此时点 Generate 得到“Another submission is still running”提示，判定的锁和进度不受影响；约 7 秒时回退视图（Answer service unavailable + 关键词证据）替换卡片、提示清空、进度隐藏；再提问出新卡、再判定，4 秒内卡片进度块显示“Judging each ad by the confirmed rules”（轮询在工作）、控件禁用，完成后判定结果替换卡片、进度隐藏、提示空、dev tools 无错误。顺带发现回退窗口里卡片进度文字是登记表的通用“Preparing your search”（判定在报告阶段前就失败）→卡片进度回调改为未报告阶段时保持判定文字，并加测试。延时场景里卡片按钮的物理点击在面板坐标系下不可靠，改用 DOM `click()` 触发（走的是同一条 React/Dash 回调路径），即时场景用真实点击。没有截图文件：内置浏览器的截图只回传给会话，不落盘；记录的是页面文本和 DOM 读数。内置浏览器的辅助功能树在带 JSON id 的元素上报错（工具自身的选择器未转义），不影响页面。带真实模型的走查未做：当天换上的 OPENAI_API_KEY 只能看到 gpt-5-mini 和 gpt-6-luna，嵌入和生成会失败；等用户指定可用的密钥再做（预计一张卡片约 $0.003 加一次小范围判定几美分）。
+- Codex：计划复核 5 点已处理（设计稿第 8 节）。提交前复核四轮。第一轮 4 点：①旧卡片的续问可能覆盖新结果→进度登记表 `is_current`；②in_progress／conflict 之后放弃会错说“什么都没筛”→放弃只换自己的按钮、判定按钮保留、文案按状态改；③registry_full／unavailable 被当通用状态显示→按原因显示；④判定中文本框没锁→`running` 加两个文本框；另补真 Service 的 all／native 往返（发现并修正卡片范围钉死 `include_inferred_dates=False` 会被当成另一范围拒绝）。第二轮 2 点：①回退路径的新鲜度检查放早了→整个响应拼好后再核；②放弃/重试靠提示文字、冲突不可能回放→固定流程状态 store，判定中重试重发原提交，冲突文案改为重新提问。第三轮 1 个阻断项：两个回调共享 `running` 输出互相复位（真浏览器复现）→提交串行化（先用 `is_running` 检查）+ 各入口自己的进度块与不相交的 `running`，真浏览器复验两个方向。第四轮 1 个阻断项：`is_running` 检查与 `begin` 登记不原子（两个同时到达的请求都能通过）、续问在失败回退的关键词搜索前就 `finish` 释放槽位（回退期间新提问被接纳、再判定时先前回调的 `running` 收尾会藏掉新判定的进度块）→`ProgressRegistry.try_begin` 一把锁内接纳并登记，两个入口的槽位持有到响应拼好才在外层 `finally` 释放；测试改为真并发（线程里的判定卡在回退搜索时提问与再判定都被拒、放行后下一次提交被接纳；栅栏下 8 个竞争者只接纳 1 个）。第五轮：两个阻断项关闭、无新阻断；两条非阻断建议——收窄注释里“绝不会被复位”的说法（已改：这是服务端顺序，不保证延迟送达的极端情况；TTL 过期或容量淘汰会释放在跑的条目）、在真浏览器补“慢回退→拒绝→下一次判定”检查（已做，见走查）。第六轮（只审注释收窄与卡片进度文字）：无阻断项、无新风险，只要求门禁跑完并把 JS 检查单独报为未运行。门禁第一次完整跑完（`.runtime/project_checks_s3d_final5_20261027`）出 1 项失败：队友 c539403 加的静态检查 `tests/test_dashboard_error_logging.py` 要求 app.py 每个 `except Exception` 三行内直接 `_boundary_failure(` 或重抛，而 S3-d 把“question answer”的日志放进了 `failure_view`（行为对、结构不合要求）→日志调用挪回两处 except，`failure_view` 不再接收异常也不再记日志（仍是每次隐藏失败恰好一行日志）；静态检查+卡片+进度+网页 97 项通过后再跑完整门禁。第七轮（只审这 3 行）：无阻断项、无新风险；两处调用与新签名一致，每次隐藏失败恰好一行日志；只要求等最终门禁并把 JS 未运行、跳过、未选、保留排除分开报告。
+- 完整门禁：`.runtime/project_checks_s3d_final6_20261027`（最终代码）：pytest 5,079 通过、0 失败、39 跳过、335 未选（integration／live 标记）、28 个客户保留模块按清单排除（scope.json）；Ruff 通过；3 个 JavaScript 检查未运行（本机无 Node.js，FileNotFoundError），门禁因此退出码 1。前一次完整运行 `project_checks_s3d_final5_20261027`（5,078 通过、1 失败：静态日志检查，已修）与中途因代码改动停掉的 final3／final4 部分目录都保留。
+- 限制：进度登记表在进程内、条目 15 分钟过期，跑超过 15 分钟的请求会失去槽位（新提交被接纳，旧响应靠 `is_current` 不发布）；放弃后旧提示要到下一次提问才清；例句按钮判定中仍可点（改动到不了正在跑的判定，重试用存的提交）；例句按钮只做草稿行，是否保留原句由人决定（决定 2）；判定中 Generate 可点但会被拒绝并提示（各入口各管各的按钮）。
+- 回滚：提交后 `git revert`；无数据、无 schema、$0。
+- 下一步：带真实模型的网页走查（要能看到三个模型的密钥），然后申请 S3-e（约 $0.08）。2026-10-27 晚用户批准用密钥 #2 走查（上限 $0.20，前提是先免费确认能看到三个模型）：免费 `/v1/models` 核对结果——#2 和 #3 都只能看到 gpt-6-luna（看不到 gpt-5.6-luna 和 text-embedding-3-small），原来用户环境里的旧密钥能看到全部三个（134 个模型）；前提不成立，没有发起付费调用，$0；等用户决定用哪把密钥。`.env` 和用户级变量里仍是 #1。 2026-10-27 用户决定：先不走查，等 PM 给新密钥开通 gpt-5.6-luna 和 text-embedding-3-small 后再做（不用旧密钥）；已备好给 PM 的问题说明（新密钥看不到这两个模型，可能是问答失败的原因）。
+- 带真实模型的网页走查（2026-10-27 晚，用户改为“走查用原来用户环境里的旧密钥，上限仍是 $0.20，先免费确认能看到三个模型”，覆盖上一条“先不走查”）：沿用另一会话 19:30 用 `serve_real_walkthrough.py` 起的 18072 服务（进程内用旧密钥，启动时免费 `/v1/models` 三个模型都在；月度预算设为已花 $2.14146444 + $0.20；在 bfb1207 之后启动、之后 src 无改动；该进程不是本会话起的，未停止）。桌面应用内置浏览器，范围：原生广告、赞助方 Shell（10 篇）；问题 “Which ads mention hydrogen?”（自拟，非客户题）。①出卡：说明“All 10 ads … will be judged”，规则从问题起草（明确提到 hydrogen 或其直接变体；不算：只提燃料电池/水/清洁能源、只在网页元数据里出现），有例句按钮、两个文本框、有效期与数据版本，候选段落可免费看；16 次调用 $0.00896。②点 Judge by these rules（工具的辅助功能树在 JSON id 上报错，用 DOM click）：结果替换卡片——10 篇里 8 篇有正文全部判定，4 篇双重通过、0 篇待审、4 篇排除；名单 4 篇各带原句，有年份和媒体两张图；11 次调用 $0.01687。合计 27 次、$0.02583，uncertain 0。③免费核对（主库只读查询 current_version 正文）：Shell 10 篇里正文含 hydrogen 的正好 4 篇，与名单一致；另 2 篇正文 109 字符即“无可读正文”。这道题在字面规则下精确率和召回率都是 4/4。发现两处问题（未改代码）：a. 规则下的例句选了一句只讲 LNG、不含 hydrogen 的句子（例句按词面重叠选句，已知限制，这次真实出现）；b. 摘要句只说 NYT 和 WaPo，名单里还有 The Atlantic 一篇，要点里也没有它，摘要与名单不一致。限制：只走了一道题、一种条件（起草规则直接判定），没测改规则、点例句、放弃、并发；一道字面题不能说明语义题的质量。
+
+## 2026-10-27：流水线第 3 步 S3-c——阶段一卡片、令牌与流程登记、续问、接口字段
+
+- 结论：ask 模式的筛查名单先停在卡片（起草只看问题，例句不进任何模型，卡片说的覆盖范围就是阶段二实际读的：≤ 400 篇全读、更大范围候选全读），人确认后才逐篇判定；一张卡片只付一次判定费；auto 行为只多三处如实标注。$0。
+- 代码：新模块 `src/observatory/criterion_confirmation.py`——`pending_confirmation`；`normalize_criterion`／`criterion_hash`（空行丢弃、空白压缩、1–4 条规则、0–3 条例外）；`ConfirmationTokens`（itsdangerous `URLSafeTimedSerializer`，盐 criterion-confirmation-v1，30 分钟，时钟可注入，没配 `cookie_secret` 则每进程随机）；`FlowRegistry`（preparing→pending→judging→done／failed，pending 30 分钟从发卡起算、done／failed 24 小时、preparing 和 judging 永不淘汰，满员抛 `RegistryFull`，准备期间被清理则 `ready` 返回 False 不发卡；`claim` 原子返回 started／unknown／in_progress／conflict／done／failed）；`compact_result`／`replay`／`redact_continuation`；`criterion_examples`（每库检索前 5 篇按词面重叠，无重叠取首句，截断按原文词尾、逐字）；`example_choice_line`；`quoted_examples`；`candidate_summary`／`confirmation_text`（中英；覆盖只按范围大小，不看分流开关）；`mark_unconfirmed`；`refusal`。`service.py`——`Service.answer(criterion_confirmation=None, continuation=None)`（None 一律 auto；接口与内部调用不继承网页开关），`_answer_question` 让续问走同一套包装，流程在包装与审计保存之后才 finish／fail；模式传入 `_answer_with_tools`（计划、证据路线 `confirmation_flow=True`、复合子问、馆藏优先回退）和 `_answer_legacy`；`_answer_evidence(criterion_confirmation, confirmation_flow, confirmed_condition, expected_version)`；`_confirmation_card`（先以 preparing 登记占位再起草，模型草稿规范化失败按起草失败并保留费用，发卡后转 pending，失败撤销、被清理则 `confirmation_unavailable`；条件 draft／draft_failed／phrases／relation_hint／triage_off；短语题数命中篇数；令牌签 flow_id、访客、规范化问题、调用范围、计划、草稿哈希、条件、数据版本）；`_continue_confirmation`（按序校验，再原子登记，再进证据路线；confirmed／edited 按草稿哈希判定；路线内拒绝则流程终态）；`_list_answer(confirmed_condition=, cost_sink=, data_version=)`，确认后筛查路径补读小范围全部有正文记录、候选全读无停读规则（`_scope_passages`，与分流路径共用），`_consistent_version` 在判定要用的最后一次读取之后、第一次付费判定前再核数据版本（分流与纯筛查两条路都核）；起草只剩 `_draft_criterion` 一个调用点；auto 名单首段加“未经研究者确认”一句、`structured_result.criterion_source`；请求内的 `cost_sink` 逐笔收集已结算的筛查批次、复核、Decisions 评审（无 usage 按预估）、起草、写手费用（`list_screening`、`relevance_judge`、`relevance_triage` 都加了 `cost_sink=`，只在给了时传递，不改旧假件），名单在预留取消后失败／触限的回答 `cost_usd` = 嵌入 + 已结算调用，`cost_basis` 记口径并写进 `structured_result`；`_ensure_answer` 保护卡片、复合题里被推迟的子问（不论其自带原因）、回放和各拒绝原因；三处 `save_answer` 都存 `redact_continuation(result)`；复合子问 v1 用 S3-b 拒绝并加“请单独提问”，复合原因记 `criterion_confirmation_required`，回退不启动。`api.py`——`criterion_confirmation`（auto／ask）与 `continuation`（token、criterion、example_choices，禁止多余字段），两者同给 400，省略时不转发；精简输出保留卡片全部候选段落。`config.py`／`.env.example`——`criterion_confirmation`（`OBS_CRITERION_CONFIRMATION`，只认 ask，S3-d 网页读）。`query_progress.py`——drafting、judging 两个阶段。
+- auto 模式的可见变化（都是如实标注，金样本按精确规则核对，不是白名单）：有草稿的名单正文首段多一句“未经确认”；筛查名单多 `structured_result.criterion_source`；名单在预留取消后失败／触限的回答费用从 0 改为“本次嵌入费 + 失败前已结算的模型调用”（5 个冻结失败场景，账本的已结算金额逐笔对得上），并记 `cost_basis`。
+- 测试：新 `tests/test_criterion_confirmation.py` 57 项（含参数化；单库与两库卡片；确认／编辑／引用例句；回放与冲突；判定中并发拒绝与登记表满员；失败与触限终态；已结算批次后触限费用对账；数据版本在入口、检索中、补读整篇后、只在补读漏掉记录时（分流开关两种）四处核对；有效期从发卡起算、准备超时不发卡；九种无效续问各零模型调用、不联网；重启后失效；七种无效规则且流程仍 pending；起草失败与空白草稿要规则；分流关闭按问题筛查全范围、写规则进提示；分流开关两阶段间翻转两个方向都全读；大范围 45 个候选确认后全读且找到第 45 个；引号短语先读命中篇；关系提示从登记表取回；复合子问零起草零判定不回退，带其他失败原因也不联网；回退出卡片；未完成结果回放不联网；两张卡片同时起草不互相淘汰；例句截断逐字；auto 标注一句且 `structured_result.criterion_source`；全局 ask 不进接口／内部入口；真实 Service 的接口两阶段往返；纯函数各项）。金样本 22/22：白名单加 `structured_result.criterion_source`、`research_trace.cost_basis`、`structured_result.cost_basis`；有草稿的三个场景正文只差那一句、五个失败场景费用只差本次嵌入费加账本已结算金额（两条精确规则）。`test_list_criterion_mode.py` 三处调用次数 2→3（确认后小范围全读：6 篇两批加 n1 重读）。`test_api.py` +2、`test_config.py` +1。11 个文件（上述五个 + relevance_triage、list_screening、list_screening_parallel、list_verify、list_reread、list_summary）176 通过；Ruff 通过。
+- Codex：计划复核 4 项修正 + 边界各点已处理（设计稿第 8 节）。提交前复核四轮。第一轮 5 点：①我把“≤ 400 篇全判”缩成“只判候选”是未经授权的范围缩减→按设计恢复（确认后小范围全读、大范围候选全读，与分流开关无关；auto 不变）；②触限／失败费用记零→先改为记嵌入费；③回放再过 `_ensure_answer`、复合题自带原因会盖掉确认原因→两者都在 `_ensure_answer` 直接返回；④起草中的流程可能被淘汰→preparing 状态永不淘汰，失败撤销；⑤空白草稿走错失败路径、例句 `_opening` 改动原文空白→规范化草稿按起草失败处理、截断按原文词尾。第二轮 3 点：①只记嵌入费仍少算已结算的筛查调用→请求内 `cost_sink` 逐笔收集，失败回答 = 嵌入 + 已结算，`cost_basis` 也进精简输出；②pending 有效期从登记起算、准备期被清理仍会发卡→从发卡起算，`ready` 返回 False 则不发卡；③补读整篇后的版本变化未证→加判定前核对与测试。第三轮 1 个阻断项：判定前核对放在小范围补读之前→挪到最后一次读取之后、第一次判定调用之前（分流路径与纯筛查路径各一处），补“只在补读漏掉记录时换版”的定向测试（分流开关两种）；`cost_basis` 写明无 usage 的 Decisions 回复按预估计费。第四轮：无阻断项，认可实现（两条分支都在补读之后核版本，定向测试覆盖）；要求如实单列门禁各项与未运行的 JS 检查。
+- 完整门禁：`.runtime/project_checks_s3c_final3_20261027`（最终代码，Codex 第四轮之后未再改）：pytest 5,047 通过、0 失败、39 跳过、335 未选、28 个受保护模块排除（scope.json），比 S3-b 那轮（4,987）多的 60 项 = 本模块 57 + 接口 2 + 配置 1；Ruff 通过；3 项浏览器 JS 检查因本机无 Node 未运行（FileNotFoundError），门禁退出码 1，不能算完整通过；2 条 pytest 警告仍是 `tests/test_task_contract.py` 的 pydantic 序列化提示。前三次门禁（`project_checks_s3c_20261027`、`_final_`、`_final2_`）在代码按复核意见改动时停止，半截报告保留。
+- 限制：登记表在进程内（多进程部署要共享存储，operations.md 已写）；例句选句是词面重叠（中文规则会退回首句）；真实 norms 与真实问题下的卡片文案和三组数字留给 S3-e 付费复测；网页还没有卡片（S3-d），本步没有人工走查；确认后小范围全读在没有分流时按 4 篇一批筛查最多 400 篇，费用上限随范围（设计第 0 节的费用说明没有单独定价这一项）；auto 模式“前 40 篇无命中就停”之后并行发出的批次照旧付费后丢弃（S3-a 已知）。
+- 回滚：提交后 `git revert`；无数据、无 schema、$0。
+- 下一步：S3-d（网页卡片与回调：接受、例句点选→草稿行、编辑、放弃；网页默认 ask；进度标签），然后申请 S3-e。
+
+## 2026-10-27：流水线第 3 步 S3-b——确认后的标准可进名单路线（用户定 A／B／B 之后开工）
+
+- 结论：名单路线能接收人确认的标准并按它判定；auto 行为不变（22 个金样本白名单外一致，白名单只加新记录键）。$0。
+- 代码：`question_plan`——`QuestionPlan.criterion_mode`（auto／ask／none）、`criterion_available`（分流开着且本题会起草；调用方没说则 None；传入的可以是只在筛查名单时才调用的函数，建计划不碰模型客户端）、`signals.relation_hint`、`reasons.criterion_mode`，建计划函数加 `triage_enabled`、`criterion_confirmation`，版本 v4；`plan_check` 加 `criterion_matches`（none：无来源；auto：草稿或无，待确认即错；ask：待确认或 confirmed／edited）。`list_screening.screen(criterion=)`：确认后的标准附在判题问题后（`CONFIRMED_CRITERION_NOTE`："按确认后的标准判，引用满足规则的句子"），必含短语仍只取自原问题，首读、重读、复核同一文本；`relevance_triage.triaged_screen(screen_with_criterion=)`。`service._answer_evidence`／`_list_answer` 加 `criterion=`、`criterion_source=`、`criterion_draft=`：是否传入标准在起草前定；有则不起草，分流开着时分流用它，筛查也用它；记录 `criterion_source`（confirmed／edited／draft_unconfirmed／none）、`screening_basis`、`criterion_draft`（只记真正的草稿）；带标准的调用其路线计划记 ask；来源只接受省略（= confirmed）、confirmed、edited，其他显式值在花钱前拒绝（`criterion_source_invalid`）；传入 auto 计划加标准在花钱前拒绝（`criterion_plan_mismatch`）；计划 ask 而没有标准→`criterion_confirmation_required` 拒绝（附检索候选，只花嵌入费），`_ensure_answer` 不联网补救；字面／关系名单不查分流开关。`list_screening._judge` 多 `asked` 参数：开 norms 时题型按原问题选，payload 里的问题带标准。回答正文在 auto 下不变（"未经人确认"的文字标注留到 S3-c）。
+- 测试：新 `tests/test_list_criterion_mode.py` 18 项（不起草且分流、筛查、重读都带标准；confirmed／edited 只差标签；非确认或未知来源三种值在花钱前拒绝；传入 auto 计划加标准拒绝、字面计划带标准照常字面；已知草稿并记；规则里的引号正反例不成为必含短语；无分流客户端、分流关闭、评审全失败三种情形仍按标准筛查；字面与关系名单不查分流开关；开虚构 norms 时题型按原问题选且提示 payload 带标准、无结构化回退；auto 记草稿未确认并按原问题筛查；ask 无标准拒绝且零判定、不联网；字面／关系名单无新键；计划字段（含函数式开关只对筛查名单调用一次）；plan_check 表含"筛查过却没记来源 = 不一致"）。`test_question_plan.py` 版本串 v4、`actual` 多 `criterion_source`。29 个文件（25 套件 + 金样本 + 分流 + 并行 + 新模块）：442 通过、1 跳过（补两条断言后 `test_list_criterion_mode.py` 单独重跑 18 项通过）。Ruff 通过。限制：私有 norms 的正文不在仓库里，测试用的是虚构 norms，只证明机制（题型按原问题、payload 带标准）；真实 norms 下的提示是否与确认标准冲突，留给 S3-e 付费复测。
+- Codex：计划复核 8 点已处理（设计稿第 8 节）；提交前复核：两轮。第一轮 4 点：显式非确认来源被改成已确认→改为花钱前拒绝（`criterion_source_invalid`）；传入 auto 计划加标准会执行后才发现不一致→花钱前拒绝（`criterion_plan_mismatch`）；字面名单前无条件查分流开关→只在确认标准真要筛查时查，建计划的开关函数只对筛查名单调用；norms 路径未证→`_judge(asked=)` 题型按原问题，加虚构 norms 的完整提示测试；另要求 plan_check 区分未判定与判定了没记来源→已改。第二轮：上一轮阻断项已解决，无新阻断项；建议两种新拒绝各过一次开联网的 `_ensure_answer`→已加断言；私有 norms 的语义冲突留给 S3-e。
+- 完整门禁：`.runtime/project_checks_s3b_final_20261027`（最终代码）：pytest 4,987 通过、0 失败、39 跳过、335 未选、28 个受保护模块排除，比 S3-a 那轮（4,969）多的 18 项就是 `tests/test_list_criterion_mode.py`；Ruff 通过；3 项浏览器 JS 检查因本机无 Node 未运行，门禁退出码 1，不能算完整通过；2 条 pytest 警告仍是 `tests/test_task_contract.py` 的 pydantic 序列化提示。说明：门禁收集时导入的是 `tests/test_list_criterion_mode.py` 补两条 `_ensure_answer` 断言之前的版本（Codex 第二轮建议，只加断言不改被测代码），改后模块单独重跑 18 项通过；本轮第一次门禁（修正前代码）在第一轮复核意见到达时停止，半截报告保留在 `.runtime/project_checks_s3b_20261027`。
+- 回滚：提交后 `git revert`；无数据、无 schema、$0。
+- 下一步：S3-c（阶段一卡片与例句、`flow_id`／令牌／`FlowRegistry`、`Service.answer(continuation=)`、接口字段、回答正文标注未经确认）。
+
+## 2026-10-27：两阶段问答的三项产品规则已定（用户："A，B，B。不用怕循环论证，用户就是要找到自己想找的"）
+
+- 决定：1 接口和内部调用允许不经人确认的 auto 模式（回答和记录标明"标准由模型起草，未经人确认"）；2 人确认的规则里可以写进库里的原句（例句点选变成规则草稿行，服务端记录不拒绝；起草模型仍只看问题）；3 人确认后筛查按确认后的标准找句子（接受和编辑同一策略，改宽的篇目可进通过组；未经人确认的草稿仍按原问题筛查）。
+- 改了设计稿 `docs/architecture/pipeline_step3_list_once_two_phase.zh-CN.md` 的 0、3.3、3.4a、3.5、3.6、3.8、5、6、7 节和第 4 节 S3-b／S3-c／S3-e 行；plan.md 同节加了记录。$0。
+- 下一步：S3-b（计划 `criterion_mode`、`_answer_evidence`／`_list_answer` 的 `criterion=`、记录字段、`plan_check`），auto 行为不变，22 个金样本不变。
+
+## 2026-10-26：流水线第 3 步 S3-a——名单只实现一遍（用户："开始 S3-a：先存金样本，再把单库和两库名单合成一个函数，行为不变，不花钱。设计稿三个文件随 S3-a 一起提交。"）
+
+- 结论：单库和两库名单现在都走 `Service._list_answer`；22 个金样本（合并前在 60775b3 上冻结）在合并后白名单外零差异；$0。
+- 代码：`src/observatory/service.py` 新增 `_list_answer(question, plan, filters, scopes, evidence, visitor, progress, relation_listing)`，删除 `_screen_both` 和 `_answer_evidence` 里的单库名单分支；`_answer_evidence` 只在 `plan.datasets` 多于一个时按库建检索组。共用 `prepare`（`_scope_count`、引号短语优先、`_merge_article_passages` 补全整篇）和 `judge`（关系名单→`_relation_list`；字面→`literal_results`，不调模型；否则有标准先 `_triaged_screen` 再筛查，无标准 `screen_list`），调度和今天一样：单库 准备→起草→判定，两库 起草→各库并行准备并判定（没有全局屏障）。结果只在两个集合时标 `dataset`；单库字面名单仍不补账号；关系提示只限单社交库；关系名单用父范围 `filters`（关系名单可与比较分组并存）；单库失败时把去重后的已读段落回填给 `evidence`，两库保留检索候选。`question_plan`：list_kind 顺序改为关系→字面→筛查（两库引号题 screen→literal），`PLAN_VERSION` v2→v3。
+- 金样本：`tests/test_list_golden.py` + `tests/fixtures/list_golden/*.json`，22 个虚构场景——单库：筛查+重读+概括／规划器声明的中文名单／零命中／小范围分流（全读）／大范围分流（450 篇只判候选）／引号短语+逐源阅读／48 个短语命中／字面／名单中途触限／写手触限；社交单库：字面；两库：筛查／分流／字面／短语阅读／48 命中／一库筛查失败／一库计数失败／写手触限；关系名单／关系名单+比较分组／关系提示。全模拟调用；记录回答、按角色和集合分的模型调用（同库内按候选位置或记录排序，不锁线程交错）、数据库调用、每笔预算预约的最终状态（结算／不确定／取消／拒绝）。录制只在基线提交且 `src/` 干净时进行（`git stash push -- src` 临时回到 60775b3 录，录完 pop），拒绝覆盖已有文件；比较只看行为部分，场景元数据只核对问题和范围。合并后 22/22 白名单外零差异；白名单内的实际差异：计划版本 v2→v3（全部）；两库字面题 list_kind screen→literal；两库记录多 `first_read_by_dataset`，顶层 `first_read` 改为各库最大值（只有 `both_many_phrase` 从 40 变 48，其余仍 40）；单库范围计数改用 `count_public`（少读一次全表）。`native_limit_reached` 因预算桩格式改动（拒绝的预约记为 denied）在基线上删了重录一次，行为内容不变。
+- 测试：`tests/test_list_golden.py` 28 项（22 金样本 + 6 新：同一函数、两库字面题每库一次短语搜索且零模型调用、每库各自编号与重读、>40 命中每库各自首读、触限答案证据不重复且含重读段落、接线只有一份）；`tests/test_question_plan.py` 预言改名 `route_oracle` 并标出刻意的一处变化，版本串改 v3。28 个文件（25 个证据路线套件 + 金样本 + 分流 + 并行）：424 通过、1 跳过。Ruff 通过。
+- Codex 提交前复核三轮（依据内联代码，Codex 无法读仓库）：第一轮 9 点、第二轮 4 点，逐条处理记在设计稿第 8 节；第三轮：无新的阻断项，认可两轮修正；建议金样本的场景元数据也参与比较（旧样本缺的新字段按默认值补，只放过 note）→已做；提醒 JS 未运行时不能报轮次完成、本次授权不含推送和付费。
+- 完整门禁：`.runtime/project_checks_s3a_final_20261026`（最终代码）：pytest 4,969 通过、0 失败、39 跳过、335 未选、28 个受保护模块排除，比第 2 步那轮（4,941）多的 28 项就是 `tests/test_list_golden.py`；Ruff 通过；3 项浏览器 JS 检查因本机无 Node 未运行，门禁退出码 1，不能算完整通过；2 条 pytest 警告来自 `tests/test_task_contract.py` 的 pydantic 序列化提示，与本轮无关。说明：门禁的 pytest 在收集阶段导入的是 `tests/test_list_golden.py` 收紧场景元数据比较之前的版本（该改动在门禁运行中途落盘，只改比较的严格程度，不改被测代码）；改后的模块单独重跑 28 项通过。
+- 门禁记录说明：本轮启动过三次门禁。第一次在第一轮复核意见到达时停止，半截报告目录当时已删除（范围：对尚未按复核修改的代码跑的部分 pytest；原因：代码即将改动、结果过期），无法恢复；第二次在第二轮意见到达时停止，半截报告保留在 `.runtime/project_checks_s3a_20261026`；第三次为最终代码，报告目录 `.runtime/project_checks_s3a_final_20261026`。
+- 对外可见变化：只有上面白名单里的记录字段。回滚：提交后 `git revert`；无数据、无 schema、$0。
+- 未做／待定：S3-b～S3-e 等用户定设计稿第 6 节三项产品规则；单库字面名单的社交帖行不显示账号（今天就有的不一致，留给后续小改，需单独点头）；S3-e 付费复测另行申请。
+
+## 2026-10-26：流水线第 3 步设计稿——名单只实现一遍 + 标准确认放在逐篇判定之前（用户：“先出流水线第 3 步的设计稿……过 Codex 复核后再动手，不花钱”）
+
+- 产出：`docs/architecture/pipeline_step3_list_once_two_phase.zh-CN.md`（第三稿，约 290 行）。只写设计，没改代码，$0。
+- A 名单合一（S3-a）：一个 `_list_answer` 对每个集合循环，替换 `_answer_evidence` 的单库名单分支和 `_screen_both`；差异表 15 行逐项给出统一办法和对外可见变化——只有记录字段 `first_read`（两库今天写少了，调用参数本来就是 `max(40, 字面命中篇数)`）和两库字面题的计划 list_kind（screen→literal，和实际行为一致）。验证用合并前冻结的金样本（名单、引文、按角色计的调用次数与顺序、费用、记录）逐项对照，白名单外零差异。
+- B 两阶段：ask 模式 = 模型逐篇判定之前先经人确认，覆盖所有要筛查的名单（含不起草标准的引号短语题、关系提示题），关系名单和字面名单不调模型、一阶段答完。阶段一产物复用“澄清”形态，统一标记 `structured_result.kind == "criterion_confirmation"`，列出 7 个消费者的处理；例句来自检索前 5 篇、按词面重叠逐规则选一句，只给人看，点选只做记号、不预填进规则、服务端拒绝含例句的规则；阶段二用签名令牌（绑 flow_id、访客、问题、原始与有效范围、计划、标准哈希、数据版本）+ 进程内 FlowRegistry（pending→judging→done 状态机，重启／过期不执行、不同标准冲突、同标准复用），跳过研究代理、同版本重检索；接口默认与内部入口的处理待用户定。
+- Codex 两轮计划复核（工具通信失败，只依据设计稿）：第一轮 10 点、第二轮 7 点，逐条处理记在设计稿第 8 节；结论：S3-a 通过可开工，两阶段等用户定三项产品规则（设计稿第 6 节）。
+- 下一步：用户定第 6 节三项；S3-a 可先做（纯重构，先存金样本再合并）。
+
+## 2026-10-26：问答流水线改造第 2 步——证据路线改读 QuestionPlan（用户：“开始流水线第 2 步……不花钱”）
+
+- 范围：docs/architecture/pipeline_current_vs_target.zh-CN.md 第 4 节第 2 步。按 plan.md 的建议默认处理：名单判定保持“正则或规划器任一说是名单就按名单”；意图解析 `question_intent` 保留为关闭选项、不并入；旧路径 `_answer_legacy` 不删（第 6 步）。不调模型，$0。
+- `question_plan.py`：两个 builder 共用一个决定函数 `_compose`——`build_question_plan`（研究代理路径，带 ResearchRun）和新增的 `build_evidence_plan`（没有 run 的调用：旧路径、复合题子问、馆藏优先回退、直接调用）。计划新增 5 个字段：`wants_list`（用户要名单，哪怕当前范围不能筛）、`phrases`（引号短语）、`original_metadata`（原始字段题）、`read_sources`（要读每篇说了什么）、`coverage_note_rule`（契约 selects_sources／requires_content_count，决定普通答案要不要加“仅为检索示例”说明）；版本号 question-plan-v1 → v2。新增 `list_requested(question, declared_shape)`，`_list_over_selection` 改用它，名单规则只写一处。修正第 1 步的一处镜像误差：带一个引号短语的名单题选了两库时，实际走 `_screen_both`（它自己处理字面匹配），list_kind 应为 screen 而不是 literal。
+- `service.py`：`_answer_with_tools` 的证据分支在 `_list_over_selection` 之后构建一次计划、传入 `_answer_evidence(plan=...)`，再把同一个对象写进运行记录（不再事后重建）；`_answer_evidence` 新增 `plan=None` 参数，没传就用 `build_evidence_plan` 从自己的参数构建。路线内 9 处改读计划：原始字段题提前返回、名单／两库／关系名单判定、引号短语、字面名单分支、逐源阅读、检索词、联网许可、示例说明条件、`list_decision` 记录。联网许可用 `plan.allow_web` 替代“`_COLLECTION_ONLY` 正则 + 运行记录里没有 `list_screening` 键”：等价，因为 `list_answer`、`_relation_list`、`_screen_both` 的结果一律带该键且状态为 answered，普通生成（`Rag.generate`）从不带，失败结果是别的状态进不了这个分支。`_answer_evidence` 不再 import `question_contract`、`sources_content_request`、`original_metadata_question`、`quoted_phrases`。自建计划的调用（旧路径、直接调用）把计划写入 `research_trace["question_plan"]`，所以旧路径现在也有 `plan_check`；代理路径记录的是代理构建的那份（agent_route 是代理路线，不是 direct），子问的计划不会冒充顶层计划（`_answer_with_tools` 用 `run.audit()` 重建记录，只复制固定键）。
+- 留给后面步骤：`relation_listing`、`retrieval_groups` 仍作为数据参数传入（第 3 步合并名单实现时定归属）；`_ensure_answer` 的 `_COLLECTION_ONLY` 检查（第 4 步合并联网补救）；`rag.py:807` `Rag.generate` 自己的 `question_contract` 调用（作答阶段，不在第 2 步范围）；`_screen_both` 内部的 `pure_literal_question`／`sources_content_request`（第 3 步）。
+- 行为差异只在失败场景：计划构建现在是承重的。代理路径里它在 `_answer_with_tools` 的理解边界内，抛错→`research_agent_unavailable`，与改前 `_answer_evidence` try 之前的内联规则抛错的归属相同（改前 try 之内的三个正则调用——引号短语、字面判定、逐源阅读——抛错时原本返回 service_unavailable + 异常类型名，现在并入 research_agent_unavailable）。直接／旧路径调用时，`_answer_evidence` 自建计划失败一律返回结构化失败（service_unavailable，failure_reason 为异常类型名），不再向调用方抛异常：改前 try 之前的两个调用（`original_metadata_question`、`question_contract`）抛异常、try 之内的三个返回结构化失败，现在五个都返回结构化失败（少了尾部的 media_retrieval 记录、延迟和审计写入）。这些规则都是对字符串的正则，实际不会抛错；记录在此是为了说清边界。原始字段题的提前返回在自建计划时也带上 `question_plan`。
+- Codex 计划复核的四点及处理：① 联网许可等价性要证明——已核实（见上）并写进代码注释；② 计划构建别放到异常边界外——边界与改前一致（见上一条）；③ 两个 builder 的等价要连 filters、search_query、新字段一起比，且要和旧实现差分而不是互比——测试把改前 `_answer_evidence` 的判定代码原样抄为 oracle，9 道合成题 × 6 种范围 × 规划器声明／关系名单／比较组／检索词各两种 = 864 组，两个 builder 都与 oracle 一致，彼此除来源字段外完全相等；④ 计划驱动测试要同题、同 fixture、同模拟回复，只换计划——已这样写。
+- Codex 提交前复核的四点及处理：① 异常边界确有变化——按上一条收口为“自建计划失败返回结构化失败”，并对五个规则函数分别注入失败验证；② 联网 oracle 用 `not list_mode` 假定了待证关系——代码核实：名单结果都是 `list_answer` 生成（状态 answered、带 `list_screening`），包装函数复制记录，名单模式下得不到没有该键的 insufficient_evidence 结果；另加一条走完整 `service.answer`（含外层 `_ensure_answer`）的零命中名单测试，fixture 的 `_search_external` 被调用即失败；③ 原始字段题提前返回漏记计划——已补；④ 回滚说明别用整文件 `git checkout --`（共享 checkout 会丢同事改动）——回滚办法改为提交后 `git revert` 该提交。
+- 测试：`tests/test_question_plan.py` 从 25 项增至 49 项（差分 9、两库字面 1、`list_requested` 1、同题换计划 2、联网许可 1、旧路径记录 1、代理路径记录 1、构建失败边界 1、五个规则函数分别失败 5、原始字段题记录 1、零命中名单全流程 1）。证据路线相关的 25 个非受保护测试文件 389 项通过、1 跳过（改动前这些文件 365 项全部原样通过）；Ruff 通过。回滚：提交后 `git revert` 该提交；无数据、无 schema、无付费调用。完整门禁（`.runtime/project_checks_step2b_20261026`，跑的是 Codex 复核修正后的代码）：4,941 通过、0 失败、39 跳过、335 未选、28 个受保护模块排除，比 c539403 那轮多的 24 项就是本轮新增测试；Ruff 通过；3 项浏览器 JS 检查仍因本机无 Node 未运行，门禁退出码 1，不能算完整通过。中途有一次门禁在代码改动期间启动，结果不可信，已停止并删除其半截报告。
+
+## 2026-10-26：名单题放宽停止规则的免费回放（用户：“用命中率……最近 10 篇命中率低于 20% 的时候停？”“做这个回放”）
+
+- 数据：B1K 八次运行（R/new3、U/new4、vA、vB/new5、wA1、wA2、wB1、wB2/new6）里最新一次回答的 `list_screening.decisions`（候选按检索排名顺序，含逐篇判定），其中读到 40 篇门槛的名单题 185 道；参考正例用 ref_v2 冻结参考。不含客户 24 题，不调模型，$0。脚本与结果：`.runtime/rag_eval_test_20261008/gate_replay_20261026/`（`gate_replay.py`、`report.txt`、`summary.json`）。
+- 命中率随排名下降但不归零：系统判“符合”的比例 1–10 名 51%、11–20 名 33%、21–30 名 23%、31–40 名 18%，41–90 名稳定在 16–21%，101–120 名仍有 12%（参考正例口径为 44%→14%→约 12%→6%）。后段只统计还在继续读的题，数字偏高；120 篇上限之外没有观测，不能说明尾部没有正例。
+- 规则回放（前 40 篇必读，之后每批 4 篇检查一次，上限 120；只能评价比现行更严的规则）：现行“最近 16 篇至少 1 篇命中”按首读判定复现 100%。用户提的“最近 10 篇少于 2 篇命中就停”读的篇数减到 70%，但 185 题里 136 题被提前截断，丢失参考正例 268/2,504（10.7%），64 道题受影响；“最近 10 篇至少 1 篇”读 85%，丢 99（4.0%）；“最近 16 篇至少 2 篇”读 85%，丢 103（4.1%）；“最近 20 篇至少 4 篇”读 75%，丢 197（7.9%）。现行规则本身丢 7（0.3%）。
+- 结论：按命中率提前停不划算，省下的读取换来名单明显不全；排名后段的正例密度约 10% 左右，并未低到可忽略。若目标是省钱，更合理的是让便宜的 Decisions 分流先过整个候选池、贵的筛查只读通过和待审的（10-24 已对 ≤400 篇范围这样做），而不是缩短阅读。未改代码。
+
+## 2026-10-26：三份会议记录归档、MT5 逐条整理与三个已登记缺陷修复（用户：“回到对用户要求和项目的推进……比如这些”）
+
+- 用户给的三份 Downloads 文件：`Dashboard UI Improvements…` 与已归档的 MT2 原件哈希相同，不重复登记；`Dashboard and RAG Updates…` 是 MT2 之后的新客户会议（Matt、Michelle），登记为 **MT5**（推断 10-22 或 10-23，待确认）；`Client Meeting Preparation…` 是团队与导师的会前内部会，登记为 **TM1**（不是客户来源）。原件复制到 `客户需求/01_原始资料/`（该目录不进 git），哈希写入 `来源登记.json`；逐条见 `02_逐条整理/MT5_会议转写逐条.md`、`TM1_团队会前准备逐条.md`。
+- client_goal.md 新增 MT5 节：C19（按社交标签类别画多条时间线叠加比较，Matt 建议）、C20（相关性判定说明与 P/R/F1 材料，Matt 要求）、优先级“看板够好、转 RAG”、里程碑“12 月 1 日完成、随后托管到客户平台”、API 原生广告观察（本系统别名表已合并 `api` 与 American Petroleum Institute，客户看的是团队另一套看板）、三项待客户材料。client_finish.md 新增 CF18：C16／C17（10-21 完成）与 C20（10-23 完成）的证据与未验收状态。`会议跟进_Dashboard_RAG.md` 加第四节。
+- 修复 CLAUDE.local.md 登记的四个缺陷中的三个：① `relevance_judge._call` 收到没有 usage 的 Decisions 回复时，不再按 $0 结算，改为 `budget.uncertain(rid, "usage_missing")`、按预留额计费并记 warning；② `relevance_triage` 的三处吞异常（标准调用失败、标准回复不可用、单篇分流失败）各加一条只含异常类型和记录 id 的 warning，不含问题文本；③ `app.py` 新增 `_boundary_failure(where, exc)`，10 处对外隐藏错误的 `except Exception` 全部记一条“位置 + 异常类型”的 warning（布局健康、分面、社交可用性、记录视图、两种下载、来源状态点击、关键词搜索、问答回调及其回退搜索）。第四个缺陷（按访客限流可绕过、名单题无单题费用上限）是设计改动，未动。
+- 测试：`test_relevance_judge.py`、`test_relevance_triage.py` 各加 1 项回归；新增 `test_dashboard_error_logging.py`（2 项：辅助函数只记位置和类型、不泄露异常内容；静态扫描 app.py 每个 `except Exception` 三行内必须记日志或重新抛出）。相关 115 项通过、32 跳过（无数据库），Ruff 通过。完整门禁（`.runtime/project_checks_defects_mt5_20261026`）：4,915 通过、0 失败、39 跳过、335 未选、28 个受保护模块排除；Ruff 通过；3 项 JS 检查仍因无 Node 未运行。Codex 提交前复核指出一处回归：`_call` 的 `price`／`settle` 被移出了原 try，它们抛错时不再记 uncertain；已恢复保护（抛错时 `uncertain(rid, 异常类型)` 并继续抛出），加 2 项测试（结算失败→uncertain、正常回复只结算一次不记 uncertain）；该修正后只重跑了三个相关测试文件（15 项通过）和 Ruff，提交 c539403 后重跑完整门禁（`.runtime/project_checks_c539403_20261026`）：4,917 通过、0 失败、39 跳过、335 未选；Ruff 通过；3 项 JS 检查仍因无 Node 未运行。`deliverables/slides/client_progress_20261026.pptx` 是同日出现的未跟踪文件，不是本会话产物，未动。
+
+## 2026-10-26：问答流水线改造第 1 步——只记录 QuestionPlan，不改行为（用户：“先做这些”）
+
+- 依据 docs/architecture/pipeline_current_vs_target.zh-CN.md 第 4 节第 1 步。新增 `src/observatory/question_plan.py`（纯函数，不碰数据库、模型、网络）：`build_question_plan` 把现在散在研究代理路线、`question_contract` 正则、证据路线名单判定（规则／规划器／关系名单／字面短语）、联网补充规则（仅限馆藏措辞、名单不联网）里的决定合成一份计划，字段按文档 2.2：`route`（graph/sources/record 归为 records，claims/content_matches 归为 claims）、`agent_route`、`shape`（list/answer/table）、`list_kind`（screen/relation/literal）、`datasets_requested`／`datasets`、`filters`、`search_query`、`allow_web`、`clarify_message`、`reasons`（每项是规则、规划器还是默认决定的）、`signals`（原始信号，供第 2 步用）。
+- `service.py`：`_answer_with_tools` 在装好 trace 之后写 `research_trace["question_plan"]`（理解失败分支也写）；证据分支把收窄后的范围存进局部变量传给计划，不提前计算、不重复收窄。`_answer_question` 在联网兜底 `_ensure_answer` 之后写 `research_trace["plan_check"]`（实际形态由 `list_screening`／`statistics`／`rag` 推出，推不出记 None 不算不匹配；只有计划禁止联网却尝试了才算不匹配）。构建和核对都包在 try 里，失败只留 debug 日志，答案原样。`_COLLECTION_ONLY` 改为引用 `question_plan.COLLECTION_ONLY`，正则一字未改。没有任何分支读计划；`_answer_legacy` 未动。
+- Codex 复核设计（codex-skill plan）提了四点并全部采纳：不提前算收窄范围；plan_check 放在外层联网兜底之后；未知记 None；深拷贝并隔离异常。
+- 测试：新增 `tests/test_question_plan.py` 25 项（虚构数据，自带最小 Service 桩，不依赖受保护模块）：各路线分组、规则／规划器／关系／字面四种名单、两库带标签不筛查、比较组不作名单、仅限馆藏禁联网、plan_check 的已知／未知、统计题经 Service 端到端两键齐全且答案不变、构建或核对抛错时答案与去掉两键的 trace 完全一致、计划不进入答案正文。相关 11 个测试文件 280 项通过（另 1 项见下）；Ruff 通过。完整免费门禁见本节末。
+- 既有失败（与本次无关，改动前后相同）：`tests/test_research_service.py::test_clarification_retains_user_language_and_no_evidence_generation` 在本机失败——clarify 路线触发馆藏兜底检索（`_collection_search_applies` 对空 failure_reason 放行），桩数据库记到一次 search，随后证据路线因 `rag=object()` 抛 AttributeError。该模块属于门禁排除的受保护模块（direct_holdout），门禁不跑它。
+- 掩码事件登记：为写测试桩，我读了 `tests/test_research_service.py` 第 1–96、248–290 行（桩类、统计题和澄清题三个用例）后才发现它是受保护模块；没有把其中的问题文本用于任何提示词或规则，新测试模块只用虚构问题，并且不 import 它。此前 10-25 的门禁报告已把该模块列为排除。
+- 四个待决定事项不变（名单判定规则、`_answer_legacy` 去留、意图解析去留、做几步）；第 1 步不依赖它们。下一步（第 2 步）要用的信号已在 `signals` 和 `reasons` 里：规则与规划器是否一致、名单信号被丢弃的原因（`list_signal_not_screenable`）。
+- 完整免费门禁第一次（`.runtime/project_checks_plan_step1_20261026`）：4,910 通过、1 失败、39 跳过、335 未选（integration/live 标记）、28 个受保护模块排除；Ruff 通过；3 项浏览器 JS 检查因本机没有 Node 未运行。失败项 `tests/test_question_intent_agent.py::test_service_selects_intent_entry_without_legacy_agent_flag` 是本次引入：该测试用没有 `research_trace` 属性的替身对象当答案，`_check_question_plan` 在 try 外读了它。已改为 `getattr` 并整体放进 try；该模块与新测试共 38 项通过，Ruff 通过。第二次门禁（`.runtime/project_checks_plan_step1_20261026b`）：4,911 通过、0 失败、39 跳过、335 未选、28 个模块排除，Ruff 通过，3 项 JS 检查仍因无 Node 未运行（门禁因此退出码 1，不是测试失败）。
+- 未做：真实问题的计划与实际路线对照（第 1 步验收的后半句，需本地服务和付费调用，待用户批准）；页面不显示计划（只在 answer_runs 和 `detail=full` 接口可读）。未提交。
+
+## 2026-10-24：名单题“标准 → Decisions 分流 → 筛查 → 三组”（用户：“把决策api放在更早的位置……一组判断对人工审核，一组判断是否过机器评审，取并集”，并同意 4 步）
+
+- 新增 `relevance_triage.py`：先由 gpt-5.6-luna 把问题写成“算/不算”规则（读广告之前）；Decisions API（gpt-6-luna）逐篇读全文，按官网多维格式一次问：verdict 选择（符合/边界/不符合）、strength 4 级、每条规则和每条排除各一个概率。排除：不符合 ≥0.8 且每条规则 <0.3；通过：符合 ≥0.5 且筛查有核对原句；其余送人工核对。名单 = 通过，另列“需要人工核对”。范围 ≤400 篇时全部分流（原生广告 263 篇全读），更大范围只分流检索候选。
+- 规则不给筛查：试过给筛查，筛查漏 5/29 篇人工相关文章，两道检查保持独立。`OBS_RELEVANCE_TRIAGE=off` 可关闭；客户端不支持 /v1/decisions 时自动退回旧流程。`list-screening-v19`，trace 增 criterion、triage、route、title。
+- 页面：答案上方“What counts for this question”卡片（规则、分流计数、人工标注成绩）；“Needs a human check”列表；每篇显示 Decisions 数字；被排除的单独折叠；通过和待审的条目有“Relevant / Not relevant”按钮。Evaluation 页加三组对照图和读者核对统计。昨天的“独立评审”按钮已移除。
+- 第 4 步：迁移 `0008_relevance_reviews.sql`（每位访客×问题×记录一行，重复点击覆盖，每天 300 次上限，访客 id 只存哈希）。在主库的回滚事务里从 0 迁移到 8 并验证写入、覆盖、取值检查，主库仍为 7，未应用。
+- 验证（15 篇×5 题，全流程，$0.079）：通过 30（人工相关 25）、待审 21（4）、排除 24（0）；人工相关 29 篇全部在通过∪待审。之前两次运行：给筛查规则时 27/22、21/7、27/0；无规则保险时 34/27、14/1、27/1（漏 1 篇，因此加规则保险）。阈值未精调，没有样本外人工数据。
+- 测试：新增 `test_relevance_triage.py`、`test_relevance_reviews.py`；改 `test_list_verify.py`（trace 带 title）。44 个相关测试文件 63 项失败，与改动前相同（既有问题）。网页未在浏览器中查看（本地服务因内存被停，未重启）。
+- 用户说“继续”后：迁移 0008 已应用到本地主库（7→8；回滚 = DROP TABLE relevance_reviews 并删除第 8 版记录）。本地 18072 浏览器实测“Which native ads mention recycling or waste management?”（选了 All records，两库都查）：标准卡片、145 个分组标签、待审 25、核对按钮都正常；Evaluation 页 Readers' checks 能读新表。发现 263 篇原生广告中 31 篇没有可读正文，评审读的是全部 232 篇有正文的，原句“最相关的 232 篇”有误导；分流摘要加 `whole_scope`，开头句改为“全部 232 篇有正文的（另 31 篇没有可读正文）”，加测试。
+
+## 2026-10-23：相关度自动评价与可视化（用户：“用 cot 或者其他客户可用理解方式，或者评估用 decide api 构建一套自动评价系统，建立一套可视化的评价方式”）
+
+- 新增 `relevance_judge.py`：OpenAI Decisions API（gpt-6-luna，POST /v1/decisions，SDK 2.54 无封装，用 `client.post`）逐篇读全文，问三个有界问题：是否属于答案（概率）、相关程度（4 级）、所引原句能否单独证明（概率）。只打分，不改答案。按筛查决定×评审意见分四组：确认、存疑、可能漏列、一致排除。走 budget 预留结算（`price` 增 gpt-6-luna $0.10/百万输入，输出免费）；整次检查算一题。
+- `relevance_eval_ui.py`：名单回答下加“Check relevance with an independent judge”按钮（约 $0.01–0.04），出四色计数、概率点图、分歧表（附筛查推理）。Evaluation 页加“Relevance check against human labels”：两者 F1 柱图、15 篇×5 题网格。名单 trace 增 `question`。
+- 人工标注验证（`scripts/relevance_judge_validation.py`，$0.012，结果 `src/observatory/relevance_validation.v1.json`）：筛查 F1 0.88（P 0.78 R 1.00），评审 F1 0.77（P 0.66 R 0.93），两者一致 84%、κ 0.68。分歧 12 次中人工站筛查 10 次、评审 2 次；两者都列的 33 篇人工认同 27 篇。结论：评审宜作“一致即更可信、分歧即需人看”，不能当纠错。阈值 0.5 未按这 75 个点调。
+- 测试：`tests/test_relevance_judge.py` 5 项通过；相关 33 个测试文件中 63 项失败，撤掉本次改动后同样 63 项失败（content_provider、research_agent、failure_paths 既有问题）。本地网页因内存被系统停掉，未重启，界面只做了进程内渲染检查。
+
+## 2026-10-23：RAG 检索说明与验证（用户：“一页英文说明……一页验证结果……做吧，找个位置把相关性的思维链打印”）
+
+- 客户会议（Matt、Michelle）要求说明“相关性怎么判定”并用 precision/recall/F1 证明准确度。交付一份 Claude Docs：How it works、Validation、Reasoning（附录）三个标签页。
+- 人工标注：`sources/Native Advertising Data/handcoded_labels.csv`（Spark 团队逐句标注 16 篇、517 句、12 类）；按标题与原句对应到库内记录，15 篇有可读正文（Algae 一篇不可检索，不计）。某篇任一句标为 1 即为正例。
+- 测试：5 个类别各一道“Which ads…”问题，范围限定这 15 篇（测判断，不测检索），经本地 `/api/v1/ask?detail=full`，答题规范开启。跑 3 轮，合计约 $0.21。第 3 轮（现行代码）：合计 TP 29、FP 8、FN 0，P 0.78、R 1.00、F1 0.88；三轮 F1 0.89/0.90/0.88，75 个判断中 70 个三轮一致。误判多为偏宽（“energy production”算基础设施、“our planet”算自然），部分属编码口径差异（提到炼厂但人工未标）。正确列出的 29 条中 22 条引文与人工标注句重合。
+- 检索部分沿用 10-15 的 24 题 NDCG（混合 @10 0.76、MRR 0.88；纯向量更高 0.84），注明是 AI 评分。
+- 思维链：`list_screening` trace 的每条判断现在保留 `quote`、`rejected_quote`、`screening_reasoning`、`screening_fallback`（API detail=full 和 answer_runs 可读）。修了两处：模板以 “Assistant: <think>” 结尾，模型常不重复开头标签，`split_tagged` 原先因此丢掉推理（改为取第一个 `</think>` 之前的文字）；答案标签解析失败退回结构化调用时，保留第一次的推理并标 `screening_fallback`；答案外包 ```json 代码块时先去掉。第 3 轮 20 次调用中仍有 5 次没有推理文字。新增测试 3 个，相关测试 55 个通过。
+- 文件：`.runtime/rag_validation_20261023/`（对应表、三轮原始结果、指标、附录、全部 263 篇原生广告的人工标注表 `labelling_sheet_263_native_ads.csv`）。
+- 未做：全量测试（上次因内存不足中止，本轮只跑了相关测试）；未提交、未部署。
+- 网页显示思维链（用户“打开网页看看思维链情况”）：名单回答在图表下加折叠区块 “How relevance was judged (N ads read, M listed)”，按每次筛选调用分组，列出每篇标题、判定、依据原文，每组印一次推理（`app._relevance_reasoning`，样式在 observatory.css）。浏览器实测 “Which native ads mention recycling or waste management?”（两个集合，236 篇已读、146 篇列出）。推理缺失原为 26/66 组；`split_tagged` 再改为无 `</think>` 时取 `<answer>` 之前的文字后，降为 16/64 组。排查中发现 18072 端口有两个本会话启动的服务同时监听，浏览器连到了 11:28 的旧进程，已停掉。新增 `tests/test_relevance_reasoning.py`，相关测试通过；三次网页提问约 $0.36。
+
+## 2026-10-22：主库社交检索修复、C15 关键词主题比较（用户选“按新版本重做清理”“关键词主题表”）
+
+- 查明原因（只读）：10-09 的原地改写只是删掉载荷里含用户名的本机路径（社交 36,214 条去掉 `C:\Users\…\Downloads\` 目录，原生 569 个版本的 `archive_path` 改成相对路径），正文一字未改。但社交检索块存的是旧来源校验值，改写后 37,086 个社交块全部校验失败，社交检索在主库报 “Observation chunk is not bound to its enclosing record version”。10-08 备份里全部正常。主库自 10-19 备份后没有其他改动（逐表指纹一致）。
+- 修法：10-08 完整备份恢复到私有集群 `maindb_fix`，先加迁移 0007（版本只能新增），再用项目自带的受保护更新 `import_batch(expected_current=…)` 把同样的路径清理写成新版本：36,449 个新版本（社交 36,182、原生 267）；结果与 10-19 主库逐条一致（32 条带检索策略的记录只差新算出的观察校验值）。检索块按新校验值重建，向量按正文哈希全部复用，不花钱；17 条推断日期带到新版本（另 4 条修复前就已挂在旧版本上，保持原样）；标注覆盖与修复前相同（36,414 条记录／36,654 条）。
+- 验证：社交检索块 37,086/37,086 通过校验；当前版本无用户名路径；当前检索块缺向量 0；health 正常（原生 275／可计数 263，社交 36,182，块 37,708）；免费短语检索在修复库返回社交帖及来源观察，在 10-19 状态下报错。
+- 换库：主库先完整备份 `.runtime/backups/observatory-full-before-fix-20261022.dump`；修复库导出 `observatory-fixed-20261022.dump`，导入主库集群新库后属主改为 `observatory_app`，再改名：旧库保留为 `observatory_before_fix_20261022`，新库为 `observatory`。回退：两个库名换回即可。
+- 局限：旧版本（历史）仍含本机路径——0007 之后版本不可改，只能保留；它们不在网页或接口里出现。发给前端的包里的数据库仍是 10-08 备份。
+- C15：Data 页“全部”工作区加 Compare 标签：选公司（组织登记表，10 家两边都有）、最多 6 个主题、按年或季度；显示两边各自提到该主题的次数和记录数、按期次数折线（指标见下一条）、最新 5 条例子（关键词在原文中标黄，复用 C17 链接）；“就这个比较提问”把问题填到问答页并设为两个集合（付费仍由访客点击）。日期筛选沿用左侧日期。主题表 `src/observatory/topics.v1.json`（14 个主题，状态 draft_pending_review，待用户审定）；代码 `topic_compare.py`、`topic_compare_ui.py`；接口 `GET /api/v1/compare`、`GET /api/v1/compare/topics`。逐词核查了命中情况，`batter*` 改为 battery/batteries。示例：ExxonMobil 原生广告 15 篇中 10 篇（67%）提到碳捕集，社交帖 2,975 条中 94 条（3.2%）。
+- C15 指标修正（用户指出“比例会导致 native 太高、social 太低”）：原生广告平均 450–960 词，帖子约 30 词，记录占比天然偏向原生。先试了每千词提及次数，用户认为“千词不靠谱，直接按次数”，已回退。现在只给次数：关键词出现次数（`mentions`、按期 `mention_counts`）和出现在多少条记录里（`matched`、按期 `counts`），旁边写集合总数，去掉所有占比和比率。ExxonMobil 碳捕集：原生 15 篇中 10 篇、共 50 次；社交 2,975 条中 94 条、共 129 次。
+- 知识地图（用户“没什么可读性，要不把 name similarity 搞成词云”）：名称相近图改为语义词云（`cooccurrence_ui.word_cloud`）。取使用最多的 150 个名称；字号按使用次数（话题标签＝帖子数、历史标签＝广告数，取自共现图节点的 n，平方根缩放 11–46 号）；位置从名称向量的二维坐标出发，按螺旋线避让到不重叠为止；颜色按坐标所在方位分 8 区（意思相近的同色）。悬停显示次数和最相近的 3 个名称，点击看详情。布局 0.08 秒并缓存，不需要重建地图文件或花钱。新增测试 1 个（不重叠、按次数排序、点击详情）。
+- 词云改按主题分组（用户问“为什么有些颜色没挨着”后选“直接分主题”）：原来按方位扇形上色、再螺旋避让，同色词会被推散。C15 的 14 个内容主题套不上话题标签（150 个里 85 个落空），另建 `src/observatory/hashtag_topics.v1.json`（草稿待审）：历史标签、公司及其口号（含组织登记表名称）、活动与赞助、能源转型与气候、油气煤、工业与材料、人员社区与安全、地区市场、泛能源、其他；按顺序取第一个命中的整词或片段。前 150 个词里“其他”只剩 4 个（#dyk、#didyouknow、#icymi、#tbt）。排版：按各组所需面积把画布切成矩形（treemap），每组只在自己的矩形里螺旋摆放，放不下的长名字缩小字号；图例一个主题一项，点图例只看该主题。150 个词全部放下，0.19 秒。测试 51 个通过。
+- 未提交、未部署；C14 线上实测需要先推送部署并把修复后的数据迁到 Railway。
+
+## 2026-10-21：C16 点年份列记录、C17 正文高亮引文、24 题答题规范（用户“我做 C16……3. 写 24 题答题规范，存到私有文件”）
+
+- C16：Data 页三个时间线（全部、原生、社交）点某一年，图下列出该年各集合总数和最新 10 条（社交帖显示正文前 160 字），可一键“查看这一年全部记录”（设日期筛选并切到列表）。年份只收窄当前筛选，不放宽；Unknown 只列无日期记录。代码 `year_drilldown.py`；接口 `GET /api/v1/timeline/year`，各列表接口加 `year=` 参数。
+- C17：回答出处卡片每条引文加“在原文中查看”，记录页按引文的字符位置标黄并跳到第一处；链接带版本号，记录改过版本就不标并说明原因；社交多份采集的引文标在对应那一份。代码 `quote_links.py`、`record_view.py`；接口里每条引文加 `location`，记录详情接受 `v=`、`hl=`。
+- 24 题答题规范：按用户定的格式（r1_zero：先在 <think> 写推理，再在 <answer> 给结果；有示范的题型用 r1_zero_three_shot，前面放三道完整示范）。题型 4 类＋2 个兜底：披露措辞（Q01）、提及（Q02、03、06、15）、表述／定位（Q04、05、07–11、13、14、17、18、20–24）、赞助方自述（Q12、16、19）；题库外的名单题用通用名单规则（无示范），非名单题要求“先概况、再列举”。示范的广告原文从数据库逐字截取，判定按 10-06 参考答案草稿。文件 `config/private/answer_norms.json`（已加入 .gitignore，仓库公开不能放）；代码 `answer_norms.py`，筛选调用改为标签输出，解析失败时退回原结构化调用。没有私有文件时行为与之前完全相同。**24 题从此是示范题，不再是独立测试集。**
+- 验证：新增测试（`test_year_drilldown`、`test_quote_links`、`test_answer_norms`）通过；C16/C17 前的全量非数据库测试 4,831 通过；浏览器实测点 2021 年（23 篇广告、3,478 条帖子）、引文跳转标黄正常。规范开关对比：B1K-U 30 道开发题（与 24 题无重叠），同样的段落各跑一遍，找到正例 337/337、错列 18/18、漏 21/21，完全答对 15→17 题，筛选费用 +16%，合计 $1.62。
+- 未做：线上要用规范须在 Railway 设 `NATIVEADS_ANSWER_NORMS_B64`（值在 `config/private/answer_norms.b64.txt`）；24 题未用新规范重跑；未提交、未部署。后端包已同步并重新打包。
+
 ## 2026-10-20：知识地图（用户“投影成多张图，Jaccard 权重、取前 k 条边、Louvain 社区，按名称语义相近的语义图”）
 
-- 分叉会话实现，本会话验收。代码：`cooccurrence_maps.py`（计算）、`cooccurrence_ui.py`（Data 页的 “Knowledge maps”）、`scripts/build_cooccurrence_maps.py`、`tests/test_cooccurrence_maps.py`（8 个）、`docs/knowledge_maps.zh-CN.md`。新增依赖 networkx 3.7。
+- 分叉会话实现，本会话验收。代码：`cooccurrence_maps.py`（计算）、`cooccurrence_ui.py`（Data 页的 “Knowledge maps”）、`scripts/build_cooccurrence_maps.py`、`tests/test_cooccurrence_maps.py`（8 个）、`docs/knowledge_graph/knowledge_maps.zh-CN.md`。新增依赖 networkx 3.7。
 - 数据：10-19 主库只读备份恢复的私有副本，数据版本 `48374a9f292a0e4f`；输出 `.runtime/knowledge_maps/48374a9f292a0e4f/knowledge_maps.json`（约 8 MB）。参数：最低共现 2，每节点前 8 条边（任一端选中就保留），Louvain 分辨率 1.0，种子 20261020，ForceAtlas2 300 轮。
 - 各图（最终节点／保留边／社区）：话题标签 2,079／4,302／203；帖子星座 1,684／4,054／300；公司 97／547／3；提及 927／1,622／123；历史标签 12／59／2；语义图 2,091 个名称（embedding $0.0002）。
 - 验收：测试通过；独立重算 5 张图共 12,584 条边的 Jaccard、lift、证据数，全部一致；每个节点都有社区编号和坐标；没有地图文件时页面显示提示，不报错。
@@ -119,7 +527,7 @@
 
 ## 2026-10-15：英文 RAG 简报，删除灰色小字（用户请求）
 
-- 用户“给我英文版，把灰色小字删了”。以已交付中文v5为源，另存[英文版](deliverables/rag_evaluation_manager_20261015_en_v7.pptx)，保留3页、模板字体／尺寸、原生可编辑表格和全部分数。标题、表头、方法及主要说明均为英文；删除9个灰色文字对象，含副标题、说明和页码。第3页标题保留Planned，来源日期、数据快照、AI参考、1个复核分歧与费用口径转为英文演讲者备注，原中文PPT不变。
+- 用户“给我英文版，把灰色小字删了”。以已交付中文v5为源，另存[英文版](deliverables/slides/rag_evaluation_manager_20261015_en_v7.pptx)，保留3页、模板字体／尺寸、原生可编辑表格和全部分数。标题、表头、方法及主要说明均为英文；删除9个灰色文字对象，含副标题、说明和页码。第3页标题保留Planned，来源日期、数据快照、AI参考、1个复核分歧与费用口径转为英文演讲者备注，原中文PPT不变。
 - 最终3页已逐页渲染目视检查；第3页英文方法压缩为每行两句，避免表格自动增高覆盖预算。结构／字体／几何／原生表格／重新导入验证通过，见`.runtime/rag_manager_deck_en_clean_20261015/build/validation-v7.json`及同目录交付回执；SHA256 `b62f5fb417a79e7760bc31a4187e80dcf2e98d331ebaee00ca58109bac9e7b06`。本轮仅翻译及版式编辑，新增模型费用$0，不重跑检索或历史语义评分，不改变既有结果与验收状态。
 
 ## 2026-10-15：U37 最新代码的24道新题检索基线完成
@@ -130,25 +538,25 @@
 - 参考：三路top10并集、独立来源锚点和负例共486对／394唯一文章，匿名AI按0–3相关性标注，>=2为相关。保留完整来源版本、原句、字符定位、盲判与抽查回执；8个原句定位失败项在任何指标计算前按连续原文单元补齐，原478有效项未改。最终0未判、1个未解决复核分歧按预定主判断保留；参考仍为AI辅助、未人审。已知池Recall不代表全库召回，题目为来源派生小样本，不代表真实用户分布。
 - 结果：NDCG@5关键词0.4403465／向量0.8014927／混合0.7202884；MRR@5为0.5277778／0.9250000／0.8763889；Hit@5为16/24、24/24、23/24。@10 NDCG为0.4356377／0.8395919／0.7582716，Hit为17/24、24/24、24/24。跨集合两库相关命中@5/@10均为关键词2/4、向量4/4、混合4/4。Hit是至少一条相关来源，未测回答准确率；新题和阶段与P59不同，不算新旧增分。
 - 独立验证与清理：ir_measures与独立公式的144行／864值全部一致，最大差3.33e-16；8165来源／定位／冻结／费用检查通过。见`scoring/results/canonical/independent_verification.json`、`scoring/audit/source_cost_audit.json`。自有源库停止保留，语料／索引／统计指纹前后相同，历史输出表仍0，见`data_audit/post_run_verification.json`、`cleanup_receipt.json`；未操作其它服务。
-- 交付：[中文报告](docs/rag_retrieval_baseline_24_20261015.zh-CN.md)、`.runtime/retrieval_baseline_24_20261015/root/report.html`（24题／72排名／674条返回行）、[中文版PPT v5](deliverables/rag_evaluation_manager_20261015_zh-CN_v5.pptx)。3页可编辑原生表格，@5/@10和简明评分方法均已更新；621次调用表述为用量已核对，不冒充供应商账单结算；全部返回top10已判断，不把关键词空位算标注缺失。PPT结构／字体／几何／重新导入检查及逐页目视通过，SHA256 `b82ca37a125e31eeec0e28991ab7529439a89bacc0934adb326f835ec5da069b`。U36旧日志CP／Faithfulness／AR依然仅为未执行计划；本轮只完成U37及C13有限产物CF17，客户验收未完成。
+- 交付：[中文报告](docs/evaluation/rag_retrieval_baseline_24_20261015.zh-CN.md)、`.runtime/retrieval_baseline_24_20261015/root/report.html`（24题／72排名／674条返回行）、[中文版PPT v5](deliverables/slides/rag_evaluation_manager_20261015_zh-CN_v5.pptx)。3页可编辑原生表格，@5/@10和简明评分方法均已更新；621次调用表述为用量已核对，不冒充供应商账单结算；全部返回top10已判断，不把关键词空位算标注缺失。PPT结构／字体／几何／重新导入检查及逐页目视通过，SHA256 `b82ca37a125e31eeec0e28991ab7529439a89bacc0934adb326f835ec5da069b`。U36旧日志CP／Faithfulness／AR依然仅为未执行计划；本轮只完成U37及C13有限产物CF17，客户验收未完成。
 
 ## 2026-10-15：RAG 简报增加评分方法、移除名单一致性（用户请求）
 
-- 交付 `deliverables/rag_evaluation_manager_20261015_zh-CN_v3.pptx`，仍为 3 页。第 2 页仅展示条件筛选列举题的微平均精确率/召回率及简短公式；按用户展示要求从正文、结论和演讲者备注删除完全一致指标及 30/50、37/50、13/50。第 3 页加入 CP 逐段相关判断和排序平均精度、Faithfulness 陈述证据支持比例、AR 反推 3 个问题并比较语义相似度，以及先试评 12–20 题再按版本批量评分的简要流程。
+- 交付 `deliverables/slides/older_versions/rag_evaluation_manager_20261015_zh-CN_v3.pptx`，仍为 3 页。第 2 页仅展示条件筛选列举题的微平均精确率/召回率及简短公式；按用户展示要求从正文、结论和演讲者备注删除完全一致指标及 30/50、37/50、13/50。第 3 页加入 CP 逐段相关判断和排序平均精度、Faithfulness 陈述证据支持比例、AR 反推 3 个问题并比较语义相似度，以及先试评 12–20 题再按版本批量评分的简要流程。
 - 实测范围/已知参考限制和未执行评分状态保留。逐页渲染目视检查完成，结构/几何/字体/重新导入验证通过；对 6 个幻灯片/备注 XML 扫描确认被删除指标无残留、三项方法已存在。验证 `.runtime/rag_manager_deck_zh_20261015/build/validation-v3.json`；SHA256 `539f9d5d3bd6a1f35f9ca9804cb6983c367aec6d39b1afe756565e11881fe828`。本轮仅修改沟通材料，模型费用 $0。
 
 ## 2026-10-15：技术经理 RAG 简报中文版（用户“给我个中文版”）
 
-- 交付 `deliverables/rag_evaluation_manager_20261015_zh-CN_v2.pptx`：沿用上一轮三页英文版的数据、测试范围、费用假设与来源备注，正文和备注改为中文，保留关键指标英文名；单独保存，英文版保留。
+- 交付 `deliverables/slides/older_versions/rag_evaluation_manager_20261015_zh-CN_v2.pptx`：沿用上一轮三页英文版的数据、测试范围、费用假设与来源备注，正文和备注改为中文，保留关键指标英文名；单独保存，英文版保留。
 - Microsoft YaHei 中文字体；3 页原生可编辑表格。最终文件结构/几何/字体策略及重新导入检查通过，逐页渲染目视检查完成；验证记录 `.runtime/rag_manager_deck_zh_20261015/build/validation-v2.json`，SHA256 `1dcfcc77aaab1672f1700461c07535164bf985d2b61d3c7b1a3e72201af70c33`。这是翻译交付，不产生新测试成绩或客户验收状态；本轮模型费用 $0。
 
 ## 2026-10-15：技术经理 RAG 三页英文简报与社交标签问答准备（用户请求）
 
-- 交付 `deliverables/rag_evaluation_manager_20261015.pptx`：第 1 页为 10 月 8 日冻结的 12 题检索基线（140 个 AI 相关性判断，Hit/MRR/NDCG/Precision/已知池 Recall）；第 2 页为 50 道名单题共同参考下的 Q/R 回归（微平均 P 98.3%/98.3%，R 76.7%/95.6%，完全一致 30/50→37/50）；第 3 页为历史日志的 Context Precision 304 题、普通写作 Faithfulness 446 题、Answer Relevance 1,272 题补评分计划。
+- 交付 `deliverables/slides/older_versions/rag_evaluation_manager_20261015.pptx`：第 1 页为 10 月 8 日冻结的 12 题检索基线（140 个 AI 相关性判断，Hit/MRR/NDCG/Precision/已知池 Recall）；第 2 页为 50 道名单题共同参考下的 Q/R 回归（微平均 P 98.3%/98.3%，R 76.7%/95.6%，完全一致 30/50→37/50）；第 3 页为历史日志的 Context Precision 304 题、普通写作 Faithfulness 446 题、Answer Relevance 1,272 题补评分计划。
 - 证据复核：保存排名与 qrels 独立复算；名单参考采用 `ref_v2/scores_v2.json` 最新口径。PPT 明示不同检索阶段、有限 AI 参考、历史版本及未知项；已知池 Recall 不冒充语义 Context Recall。三项补评分基本估计 $4.68，30% 余量后 $6.09；不含当前代码重新作答，未执行或授权新评分。
 - 社交标签：会议口径关联 CLAIMS 1.0 二元体系，原始导出未提供精确模型/checkpoint/运行号；内部 `claims-social-export-v1` 不是上游模型版本。现有 13 类 True/False/Unknown 与 OR 筛选接口可用于结构化查询；准备顺序为确认 codebook/版本及跨平台映射，验证自然问句到标签的路由，再补 AND/NOT/Unknown 语义；复杂叙事需独立判定定义、正反例、原文证据与覆盖评估。没有改产品代码或重跑分类。
 - 检查：3 页可编辑原生表格；结构、几何和字体策略检查通过，最终文件重新导入并逐页渲染目视检查。验证记录 `.runtime/rag_manager_deck_20261015/build/validation.json`；最终 SHA256 `159c566ec60633cf1543b2814483a8693ce432f5549a1376c2e45288dadcc89f`。这是用户要求的沟通材料，不代表客户接受或当前线上质量。
-- 本轮费用 $0；未访问主库、运行模型、提交、推送或部署。来源包括用户提供会议记录、`docs/social_historical_annotations.md`、既有评分与 `docs/rag_three_metric_preflight_20261015.zh-CN.md`。
+- 本轮费用 $0；未访问主库、运行模型、提交、推送或部署。来源包括用户提供会议记录、`docs/data/social_historical_annotations.md`、既有评分与 `docs/evaluation/rag_three_metric_preflight_20261015.zh-CN.md`。
 
 ## 2026-10-15：批次大小与不一致复判实验（用户“两件都做”）
 
@@ -182,7 +590,7 @@
 ## 2026-10-15：F29 阅读账本、X 字段清单与图谱 v4（Claude，用户“开始第一、二步”“直接做吧”“继续”）
 
 - F29 更正：内容区只送入已检索到的段落（每篇最多 8 段，整片再受 30,000 字符上限），不是逐篇读全文。`content_read_records` 改为 `content_reading`（符合／送入／写入内容／有缺口篇数与 complete／partial）；trace 逐篇记可用段数、送入段数和缺口（超出分片、写作失败、未被引用、段落被裁剪、达到检索段数上限），有缺口时回答末尾写明“内容解读只部分完成”。
-- X 原始字段只读核对（`.runtime/social_archive_20261005/records.jsonl`，37,082 行）：见 [字段清单](docs/x_field_inventory_20261015.zh-CN.md)。话题字段是带点的顶层键 `post.hashtags_identified`；`language.detected` 全为 en；账号原先只用显示名。
+- X 原始字段只读核对（`.runtime/social_archive_20261005/records.jsonl`，37,082 行）：见 [字段清单](docs/data/x_field_inventory_20261015.zh-CN.md)。话题字段是带点的顶层键 `post.hashtags_identified`；`language.detected` 全为 en；账号原先只用显示名。
 - 图谱 schema v4：新增 Channel、Handle、Hashtag、ReferencedPost、AffiliationProfile 节点和对应边，互动数作为帖子属性（注明采集时、单条来源行）；`knowledge_page` 只投影所列公开字段；被引用帖子按原帖 URL 的 status ID 对接已收录帖子（7,479 条引用中 293 条在库里）。`get_graph_neighborhood` 接受 social 和 all。
 - 测试：worktree 完整测试 4882 通过，仅原有 `test_knowledge_ui` 失败与 28 个环境错误；`test_mcp_server` 的 resolve_entity “clarify” 断言单独运行时失败、完整运行时通过，改动前即如此（登记表把同一组织的拼写合并）。
 - 尝试把排版杂活交给 DeepSeek，被权限规则拦下，未绕过；用户后来说不用管。
@@ -190,7 +598,7 @@
 
 ## 2026-10-15：U36 三项 RAG 指标免费预检与预算
 
-- 来源及范围：用户要求先核查既有日志能否评 Context Precision/Faithfulness/Answer Relevance，再估全量评分费用。对应 plan.md U36；[可审查报告](docs/rag_three_metric_preflight_20261015.zh-CN.md)。
+- 来源及范围：用户要求先核查既有日志能否评 Context Precision/Faithfulness/Answer Relevance，再估全量评分费用。对应 plan.md U36；[可审查报告](docs/evaluation/rag_three_metric_preflight_20261015.zh-CN.md)。
 - 记录核验：B1K原始998＋新增97/95/95，1,285不同问题/范围均有唯一开始、结果、HTTP记录及匹配的问题；2历史作废保留，预算有效1,283。按4个原运行版本分组，F/G/Q重复运行不重复计费。旧278及其它专项集未纳入此预算；客户24内容未加载。
 - 可适配性：AR1,272；标准写作Faithfulness446，另495多阶段名单仅作为分开报告的最终证据支持诊断；CP304题/2,075证据对象，既有文字参考免费确定性转换。最终回答计入summary与section标题。11个服务错误、26个外部联网路径、无生成的结构化/确定性路径均明确区分，不用引用摘要代替完整上下文。
 - 实测/估算分开：实际日志和固定RAGAS提示做本地o200k计数；未来评委输出、schema包装、推理和重试均为估算项。reasoning=none/不重试情景：普通三项$4.684937（含30%余量$6.09）；含名单诊断$10.155416（$13.20）；扩展CP参考/阶段情景$24.418223–27.206678（$31.74–35.37）。独立复算金额、输入哈希及单次长上下文阈值通过；RAGAS接口尚未实测。
@@ -215,7 +623,7 @@
 ## 2026-10-15：独立复盘与决策流程重构建议
 
 - 来源：用户提供 B1K-Q／R 更新，要求重读最新文件并独立分析根因、补充决策树，可以提出大改。对应 plan.md 的同名新节。
-- 交付：[根因复盘](docs/rag_root_cause_review_20261015.zh-CN.md)、[决策树与实施提案](docs/rag_decision_tree_proposal_20261015.zh-CN.md)。以主目录和冻结运行作为依据，三路独立审计互相核对。
+- 交付：[根因复盘](docs/evaluation/rag_root_cause_review_20261015.zh-CN.md)、[决策树与实施提案](docs/evaluation/rag_decision_tree_proposal_20261015.zh-CN.md)。以主目录和冻结运行作为依据，三路独立审计互相核对。
 - 分数核验：190/190 保存评分离线复现、0 差异；68→79/95 是各自有效参考下的规则通过数，20 道名单题参考发生变化。固定原参考敏感性 59→66，统一已有缓存裁决的事后诊断 60→78；两者都不是纠正后的真分数，原成绩未改。R 名单 41/50 达门槛、33/50 集合一致（neutral 排除）；T1 25/25 达门槛、21/25 集合一致。
 - 漏项与稳定性：R 共 32 个漏项对，5 未检索、6 未读、20 明确不符、1 unclear。1,210 个共同名单判定对有 57 个二元变化、83 个三态变化；其中 5 个三态翻转对位于 3 组两轮显式 SDK 参数相同的批次，其余上下文有变，不能全称为纯随机性。
 - 源码与机制：13 个当前文件与 R 冻结版本哈希相同；三个虚构输入复现范围漏绑定、内容搜索清空独立任务、intent 文本覆盖不等于语义约束覆盖。F28 仍为检索上限扩大、每篇最多 3 段和 30,000 字符裁剪；名单补读仍是前 8 段加命中段。59 个筛查对缺少已有正文段，其中 29 个仍判不符；该事实不等于 29 个语义答案均错。
@@ -253,7 +661,7 @@
 ## 2026-10-14：故障清单与复盘脚本
 
 - 用户要求记录目前出现的“故障问题”（不是测试题），方便每次测试后复盘。
-- 新增 `docs/fault_register.zh-CN.md`（F01–F22，含各轮代号、状态说明和复盘步骤），并在文件索引里加了入口。
+- 新增 `docs/evaluation/fault_register.zh-CN.md`（F01–F22，含各轮代号、状态说明和复盘步骤），并在文件索引里加了入口。
 - 新增 `.runtime/rag_eval_test_20261008/retro.py`：只读运行记录和缓存，输出每道失败题最早出错的步骤和按故障编号统计的检查项，结果写入 `retro_<part>.json`。已在 R1、N1、N2 三轮上运行。
 - 复盘发现 F04 复发：没有逐篇筛查的名单答案都没有注明“只是例子”（R1 1/1，N1 18/18，N2 11/11）。
 - N2 按新口径重新评分（只用缓存，没有花钱）：68/95。
@@ -338,7 +746,7 @@
 - L1 数据链核对：`scripts/reconcile_native_sources.py`（只读）按 URL 对齐 5 个来源。263 条可计数原生广告：日期一致 231、差一天 3、冲突 28、单一来源 1；数据库内无超出 2013–2026 的日期。“1970”来自客户合并 CSV 原值，数据库已判未知。CNBC／Total 一批记录在 CSV 中为 2020-11 而 URL 为 2015–2019，数据库对 20 条判未知、8 条采用 CSV 日期（规则不一致）。交付仪表盘用的数据库导出。详见 `.runtime/data_chain_20261010/README.zh-CN.md`。
 - L3 全集题：只给例子时写明；原生全集题逐篇 AI 筛查（服务器核对引文出自原文、含所引短语）；纯字面题全库精确查找、不调模型。新题对照：改动前名单召回 16%／精确率 55%，留出验证 v5 89%／100%；纯字面查找 100%／96%。付费约 $0.54，额度内累计约 $1.44。详见 `.runtime/rag_eval_test_20261008/root_l3/README.zh-CN.md`。
 - L5 跨平台时间序列：`company_timeline.py` 与只读接口 `GET /api/company-timeline?company=&granularity=`，经组织注册表对齐两集合写法，按月／季／年两条序列，未知日期单列，附注册表审核状态与“同期不等于同一活动或因果”。
-- L4 评测报告（英文，给客户）：`docs/evaluation_report_2026-10-10.md`，三层分开、题数与来源数分列、P@5 解释、实际费用（更正“16 题 2 美元”）、客户 24 题与全集题改进、数据检查。人工抽审待指定人。
+- L4 评测报告（英文，给客户）：`docs/evaluation/evaluation_report_2026-10-10.md`，三层分开、题数与来源数分列、P@5 解释、实际费用（更正“16 题 2 美元”）、客户 24 题与全集题改进、数据检查。人工抽审待指定人。
 - CLAIMS 2：现状与方案见 plan.md C2，等四项决定。
 - 测试：完整测试（含数据库集成）4931 通过、1 失败（另一会话的 `replies` 字段，早已存在）。`test_combined_tools.py` 单独运行有 11 个失败、完整顺序下通过，是已有的测试顺序依赖（组织注册表缓存），与本轮改动无关。
 
@@ -378,7 +786,7 @@
 
 ## 2026-10-09：分层测试与知名指标（P60）
 
-- 新增 `score_routing.py`、`score_answers.py`，`score_retrieval_run.py` 增加 MAP@K／Hit@K；测试方案 `docs/rag_test_protocol.zh-CN.md`。
+- 新增 `score_routing.py`、`score_answers.py`，`score_retrieval_run.py` 增加 MAP@K／Hit@K；测试方案 `docs/evaluation/rag_test_protocol.zh-CN.md`。
 - 36 题实测 $0.18457064：完全正确 28/36，路由 27/36，应用前 5 NDCG@5 0.75。详见 `.runtime/rag_eval_test_20261008/root_p60/README.zh-CN.md`。
 
 
@@ -408,7 +816,7 @@
 
 用户确认NDCG、已有／自建标注集及实际系统测试属于客户要求，已记C13／C14，保留确认转述的来源。核对发现：旧hit_at_5是全部指定来源命中；免费MCP搜索与实际混合检索路径不同；现有Evidence的集合内片段rank不是最终文章名次；当前评价器在进程内调用Service，不是部署网页实测。
 
-已准备分级相关性、NDCG／P／R／MRR／Judged、回答与运行指标的[方法文件](docs/retrieval_evaluation.zh-CN.md)，以及查询、标注、排序、答案审核和运行身份的空白模板。拟复用ir_measures；当前项目环境未安装该工具，本轮未安装或编写新评分器。后续任务及完成条件见[客户需求台账](客户需求/03_执行计划/2026-10-08_RAG检索与实际问答评价.md)。相关阈值、样本数、抽查方案属于团队设计，不冒充客户规定。
+已准备分级相关性、NDCG／P／R／MRR／Judged、回答与运行指标的[方法文件](docs/evaluation/retrieval_evaluation.zh-CN.md)，以及查询、标注、排序、答案审核和运行身份的空白模板。拟复用ir_measures；当前项目环境未安装该工具，本轮未安装或编写新评分器。后续任务及完成条件见[客户需求台账](客户需求/03_执行计划/2026-10-08_RAG检索与实际问答评价.md)。相关阈值、样本数、抽查方案属于团队设计，不冒充客户规定。
 
 这次仅做需求、方法和输入准备；未创建真实标注集、调用模型、查询／写入数据库、运行新检索基准或发布。没有新NDCG／回答准确率，不将规范完成写为客户验收完成，也未恢复24题全量人审任务。格式、链接与状态检查回执在`.runtime/rag_ranking_evaluation_20261008/validation.json`。
 
@@ -462,7 +870,7 @@ Claude请求5250cf315646、候选交接a95db042b651已发送；新回复仍待�
 - 完整门禁：01／02中断保留；03执行4352通过、8跳过、测试失败0、三个JS通过，但Ruff两项导入顺序失败。只修根代理自己测试文件；另一项在Claude持有的research_tools。03期间共享目录依赖也发生变化，不能作为最终固定版本完成依据，待对接后完整复跑。
 - 协作：Claude交接df912d1de4cb／cc538e1ddce3已保存，关联回执仍待；当前Claude已认领共用实体／工具路径，根代理没有编辑其文件。另一代理P56真实复测使用冻结旧路径，结果不当作P55模型准确率。
 - 范围：本轮root API、主库操作、推送／部署均0，没有改服务器运行设置。模型理解准确率、语义审核和客户验收待办。仅当前本机源码原型已实现；工程收尾待完整固定门禁。
-- 证据：[实现说明](docs/question_intent.zh-CN.md)、[审核目录](.runtime/understanding_route_20261008/README.zh-CN.md)、[固定源码](.runtime/understanding_route_20261008/frozen_sources.json)。
+- 证据：[实现说明](docs/architecture/question_intent.zh-CN.md)、[审核目录](.runtime/understanding_route_20261008/README.zh-CN.md)、[固定源码](.runtime/understanding_route_20261008/frozen_sources.json)。
 
 
 ## 2026-10-08：24题人工标注安排移出当前执行（U34）
@@ -478,9 +886,9 @@ Claude请求5250cf315646、候选交接a95db042b651已发送；新回复仍待�
 
 客户24运行24/24，22返回、2失败，无完整名单金标准；不能称22/24正确。参考及逐题输出仍只用于评价。源码快照17:35:24 UTC、工具v14／任务v7／提示v9，不包含后续P55及Claude实体注册表，不能据本轮判它们有效或无效。
 
-具体失败、来源变化核查、费用与逐题入口见[本机审核总览](.runtime/fixed_rerun_20261008/reviewed_report/overview.html)，当前成绩见[评价说明](docs/current_accuracy.zh-CN.md)。来源专项核验发生在派发之后，只证明统计输入等价，非每题参考重算；21篇正文变化和10道预定语义漂移单列。下一步按独立合成材料检查规划／范围诊断、ID传递和生成后异常，不直接训练GRPO／PPO。
+具体失败、来源变化核查、费用与逐题入口见[本机审核总览](.runtime/fixed_rerun_20261008/reviewed_report/overview.html)，当前成绩见[评价说明](docs/evaluation/current_accuracy.zh-CN.md)。来源专项核验发生在派发之后，只证明统计输入等价，非每题参考重算；21篇正文变化和10道预定语义漂移单列。下一步按独立合成材料检查规划／范围诊断、ID传递和生成后异常，不直接训练GRPO／PPO。
 
-通讯流程已纳入[固定复测与协作流程](docs/fixed_evaluation_workflow.zh-CN.md)及AGENT_PROTOCOL。实际Claude已对P55回执，不等于接受本轮P56成绩；P56结果单独交接，接收者本人回执前保留待接收。完成执行与证据，不关闭客户验收，不新增client_finish。
+通讯流程已纳入[固定复测与协作流程](docs/evaluation/fixed_evaluation_workflow.zh-CN.md)及AGENT_PROTOCOL。实际Claude已对P55回执，不等于接受本轮P56成绩；P56结果单独交接，接收者本人回执前保留待接收。完成执行与证据，不关闭客户验收，不新增client_finish。
 
 ## 2026-10-08：客观核验与少量客户样例（P54，工程核验和样例已完成）
 
@@ -494,7 +902,7 @@ Claude请求5250cf315646、候选交接a95db042b651已发送；新回复仍待�
 
 具体限制：13:24左右GET本机8050/healthz连接被拒绝，没有重启，也未推断远程故障；旧披露回执原字段已记录位置，但display_fields.disclosure_location仍为空，不能认定当前全部展示路径完善。详情、样例和复测准备见[本轮目录](.runtime/objective_followup_20261008/root/README.zh-CN.md)。本轮API0、数据库查询／写入0、发送客户0、发布0；网页健康请求1次，未获得应用响应。P49历史分数不改，客户完成表不追加。
 
-本文件是本机工作记录。历史条目中的原件、私有回执和未审查报告不承诺在GitHub可访问；本轮公开交接见[工程说明](docs/handoff_cleanup.zh-CN.md)。
+本文件是本机工作记录。历史条目中的原件、私有回执和未审查报告不承诺在GitHub可访问；本轮公开交接见[工程说明](docs/operations/handoff_cleanup.zh-CN.md)。
 
 ## 2026-10-08：接收Claude交接并收尾工程（P52，本轮工程完成）
 
@@ -585,7 +993,7 @@ Claude请求5250cf315646、候选交接a95db042b651已发送；新回复仍待�
 - 固定评分：客观规范化完整44/128＝34.38%、逐字32/128＝25%；语义旧AI参考37/113＝32.74%，预定来源有效103题36/103＝34.95%；控制客观3/8、语义0/5，2暂停参考另列。客观84未答留分母，不用已答100%当整体成绩。历史38→44只是数值对照，旧编码和环境不同，不证明本轮优化的因果收益。
 - 客户24可读审核完成：10有限支持（含1语言错误）、3部分、2无支持、7规划／服务失败、2澄清；61正式引文60唯一位置／1歧义，全部完整名单成员关系未审。具体问题、答复、文章、原句、错误事件在受保护评价目录，人审准确率及全库名单召回率不计算。
 - 开发＋评估已结算用量计价0.54197749美元；旧超时0.04美元仍uncertain、actual null，保守总风险0.58197749美元低于15美元。原109文件／费用原件与冻结业务／提示／评分不变，未重答。结束后普通非缓存只读主库五项身份一致。
-- 所有DB读者结束后，仅停止核对过路径／pid／端口的自建56904测试集群；数据库及未知费用记录保留，主库55432和8050未作为停止目标。结果与链接见[本轮说明](docs/current_accuracy.zh-CN.md)和[审核目录](.runtime/accuracy_current_20261007/root/README.zh-CN.md)。后续诊断另在plan，不因客户输出调本轮代码，不增加client_finish。
+- 所有DB读者结束后，仅停止核对过路径／pid／端口的自建56904测试集群；数据库及未知费用记录保留，主库55432和8050未作为停止目标。结果与链接见[本轮说明](docs/evaluation/current_accuracy.zh-CN.md)和[审核目录](.runtime/accuracy_current_20261007/root/README.zh-CN.md)。后续诊断另在plan，不因客户输出调本轮代码，不增加client_finish。
 
 以下保留准备、中断与续跑的阶段历史，最终状态以上方结果为准。
 
@@ -616,7 +1024,7 @@ Claude请求5250cf315646、候选交接a95db042b651已发送；新回复仍待�
 - 修复检查：25项新的免费执行器检查及Ruff通过；完整Service＋实际SDK内存传输覆盖正常生成、取消生成预留后联网；歧义拒绝、仅取消当前未发请求、已发未知阻断和19题一次性边界均检查。独立审计核对原账本5settled／6cancelled、0.00413905美元、pending／uncertain0；原第5题结果已写，但停止前未写ledger/04及summary，此缺口保留，新阶段另存核对。
 - 续跑完成：19题Service各一次，29SDK／29HTTP／29parsed，19结果及19账本；原5不重试。客户累计34SDK、0.03423283美元；含8开发本轮0.03673886美元，pending／uncertain0。实际客户调用24规划＋5embedding＋5生成，联网0；没有主库写入、推送或部署。
 - 独立审计：原45文件／11旧账本记录不变，93产品与依赖／掩码路径、评分规则、配置／提示／模型／工具及数据身份与冻结相符；base64向量解码与SDK schema别名转换逐项核验。实际费用按冻结费率逐笔重算一致，不当作提供方账单。
-- 固定AI审查：后19的逐题判断已冻结，2有据局部候选、4有界不足／范围澄清、8规划失败、4语义／响应失败、1边界待审；45/45原文片段、25/25引文位置匹配。具体题目及失败仅放受保护评估目录；没有以客户结果调代码，完整名单／总体准确率及人审不计算。[本轮说明](docs/accuracy_followup.zh-CN.md)与[审核目录](.runtime/accuracy_followup_20261007/root/README.md)分别链接原5及续19报告。
+- 固定AI审查：后19的逐题判断已冻结，2有据局部候选、4有界不足／范围澄清、8规划失败、4语义／响应失败、1边界待审；45/45原文片段、25/25引文位置匹配。具体题目及失败仅放受保护评估目录；没有以客户结果调代码，完整名单／总体准确率及人审不计算。[本轮说明](docs/evaluation/accuracy_followup.zh-CN.md)与[审核目录](.runtime/accuracy_followup_20261007/root/README.md)分别链接原5及续19报告。
 - 环境收尾：所有私有账本读者结束后，只停止核对过路径／pid／端口的owned56904测试集群，数据库原件保留；主库55432和8050不作为停止目标。见root/private_stop_receipt.json。完成的是本轮工程、实际测试与失败交付，不是可靠自动全库回答或客户验收。
 - 交付复核：逐题报告已改为自然中文问题标题并增加19题索引，不改冻结判断。4份新交付文档的86个本地链接已核验；发现root/README到简明说明的相对路径多退一级，已修正，最终缺失0；费用总额复算一致，文档diff空白检查通过。具体失败仍只留受保护评估目录，在线原文链接未做本次有效性检查。
 - 隔离事件：评估准备代理读取普通工具检查脚本时意外看到两条历史演示问题，已记录；未读取客户24题目录、参考或旧逐题结果，不使用所见文本开发，不宣称完美信息隔离。
@@ -633,7 +1041,7 @@ Claude请求5250cf315646、候选交接a95db042b651已发送；新回复仍待�
 - 匿名AI评分：规则在调用前冻结、32评分在揭盲前冻结。旧v5为13通过／1失败／2待审，新v6为15通过／1失败。两组必要内容覆盖均15/16、完整事实任务均12/16；明确失败变通过0，明确退步0。两个旧待审是把通知称广告、把一份合并来源写成多份通知；新表述更清楚，不是核心事实答错被修复。具名人审0，不称总体准确率提升。
 - 共同失败：合成图书馆原文“If inspection passed, the curator would issue an opening estimate on Monday. No estimate has been issued.” 两组均只返回泛化证据不足。原始HTTP已是insufficient/空claims，材料确已传入；不是SQL未给正文或定位丢失，提示／模型／状态策略的进一步归因待办。
 - 实际检索：16来源、54只读请求；原话找回13/16、正文抽词12/16、标题8/8（1歧义）、账号内合格5/6（另2冲突账号正确排除），6控制符合预期。8次漏召回涉及5来源；187定位／筛选复核0错，涉及141不同片段，前后数据及统计指纹稳定。2项掩码筛选检查通过。短链混入线索的局限保留；不称全库语义召回率或改善。
-- 审核：见[成效说明](docs/accuracy_effect_test.zh-CN.md)与[逐题阅读版](.runtime/accuracy_effect_test_20261007/root/review.zh-CN.md)。客户24题本轮未读／未跑／未调参；评分代理协调read曾回放历史汇总与本轮元数据，未读取关联旧案例或评分映射，不宣称完美信息隔离。后续排名归因、有界回答及实际MCP／SQL整链评价已列P48，不更改冻结记录或客户完成项。
+- 审核：见[成效说明](docs/evaluation/accuracy_effect_test.zh-CN.md)与[逐题阅读版](.runtime/accuracy_effect_test_20261007/root/review.zh-CN.md)。客户24题本轮未读／未跑／未调参；评分代理协调read曾回放历史汇总与本轮元数据，未读取关联旧案例或评分映射，不宣称完美信息隔离。后续排名归因、有界回答及实际MCP／SQL整链评价已列P48，不更改冻结记录或客户完成项。
 
 ## 2026-10-07：三方面准确率优化（U22／P46，工程及审计完成）
 
@@ -643,7 +1051,7 @@ Claude请求5250cf315646、候选交接a95db042b651已发送；新回复仍待�
 - 数据：只读快照20:26:06（纽约）。原生263条可计数、232条可检索；社交36,182个原帖、37,082份观察。当前原生72疑似截断＋28部分提取共100篇，质量标记已通过实际查询进入生成输入。旧CSV标记另计；局部证据仍可用。活动片段622／37,086，缓存向量520／0；未据此断言关键词质量。
 - 实际材料：页脚《Who will power the power of tomorrow?》保存449字符、不可检索；《Biogas to offset air travel emissions》保存末尾有carbo...、疑似截断；社交原帖1695062969254912442的6份观察账号冲突。来源区间、版本、原因与行动见12项审核候选；不是已观察到的模型答错。原生重复正文均不在当前可检索范围，社交相同正文候选不自动合并。
 - 检查：107项选定测试＋7项真实SDK注册回调，共114个不同节点全部通过；Ruff通过。另1项主库只读快照检查与3篇真实SQL质量投影检查通过。索引保存文本范围的非空白覆盖和位置／文本哈希无错；不证明原网页完整或引用语义正确。
-- 研究与开发：官方文档优先；GitHub1次、Reddit2次查询找到相邻线索，不归为本项目同因。研究审计校验通过；冻结16道新合成开发诊断及单独AI参考草稿，未答题／训练。冻结指纹、检查、失败和[简明方案](docs/accuracy_pipeline_plan.zh-CN.md)集中在[审核目录](.runtime/accuracy_pipeline_20261007/root/README.md)。
+- 研究与开发：官方文档优先；GitHub1次、Reddit2次查询找到相邻线索，不归为本项目同因。研究审计校验通过；冻结16道新合成开发诊断及单独AI参考草稿，未答题／训练。冻结指纹、检查、失败和[简明方案](docs/evaluation/accuracy_pipeline_plan.zh-CN.md)集中在[审核目录](.runtime/accuracy_pipeline_20261007/root/README.md)。
 - 检查事件：合并曾用错文件名、同名模块冲突及importlib夹具导入错误，均无测试运行；分开SDK后通过。旧回执保留、不重复累计。源码注释澄清后再保存冻结版本检查；不覆盖原记录。
 - 本轮边界：客户24题文件、参考及逐题输出不读、不重答、不调参；付费API0，主库写入0，无推送／部署／重启8050。未改旧成绩或client_finish；工程状态和实际效果单列。
 - 协调工具说明：agent inventory返回了历史任务完成摘要，其中含旧评价材料片段；没有打开相应文件，没有把摘要用作开发例子或参考。Python读取守卫不等于对协调工具或历史上下文的隔离。
@@ -677,7 +1085,7 @@ Claude请求5250cf315646、候选交接a95db042b651已发送；新回复仍待�
 - 引用：相邻短片段和句界进入模型输入；被切长句要求同一连续来源的联合支持。一个论断显示多个原文引用，摘要与分节正确映射。仍保留60词、六个论断和输入／预算上限；未增加自动重试或模型调用。
 - 验证：最终133项选定免费工程检查通过（根与上下文126项＋另一代理新写7项），Ruff检查通过。[审核目录](.runtime/accuracy_improvement_20261007/root/README.md)保留改前失败、中间失败、实际目录检查、掩码回执及指纹。完整项目和实际问答未运行，工程数量不是语义正确率。
 - 具体失败：构造的Harbor timetable可被换成other-valid；真实find_records缺title属性导致完整目录初始化失败；构造的Ferry equipment notice中间只剩120 passengers per crossing而没有Mara Quinn及批准／估计限制。现在均有对应阻断与成功例。仍有明确局限：完整学校引文写40 desks，模拟改写400也能通过位置校验，不能把语义支持写成已解决。
-- 研究：先查官方，再查GitHub／Reddit／OpenAI Community，相邻引用错配与调用提前停止只作线索。未发现项目级同因证据；沿用现有工具。[有出处的说明](docs/accuracy_improvement.zh-CN.md)记录采用与未采用的办法。
+- 研究：先查官方，再查GitHub／Reddit／OpenAI Community，相邻引用错配与调用提前停止只作线索。未发现项目级同因证据；沿用现有工具。[有出处的说明](docs/evaluation/accuracy_improvement.zh-CN.md)记录采用与未采用的办法。
 - 后续准备：已冻结20题来源独立的生成开发包，15有依据＋5无答案；AI草稿参考不传回答模型，尚未答题。下一轮建议沿用gpt-5.6-luna、单次、2美元上限，需本轮新费用批准，不能复用已结束的旧全量测试授权；审核人继续待定。
 - 状态：本轮API0、客户24题运行0、主库／运行页面／推送／部署0；客户24题继续只用于评估，旧原文及成绩保留。完成的是U20工程部分；真实模型效果、R11分类审核发布和客户验收未完成，不增加client_finish.md完成项。
 
@@ -733,7 +1141,7 @@ Claude请求5250cf315646、候选交接a95db042b651已发送；新回复仍待�
 - 方法：三个明确配置模型的子代理逐条读取完整保存正文；独立AI读15条发现规则歧义，在任何被测预测运行前复查80条相关家族，区分机构口吻与具名员工，并给导航否定单独说明。原始与修订判断保留。引用从原文区间取回；427题重算字段及全部成员，来源、问题和教师输入逐项绑定SHA。
 - 具体修复：首次编译把JSONL写成多行JSON，独立读回失败，已改为一题一行。首次新测试有3项夹具选错家族／返回值，60通过、3失败；修正测试后63通过。旧失败回执保留，选定编译`prepared_02`实际读回成功；Ruff通过。工程测试中的合成分数不当系统准确率。
 - 指标：客观任务正确率与AI参考一致率分开，未答／失败／未知计入整体分母；另列已答题成绩、回答覆盖、逐家族及引文定位。不用参考给自己打分；实际系统预测为0，成绩保持`not_run / null`。客户24题原SHA与测试角色不变，也没有导出客户24题成绩。
-- 完成判断与入口：[本机审核目录](.runtime/teacher_reference_20261006/root/README.md)、[方法定义](docs/ai_reference_metrics.zh-CN.md)及[版本策略](eval/customer_metrics/teacher_reference.v1.json)已准备；真实系统预测和人审另待办。外部API0、微调0、数据库修改0、推送0、部署0；Codex账户用量没有单独美元计价。本轮是用户目标，不进入`client_finish.md`。
+- 完成判断与入口：[本机审核目录](.runtime/teacher_reference_20261006/root/README.md)、[方法定义](docs/evaluation/ai_reference_metrics.zh-CN.md)及[版本策略](eval/customer_metrics/teacher_reference.v1.json)已准备；真实系统预测和人审另待办。外部API0、微调0、数据库修改0、推送0、部署0；Codex账户用量没有单独美元计价。本轮是用户目标，不进入`client_finish.md`。
 
 ## 本轮：全部36,182个帖子可检索（U15）
 
@@ -743,7 +1151,7 @@ Claude请求5250cf315646、候选交接a95db042b651已发送；新回复仍待�
 - 原件保护：同一导出快照备份已保存并检查目录和SHA，未声称完整恢复。旧37,037版本、37,782旧标注、378费用、279答案、131生成输出、全部1,089已有向量行内容指纹不变；32条只追加版本和导入依据。独立重读全库确认原始文件、来源、日期推断与CLAIMS表未改。
 - 程序与网页：DB片段、MCP读取和引文绑定来源观察ID、版本、正文hash及字符位置，跨观察不拼接。详情显示各份原文和未裁决差异，按实际启用状态解释检索；原历史暂停决定保留。8050已重启，8070审核和8071预览保留；实际免费查询及AFPM两份来源详情截图和页面文字留在本机目录。
 - 检查：选定10文件307项离线通过、3项数据库检查跳过；另有独立数据库与真实查询证据。首个检查命令引用不存在的`tests/test_record_details.py`而未运行，保留回执后改用实际`test_records.py`等；不是应用失败。32条原暂停帖的41份观察逐份DB搜索／位置验证通过；32条MCP搜索、指定观察读取和8个不同尾文检索通过。唯一空英文词项帖的字面检索通过。网页Data实际显示36,182／36,182；所有检查之后的旧表内容指纹仍一致。完整[自然语言审核目录](.runtime/all_posts_retrieval_20261006/root/README.md)已写入。
-- 范围：本轮模型调用0、生成向量0、付费0、推送0、部署0。保存文字可检索不等于每种问法都命中、媒体已识别、分类准确或付费广告已核实；客户验收不改。方法与私有审核目录见[全量检索](docs/all_social_posts_retrieval.zh-CN.md)。
+- 范围：本轮模型调用0、生成向量0、付费0、推送0、部署0。保存文字可检索不等于每种问法都命中、媒体已识别、分类准确或付费广告已核实；客户验收不改。方法与私有审核目录见[全量检索](docs/data/all_social_posts_retrieval.zh-CN.md)。
 
 ## 本轮：统一两类数据，并固定客户题的测试用途（U13／U14）
 
@@ -754,7 +1162,7 @@ Claude请求5250cf315646、候选交接a95db042b651已发送；新回复仍待�
 - 实际页面：Shell公司条形点击进入对应Records，两页各18个实际渲染链接与独立有序20行参考的对应前缀一致，标题打开帖子1945820204233068587的原文、账号和来源。导出页面显示10／3,137；自动化等下载文件超过30秒，未声称核对下载文件字节。页面结果、截图和局限记入[本轮审核目录](.runtime/combined_collections_20261006/README.md)。
 - 回归发现：扩大检查首次459通过、4失败；工具字段说明和实体目录占用输入预算，其中重复实体歧义说明为继承问题。已复用schema定义、共用字段说明，并限量初始目录；省略名称仍通过完整来源解析，显式选择与39社交状态ID保留。354项相关检查和12个真实来源容量预检通过，最多57,676／60,000字节；不提高守卫，不把模拟调用或容量检查当真实模型验证。中途475通过、1失败的歧义提示检查已修复，历史失败记录保留。
 - 最终核对：当前源码11个选定文件453项通过、23项数据库检查跳过；先前实际只读数据库成员／统计／页顺序核对另有回执，不把跳过写成通过。训练准备脚本18项通过，Ruff通过。8050按最终源码重启，浏览器仍显示Shell10／3,137；配置、来源与活动索引指纹不变。另一线程协调补可空字段迁移的事实另记，本任务没有导入或改变来源数据。
-- 完成判断：统一来源工程与题集准备分别验证；具名标准答案、真实模型语义、社交／跨集合训练补充、重新打包及客户验收继续待办。说明见[合并](docs/combined_collections.md)和[训练测试材料](docs/rag_training_test_split.zh-CN.md)。付费0、推送0、部署0。
+- 完成判断：统一来源工程与题集准备分别验证；具名标准答案、真实模型语义、社交／跨集合训练补充、重新打包及客户验收继续待办。说明见[合并](docs/architecture/combined_collections.md)和[训练测试材料](docs/evaluation/rag_training_test_split.zh-CN.md)。付费0、推送0、部署0。
 
 ## 本轮：数据页首屏优化已启用（P32）
 
@@ -764,20 +1172,20 @@ Claude请求5250cf315646、候选交接a95db042b651已发送；新回复仍待�
 - 检查：218项选定离线通过；另外启用PostgreSQL的112项通过，其中100只读SQL、12离线，两轮9项重叠。独立SQL／目标归属复核及87运行字节核对完成。只测工程一致性，不是模型语义成绩。测量缓存未清且前置校验会预热，不是浏览器／生产性能。
 - 失败具体事件：初次Shell定义写成小写，冻结基线返回空范围，候选尚未测试；保留失败后改用实际Shell选项。合成SQL夹具的字面量类型不明确，用`::text`修复夹具。除零探针在旧版也失败，保留为无效检查，不归因生产回归。
 - 本机验证限制：首次启动前检查用缺dotenv的宿主解释器，尚未读health或停进程；改用已有P34环境后成功，没有下载安装。账号菜单的DOM定位点击未选中AFPM，搜索＋键盘成功；后续P36用原生AX鼠标在稳定页面取消／重选成功，返回745／743及原首页可见成员。DOM入口差异原因未确认，不据此认定页面鼠标故障；[原生交互回执](.runtime/dashboard_root_review_20261006/mouse_interaction.json)另存。两页各8个可见行与旧有序参考一致，不声称浏览器完整渲染40条。
-- 审核：[实测与方法](docs/data_loading_20261006.md)、[根核查](.runtime/dashboard_root_review_20261006/final_verification.json)、[本机启用](.runtime/dashboard_root_review_20261006/local_activation.json)。原8意见、14历史复盘、24题及旧包不改；业务数据与媒体配置不变，付费0、发布0。最新2运行文件、新增2测试及调整2旧测试超出P34的634包／613安装范围，P35另做新冻结和安装，不覆盖旧证据。
+- 审核：[实测与方法](docs/data/data_loading_20261006.md)、[根核查](.runtime/dashboard_root_review_20261006/final_verification.json)、[本机启用](.runtime/dashboard_root_review_20261006/local_activation.json)。原8意见、14历史复盘、24题及旧包不改；业务数据与媒体配置不变，付费0、发布0。最新2运行文件、新增2测试及调整2旧测试超出P34的634包／613安装范围，P35另做新冻结和安装，不覆盖旧证据。
 
 ## 上一轮：媒体问答源码交接（P34）
 
 - 为P33后续源码另冻634载荷review包，含87运行、156测试、47维护脚本和19评价文件；旧598／628包及回执保留，未覆盖。私有数据、客户原件、审核日志、模型响应、素材和凭据不入公开源码候选。
 - 从项目外解压源码构建wheel，在全新外部环境用本机缓存离线安装；87运行文件与源码／wheel／安装字节一致，75模块均来自安装路径，13维护help通过。
 - 安装回归29文件613项通过、0失败／错误，3项Windows无法创建测试链接而跳过；覆盖媒体模型／读取／生成／UI／比较、正文、统计、CLI、MCP及打包保护。没有真实数据库或提供商访问，不与上一轮496项相加为独立成绩。
-- 新wheel仍为0.4.10，SHA和安装范围见[候选说明](docs/media_source_candidate_20261006.md)。首次最终归档及独立包审查已核对CRC、成员、清单和字节，87运行文件与源码／wheel／安装相同。首次包保留；选定02包只补已有Markdown，最终SHA及非文档相同证明见02回执。本机新安装环境不是异机冷安装、业务数据库恢复、客户接手或部署，付费0、发布0。
+- 新wheel仍为0.4.10，SHA和安装范围见[候选说明](docs/data/media_source_candidate_20261006.md)。首次最终归档及独立包审查已核对CRC、成员、清单和字节，87运行文件与源码／wheel／安装相同。首次包保留；选定02包只补已有Markdown，最终SHA及非文档相同证明见02回执。本机新安装环境不是异机冷安装、业务数据库恢复、客户接手或部署，付费0、发布0。
 
 ## 优化前的历史阶段：首屏查询诊断（P32）
 
 - 同一本机、每范围一次冷test-client首个HTTP回调：AFPM745帖17.950秒，Shell公司字段3,137帖20.499秒，全社交36,182帖51.280秒；各38SQL、200响应及20个唯一首页成员。AFPM顺序与前轮一致，源代码和health／数据／索引指纹不变。没有浏览器／生产性能或新全量对账结论。
 - 全社交范围历史注释聚合12.529秒、末次完整来源指纹核对12.471秒；其他图表聚合各约2–4秒。首次布局另读全库facets和多次health／chunk manifest。没有把默认每次聚合都错误归因为13码解析；无标签筛选时未用投影可剪枝。
-- 当时的下一步是P32先在原只读snapshot共享窄范围元数据和合并聚合，再研究每版本一次来源解析、按需facets；保护和未知状态保留，必须先比较实际成员／全部统计、多次耗时。只读[诊断与限制](docs/data_loading_20261006.md)及 `.runtime/first_load_profile_20261006/` 保留；该诊断阶段未改源码／SQL／业务数据，未声称已提速。后续实现与实测见本文件顶部。
+- 当时的下一步是P32先在原只读snapshot共享窄范围元数据和合并聚合，再研究每版本一次来源解析、按需facets；保护和未知状态保留，必须先比较实际成员／全部统计、多次耗时。只读[诊断与限制](docs/data/data_loading_20261006.md)及 `.runtime/first_load_profile_20261006/` 保留；该诊断阶段未改源码／SQL／业务数据，未声称已提速。后续实现与实测见本文件顶部。
 
 ## 本轮：网页分类型媒体证据（用户U12、D01／D07）
 
@@ -785,7 +1193,7 @@ Claude请求5250cf315646、候选交接a95db042b651已发送；新回复仍待�
 - 比较按每个对象实际引用的证据检查；没有引用的一方明确显示不完整。素材、包、记录或版本变化后撤回答案，费用与联网审计仍保留；联网不能掩盖来源错误。统计路径和原24题不变，没有新增网页工具。
 - 选定22个测试文件共496项离线工程检查通过；Ruff通过。独立代码审查发现并修复后置联网遗漏重验、类型校验预留未取消、同篇不同片段跨组借用引用，以及原文数据库预检异常预留未取消。初次回归的1项失败是旧测试仍把公司帖子称为社交广告，已按D02口径更正并保留数量／筛选断言。没有真实模型语义成绩。
 - 本机[合成预览](http://127.0.0.1:8071/)提供双方引用、单方未引用、来源变化撤回三种状态；仅检查展示。8050已重启，健康、数据／索引版本和记录数与重启前一致，8070审核入口保留。
-- 真实OCR／字幕／转写仍0，三个生产媒体配置仍空。D01原文字试跑未执行，付费0、发布0。原8条审核意见不改，客户验收待办。详见[媒体说明](docs/media_answers.md)；源码／测试／截图与状态回执另存 `.runtime/media_web_answers_20261006/verification.json`。旧628文件包不覆盖本轮源码，重新冻结列P34。
+- 真实OCR／字幕／转写仍0，三个生产媒体配置仍空。D01原文字试跑未执行，付费0、发布0。原8条审核意见不改，客户验收待办。详见[媒体说明](docs/architecture/media_answers.md)；源码／测试／截图与状态回执另存 `.runtime/media_web_answers_20261006/verification.json`。旧628文件包不覆盖本轮源码，重新冻结列P34。
 
 ## 本轮：数据页读取与当前交接
 
@@ -793,8 +1201,8 @@ Claude请求5250cf315646、候选交接a95db042b651已发送；新回复仍待�
 - 已停止隐藏集合和非Data页的统计回调；社交翻页、排序和页大小通过服务端签名选择与当前来源版本检查后只读取对应页。前后来源改变重算首页，全量读取最多重读一次，持续变化不展示；原日期、账号、平台、公司和13码状态范围保留。
 - 同库AFPM单次实测：首屏14.403→17.966秒（新增并发保护更慢）；翻页9.830→6.724秒；隐藏社交8.442秒／17查询→0.000647秒／0查询。前两页各20个成员和顺序不变，health、数据／索引版本不变。没有生产测速结论，首屏继续列P32。
 - 相关148个不同检查分批通过，最终26项聚焦检查有重叠；独立审查发现并修复全量统计混合版本、第二次健康失败误报日期两处问题。首次测试15项和后来1项失败是过时eligible／缺数据文案，已更新文字，未削弱成员、数量、未知状态或私密字段检查。并发情形只用合成夹具，实际库只读。
-- 六份当前说明及复现文档已改正未入库／旧候选的假当前；实际帖子身份、未启用媒体与客户未验收明确保留。新加载说明见[实测与限制](docs/data_loading_20261006.md)。本机8050已重启，实际AFPM显示745唯一帖子／743可正文检索，Next显示21–40及对应帖子，审核8070保留。
-- 当前源码候选628载荷含87运行、152测试、47维护脚本及19评价文件；从解压源码构建wheel、项目外新环境离线安装，75模块及13维护help通过，13文件253检查通过／3项Windows链接创建跳过。最终包及SHA／字节对比见[候选说明](docs/current_source_candidate_20261006.md)，后补完成文档不改变已测非文档字节。旧包／回执保留；这是同机缓存安装，不是异机冷安装或客户接手。没有付费或发布。
+- 六份当前说明及复现文档已改正未入库／旧候选的假当前；实际帖子身份、未启用媒体与客户未验收明确保留。新加载说明见[实测与限制](docs/data/data_loading_20261006.md)。本机8050已重启，实际AFPM显示745唯一帖子／743可正文检索，Next显示21–40及对应帖子，审核8070保留。
+- 当前源码候选628载荷含87运行、152测试、47维护脚本及19评价文件；从解压源码构建wheel、项目外新环境离线安装，75模块及13维护help通过，13文件253检查通过／3项Windows链接创建跳过。最终包及SHA／字节对比见[候选说明](docs/data/current_source_candidate_20261006.md)，后补完成文档不改变已测非文档字节。旧包／回执保留；这是同机缓存安装，不是异机冷安装或客户接手。没有付费或发布。
 
 ## 上一轮：按8项已审决定继续落实（用户U12）
 
@@ -805,7 +1213,7 @@ Claude请求5250cf315646、候选交接a95db042b651已发送；新回复仍待�
 - D01／D07建立三类证据契约、分路检索后融合和只读媒体MCP；实际6篇／23段文字从当前数据库读回，原文逐字定位。官方SDK接线、筛选及来源版本已核对；默认缺图像／视频明确缺素材，未配置不调用模型。网页仍只引用正文，真实图片OCR／字幕／转写为0，生产素材包未启用。[人工入口](http://127.0.0.1:8070/media)有26条来源，可提供截图、描述和选填时间，高级模型只登记意向。测试用独立目录，实际材料未代填。
 - D04从原Excel和全文形成[24_answer.md](.runtime/customer_holdout/references/24_answer.md)，33段支持／排除／边界原句可定位；免费检索保存了蓝氢遗漏、绿氢混入和条件关系不足的具体返回。263篇形成251个候选文章组及18变体；原24题与变体均已见，只作开发／回归，独立测试0。高级模型不替代金标准裁决，6,312单元仍未知／待审。
 - 工程检查分批通过；最后媒体读取、接线与MCP71项和独立35项合成边界检查通过，网页与工具既有回归也通过。多批有重叠，不相加为独立正确率。实际AFPM点选745帖／743正文，导出745成员与冻结数据一致，详情可看具体帖子和来源；截图保存／刷新及原日志／报告字节已核对。没有真实模型语义成绩。
-- 导入前备份目录和新ID／版本清单已保存；未演练完整恢复。本轮付费调用0、费用0、远程写入0，客户验收仍待定。执行范围、入口、时间和后续条件见[审核执行说明](docs/decision_followup.zh-CN.md)。
+- 导入前备份目录和新ID／版本清单已保存；未演练完整恢复。本轮付费调用0、费用0、远程写入0，客户验收仍待定。执行范围、入口、时间和后续条件见[审核执行说明](docs/evaluation/decision_followup.zh-CN.md)。
 
 ## 上一轮：把审核材料展开为人能阅读的内容
 
@@ -830,7 +1238,7 @@ Claude请求5250cf315646、候选交接a95db042b651已发送；新回复仍待�
 - 复盘补具体原文和实际失败回执；普通文章不使用视频准确性让步。失败原因已证实或尚待定位分别写。117／118／120的访问错误在video_caption_probe的保存回执中找到，不移用其他文章的错误。
 - 本轮仅整理文档和读取公开GitHub，不修改产品、数据、模型或部署；不把文档核验算作真实问答成绩。原客户资料与旧报告另存，具体检查回执保存于`.runtime/goal_ownership_review_20261006/`。
 
-入口：[目标归属](docs/goal_ownership.md)、[完成的客户交付部分](client_finish.md)、[工作复盘](客户需求/05_核验/20261006_0100-1200_工作复盘/README.md)。
+入口：[目标归属](docs/operations/goal_ownership.md)、[完成的客户交付部分](client_finish.md)、[工作复盘](客户需求/05_核验/20261006_0100-1200_工作复盘/README.md)。
 
 ## 上一轮做了什么
 
@@ -838,7 +1246,7 @@ Claude请求5250cf315646、候选交接a95db042b651已发送；新回复仍待�
 - 复用版本保护更新器，本机新增19版本和74个句界片段，精确重导新增0。旧body／payload、其他当前版本／活动状态、元数据及计数保留。19条实际详情接口通过；18个已知词项探测读到新后文，一次域名词未命中如实保留。首个验证脚本在短尾段选词失败，已保存失败并修正，没有重复导入数据。
 - 另存当前全文、统计参考、请求及待审模板：只有19篇来源／请求改变，263条范围、24题、统计成员及日期不变。314声明文件、263全文、9,515提示及4,743引文位置核对通过；254 ready／9未请求、6,312项仍unknown。三篇计划与预算不变，新的完整范围绑定仍未授权或执行。
 
-证据在`.runtime/native_truncated_review_20261006/`；[简明说明](docs/native_truncated_text_update_20261006.md)。当前本机263可计数、232可检索、622活动片段；没有运行模型、重算向量、生成标签、推送或部署。旧源码包和469项安装／1,844项统计成绩保留各自范围；真实语义、视频和客户验收继续待办。
+证据在`.runtime/native_truncated_review_20261006/`；[简明说明](docs/data/native_truncated_text_update_20261006.md)。当前本机263可计数、232可检索、622活动片段；没有运行模型、重算向量、生成标签、推送或部署。旧源码包和469项安装／1,844项统计成绩保留各自范围；真实语义、视频和客户验收继续待办。
 
 ## 上一轮视频计划复核
 
@@ -851,7 +1259,7 @@ Claude请求5250cf315646、候选交接a95db042b651已发送；新回复仍待�
 - 复用既有版本保护工具，先检查本机目标与旧body／payload，再新增2版本和5个句界片段；精确重导新增0。旧正文及其他当前版本／活动状态不变，元数据和计数不变。详情与5个已知来源关键词查询返回新后文；无逗号200000没有命中200,000，结果保留，不计作召回成绩。
 - 重新冻结当前全文、统计参考、请求及待审材料。只有这两篇来源和请求改变，24题与263条范围不变；254 ready／9未请求、6,312项仍unknown。纯文件核对314载荷、263全文、9,149提示及4,332引文位置；旧338个材料原字节保留。三篇计划及预算不变，改绑当前来源，仍未授权或执行。
 
-证据在`.runtime/native_text_review_20261006/`，简明说明见[两篇文字更新](docs/native_saved_text_update_20261006.md)。没有改运行代码、调用模型、重算向量、提交、推送或部署。前轮469项安装测试与1,844项统计对账不重复记作本轮成绩；真实语义、视频及客户验收继续待办。
+证据在`.runtime/native_text_review_20261006/`，简明说明见[两篇文字更新](docs/data/native_saved_text_update_20261006.md)。没有改运行代码、调用模型、重算向量、提交、推送或部署。前轮469项安装测试与1,844项统计对账不重复记作本轮成绩；真实语义、视频及客户验收继续待办。
 
 ## 上一轮完整源码交接
 
@@ -866,7 +1274,7 @@ Claude请求5250cf315646、候选交接a95db042b651已发送；新回复仍待�
 
 - 6条正文更新后重新冻结全文审查、统计参考、调用请求和待审模板。275条来源中仅这6条正文／版本变化；263条审查范围、24个原问题和统计成员不变。现在254条可准备调用，9条仍缺正文；6,312项判定全部unknown／pending，没有生成分类或成绩。
 - 复用既有准备工具，旧337个工件保留原路径和字节。纯文件核对314个声明文件、263份全文、9,083行关键词提示和4,297处引文位置通过；124排除中段涉及的12个候选片段均不可作为证据。关键词提示不成为标签。
-- 三篇试跑调用及预算不变，只将完整范围绑定新来源；新计划仍待授权，没有执行。材料在`.runtime/content_source_refresh_20261006/`；具体入口见[刷新说明](docs/content_source_refresh_20261006.md)。
+- 三篇试跑调用及预算不变，只将完整范围绑定新来源；新计划仍待授权，没有执行。材料在`.runtime/content_source_refresh_20261006/`；具体入口见[刷新说明](docs/data/content_source_refresh_20261006.md)。
 - 首次统计应用复核因离线材料缺数据库观测指纹而失败，未保存成功回执。已加读取前检查，60项相关离线检查及独立代码复核通过；另取只读数据库参考，275条元数据逐条等于全文快照后再对账。新对账的1,844项工程核对全部通过，53页图谱成员／版本、矩阵、年份并列及两时段均一致；来源、索引和用量记录前后不变。这不评价模型理解、内容语义、浏览器操作或客户接受。
 
 视频仍按字幕优先、有人声才一次小模型转写并缓存；仅视频允许小幅准确性让步。实际字幕、转写与时间引用待办。付费运行、社交准入、源码候选刷新、公开发布和客户验收分别记录，不因材料准备完成而结束项目。
@@ -931,7 +1339,7 @@ Claude请求5250cf315646、候选交接a95db042b651已发送；新回复仍待�
 - 社交详情显示账号、平台、公司归属，旧说明折叠并转义；不请求原生CLAIMS2。来源工具共用安全投影，保留筛选、准入与链接开关。Query结果面板仍只显示来源链接，标签分布／筛选未实现。
 - 只读核对37,082份准备记录：全部13值与正文／源文件绑定可投影，21,410条全部False；仍全部countable=False／retrievable=False，未检查活跃数据库版本或语义。输入字节未变，回执：`.runtime/social_annotation_details_20261006/prepared_projection_verification.json`。
 - 最终415项相关离线检查、Ruff和3项真实隔离PostgreSQL合成检查通过；原生详情固定样例渲染字节保持一致，临时schema已删除。SQL实际147次读取／17种形状包含初始化与工具内部读取，不代表147个用户案例。首次fixture导入与格式lint问题已修正，再运行3项SQL，保留两批原回执；批次不累加。回执：`.runtime/social_annotation_details_20261006/final_sql/runner.json`及`final-regression.junit.xml`。
-- 真实资料未准入／导入，没有模型调用、服务重启、提交、推送或部署。旧P18和源码交接工件保持原字节，仅证明各自当时版本；[P19说明](docs/social_historical_annotations.md)区分当前实现、分布待办和实际评价缺口。
+- 真实资料未准入／导入，没有模型调用、服务重启、提交、推送或部署。旧P18和源码交接工件保持原字节，仅证明各自当时版本；[P19说明](docs/data/social_historical_annotations.md)区分当前实现、分布待办和实际评价缺口。
 
 ## 上一轮社交账号工作
 
@@ -959,7 +1367,7 @@ Claude请求5250cf315646、候选交接a95db042b651已发送；新回复仍待�
 
 ## 上一轮审定名单工作
 
-- 完成[审定24题的发布与读取机制](docs/content_publication.md)，复用原审查包、Pydantic、文件指纹和共享工具，不新增平台、服务或数据库表。参考Argilla区分模型建议与人工响应的公开设计；没有安装Argilla。
+- 完成[审定24题的发布与读取机制](docs/data/content_publication.md)，复用原审查包、Pydantic、文件指纹和共享工具，不新增平台、服务或数据库表。参考Argilla区分模型建议与人工响应的公开设计；没有安装Argilla。
 - Data概览新增审定名单入口，网页问答和MCP调用同一`get_content_matches`。显示符合／不符合／未知的完整当前范围；卡片包含定义、主体、文章处理方式、规划状态、支持／限制原句和定位。当前页是否显示全部匹配与分类是否完整分别说明。
 - 审核原字节、定义、原文版本和允许区间均绑定；新记录、正文变化、待审及不足内容保持未知。翻页和导出重新读取当前范围；缺发布材料不是零命中，也不联网编造完整本地名单。
 - 263×24真实模板全部pending；定义、发布决定和逐条审核均未填写，没有真实分类、服务器配置或公开发布。原296个审查包文件不变，待审发布拒绝通过核对；回执：`.runtime/content_publication_20261006/review_template_verification.json`。原要求、视频专属省力范围及待定审核人不变。
@@ -971,9 +1379,9 @@ Claude请求5250cf315646、候选交接a95db042b651已发送；新回复仍待�
 ## 上一轮系统设计工作
 
 - 新来源读取SQL在实际loopback `obs_test`的独立schema中通过9项检查，只使用合成原生／社交记录。新测试夹具显式固定`hostaddr`后重跑通过，实际执行62次当前版本读取SQL；另2项纯离线环境污染反例通过，不连接数据库。自建schema已删除，public目录元数据一致，不代表共享表数据审计。最终回执：`.runtime/social_mcp_integration_20261006/final_run/verification.json`；旧回执与旧测试字节保留为历史。
-- 更新[系统设计](docs/architecture.md)：输入／页面、查询工具／RAG、离线24题与CLAIMS2发布分开。旧0.2.3架构的11,430字节和SHA原样保留。明确24题草稿不是NC／SC赋值，完整名单发布仍待办。
-- 更新[数据字典](docs/data_dictionary.md)：逐源字段对应规范记录、存储和具体页面／MCP；补Junkipedia稳定ID、Twitter UTC日期、公司归属、历史标签及未准入状态。
-- 新增[六研究问题的进展演示稿](deliverables/project_demo_20261006.md)，包括具体操作、依据、客户待确认事项和最终演示缺口。普通步骤不触发付费模型；旧演示稿不覆盖。
+- 更新[系统设计](docs/architecture/architecture.md)：输入／页面、查询工具／RAG、离线24题与CLAIMS2发布分开。旧0.2.3架构的11,430字节和SHA原样保留。明确24题草稿不是NC／SC赋值，完整名单发布仍待办。
+- 更新[数据字典](docs/data/data_dictionary.md)：逐源字段对应规范记录、存储和具体页面／MCP；补Junkipedia稳定ID、Twitter UTC日期、公司归属、历史标签及未准入状态。
+- 新增[六研究问题的进展演示稿](deliverables/demo_scripts/project_demo_20261006.md)，包括具体操作、依据、客户待确认事项和最终演示缺口。普通步骤不触发付费模型；旧演示稿不覆盖。
 - 同步goal、plan、交接与索引，保留上传原件、待定审核人与客户验收状态。系统设计与字段映射的独立只读复核通过，59个本地链接有效，旧架构SHA一致；不以文档和工程检查宣称真实双集合或语义效果完成。
 
 ## 上一轮MCP与浏览器工作
@@ -1109,7 +1517,7 @@ Claude请求5250cf315646、候选交接a95db042b651已发送；新回复仍待�
 - 社交数据入库及跨数据集问答；需先确认“公司帖子还是付费广告”和重复计数规则。
 - 程序检查只覆盖明确的语言线索，不能保证理解所有隐含、多语言条件；引文匹配也不能证明转述正确。
 
-具体待办见 [plan.md](plan.md)，字段与使用说明见 [社交输入说明](docs/social_archive_input.md)。
+具体待办见 [plan.md](plan.md)，字段与使用说明见 [社交输入说明](docs/data/social_archive_input.md)。
 ## 网页分类型证据接线（2026-10-06，进行中）
 
 在做什么：让网页内容问答读取已有媒体入口，并把原文、OCR、视觉描述和视频字幕分别展示。每个比较对象单独检索和检查引用；缺材料保持缺失。

@@ -6,6 +6,32 @@ from decimal import Decimal
 
 from dotenv import load_dotenv
 
+PUBLIC_ENV_PREFIX = "NATIVEADS_"
+INTERNAL_ENV_PREFIX = "OBS_"
+
+
+def apply_public_env_names(environ=None):
+    """Accept NATIVEADS_* (the public name) for every OBS_* setting; NATIVEADS_* wins.
+
+    OBS_* keeps working, so existing deployments need no change.
+    """
+    environ = os.environ if environ is None else environ
+    for key, value in list(environ.items()):
+        if key.startswith(PUBLIC_ENV_PREFIX):
+            environ[INTERNAL_ENV_PREFIX + key[len(PUBLIC_ENV_PREFIX):]] = value
+
+
+def _positive_usd(name, default):
+    """A dollar cap from the environment; a cap that is not a positive amount is refused."""
+    value = os.getenv(name, default)
+    try:
+        amount = Decimal(value)
+    except ArithmeticError:
+        raise ValueError(f"{name} must be a dollar amount") from None
+    if not amount.is_finite() or amount <= 0:
+        raise ValueError(f"{name} must be a positive dollar amount")
+    return amount
+
 
 @dataclass
 class Settings:
@@ -20,16 +46,41 @@ class Settings:
     requests_per_minute: int = 5
     requests_per_day: int = 30
     concurrency: int = 2
+    # Screening batches judged at once; 0 keeps list_screening.SCREEN_WORKERS (the code's default).
+    # The batches, their order and the widening stop rule do not depend on it (2026-11-05, round 1).
+    screen_workers: int = 0
+    # Spending caps beside the monthly one: one question (settled cost, in-flight calls at their
+    # reservation) and one UTC day for everyone. Questions per network address bound what a
+    # client can ask by changing its visitor id or cookie.
+    question_budget_usd: Decimal = Decimal("0.50")
+    daily_budget_usd: Decimal = Decimal("10")
+    address_requests_per_minute: int = 10
+    address_requests_per_day: int = 60
     cookie_secret: str = field(default="", repr=False)
     # Hosted HTTPS deployments send session cookies only over TLS.
     secure_cookies: bool = False
     trusted_proxy: str = ""
     # Explicit opt-in preserves the deterministic baseline for reproducible checks.
     research_agent_enabled: bool = False
+    # A list question the surface rule already recognises, in which question_plan.agent_needed finds
+    # no scope word, name, date or shape the agent could act on (a conservative heuristic over the
+    # question's surface, not a proof), may skip the agent's model calls (latency round 2, 2026-11-08).
+    # On by default (user decision 2026-11-08, after the paid comparison recorded in plan.md).
+    # OBS_LIST_WITHOUT_AGENT=false turns the skip off; the agent itself is research_agent_enabled.
+    list_without_agent: bool = True
     # One typed interpretation compiled to existing reads; opt in after validation.
     question_intent_enabled: bool = False
+    # Two-phase list questions (pipeline step 3): "ask" (the default, S3-d) shows the drafted
+    # judging rules for confirmation before any ad is judged, "auto" judges at once. Read by the
+    # web entry only; the API and internal callers stay "auto" unless a request asks (user
+    # decision 2026-10-27).
+    criterion_confirmation: str = "ask"
     # /compare runs the same question with and without retrieval (paid); demo only.
     compare_demo_enabled: bool = False
+    # `observatory api`: JSON-only backend for a separate frontend.
+    api_port: int = 18060
+    api_cors_origins: tuple = ("http://localhost:5173", "http://127.0.0.1:5173",
+                               "http://localhost:3000", "http://127.0.0.1:3000")
     # Planner reads may select social posts by X relations (mentions, hashtags,
     # replies to collected posts) and companies by source profile; opt in after
     # the A/C comparison.
@@ -57,6 +108,7 @@ class Settings:
     @classmethod
     def from_env(cls):
         load_dotenv(override=False)
+        apply_public_env_names()
         return cls(
             database_url=os.getenv("OBS_DATABASE_URL", ""),
             show_source_links=os.getenv("OBS_SHOW_SOURCE_LINKS", "true").lower()
@@ -70,12 +122,24 @@ class Settings:
             requests_per_minute=int(os.getenv("OBS_REQUESTS_PER_MINUTE", "5")),
             requests_per_day=int(os.getenv("OBS_REQUESTS_PER_DAY", "30")),
             concurrency=int(os.getenv("OBS_CONCURRENCY", "2")),
+            screen_workers=int(os.getenv("OBS_SCREEN_WORKERS", "0")),
+            question_budget_usd=_positive_usd("OBS_QUESTION_BUDGET_USD", "0.50"),
+            daily_budget_usd=_positive_usd("OBS_DAILY_BUDGET_USD", "10"),
+            address_requests_per_minute=int(os.getenv("OBS_ADDRESS_REQUESTS_PER_MINUTE", "10")),
+            address_requests_per_day=int(os.getenv("OBS_ADDRESS_REQUESTS_PER_DAY", "60")),
             cookie_secret=os.getenv("OBS_COOKIE_SECRET", ""),
             secure_cookies=os.getenv("OBS_SECURE_COOKIES", "false").lower() == "true",
             trusted_proxy=os.getenv("OBS_TRUSTED_PROXY", ""),
             research_agent_enabled=os.getenv("OBS_RESEARCH_AGENT_ENABLED", "false").lower() == "true",
+            list_without_agent=os.getenv("OBS_LIST_WITHOUT_AGENT", "true").lower() == "true",
             question_intent_enabled=os.getenv("OBS_QUESTION_INTENT_ENABLED", "false").lower() == "true",
+            criterion_confirmation="auto" if os.getenv("OBS_CRITERION_CONFIRMATION", "ask").strip().lower() == "auto" else "ask",
             compare_demo_enabled=os.getenv("OBS_COMPARE_DEMO_ENABLED", "false").lower() == "true",
+            api_port=int(os.getenv("OBS_API_PORT", "18060")),
+            api_cors_origins=tuple(o.strip() for o in os.getenv(
+                "OBS_API_CORS_ORIGINS",
+                "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000",
+            ).split(",") if o.strip()),
             relation_selection_enabled=os.getenv("OBS_RELATION_SELECTION_ENABLED", "false").lower() == "true",
             claims_source_search_enabled=os.getenv("OBS_CLAIMS_SOURCE_SEARCH_ENABLED", "false").lower() == "true",
             web_search_enabled=os.getenv("OBS_WEB_SEARCH_ENABLED", "true").lower() == "true",

@@ -19,7 +19,7 @@ from zipfile import ZipFile
 from pydantic import ValidationError
 
 from .models import Issue, RecordInput
-from .quality import body_hash, inspect_body, valid_url
+from .quality import body_hash, inspect_body, social_hard_blocks, valid_url
 
 SOCIAL_LABELS = (
     "green_binary", "decreasing_emissions", "renewable_energy",
@@ -31,8 +31,16 @@ SOCIAL_LABELS = (
 MAX_JSON_BYTES = 256 * 1024 * 1024
 _SOURCE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,180}")
 _POST_PATH = re.compile(r"/[^/]+/status/(\d+)/?")
+# Facebook and Instagram posts are identified by platform + Junkipedia post uid (the 2026-11-06
+# export: Facebook uids are mostly digits or "digits_digits", Instagram uids are shortcodes).
+# Their URLs are checked for the platform's host, but only Instagram's carries the uid.
+PLATFORMS = {"twitter": "Twitter", "facebook": "Facebook", "instagram": "Instagram"}
+_FACEBOOK_HOSTS = {"facebook.com", "www.facebook.com", "web.facebook.com", "m.facebook.com"}
+_INSTAGRAM_HOSTS = {"instagram.com", "www.instagram.com"}
+_INSTAGRAM_PATH = re.compile(r"/(?:p|reel|tv)/([^/]+)/?")
 EXPLANATION_FIELDS = ("green_explanation", "fossil_fuel_explanation", "explanation")
 EXPLANATION_ENCODING = "json-string-nul-v1"
+JUNKIPEDIA_POST_URL = "https://www.junkipedia.org/posts/"
 
 
 def _storage_explanations(row: dict) -> tuple[dict, dict]:
@@ -74,7 +82,9 @@ def _invalid_constant(value):
 
 def _read_source(source: Path) -> tuple[list[dict], dict]:
     source_data = source.read_bytes()
-    receipt = {"source": str(source.resolve()), "source_sha256": _checksum(source_data)}
+    # The file name only: records must not carry this machine's folder layout (the source is
+    # identified by its SHA-256, as import_records does for its JSONL input).
+    receipt = {"source": source.name, "source_sha256": _checksum(source_data)}
     if source.suffix.casefold() == ".zip":
         with ZipFile(source) as archive:
             members = archive.infolist()
@@ -126,6 +136,47 @@ def _source_id(row: dict) -> str:
     return value
 
 
+def platform_post_uid(value) -> str | None:
+    """A supplied Junkipedia post uid usable as a Facebook/Instagram identity, else None.
+
+    Any nonempty printable string without whitespace (at most 512 characters) is accepted: the
+    identity is a hash of platform + uid, and the uid is never interpreted.
+    """
+    if (not isinstance(value, str) or not 0 < len(value) <= 512
+            or any(char.isspace() or not char.isprintable() for char in value)):
+        return None
+    return value
+
+
+def platform_post_url(platform, url, uid) -> bool:
+    """Whether ``url`` is a plain supplied post URL of ``platform`` (Facebook/Instagram) for ``uid``."""
+    if not isinstance(url, str) or url != url.strip() or not valid_url(url):
+        return False
+    try:
+        parsed = urlsplit(url)
+        port = parsed.port
+    except ValueError:
+        return False
+    if parsed.username or parsed.password or parsed.fragment or port not in {None, 80, 443}:
+        return False
+    if platform == "Facebook":
+        return parsed.hostname in _FACEBOOK_HOSTS
+    if platform == "Instagram":
+        match = _INSTAGRAM_PATH.fullmatch(parsed.path)
+        return (parsed.hostname in _INSTAGRAM_HOSTS and not parsed.query
+                and bool(match) and match.group(1) == uid)
+    return False
+
+
+def _supplied_platform(row: dict) -> str:
+    """The platform's documented name; the supplied spelling is what the record stores."""
+    platform = row.get("platform")
+    name = PLATFORMS.get(platform.casefold()) if isinstance(platform, str) else None
+    if name is None:
+        raise ValueError("This adapter requires the documented Twitter, Facebook or Instagram platform.")
+    return name
+
+
 def _original_url(row: dict) -> str:
     urls = row.get("urls", {}).get("post_url") if isinstance(row.get("urls"), dict) else None
     if isinstance(urls, str):
@@ -134,6 +185,19 @@ def _original_url(row: dict) -> str:
         raise ValueError("Original post URLs must be a string or list of strings.")
     post = row.get("post")
     uid = post.get("junkipedia_uid") if isinstance(post, dict) else None
+    supplied = row.get("platform")
+    # Identity matching treats X as Twitter (the splitter keys X rows with Twitter's); _record still
+    # admits only the documented platform names.
+    platform = ("Twitter" if isinstance(supplied, str) and supplied.casefold() in {"twitter", "x"}
+                else _supplied_platform(row))
+    if platform != "Twitter":
+        uid = platform_post_uid(uid)
+        if uid is None:
+            raise ValueError("A usable source platform post ID is required for platform identity.")
+        candidates = {url for url in urls if platform_post_url(platform, url, uid)}
+        if len(candidates) != 1:
+            raise ValueError(f"Original post URL requires one unambiguous {platform} post URL.")
+        return candidates.pop()
     if not isinstance(uid, str) or not uid.isdigit():
         raise ValueError("The source platform post ID is required for URL identity matching.")
     candidates = set()
@@ -158,9 +222,10 @@ def _record(row: dict, number: int, receipt: dict) -> RecordInput:
     source_id = _source_id(row)
     url = _original_url(row)
     body = row.get("post_text")
-    platform = row.get("platform")
-    if not isinstance(body, str) or not isinstance(platform, str) or platform.casefold() != "twitter":
-        raise ValueError("This adapter requires textual post_text and the documented Twitter platform.")
+    platform_name = _supplied_platform(row)
+    platform = row["platform"]
+    if not isinstance(body, str):
+        raise ValueError("This adapter requires textual post_text.")
     issues = [
         Issue(code="social_ad_status_unknown", detail="The export contains company social posts; paid-ad status has not been verified."),
         Issue(code="social_admission_pending", detail="Preparation does not admit records to advertising counts or RAG retrieval."),
@@ -186,9 +251,18 @@ def _record(row: dict, number: int, receipt: dict) -> RecordInput:
     except ValueError:
         issues.append(Issue(code="social_publication_date_missing_or_invalid", detail="No valid timezone-qualified publication timestamp; collection dates and year are not substituted."))
     archive_url = row.get("junkipedia_link")
+    archive_basis = "supplied_junkipedia_link"
     if not isinstance(archive_url, str) or not valid_url(archive_url):
-        archive_url = ""
-        issues.append(Issue(code="social_archive_url_missing_or_invalid", detail="No valid supplied Junkipedia archive URL."))
+        archive_url, archive_basis = "", "none"
+        # The 2026-10-30 export dropped junkipedia_link. Every supplied link in the
+        # earlier export (37,048 of 37,048) was JUNKIPEDIA_POST_URL + id, and 16
+        # pages rebuilt this way from the new export open the same post text.
+        if source_id.isdigit():
+            archive_url, archive_basis = JUNKIPEDIA_POST_URL + source_id, "derived_from_source_post_id"
+            issues.append(Issue(code="social_archive_url_derived_from_id", severity="info",
+                                detail="No supplied Junkipedia archive URL; the archive page address is built from the source post ID."))
+        else:
+            issues.append(Issue(code="social_archive_url_missing_or_invalid", detail="No valid supplied Junkipedia archive URL."))
     parent = row.get("parent_entity")
     company = parent if isinstance(parent, str) else ""
     if company:
@@ -197,7 +271,13 @@ def _record(row: dict, number: int, receipt: dict) -> RecordInput:
     account = channel.get("name") if isinstance(channel, dict) else None
     account = account if isinstance(account, str) else ""
     annotations = []
-    if all(type(row.get(label)) is bool for label in SOCIAL_LABELS):
+    # The supplied post_text is unusable, so no label can be bound to this text
+    # (every code is False on the 5,450 empty Facebook rows of the 2026-11-05
+    # export); False is not a negative here: attach none and every code reads Unknown.
+    if social_hard_blocks(body) - {"body_garbled"}:
+        issues.append(Issue(code="social_historical_labels_without_text", severity="info",
+                            detail="The post has no text to read; its historical labels are not attached, so every code is Unknown."))
+    elif all(type(row.get(label)) is bool for label in SOCIAL_LABELS):
         values = {label: row[label] for label in SOCIAL_LABELS}
         annotations.append({
             "version": "claims-social-export-v1", "status": "historical_automatic_unverified",
@@ -228,7 +308,7 @@ def _record(row: dict, number: int, receipt: dict) -> RecordInput:
     return RecordInput(
         record_id=f"junkipedia:{source_id}", dataset="social", url=url,
         published_at=published_at, sponsor=company, platform=platform, account=account,
-        body=body, title=f"{account or 'Twitter'} post · {source_id}",
+        body=body, title=f"{account or platform_name} post · {source_id}",
         archive_url=archive_url, countable=False, retrievable=False,
         raw={
             "source_row": row, "source_post_id": source_id, "ad_status": "unknown",
@@ -236,7 +316,8 @@ def _record(row: dict, number: int, receipt: dict) -> RecordInput:
             "sponsor_basis": "company_affiliation_not_verified_paid_sponsor",
             "date_precision": "timestamp" if published_at else "unknown",
             "date_basis": "date_time.published_at_utc" if published_at else "unknown",
-            "date_source": receipt["source"], "body_sha256": body_hash(body),
+            "date_source": receipt["source"], "archive_url_basis": archive_basis,
+            "body_sha256": body_hash(body),
             "body_scope": "post_text_only_image_audio_and_reference_text_not_merged",
             **({"source_string_storage": string_storage} if string_storage else {}),
         },
@@ -316,6 +397,7 @@ def prepare_social_archive(source: Path, *, out: Path, report: Path) -> dict:
             "historical_label_keys": list(SOCIAL_LABELS),
             "taxonomy_status": "historical_automatic_unverified_no_native_label_mapping",
             "valid_archive_links": archive_count,
+            "derived_archive_links": issue_counts["social_archive_url_derived_from_id"],
             "publication_date_range": [min(dates), max(dates)] if dates else None,
             "publication_dates_available": len(dates),
             "platform_counts": dict(platforms), "company_counts": dict(companies),

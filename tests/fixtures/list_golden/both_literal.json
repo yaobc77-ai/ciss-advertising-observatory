@@ -1,0 +1,568 @@
+{
+ "db_calls": {
+  "count_public": {
+   "native": 1,
+   "social": 1
+  },
+  "native": [
+   {
+    "found": [
+     "n1-e9",
+     "n2-e1",
+     "n5-e1"
+    ],
+    "limit_records": 7,
+    "method": "phrase_search",
+    "phrases": [
+     "tidal kite"
+    ]
+   }
+  ],
+  "public_rows": {
+   "all": 2,
+   "native": 1,
+   "social": 1
+  },
+  "search": [
+   {
+    "chunks_per_record": null,
+    "dataset": "native",
+    "hybrid": false,
+    "limit": 5,
+    "query": "Which ads mention \"tidal kite\"?",
+    "record_ids": []
+   },
+   {
+    "chunks_per_record": null,
+    "dataset": "social",
+    "hybrid": false,
+    "limit": 5,
+    "query": "Which ads mention \"tidal kite\"?",
+    "record_ids": []
+   },
+   {
+    "chunks_per_record": 2,
+    "dataset": "native",
+    "hybrid": true,
+    "limit": 120,
+    "query": "Which ads mention \"tidal kite\"?",
+    "record_ids": []
+   },
+   {
+    "chunks_per_record": 2,
+    "dataset": "social",
+    "hybrid": true,
+    "limit": 120,
+    "query": "Which ads mention \"tidal kite\"?",
+    "record_ids": []
+   }
+  ],
+  "social": [
+   {
+    "found": [
+     "s1-e1",
+     "s3-e1"
+    ],
+    "limit_records": 5,
+    "method": "phrase_search",
+    "phrases": [
+     "tidal kite"
+    ]
+   }
+  ]
+ },
+ "frozen": {
+  "commit": "60775b3",
+  "date": "2026-10-26",
+  "module": "tests/test_list_golden.py"
+ },
+ "ledger": [
+  [
+   "generation",
+   "gpt-5.6-luna",
+   0.04,
+   "cancelled"
+  ]
+ ],
+ "model_calls": {
+  "native": {
+   "judge": [],
+   "screen": []
+  },
+  "shared": [
+   {
+    "role": "embed",
+    "texts": [
+     "Which ads mention \"tidal kite\"?",
+     "Which ads mention \"tidal kite\"?"
+    ]
+   }
+  ],
+  "social": {
+   "judge": [],
+   "screen": []
+  }
+ },
+ "result": {
+  "answer": "Checked all 6 native ads and all 4 company social posts in your selection: found 3 matching ads and 2 matching posts. Matching means containing “tidal kite” (exact wording).\n\n1. Kite notice n1 — Harbor Daily, Tidal Co, 2021-05-04: “By night, tidal kites power the harbor lights and bring jobs.” [1]\n\n2. Kite notice n2 — Harbor Daily, Tidal Co, 2021-05-04: “Tidal kites will bring 400 jobs to the harbor.” [2]\n\n3. Kite notice n5 — Harbor Daily, Tidal Co, 2021-05-04: “Quiet tidal kite farms hire local crews.” [3]\n\n4. Post by Kite Guild, 2023-07-01: “Every tidal kite farm hires local crews: jobs for the harbor.” [4]\n\n5. Post by Kite Guild, 2023-07-01: “Tidal kites: jobs, jobs, jobs.” [5]",
+  "answer_mode": "rag",
+  "citations": [
+   [
+    "n1-e9",
+    "By night, tidal kites power the harbor lights and bring jobs."
+   ],
+   [
+    "n2-e1",
+    "Tidal kites will bring 400 jobs to the harbor."
+   ],
+   [
+    "n5-e1",
+    "Quiet tidal kite farms hire local crews."
+   ],
+   [
+    "s1-e1",
+    "Every tidal kite farm hires local crews: jobs for the harbor."
+   ],
+   [
+    "s3-e1",
+    "Tidal kites: jobs, jobs, jobs."
+   ]
+  ],
+  "cited_claims": [
+   [
+    "Kite notice n1 — Harbor Daily, Tidal Co, 2021-05-04: “By night, tidal kites power the harbor lights and bring jobs.” [1]",
+    [
+     1
+    ]
+   ],
+   [
+    "Kite notice n2 — Harbor Daily, Tidal Co, 2021-05-04: “Tidal kites will bring 400 jobs to the harbor.” [2]",
+    [
+     2
+    ]
+   ],
+   [
+    "Kite notice n5 — Harbor Daily, Tidal Co, 2021-05-04: “Quiet tidal kite farms hire local crews.” [3]",
+    [
+     3
+    ]
+   ],
+   [
+    "Post by Kite Guild, 2023-07-01: “Every tidal kite farm hires local crews: jobs for the harbor.” [4]",
+    [
+     4
+    ]
+   ],
+   [
+    "Post by Kite Guild, 2023-07-01: “Tidal kites: jobs, jobs, jobs.” [5]",
+    [
+     5
+    ]
+   ]
+  ],
+  "cost_usd": 2e-06,
+  "evidence_ids": [
+   "n1-e9",
+   "n2-e1",
+   "n5-e1",
+   "s1-e1",
+   "s3-e1"
+  ],
+  "external_research": {},
+  "failure_reason": "",
+  "research_trace": {
+   "list_decision": {
+    "planner": null,
+    "rule": true
+   },
+   "list_screening": {
+    "by_dataset": {
+     "native": {
+      "examined": 6,
+      "matches": 3,
+      "scope_total": 6
+     },
+     "social": {
+      "examined": 4,
+      "matches": 2,
+      "scope_total": 4
+     }
+    },
+    "decisions": [
+     {
+      "dataset": "native",
+      "decision": "matches",
+      "evidence_id": "n1-e9",
+      "quote": "By night, tidal kites power the harbor lights and bring jobs.",
+      "record_id": "n1",
+      "title": "Kite notice n1"
+     },
+     {
+      "dataset": "native",
+      "decision": "matches",
+      "evidence_id": "n2-e1",
+      "quote": "Tidal kites will bring 400 jobs to the harbor.",
+      "record_id": "n2",
+      "title": "Kite notice n2"
+     },
+     {
+      "dataset": "native",
+      "decision": "matches",
+      "evidence_id": "n5-e1",
+      "quote": "Quiet tidal kite farms hire local crews.",
+      "record_id": "n5",
+      "title": "Kite notice n5"
+     },
+     {
+      "dataset": "social",
+      "decision": "matches",
+      "evidence_id": "s1-e1",
+      "quote": "Every tidal kite farm hires local crews: jobs for the harbor.",
+      "record_id": "s1",
+      "title": ""
+     },
+     {
+      "dataset": "social",
+      "decision": "matches",
+      "evidence_id": "s3-e1",
+      "quote": "Tidal kites: jobs, jobs, jobs.",
+      "record_id": "s3",
+      "title": ""
+     }
+    ],
+    "does_not_match": 0,
+    "examined": 10,
+    "matches": 5,
+    "method": "exact_text",
+    "policy": "list-screening-v19",
+    "question": "Which ads mention \"tidal kite\"?",
+    "reread": 0,
+    "review": 0,
+    "scope_total": 10,
+    "unclear": 0,
+    "verified_removed": 0
+   },
+   "media_retrieval": {
+    "groups": [
+     {
+      "image_units": 0,
+      "label": "Native ads",
+      "status": "not_configured",
+      "video_units": 0
+     },
+     {
+      "image_units": 0,
+      "label": "Company posts",
+      "status": "not_configured",
+      "video_units": 0
+     }
+    ],
+    "method": "separate_lexical_media_rrf",
+    "recognition_calls": 0,
+    "source_binding": {
+     "bundle_sha256": "",
+     "configuration_complete": false,
+     "contract": "separate-media-evidence-v1"
+    }
+   },
+   "question_plan": {
+    "agent_route": "direct",
+    "allow_web": false,
+    "clarify_message": null,
+    "coverage_note_rule": true,
+    "datasets": [
+     "native",
+     "social"
+    ],
+    "datasets_requested": [
+     "native",
+     "social"
+    ],
+    "failure_reason": "",
+    "filters": {
+     "accounts": [],
+     "dataset": "all",
+     "date_from": null,
+     "date_presence": "any",
+     "date_to": null,
+     "include_inferred_dates": false,
+     "include_unknown_dates": true,
+     "keywords": [],
+     "labels": [],
+     "platforms": [],
+     "publishers": [],
+     "record_ids": [],
+     "replies": [],
+     "sponsors": []
+    },
+    "list_kind": "screen",
+    "original_metadata": false,
+    "phrases": [
+     "tidal kite"
+    ],
+    "read_sources": false,
+    "reasons": {
+     "allow_web": "rule:list_screened",
+     "datasets": "filters:user",
+     "route": "caller:evidence",
+     "search_query": "default:question",
+     "shape": "rule:requires_complete_list"
+    },
+    "route": "evidence",
+    "search_query": "Which ads mention \"tidal kite\"?",
+    "shape": "list",
+    "signals": {
+     "collection_only": false,
+     "contract_task": "content_mentions",
+     "original_metadata_only": false,
+     "planner_shape": null,
+     "pure_literal": true,
+     "quoted_phrases": 1,
+     "relation_list": false,
+     "retrieval_groups": false,
+     "rule_list": true
+    },
+    "version": "question-plan-v2",
+    "wants_list": true
+   }
+  },
+  "sections": [],
+  "status": "answered",
+  "structured_result": {
+   "by_dataset": {
+    "native": {
+     "examined": 6,
+     "matches": 3,
+     "scope_total": 6
+    },
+    "social": {
+     "examined": 4,
+     "matches": 2,
+     "scope_total": 4
+    }
+   },
+   "charts": [
+    {
+     "id": "by_sponsor",
+     "labels": [
+      "Tidal Co",
+      "Kite Guild"
+     ],
+     "omitted_categories": 0,
+     "series": [
+      {
+       "dataset": "native",
+       "name": "Native ads",
+       "values": [
+        3,
+        0
+       ]
+      },
+      {
+       "dataset": "social",
+       "name": "Company posts",
+       "values": [
+        0,
+        2
+       ]
+      }
+     ],
+     "title": "Listed ads and posts by company",
+     "total": 5,
+     "values": [
+      3,
+      2
+     ]
+    },
+    {
+     "id": "by_year",
+     "labels": [
+      "2021",
+      "2023"
+     ],
+     "omitted_categories": 0,
+     "series": [
+      {
+       "dataset": "native",
+       "name": "Native ads",
+       "values": [
+        3,
+        0
+       ]
+      },
+      {
+       "dataset": "social",
+       "name": "Company posts",
+       "values": [
+        0,
+        2
+       ]
+      }
+     ],
+     "title": "Listed ads and posts by publication year",
+     "total": 5,
+     "values": [
+      3,
+      2
+     ]
+    },
+    {
+     "id": "by_outlet",
+     "labels": [
+      "Harbor Daily",
+      "Kite Guild"
+     ],
+     "omitted_categories": 0,
+     "series": [
+      {
+       "dataset": "native",
+       "name": "Native ads",
+       "values": [
+        3,
+        0
+       ]
+      },
+      {
+       "dataset": "social",
+       "name": "Company posts",
+       "values": [
+        0,
+        2
+       ]
+      }
+     ],
+     "title": "Listed ads and posts by outlet or account",
+     "total": 5,
+     "values": [
+      3,
+      2
+     ]
+    }
+   ],
+   "display_citations": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "examined": 10,
+   "groups": [
+    {
+     "evidence_units": 3,
+     "filters": {
+      "accounts": [],
+      "dataset": "native",
+      "date_from": null,
+      "date_presence": "any",
+      "date_to": null,
+      "include_inferred_dates": false,
+      "include_unknown_dates": true,
+      "keywords": [],
+      "labels": [],
+      "platforms": [],
+      "publishers": [],
+      "record_ids": [],
+      "replies": [],
+      "sponsors": []
+     },
+     "image_units": 0,
+     "label": "Native ads",
+     "media_status": "not_configured",
+     "passages": 3,
+     "query": "Which ads mention \"tidal kite\"?",
+     "retrieved_evidence_ids": [
+      "n1-e1",
+      "n2-e1",
+      "n3-e1"
+     ],
+     "retrieved_record_ids": [
+      "n1",
+      "n2",
+      "n3"
+     ],
+     "video_units": 0
+    },
+    {
+     "evidence_units": 2,
+     "filters": {
+      "accounts": [],
+      "dataset": "social",
+      "date_from": null,
+      "date_presence": "any",
+      "date_to": null,
+      "include_inferred_dates": false,
+      "include_unknown_dates": true,
+      "keywords": [],
+      "labels": [],
+      "platforms": [],
+      "publishers": [],
+      "record_ids": [],
+      "replies": [],
+      "sponsors": []
+     },
+     "image_units": 0,
+     "label": "Company posts",
+     "media_status": "not_configured",
+     "passages": 2,
+     "query": "Which ads mention \"tidal kite\"?",
+     "retrieved_evidence_ids": [
+      "s1-e1",
+      "s2-e1"
+     ],
+     "retrieved_record_ids": [
+      "s1",
+      "s2"
+     ],
+     "video_units": 0
+    }
+   ],
+   "kind": "exact_text_list",
+   "matches": 5,
+   "meaning": "Literal wording found in indexed text; meaning is not judged.",
+   "method": "exact_text",
+   "policy": "list-screening-v19",
+   "review": 0,
+   "scope_total": 10
+  },
+  "summary": []
+ },
+ "scenario": {
+  "allowed": [
+   [
+    "result",
+    "research_trace",
+    "list_screening",
+    "first_read"
+   ],
+   [
+    "result",
+    "research_trace",
+    "list_screening",
+    "first_read_by_dataset"
+   ],
+   [
+    "result",
+    "research_trace",
+    "question_plan",
+    "list_kind"
+   ]
+  ],
+  "declared_shape": null,
+  "fail_social_screening": false,
+  "filters": {
+   "dataset": "all"
+  },
+  "large_scope": false,
+  "limit_at": null,
+  "many_literal": false,
+  "match": "jobs",
+  "name": "both_literal",
+  "note": "exact wording in each collection; the plan now says literal",
+  "question": "Which ads mention \"tidal kite\"?",
+  "relation_listing": null,
+  "retrieval_groups": null,
+  "triage": true,
+  "writer": "summary"
+ }
+}

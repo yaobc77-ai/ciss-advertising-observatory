@@ -28,6 +28,17 @@ def test_local_defaults_keep_plain_http_cookies(monkeypatch):
     assert settings.trusted_proxy == ""
 
 
+def test_criterion_confirmation_switch_is_ask_unless_auto(monkeypatch):
+    # Pipeline step 3 (S3-d): the web entry reads it and asks first by default; the API and
+    # internal callers stay auto. Only an explicit "auto" turns the card off.
+    _clear(monkeypatch)
+    monkeypatch.delenv("OBS_CRITERION_CONFIRMATION", raising=False)
+    assert Settings.from_env().criterion_confirmation == "ask"
+    for value, expected in (("ask", "ask"), (" AUTO ", "auto"), ("auto", "auto"), ("yes", "ask")):
+        monkeypatch.setenv("OBS_CRITERION_CONFIRMATION", value)
+        assert Settings.from_env().criterion_confirmation == expected, value
+
+
 def test_hosted_cookie_and_proxy_settings(monkeypatch):
     _clear(monkeypatch)
     monkeypatch.setenv("OBS_SECURE_COOKIES", "true")

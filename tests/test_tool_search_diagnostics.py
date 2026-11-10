@@ -39,8 +39,9 @@ class CoverageConnection:
         if "AS scope_records" in statement:
             return Cursor({"scope_records": self.scope_records, "scope_chunks": self.scope_chunks})
         if "matching_records" in statement:
+            # The term list is the first parameter of the per-term coverage read.
             return Cursor([{"term": term, "matching_records": 0, "returned_ids": []}
-                           for term in params[-1]])
+                           for term in params[0]])
         raise AssertionError("Unexpected mocked coverage statement")
 
 

@@ -11,8 +11,6 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import os
-import re
 import sys
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
@@ -21,7 +19,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from observatory.cooccurrence_maps import SCHEMA_VERSION, project, semantic_projection  # noqa: E402
+from observatory.cooccurrence_maps import (  # noqa: E402
+    SCHEMA_VERSION,
+    project,
+    semantic_projection,
+)
 from observatory.entities import registry  # noqa: E402
 
 CURRENT = ("FROM records r JOIN record_versions v ON v.version_id=r.current_version "

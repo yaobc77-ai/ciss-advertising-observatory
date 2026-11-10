@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import inspect
+import logging
 import math
 import os
 import re
@@ -16,7 +17,7 @@ from pathlib import Path
 from urllib.parse import quote, urlsplit
 
 import plotly.graph_objects as go
-from dash import Dash, Input, Output, State, ctx, dcc, html, no_update
+from dash import MATCH, Dash, Input, Output, State, ctx, dcc, html, no_update
 from dash.exceptions import PreventUpdate
 from flask import request, session
 
@@ -25,9 +26,31 @@ from observatory.analytics import (
     sponsor_display,
     sponsor_publisher_csv,
 )
+from observatory.depth_eval_ui import depth_section
 from observatory.evaluation_report import published_report
 from observatory.evaluation_ui import evaluation_panel
 from observatory.models import Filters
+from observatory.query_demo import demo_answers, recompute_retrieval, replay, scope_size
+from observatory.quote_links import record_quote_href
+from observatory.relevance_eval_ui import (
+    card_check,
+    criterion_card,
+    judge_numbers,
+    list_check,
+    record_scores,
+    register_reviews,
+    relevance_lines,
+    review_section,
+    route_badge,
+    validation_section,
+)
+from observatory.retrieval_explain import (
+    complete,
+    explanations,
+    list_ndcg,
+    searches,
+)
+from observatory.score_explain_ui import explain_block, retrieval_badge, retrieval_lines
 from observatory.social_annotations import SCHEME, STATUS, social_state_options
 from observatory.social_label_ui import (
     clicked_social_state,
@@ -41,6 +64,18 @@ from observatory.social_source_ui import (
     decorate_source_observation_cards,
     original_text_citation_matches,
 )
+
+from .criterion_confirmation import pending_confirmation
+from .criterion_ui import (
+    NOTICE_REASONS,
+    REFUSAL_NEXT_STEPS,
+    REFUSAL_TITLES,
+    criterion_from_text,
+    refusal_notice,
+    register_criterion_card,
+    rules_notice,
+)
+from .criterion_ui import card as criterion_confirmation_card
 
 UNKNOWN = "(Unknown)"
 NATIVE_COLUMNS = ("url", "publisher", "title", "date", "sponsor", "keyword")
@@ -519,6 +554,79 @@ def _bars(items, metric="count"):
                         ticktext=[_wrap_label(item.get("name") or UNKNOWN) for item in items])
     figure.update_layout(height=max(320, len(items) * 36 + 65), margin={"l": 16, "r": 50, "t": 18, "b": 45})
     return figure
+
+
+SCREENING_DECISIONS = {"matches": "Listed", "does_not_match": "Not listed", "unclear": "Unclear"}
+
+
+def _relevance_reasoning(result):
+    """Collapsed record of how each screened ad was judged: decision, quote and the model's reasoning.
+
+    Screening reads four ads per model call, so decisions are grouped by call and each
+    call's reasoning is printed once. With a triage (relevance_triage), each ad also
+    shows its route and the Decisions judge's numbers, and ads the judge excluded
+    without screening are listed apart. Titles come from the decisions or the evidence.
+    """
+    trace = (result.get("research_trace") or {}).get("list_screening") or {}
+    decisions = trace.get("decisions") or []
+    if not decisions:
+        return []
+    titles = {}
+    for item in result.get("evidence") or []:
+        item = _mapping(item)
+        titles.setdefault(item.get("record_id"), item.get("title") or item.get("account") or item.get("record_id"))
+
+    def title(decision):
+        return decision.get("title") or titles.get(decision.get("record_id")) or decision.get("record_id")
+
+    apart = {"triage_excluded", "not_screened"}
+    screened = [d for d in decisions if d.get("reason") not in apart]
+    excluded = [d for d in decisions if d.get("reason") == "triage_excluded"]
+    calls, current = [], []
+    for decision in screened:
+        # A new call starts every four ads, or when the reasoning text changes.
+        if current and (len(current) == 4 or decision.get("screening_reasoning") != current[0].get("screening_reasoning")):
+            calls.append(current)
+            current = []
+        current.append(decision)
+    if current:
+        calls.append(current)
+    blocks, number = [], 0
+    for call in calls:
+        rows = []
+        for decision in call:
+            number += 1
+            label = SCREENING_DECISIONS.get(decision.get("decision"), decision.get("decision") or "")
+            rows.append(html.Li([
+                html.Span(f"A{number}. "), html.Strong(title(decision)),
+                html.Span(f" · {label}", className=f"screen-decision screen-{decision.get('decision')}"),
+                html.Span(" "), route_badge(decision.get("route")),
+                html.Blockquote(decision["quote"], className="screen-quote") if decision.get("quote") else None,
+                html.Div(judge_numbers(decision.get("triage"))) if "triage" in decision else None,
+                list_check(trace, decision.get("record_id"), decision.get("route"))
+                if decision.get("route") == "pass" and decision.get("decision") == "matches" else None,
+            ]))
+        reasoning = call[0].get("screening_reasoning")
+        blocks.append(html.Div([
+            html.Ul(rows, className="screen-call-list"),
+            html.P(["Reasoning: ", reasoning] if reasoning else "No reasoning text came back for this call.",
+                   className="screen-reasoning" if reasoning else "scope-note"),
+        ], className="screen-call"))
+    if excluded:
+        blocks.append(html.Details([
+            html.Summary(f"Excluded by the judge without screening ({len(excluded)})"),
+            html.Ul([html.Li([html.Strong(title(d)), html.Div(judge_numbers(d.get("triage")))]) for d in excluded],
+                    className="screen-call-list"),
+        ], className="screen-call"))
+    listed = sum(d.get("decision") == "matches" and d.get("route", "pass") == "pass" for d in decisions)
+    return [html.Details([
+        html.Summary(f"How relevance was judged ({len(decisions)} ads read, {listed} listed)"),
+        html.P("The model read four ads per call. A listed ad needs a sentence copied from it, which the server "
+               "checked against the stored text. A1, A2… are the reading order the reasoning refers to. "
+               "Judge numbers come from the Decisions API reading the whole ad against the rules above.",
+               className="scope-note"),
+        *blocks,
+    ], className="relevance-reasoning")]
 
 
 def _list_chart_cards(data):
@@ -1307,6 +1415,17 @@ def _render_answer_result(result, links_enabled, service):
     """All answer routes share presentation; failure statuses cannot bypass it."""
     status, mode = result.get("status"), result.get("answer_mode", "rag")
     data = result.get("structured_result") or {}
+    if pending_confirmation(result):
+        # Step 3 (S3-d): the list stopped for the researcher's criterion. The card comes first;
+        # the retrieved candidates below are free to browse; nothing has been judged yet.
+        submission = result.get("card_submission") or {
+            "question": (result.get("research_trace") or {}).get("original_question") or "", "filters": {}}
+        cards = [criterion_confirmation_card(result, submission)]
+        if result.get("evidence"):
+            cards.append(_answer_section("Retrieved candidates (free to browse; nothing judged yet)",
+                                         _evidence_cards(result["evidence"], links_enabled)))
+        cards.append(_research_steps(result))
+        return cards
     if mode == "tools" and data.get("kind") == "composite":
         cards = [html.H3("Completed question parts" if data.get("complete") else "Partial answer")]
         if status in {"limited", "service_unavailable"}:
@@ -1356,8 +1475,13 @@ def _render_answer_result(result, links_enabled, service):
     partial = _partial_collection_answer(result)
     if mode == "rag" and (status == "answered" or partial):
         summary, findings = _grounded_answer_parts(result, str(result.get("answer") or ""))
-        evidence = [_answer_section("Findings", findings)] if findings else []
-        evidence.extend(_list_chart_cards(data))
+        screening = (result.get("research_trace") or {}).get("list_screening") or {}
+        replay = bool(result.get("replay"))
+        # Each listed ad's card lets a person mark it right or wrong, on a replay too.
+        asked = screening.get("question")
+        if replay:
+            # A saved answer replayed on the Query page: its checks are on the cards only.
+            screening = {**screening, "question": None}
         shown_evidence = result.get("evidence") or []
         if isinstance(data.get("display_citations"), list):
             # A list answer shows the passages of the citations it displays
@@ -1366,11 +1490,41 @@ def _render_answer_result(result, links_enabled, service):
             keep = {_mapping(cited[n - 1]).get("evidence_id") for n in data["display_citations"]
                     if isinstance(n, int) and 0 < n <= len(cited)}
             shown_evidence = [e for e in shown_evidence if _mapping(e).get("evidence_id") in keep]
+        scores = record_scores(screening) if screening.get("decisions") and screening.get("criterion") else None
+        routes = _listed_routes(screening) if scores is not None and asked else {}
+        # A listed ad with a card is checked on its card only; the lists point there.
+        listed = {**screening, "card_checked": {_mapping(e).get("record_id") for e in shown_evidence} & set(routes)}
+        # The rules a listed record meets come first, then the findings (relevance_triage).
+        evidence = criterion_card(screening)
+        evidence.extend([_answer_section("Findings", findings)] if findings else [])
+        evidence.extend([] if replay else _list_chart_cards(data))
+        evidence.extend(review_section(listed))
+        evidence.extend(_relevance_reasoning({**result, "research_trace": {
+            **(result.get("research_trace") or {}), "list_screening": listed}}))
+        # Cards of an answer that ran searches say what each search matched, or that no detail was kept.
+        retrieval = explanations(result) if searches(result) else None
+        # NDCG of the ads in the order the answer shows them, each with its RAG score as its gain.
+        shown_ids = list(dict.fromkeys(_mapping(e).get("record_id") for e in shown_evidence))
+        ndcg_total, shares, ndcg_unknown = list_ndcg(result, shown_ids)
+        if retrieval:
+            retrieval = {rid: {**item, "ndcg": shares.get(rid, 0.0) if ndcg_total is not None else None,
+                               "ndcg_total": ndcg_total,
+                               "shown_at": shown_ids.index(rid) + 1 if rid in shown_ids else None}
+                         for rid, item in retrieval.items()}
+        total, examined = screening.get("scope_total"), screening.get("examined")
+        whole = (examined, total) if isinstance(total, int) and total > 0 and examined == total else None
         if shown_evidence:
             evidence.extend([
                 html.H5("Records and quoted evidence", className="answer-evidence-title"),
-                *_evidence_cards(shown_evidence, links_enabled, result.get("citations") or []),
+                *_evidence_cards(shown_evidence, links_enabled, result.get("citations") or [],
+                                 scores, screening.get("criterion") if scores is not None else None,
+                                 retrieval, bool(whole) and complete(result),
+                                 (asked, routes) if routes else None),
             ])
+        # What the two scores are based on, right under the answer's first sentence.
+        block = explain_block(result, screening, whole, ndcg_total, ndcg_unknown)
+        if block is not None:
+            summary = [*summary[:1], block, *summary[1:]]
         media_cards = _media_evidence_cards(result.get("media_evidence") or [], links_enabled,
                                              result.get("citations") or [])
         if media_cards:
@@ -1382,7 +1536,11 @@ def _render_answer_result(result, links_enabled, service):
             summary, evidence, _rag_scope_notes(result),
             eyebrow="Generated answer", trace=_research_steps(result), class_name="grounded-answer",
         ), external]
-    if status == "insufficient_evidence":
+    reason = result.get("failure_reason") or ""
+    if reason in REFUSAL_TITLES:
+        # Step 3: a refused or deferred confirmation keeps its own explanation, whatever its status.
+        title, message, next_step = REFUSAL_TITLES[reason], str(result.get("answer") or ""), REFUSAL_NEXT_STEPS[reason]
+    elif status == "insufficient_evidence":
         title = "Clarify this question" if mode == "clarification" else "Insufficient evidence"
         message = str(result.get("answer") or "The available records do not support an answer.")
         next_step = ("Specify the collection, company, outlet or date range so the question can be answered within a clear scope."
@@ -1547,7 +1705,19 @@ def _coverage_notice(diagnostics):
     )
 
 
-def _evidence_cards(evidence, enabled, citations=()):
+def _listed_routes(screening):
+    """record id -> the route of each ad the screening listed (pass) or sent for a check (review)."""
+    return {d["record_id"]: d.get("route") or "pass" for d in screening.get("decisions") or []
+            if isinstance(d, dict) and d.get("record_id") and d.get("decision") == "matches"}
+
+
+def _evidence_cards(evidence, enabled, citations=(), scores=None, criterion=None, retrieval=None, read_all=False,
+                    checks=None):
+    """`retrieval` (record id -> retrieval_explain) puts the retrieval score after the title and what each
+    search route found; `scores` (record id -> judge numbers) and `criterion`, given for a list answer only,
+    add the accuracy score and the rules it is related to. `read_all`: every ad in scope was read. `checks`
+    (question, record id -> route) adds a folded right/wrong choice to each listed ad. An ad with several
+    passages shown has its scores, matches, rules and choice on its first card only."""
     citation_quotes = {}
     for number, citation in enumerate(citations, start=1):
         citation = _mapping(citation)
@@ -1557,21 +1727,34 @@ def _evidence_cards(evidence, enabled, citations=()):
                 and citation.get("evidence_type", "article_text") == "article_text"
                 and citation.get("origin", "original_text") == "original_text"):
             citation_quotes.setdefault(evidence_id, []).append((number, quote))
-    cards = []
+    cards, seen = [], set()
     for rank, value in enumerate(evidence, start=1):
         item = _mapping(value)
+        repeat = (retrieval is not None or scores is not None or bool(checks)) and item.get("record_id") in seen
+        seen.add(item.get("record_id"))
         passage = str(item.get("text") or "")
         supported = [
             (number, quote)
             for number, quote in citation_quotes.get(item.get("evidence_id"), [])
             if quote.strip() and quote in passage
         ]
+        score, related = (relevance_lines(scores.get(item.get("record_id")), criterion)
+                          if scores is not None else (None, None))
+        explained = retrieval.get(item.get("record_id")) if retrieval is not None else None
+        found = retrieval_lines(explained, read_all) if retrieval is not None else None
+        checked = card_check(checks[0], item.get("record_id"), checks[1].get(item.get("record_id"))) if checks else None
+        badges = [badge for badge in (retrieval_badge(explained), score) if badge is not None]
+        if repeat:  # one set of scores and one choice per ad: its first card has them
+            found = related = checked = None
+            badges = []
         if supported:
             quote_blocks = [
                 html.Div(
                     [
                         html.Span(f"Citation [{number}]", className="evidence-code"),
                         html.Blockquote(quote),
+                        html.A("Show this quote in the full text →", href=record_quote_href(item, [quote]),
+                               target="_blank", rel="noopener", className="quote-link"),
                     ],
                     className="citation-quote",
                     id=f"answer-citation-{number}",
@@ -1592,14 +1775,16 @@ def _evidence_cards(evidence, enabled, citations=()):
                                 else "Company social posts",
                                 className="dataset-chip",
                             ),
-                            html.Span(
+                            # With search detail the card shows its real retrieval score instead of
+                            # its position among the cards.
+                            *([] if retrieval is not None else [html.Span(
                                 f"Retrieval rank {rank}",
                                 className="evidence-code",
-                            ),
+                            )]),
                         ],
                         className="evidence-heading",
                     ),
-                    html.H4(str(item.get("title") or "Untitled record")),
+                    html.H4([str(item.get("title") or "Untitled record"), *[part for badge in badges for part in (" ", badge)]]),
                     html.P(
                         " · ".join(
                             [
@@ -1613,13 +1798,17 @@ def _evidence_cards(evidence, enabled, citations=()):
                         ),
                         className="muted",
                     ),
-                    html.P(
+                    # What the search matched, the rules it is related to and a reader's check, when present.
+                    *[part for part in (found, related, checked) if part is not None],
+                    *([html.P("Another passage of the ad above; its scores and your check are on that card.",
+                              className="match-note")] if repeat else []),
+                    *([] if found is not None or related is not None or repeat else [html.P(
                         "Matched search terms: "
                         + ", ".join(item.get("matched_terms") or [])
                         if item.get("matched_terms")
                         else "Ordered by retrieval relevance; rank is not a confidence score.",
                         className="match-note",
-                    ),
+                    )]),
                     *([html.P(str(item["date_notice"]), className="scope-note")]
                       if item.get("date_notice") else []),
                     *quote_blocks,
@@ -1652,7 +1841,7 @@ def _evidence_cards(evidence, enabled, citations=()):
                     ),
                     html.A(
                         "View record and archived materials →",
-                        href="/records/" + str(item.get("record_id") or ""),
+                        href=record_quote_href(item, [quote for _, quote in supported]),
                         target="_blank",
                         rel="noopener",
                     ),
@@ -1895,6 +2084,32 @@ def _filter_panel(dataset, facets):
     )
 
 
+log = logging.getLogger(__name__)
+
+
+def _boundary_failure(where, exc):
+    """Record a failure the public boundary hides: the place and exception type only, never details or user input.
+
+    Known defect (2026-10-25): dashboard callbacks swallowed errors without any log line.
+    """
+    log.warning("Dashboard %s failed: %s", where, type(exc).__name__)
+
+
+def _demo_row(demos, error):
+    """Buttons for the saved list answers (query_demo); nothing when there are none."""
+    if error:
+        return html.P("Saved demo answers could not be read.", className="scope-note")
+    if not demos:
+        return None
+    return html.Div([
+        html.Span("Saved demo answers"),
+        *[html.Button(demo["name"], id=f"query-demo-{n}", n_clicks=0, title=demo["question"],
+                      className="query-example") for n, demo in enumerate(demos)],
+        html.Small("Each shows a list answer saved earlier, with a relevance score for every cited ad. "
+                   "No model is called and nothing is saved."),
+    ], className="query-examples query-demos")
+
+
 def _panel(dataset, links_enabled):
     from observatory.data_layout import data_panel
     return data_panel(dataset, links_enabled, _figure)
@@ -1909,6 +2124,10 @@ def create_app(service, settings, record_details=None) -> Dash:
     enabled = bool(settings.show_source_links)
     agent_enabled = bool(getattr(settings, "research_agent_enabled", False)
                          or getattr(settings, "question_intent_enabled", False))
+    try:
+        demos, demo_error = demo_answers(), False
+    except ValueError:  # a damaged file must not stop the site
+        demos, demo_error = [], True
     app = Dash(
         __name__,
         assets_folder=str(Path(__file__).parent / "assets"),
@@ -1924,7 +2143,7 @@ def create_app(service, settings, record_details=None) -> Dash:
         SESSION_COOKIE_SAMESITE="Lax",
         SESSION_COOKIE_SECURE=bool(getattr(settings, "secure_cookies", False)),
     )
-    from observatory.query_progress import ProgressRegistry
+    from observatory.query_progress import PREPARING, STAGES, ProgressRegistry
 
     progress_registry = ProgressRegistry()
 
@@ -1980,13 +2199,15 @@ def create_app(service, settings, record_details=None) -> Dash:
     def layout():
         try:
             health = service.health()
-        except Exception:  # noqa: BLE001 - hide internal service errors at the public boundary.
+        except Exception as exc:  # noqa: BLE001 - hide internal service errors at the public boundary.
+            _boundary_failure("layout health", exc)
             health = {"status": "unavailable"}
         facets = {}
         for dataset in ("native", "social"):
             try:
                 facets[dataset] = service.facets(dataset)
-            except Exception:  # noqa: BLE001 - leave controls usable during service failures.
+            except Exception as exc:  # noqa: BLE001 - leave controls usable during service failures.
+                _boundary_failure(f"layout facets ({dataset})", exc)
                 facets[dataset] = {}
 
         from .combined_ui import combined_filters, combined_panel
@@ -2138,8 +2359,10 @@ def create_app(service, settings, record_details=None) -> Dash:
             [
                 dcc.Location(id="page-location", refresh=False),
                 dcc.Store(id="research-submission"),
+                dcc.Store(id="criterion-flow-state"),  # the last continuation's outcome and submitted criterion (step 3)
                 dcc.Store(id="research-progress-token", data=secrets.token_urlsafe(24)),
                 dcc.Interval(id="research-progress-poll", interval=600, disabled=True),
+                dcc.Interval(id="criterion-progress-poll", interval=600, disabled=True),
                 html.A("Skip to content", href="#main", className="skip-link"),
                 html.Header(
                     [
@@ -2227,6 +2450,7 @@ def create_app(service, settings, record_details=None) -> Dash:
                                                             html.Small("Choose an example, then select Generate answer. The model interprets your question; data tools calculate counts and retrieve sources." if agent_enabled else
                                                                        "Choose an example, then select Generate answer. Counts and lists use the database at no model charge."),
                                                         ], className="query-examples"),
+                                                        _demo_row(demos, demo_error),
                                                         html.Div(
                                                             id="research-stale",
                                                             role="status",
@@ -2237,6 +2461,14 @@ def create_app(service, settings, record_details=None) -> Dash:
                                                         ], id="research-progress", className="query-progress",
                                                             style={"display": "none"}, role="status",
                                                             **{"aria-live": "polite", "aria-atomic": "true"}),
+                                                        html.Div([
+                                                            html.Span(className="query-progress-spinner", **{"aria-hidden": "true"}),
+                                                            html.Span("Judging each ad by the confirmed rules", id="criterion-progress-label"),
+                                                        ], id="criterion-progress", className="query-progress",
+                                                            style={"display": "none"}, role="status",
+                                                            **{"aria-live": "polite", "aria-atomic": "true"}),
+                                                        html.Div(id="criterion-notice", className="criterion-notice-slot",
+                                                                 role="status", **{"aria-live": "polite"}),
                                                         html.Div(
                                                             id="research-results",
                                                             **{"aria-live": "polite"},
@@ -2273,7 +2505,7 @@ def create_app(service, settings, record_details=None) -> Dash:
                             **{"aria-label": "Project wireframe"},
                         ),
                         html.Section(
-                            evaluation_panel(published_report(settings)),
+                            [evaluation_panel(published_report(settings)), validation_section(), depth_section()],
                             id="evaluation-page",
                             hidden=True,
                             **{"aria-label": "Evaluation"},
@@ -2414,8 +2646,8 @@ def create_app(service, settings, record_details=None) -> Dash:
             try:
                 if not _social_available(service.health()):
                     message = "No admitted social records. " + message
-            except Exception:  # noqa: BLE001 - no internal health details in the UI.
-                pass
+            except Exception as exc:  # noqa: BLE001 - no internal health details in the UI.
+                _boundary_failure("social availability check", exc)
         if _page(pathname) == "query" and scope == "all":
             return [
                 html.Strong("Both collections"),
@@ -2449,7 +2681,8 @@ def create_app(service, settings, record_details=None) -> Dash:
             current = _research_signature(question, scope, dataset, values)
         except ValueError:
             current = None
-        if current == submitted:
+        # A criterion card adds its flow id to the signature (step 3, S3-d); the controls did not move.
+        if current == {key: value for key, value in submitted.items() if key != "flow_id"}:
             return None
         return _notice(
             "Results are from an earlier selection",
@@ -2743,7 +2976,8 @@ def create_app(service, settings, record_details=None) -> Dash:
                     "Use a valid date range with the start date before the end date.",
                     "warning",
                 )
-            except Exception:  # noqa: BLE001 - public boundary must hide unexpected service details.
+            except Exception as exc:  # noqa: BLE001 - public boundary must hide unexpected service details.
+                _boundary_failure("records view", exc)
                 message = _notice(
                     "Collection temporarily unavailable",
                     "Your filters are preserved. Please try again when the data service is available.",
@@ -2787,7 +3021,8 @@ def create_app(service, settings, record_details=None) -> Dash:
                     "filename": f"{dataset}-sponsor-outlet-cross-tab.csv",
                     "type": "text/csv",
                 }, f"Downloaded cross-tab for {len(rows):,} selected records."
-            except Exception:
+            except Exception as exc:  # noqa: BLE001 - public boundary must hide unexpected service details.
+                _boundary_failure("cross-tab download", exc)
                 return None, "Cross-tab download is temporarily unavailable."
 
         @app.callback(
@@ -2855,7 +3090,8 @@ def create_app(service, settings, record_details=None) -> Dash:
                     "filename": "social-company-posts.csv" if dataset == "social" else "native-advertising.csv",
                     "type": "text/csv",
                 }, f"Downloaded {len(rows):,} selected records."
-            except Exception:  # noqa: BLE001 - public boundary must hide unexpected service details.
+            except Exception as exc:  # noqa: BLE001 - public boundary must hide unexpected service details.
+                _boundary_failure("records download", exc)
                 return (
                     None,
                     "Download is unavailable. Refresh the current source-state selection and retry; your filters are preserved."
@@ -2919,7 +3155,8 @@ def create_app(service, settings, record_details=None) -> Dash:
             if filters.labels and identifier not in filters.labels:
                 return no_update, no_update, "This segment is outside the selected OR states. Change or clear the Historical source state dropdown before exploring it."
             return [identifier], "records", f"Showing posts with {source_state_name(identifier)}. Other filters are preserved."
-        except Exception:  # noqa: BLE001 - do not expose service details or change scope on a stale click.
+        except Exception as exc:  # noqa: BLE001 - do not expose service details or change scope on a stale click.
+            _boundary_failure("source-state segment click", exc)
             raise PreventUpdate from None
 
     from observatory.knowledge_ui import register_knowledge_graph
@@ -2974,8 +3211,22 @@ def create_app(service, settings, record_details=None) -> Dash:
         return state["label"] if state["status"] == "running" else "Preparing your search"
 
     @app.callback(
+        Output("criterion-progress-label", "children"),
+        Input("criterion-progress-poll", "n_intervals"),
+        State("research-progress-token", "data"),
+        prevent_initial_call=True,
+    )
+    def show_criterion_progress(_ticks, token):
+        # The card's block never says "Preparing your search": before the judgment reports its first
+        # stage, and in its failure fallback, it keeps the judging text (seen in the browser, 2026-10-27).
+        state = progress_registry.snapshot(session.get("visitor_id"), token)
+        return state["label"] if state["status"] == "running" and state["label"] != PREPARING else STAGES["judging"]
+
+    @app.callback(
         Output("research-results", "children"),
         Output("research-submission", "data"),
+        Output("criterion-notice", "children"),
+        Output("criterion-flow-state", "data"),
         Input("search-free", "n_clicks"),
         Input("answer-paid", "n_clicks"),
         State("research-question", "value"),
@@ -3004,29 +3255,80 @@ def create_app(service, settings, record_details=None) -> Dash:
         if not isinstance(clicks, int) or isinstance(clicks, bool) or clicks <= 0:
             raise PreventUpdate
         owner = session["visitor_id"]
-        request_id = progress_registry.begin(owner, token)
+        # One submission at a time per page (step 3): admission and registration happen under one
+        # lock, and the slot is held until this response is built, so the next submission can be
+        # admitted only after this one's response is on its way; the browser runs this callback's
+        # `running` finaliser when that response arrives (a server-side ordering, not a guarantee
+        # against a delayed delivery). An entry pruned by the TTL or evicted at capacity frees the
+        # slot while its work continues; is_current then drops the late response.
+        admitted, request_id = progress_registry.try_begin(owner, token)
+        if not admitted:
+            return no_update, no_update, _notice(
+                "Another submission is still running", "Wait for it to finish, then submit again.", "warning"), no_update
         progress = progress_registry.reporter(owner, token, request_id)
         try:
-            result = run_research(question, scope, dataset, values, progress)
-        except Exception:
-            progress_registry.finish(owner, token, request_id, status="failed")
-            raise
+            try:
+                result, flow_id = run_research(question, scope, dataset, values, progress)
+            except Exception:
+                progress_registry.finish(owner, token, request_id, status="failed")
+                raise
+            if not progress_registry.is_current(owner, token, request_id):
+                raise PreventUpdate  # the slot expired and a newer submission took it: its result stands
+            try:
+                submitted = _research_signature(question, scope, dataset, values)
+            except ValueError:
+                submitted = None
+            if submitted is not None and flow_id:
+                # The card's flow: a click on the card is honoured only while it is the current result.
+                submitted = {**submitted, "flow_id": flow_id}
+            return result, submitted, None, None  # a new submission clears the card's notice and flow state
         finally:
             progress_registry.finish(owner, token, request_id)
+
+    def paid_answer(question, filters, progress, **options):
+        """service.answer for this visitor with progress reporting.
+
+        `options` (criterion_confirmation, continuation; step 3) go only where the service accepts
+        them, so a plain fake with the three positional parameters keeps working.
+        """
+        if "visitor_id" not in session:
+            session["visitor_id"] = secrets.token_urlsafe(24)
+        arguments = {"visitor": session["visitor_id"]}
+        parameters = inspect.signature(service.answer).parameters
+        flexible = any(parameter.kind == inspect.Parameter.VAR_KEYWORD for parameter in parameters.values())
+        if "address" in parameters or flexible:
+            arguments["address"] = request.remote_addr  # question limits per address, not only per cookie
+        if "progress" in parameters or flexible:
+            arguments["progress"] = progress
+        arguments.update({name: value for name, value in options.items() if name in parameters or flexible})
+        return _mapping(service.answer(question, filters, **arguments))
+
+    def failure_view(question, filters, context):
+        """The public boundary after an answer failure (logged where it was caught): keyword evidence when it can be read."""
         try:
-            submitted = _research_signature(question, scope, dataset, values)
-        except ValueError:
-            submitted = None
-        return result, submitted
+            evidence = service.search(question, filters, limit=5)
+        except Exception as search_exc:  # noqa: BLE001 - public boundary must hide unexpected service details.
+            _boundary_failure("fallback keyword search", search_exc)
+            evidence = []
+        return [
+            context,
+            _answer_status(
+                "Answer service unavailable",
+                "The answer service could not complete this request. Keyword results are shown when available.",
+                "You can continue browsing and searching; submit the question again to retry.",
+            ),
+            *_evidence_cards(evidence, enabled),
+        ]
 
     def run_research(question, scope, dataset, values, progress):
+        """(rendered children, the flow id when the answer stopped at a criterion card, else None)."""
         question = (question or "").strip()
         if not question or len(question) > 2000:
             return _notice(
                 "Enter a research question",
                 "Use between 1 and 2,000 characters.",
                 "warning",
-            )
+            ), None
         try:
             filters = (
                 Filters(dataset="all")
@@ -3040,7 +3342,7 @@ def create_app(service, settings, record_details=None) -> Dash:
                 "Check the filters",
                 "Use a valid date range before searching.",
                 "warning",
-            )
+            ), None
         context = _search_context(question, filters)
         if ctx.triggered_id == "search-free":
             try:
@@ -3053,8 +3355,9 @@ def create_app(service, settings, record_details=None) -> Dash:
                         "diagnostics": {},
                     }
                 )
-                return [context, _keyword_result(report, enabled)]
-            except Exception:  # noqa: BLE001 - public boundary must hide unexpected service details.
+                return [context, _keyword_result(report, enabled)], None
+            except Exception as exc:  # noqa: BLE001 - public boundary must hide unexpected service details.
+                _boundary_failure("keyword search", exc)
                 return [
                     context,
                     _answer_status(
@@ -3062,36 +3365,190 @@ def create_app(service, settings, record_details=None) -> Dash:
                         "The data service could not complete this search.",
                         "Please try again later or browse the records in Data.",
                     ),
-                ]
+                ], None
         try:
-            if "visitor_id" not in session:
-                session["visitor_id"] = secrets.token_urlsafe(24)
-            arguments = {"visitor": session["visitor_id"]}
-            parameters = inspect.signature(service.answer).parameters
-            if "progress" in parameters or any(parameter.kind == inspect.Parameter.VAR_KEYWORD
-                                                 for parameter in parameters.values()):
-                arguments["progress"] = progress
-            result = _mapping(
-                service.answer(question, filters, **arguments)
-            )
+            # Step 3 (S3-d): the web asks for the criterion card before any ad is judged, unless
+            # the switch says auto; the API and internal callers never read the switch.
+            result = paid_answer(question, filters, progress,
+                                 criterion_confirmation=getattr(settings, "criterion_confirmation", "ask") or "ask")
             progress("organizing")
             if result.get("status") == "answered" and result.get("answer_mode") in {"statistics", "tools"} and result.get("structured_result"):
                 effective = Filters.model_validate(result["structured_result"].get("filters") or filters.model_dump())
                 context = _search_context(question, effective)
-            return [context, *_render_answer_result(result, enabled, service)]
-        except Exception:  # noqa: BLE001 - public boundary must hide unexpected service details.
-            try:
-                evidence = service.search(question, filters, limit=5)
-            except Exception:  # noqa: BLE001 - public boundary must hide unexpected service details.
-                evidence = []
-            return [
-                context,
-                _answer_status(
-                    "Answer service unavailable",
-                    "The answer service could not complete this request. Keyword results are shown when available.",
-                    "You can continue browsing and searching; submit the question again to retry.",
-                ),
-                *_evidence_cards(evidence, enabled),
-            ]
+            flow_id = None
+            if pending_confirmation(result):
+                # The scope as the web built it, without pinning the service's own defaults (a field the
+                # web left unset, such as include_inferred_dates, is defaulted the same way in phase 2).
+                result = {**result, "card_submission": {"question": question,
+                                                        "filters": filters.model_dump(mode="json", exclude_unset=True)}}
+                flow_id = (result.get("structured_result") or {}).get("flow_id")
+            return [context, *_render_answer_result(result, enabled, service)], flow_id
+        except Exception as exc:  # noqa: BLE001 - public boundary must hide unexpected service details.
+            _boundary_failure("question answer", exc)
+            return failure_view(question, filters, context), None
 
+    @app.callback(
+        Output("research-results", "children", allow_duplicate=True),
+        *[Input(f"query-demo-{n}", "n_clicks") for n in range(len(demos))],
+        prevent_initial_call=True,
+    ) if demos else (lambda function: function)
+    def show_demo_answer(*clicks):
+        """A saved answer, replayed without a model call; only a reader's own check on a card is saved."""
+        index = next((n for n, clicked in enumerate(clicks) if ctx.triggered_id == f"query-demo-{n}"
+                      and isinstance(clicked, int) and clicked > 0), None)
+        if index is None:
+            raise PreventUpdate
+        demo = demos[index]
+        size = scope_size(demo["result"])
+        banner = html.Div([
+            html.Span("Saved demo answer", className="eyebrow"),
+            html.P(html.Strong(demo["question"])),
+            html.P((f"Saved on {demo['saved']}" if demo["saved"] else "Saved by an earlier run")
+                   + (f" for a selection of {size} articles" if size else "")
+                   + " and replayed here without a model call. The collection may have changed since.",
+                   className="scope-note"),
+        ], className="demo-banner")
+        result = replay(demo["result"])
+        try:
+            recompute_retrieval(result, service.db)
+        except Exception as exc:  # noqa: BLE001 - the saved answer still shows, without search detail.
+            _boundary_failure("saved demo retrieval", exc)
+        try:
+            return [banner, *_render_answer_result(result, enabled, service)]
+        except Exception as exc:  # noqa: BLE001 - an old saved shape must not break the page.
+            _boundary_failure("saved demo answer", exc)
+            return [banner, html.P("This saved answer could not be shown.", className="scope-note")]
+
+    @app.callback(
+        Output("research-results", "children", allow_duplicate=True),
+        Output("research-submission", "data", allow_duplicate=True),
+        # A fixed slot above the results, not a MATCH id: Dash refuses a callback whose outputs mix
+        # MATCH wildcards with plain ids (seen in the browser, 2026-10-27).
+        Output("criterion-notice", "children", allow_duplicate=True),
+        Output("criterion-flow-state", "data", allow_duplicate=True),
+        Input({"type": "criterion-continue", "q": MATCH, "f": MATCH}, "n_clicks"),
+        State({"type": "criterion-card", "q": MATCH, "f": MATCH}, "data"),
+        State({"type": "criterion-rules", "q": MATCH, "f": MATCH}, "value"),
+        State({"type": "criterion-exclusions", "q": MATCH, "f": MATCH}, "value"),
+        State({"type": "criterion-choices", "q": MATCH, "f": MATCH}, "data"),
+        State("criterion-flow-state", "data"),
+        State("research-submission", "data"),
+        State("research-question", "value"),
+        State("search-scope", "value"),
+        State("active-dataset", "value"),
+        *_filter_inputs("native", State),
+        *_filter_inputs("social", State),
+        *_filter_inputs("all", State),
+        State("research-progress-token", "data"),
+        State("page-location", "pathname"),
+        prevent_initial_call=True,
+        # Only the card's own controls and its own progress block: a callback's `running` resets its
+        # outputs when it ends, so two callbacks must not share them (seen in the browser, 2026-10-27).
+        # Overlapping submissions are refused before any call (progress_registry.try_begin).
+        running=[
+            (Output({"type": "criterion-continue", "q": MATCH, "f": MATCH}, "disabled"), True, False),
+            (Output({"type": "criterion-browse", "q": MATCH, "f": MATCH}, "disabled"), True, False),
+            (Output({"type": "criterion-rules", "q": MATCH, "f": MATCH}, "disabled"), True, False),
+            (Output({"type": "criterion-exclusions", "q": MATCH, "f": MATCH}, "disabled"), True, False),
+            (Output("criterion-progress", "style"), {}, {"display": "none"}),
+            (Output("criterion-progress-poll", "disabled"), False, True),
+        ],
+    )
+    def continue_card(clicks, card, rules, exclusions, choices, flow_state, submitted, question, scope, dataset, *values):
+        """Phase 2 from the card (step 3, S3-d): judge by the rules the researcher confirmed.
+
+        The card's own question and scope are judged (the server also checks the token's); a
+        local check of the boxes, a refusal the server returns and a judgment in progress only
+        change the notice above the results, so the card, its typed rules, the token and the
+        candidates stay; the outcome and the submitted criterion go to the flow-state store, and a
+        retry after "being judged" resends exactly that criterion, whatever the boxes say now, so
+        the finished judgment is replayed. A click on a card that a newer submission replaced is
+        ignored, and a response that is no longer the latest submission is not published.
+        """
+        pathname, token, values = values[-1], values[-2], values[:-2]
+        if pathname is None or _page(pathname) != "query":
+            raise PreventUpdate
+        if not isinstance(clicks, int) or isinstance(clicks, bool) or clicks <= 0:
+            raise PreventUpdate
+        if not isinstance(card, dict) or not card.get("token") or not isinstance(card.get("filters"), dict):
+            raise PreventUpdate
+        if not isinstance(submitted, dict) or submitted.get("flow_id") != card.get("flow_id"):
+            raise PreventUpdate
+        replaying = (isinstance(flow_state, dict) and flow_state.get("flow_id") == card.get("flow_id")
+                     and flow_state.get("state") == "continuation_in_progress")
+        if replaying:
+            # The judgment already running is bound to the criterion that was submitted: resend exactly
+            # that (the boxes may have changed since), so the finished result is replayed, not refused.
+            criterion, problem = flow_state.get("criterion"), None
+            choices = flow_state.get("example_choices") or []
+        else:
+            criterion, problem = criterion_from_text(rules, exclusions, condition=card.get("condition"), limits=card.get("limits"))
+        if problem:
+            return no_update, no_update, rules_notice(problem), no_update
+        card_question = str(card.get("question") or "")
+        try:
+            filters = Filters.model_validate(card["filters"])
+        except Exception:  # noqa: BLE001 - a store the browser altered; the server would refuse the token's scope anyway.
+            raise PreventUpdate from None
+        try:
+            current = _research_signature(question, scope, dataset, values)
+        except ValueError:
+            current = None
+        moved = current != {"question": card_question, "filters": filters.model_dump(mode="json")}
+        context = _search_context(card_question, filters)
+        continuation = {"token": card["token"], "criterion": criterion, "example_choices": list(choices or [])}
+        owner = session["visitor_id"]
+        admitted, request_id = progress_registry.try_begin(owner, token)
+        if not admitted:
+            return no_update, no_update, _notice(
+                "Another submission is still running", "Wait for it to finish, then select Judge again.", "warning"), no_update
+        progress = progress_registry.reporter(owner, token, request_id)
+        result, failed = None, None
+        try:
+            try:
+                result = paid_answer(card_question, filters, progress, continuation=continuation)
+            except Exception as exc:  # noqa: BLE001 - public boundary must hide unexpected service details.
+                _boundary_failure("question answer", exc)
+                failed = exc
+            signature = {"question": card_question, "filters": filters.model_dump(mode="json")}
+            if result is None:
+                payload = (failure_view(card_question, filters, context), signature, None, None)
+            elif (result.get("failure_reason") or "") in NOTICE_REASONS:
+                payload = (no_update, no_update, refusal_notice(result),
+                           {"flow_id": card.get("flow_id"), "state": result.get("failure_reason"),
+                            "criterion": criterion, "example_choices": list(choices or [])})
+            else:
+                children = [context]
+                if moved:
+                    children.append(_notice(
+                        "Judged in the card's original scope",
+                        "The question or filters changed after the card was shown; the judgment used the card's question and scope.",
+                        "warning",
+                    ))
+                children.extend(_render_answer_result(result, enabled, service))
+                payload = (children, signature, None, None)
+            # Checked last, once everything the response needs is built (the fallback's keyword search
+            # above may take time): a response that is no longer the latest submission is not published.
+            if not progress_registry.is_current(owner, token, request_id):
+                raise PreventUpdate
+            return payload
+        finally:
+            # Released only now: the slot is held through the fallback's keyword search, the rendering
+            # and the freshness check, so the next submission (two continuations share the fixed
+            # progress block) is admitted only after this response is on its way, and this callback's
+            # `running` finaliser normally runs first; the research callback notes the limits.
+            progress_registry.finish(owner, token, request_id, status="failed" if failed else "complete")
+
+    # Registered last: tests and Dash look up the original owners of the shared outputs first.
+    from observatory.year_drilldown import register_year_drilldown
+
+    for dataset in ("native", "social"):
+        register_year_drilldown(app, service, dataset,
+                                lambda dependency, dataset=dataset: _filter_inputs(dataset, dependency),
+                                lambda *values, dataset=dataset: _filters(dataset, *values), f"{dataset}-view")
+    from observatory.topic_compare_ui import register_compare_ask
+
+    register_compare_ask(app)
+    register_reviews(app, service)
+    register_criterion_card(app)
     return app

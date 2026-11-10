@@ -67,7 +67,7 @@ def main():
     payload = {"status": "passed", "no_model_calls": True, "source_data_unchanged": True,
                "data_version": after["data_version"], "active_profile": after["active_profile"],
                "results": results}
-    Path("reports/collection_graph_smoke_20260929.json").write_text(
+    Path("reports/knowledge_graph/collection_graph_smoke_20260929.json").write_text(
         json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps({"status": "passed", "selections": len(results),
                       "complete_counts": results[0]["counts"], "no_model_calls": True}, indent=2))

@@ -26,7 +26,7 @@
 
 - 对应：C09；PD3-P035、P202，MT-P021、P034。
 - 完成记录：2026-09-30，原报告未给统一纽约完成时刻。选定CNBC记录的正文、PDF、PNG与私有包字节一致；错误资产及错记录请求返回404；容器替换后包仍在。
-- 判据与证据：[托管报告](reports/RECORD_ASSETS_HOSTED_20260930.en.md)、[HTTP逐项核查](reports/record_assets_http_hosted_20260930.json)。
+- 判据与证据：[托管报告](reports/releases/RECORD_ASSETS_HOSTED_20260930.en.md)、[HTTP逐项核查](reports/releases/record_assets_http_hosted_20260930.json)。
 - 未完成：全部文章的归档覆盖、未转写图解、原网页当前可用性和客户签收。
 
 ## CF04 真实社交资料的隔离导入及重导
@@ -47,64 +47,64 @@
 
 - 对应：C08；PD3-P025–027、P068、P112–121、P134–137。
 - 完成记录：2026-10-06 04:00闭合记录。原生、社交、在线检索和离线分类路线与实际组件对应；历史架构原字节保留。10份文档、454个本地链接目标核查通过。
-- 判据与证据：[文档核对](.runtime/design_handoff_20261006/document_check.json)、[架构](docs/architecture.md)、[字段字典](docs/data_dictionary.md)。
+- 判据与证据：[文档核对](.runtime/design_handoff_20261006/document_check.json)、[架构](docs/architecture/architecture.md)、[字段字典](docs/data/data_dictionary.md)。
 - 未完成：客户对系统设计的批准及最终交接。文档之后有更新，此处成绩只属于当时指纹。
 
 ## CF07 冻结源码候选的构建与同机隔离安装
 
 - 对应：C10；PD3-P047、P049–050、P178、P183–184，MT-P041–044。
 - 完成记录：2026-10-06 09:40闭合记录。598载荷含84运行文件；从解压源码构建、用本机缓存安装，72模块与10维护入口通过，14份相关测试文件469项通过、3项Windows链接跳过。
-- 判据与证据：[源码及安装回执](.runtime/current_source_handoff_text_20261006/verification_final_02.json)、[交接候选说明](docs/current_source_candidate_20261006.md)。归档SHA：`6881b5a0749bbd56eac2b522bd0416e0c70355624fb8c7acab88330efba7161f`。
+- 判据与证据：[源码及安装回执](.runtime/current_source_handoff_text_20261006/verification_final_02.json)、[交接候选说明](docs/data/current_source_candidate_20261006.md)。归档SHA：`6881b5a0749bbd56eac2b522bd0416e0c70355624fb8c7acab88330efba7161f`。
 - 未完成：异机冷安装、后续新增说明的入包、最新GitHub发布及客户接手验收。本次新增目标文件不在该历史归档中。
-- 后续工程：本轮628载荷／87运行候选已解压构建、项目外同机离线安装；75模块、13维护help及13文件253检查通过／3项Windows链接创建跳过。当前社交、媒体与分页模块由此单独验证，旧469项范围不扩写；最新最终归档与字节限制另见[候选说明](docs/current_source_candidate_20261006.md)。这仍不补足异机安装、发布或客户签收。
+- 后续工程：本轮628载荷／87运行候选已解压构建、项目外同机离线安装；75模块、13维护help及13文件253检查通过／3项Windows链接创建跳过。当前社交、媒体与分页模块由此单独验证，旧469项范围不扩写；最新最终归档与字节限制另见[候选说明](docs/data/current_source_candidate_20261006.md)。这仍不补足异机安装、发布或客户签收。
 
 ## CF08 CLAIMS历史输入的来源审查材料
 
 - 对应：C11；用户明确转述客户推进CLAIMS，保留PD3-P017、P051及EM-P009原范围。
 - 完成记录：2026-10-06 01:31闭合记录。268篇TXT及有效表格保存；50组选中输入、810段定位到原始TXT，原表URL对应唯一元数据候选，重复段落保留。
-- 判据与证据：[原始输入准备回执](.runtime/claims_input_review_20261006/preparation_verification.json)、[方法](docs/claims_input_review.md)。
+- 判据与证据：[原始输入准备回执](.runtime/claims_input_review_20261006/preparation_verification.json)、[方法](docs/data/claims_input_review.md)。
 - 未完成：当前原网页完整性、37候选的来源／结果审查和正式分类发布；材料可定位不等于标签正确。
 
 ## CF09 全文离线判断及受限提供商流程的工程产物
 
 - 对应：C12／R11；**2026-10-06用户确认客户明确要求全文输入、离线分类与审核路线**。
 - 完成记录：2026-10-06 03:07完成早期提供商工程核查，07:36更新旧预案拒绝检查；归属于本轮客户确认后登记，产物时间不改写。
-- 判据与证据：[全文判断流程](docs/content_assessment.md)、[提供商流程](docs/content_provider.md)、[当前预案核验](.runtime/content_provider_current_20261006/verification.json)。全文请求、结构／位置校验、成本预留、失败保留及重复派发保护已有工程检查。
+- 判据与证据：[全文判断流程](docs/data/content_assessment.md)、[提供商流程](docs/data/content_provider.md)、[当前预案核验](.runtime/content_provider_current_20261006/verification.json)。全文请求、结构／位置校验、成本预留、失败保留及重复派发保护已有工程检查。
 - 未完成：真实模型调用、分类语义、人审及发布；新来源绑定后的三篇调用计划仍未授权／执行，不能用旧预案成绩声称新计划已运行。
 
 ## CF10 24题全范围待审材料
 
 - 对应：C04、C07、C12；PD3-P292–315及用户本轮R11确认。
 - 完成记录：2026-10-06 10:32最新文件核查，10:36闭合记录。24题不改，263篇组成6,312个待审单元；314声明文件、263全文、9,515提示与4,743原文位置通过核对，254份请求ready、9条未请求。
-- 判据与证据：[最新材料核查](.runtime/native_truncated_review_20261006/current_materials/file_verification.json)、[审查包说明](docs/content_review_packet.md)。
+- 判据与证据：[最新材料核查](.runtime/native_truncated_review_20261006/current_materials/file_verification.json)、[审查包说明](docs/data/content_review_packet.md)。
 - 未完成：6,312项全部仍unknown；批准codebook、金标准、真实命中名单、模型成绩和具名审核均待办。
 
 ## CF11 客户所供社交材料的本机应用与来源保存
 
 - 对应：C05、C08的数据探索／统一记录组件；PD3-P013–014、P025–027、P037–039。**公司帖子与唯一原帖的口径来自用户D02／D03，不是客户付费广告身份确认。** 本项只记已完成的数据组件，不关闭RQ5。
 - 完成记录：2026-10-06 14:25纽约时间核验导入及重导。37,082条观察按平台＋规范原帖URL形成36,182记录，逐条payload／正文／版本相同，精确重导新增0；所有原行和冲突保留。36,150可正文检索、32暂停；原生数据／622片段、预算、向量、答案及CLAIMS不变。
-- 判据与证据：[实际导入核验](.runtime/decision_followup_20261006/decisions/local_import_verification.json)、[来源及限制](docs/decision_followup.zh-CN.md)。导入前备份目录已检查，完整恢复未演练。未调用模型或部署。
+- 判据与证据：[实际导入核验](.runtime/decision_followup_20261006/decisions/local_import_verification.json)、[来源及限制](docs/evaluation/decision_followup.zh-CN.md)。导入前备份目录已检查，完整恢复未演练。未调用模型或部署。
 - 未完成：客户要求的付费广告身份、冲突裁决、图像／视频覆盖、模型问答与RQ5用户评价及部署／验收。用户审核程序、视频效率选择和AI参考稿归user goal，不作为客户签收。
 
 ## CF12 当前选择的社交分页与来源变化处理
 
 - 对应：C05、C08的数据探索组件，沿用CF11的原客户来源；公司帖子口径仍是用户D02／D03实施决定，不关闭付费社交广告要求或RQ5。
 - 完成记录：2026-10-06。本机当前版本的148个不同UI检查分批通过，独立静态复核完成。真实AFPM前两页各20个记录ID及顺序与修改前相同；隐藏集合不查询。筛选、指标、数据版本和历史状态匹配才复用统计，变化重算首页，持续变化不展示。
-- 判据与证据：[读取核对回执](.runtime/delivery_followup_20261006/performance/verification.json)、[实测及限制](docs/data_loading_20261006.md)。数据库读取全部只读，health／数据／索引版本不变，未调用模型或发布。并发变化仅做合成检查。
+- 判据与证据：[读取核对回执](.runtime/delivery_followup_20261006/performance/verification.json)、[实测及限制](docs/data/data_loading_20261006.md)。数据库读取全部只读，health／数据／索引版本不变，未调用模型或发布。并发变化仅做合成检查。
 - 当时未完成：首屏单次实测由14.403增至17.966秒，交由P32优化（后续完成组件见CF15）；翻页9.830降至6.724秒只是本机AFPM一次测量，不是生产性能承诺。全部记录关系可用性、付费身份、真实语义及客户使用验收仍待办。
 
 ## CF13 正文与媒体证据分开呈现的网页输出组件
 
 - 对应：C06、C07的有来源问答／证据呈现组件；沿用CF05的PD3-P041–043、P061、P147和MT-P032–036。图片和视频分路的具体实现来自用户D01，不新增客户要求，不关闭RQ6。
 - 完成记录：2026-10-06。38项新增媒体UI检查通过，含实际Dash／Flask回调读取受控类型化答案；正文与派生媒体分别呈现，出处类型、页／区域及已提供视频片段明确，未知时间不伪造。摘要共用引用编号，技术哈希折叠；错误引文类型、危险链接及部分／失败状态均有检查。
-- 判据与证据：[媒体UI检查](tests/test_media_answer_ui.py)、[媒体问答契约](docs/media_answers.md)。检查使用受控样例、不连接数据库或调用提供商；相邻回归保留独立范围，不加成语义正确率。
+- 判据与证据：[媒体UI检查](tests/test_media_answer_ui.py)、[媒体问答契约](docs/architecture/media_answers.md)。检查使用受控样例、不连接数据库或调用提供商；相邻回归保留独立范围，不加成语义正确率。
 - 未完成：实际图片识别、字幕／转写为0；生产素材配置未启用。本项不证明实际模型引用、语义支持、视频时间对齐或客户验收。旧628载荷候选不包含后续网页源码，须另做新冻结／安装核查。具名语义审查、付费试跑授权、发布和客户签收仍待办。
 
 ## CF14 媒体问答新源码候选的同机安装检查
 
 - 对应：C10的可复现代码／操作交接组件；沿用CF07的PD3-P047、P049–050、P178、P183–184和MT-P041–044，不新增客户要求，不关闭最终交接。
 - 完成记录：2026-10-06。634载荷review包含87运行文件；从项目外解压源码构建wheel并在新环境缓存离线安装，运行字节一致，75模块来自安装路径，13维护help通过。29文件613项安装检查通过、0失败／错误，3项因Windows不能创建测试链接跳过。
-- 判据与证据：[新候选说明](docs/media_source_candidate_20261006.md)、[安装回执](.runtime/media_source_handoff_20261006/installed_summary.json)。媒体证据、比较引用、来源变化、费用预留、统计、CLI、MCP和打包保护按已冻结输入做工程检查；最终归档／Markdown字节对比另存回执。旧CF07与CF13的安装／UI成绩不改写，不相加为语义成绩。
+- 判据与证据：[新候选说明](docs/data/media_source_candidate_20261006.md)、[安装回执](.runtime/media_source_handoff_20261006/installed_summary.json)。媒体证据、比较引用、来源变化、费用预留、统计、CLI、MCP和打包保护按已冻结输入做工程检查；最终归档／Markdown字节对比另存回执。旧CF07与CF13的安装／UI成绩不改写，不相加为语义成绩。
 - 同日归档核查：首次最终包的CRC、解压、清单、SHA、87运行字节及独立只读包审查通过；首次包保留，选定02仅补已有Markdown。最终范围及SHA见 `.runtime/media_source_handoff_20261006/verification_final_02.json` 与 `source_final_receipt_02.json`，不将其当客户签收。
 - 未完成：异机冷安装、实际数据库恢复、真实识别／生成语义、独立人接手、发布和客户签收；真实媒体配置未启用。公司帖子身份与视频效率仍按user goal，不作为客户批准。
 
@@ -112,7 +112,7 @@
 
 - 对应：C05、C08，沿用CF11／CF12的PD3-P013–014、P025–027、P037–039，并对应PD3-P159–P160／P162–P163的构建与测试。首屏实现和测量方法是团队方案，不新增客户性能门槛；公司帖子口径仍是用户D02／D03，不关闭RQ5。
 - 完成记录：2026-10-06 17:55纽约时间，本机8050已启用。3个社交范围各3轮，完整配对输出不变；另外8个原生／混合／标签日期平台／排序／末页范围完整对照通过。218选定离线与112项启用SQL检查通过，后者含100只读SQL／12离线，9项重叠；原8意见、14复盘、24题和业务来源版本不改。
-- 判据与证据：[实测与边界](docs/data_loading_20261006.md)、[独立根核验](.runtime/dashboard_root_review_20261006/final_verification.json)、[本机页面启用](.runtime/dashboard_root_review_20261006/local_activation.json)。统计、全部关系、顺序、完整成员及来源状态一致；缺／坏历史标签仍Unknown，保留最终变化校验。检查角色为AI工程代理及独立代码审查，不是客户或具名领域专家。
+- 判据与证据：[实测与边界](docs/data/data_loading_20261006.md)、[独立根核验](.runtime/dashboard_root_review_20261006/final_verification.json)、[本机页面启用](.runtime/dashboard_root_review_20261006/local_activation.json)。统计、全部关系、顺序、完整成员及来源状态一致；缺／坏历史标签仍Unknown，保留最终变化校验。检查角色为AI工程代理及独立代码审查，不是客户或具名领域专家。
 - 未完成：客户付费广告身份、哪些视图最有用的实际评价、完整关系使用体验、模型语义、生产性能、部署和签收。缓存已热的本机HTTP回调不代表生产网页响应；P34冻结包不包含本轮2运行修改和2新测试，P35最新源码交接待办。没有付费调用或发布。
 
 ## CF16 检索排序与真实问答的有限试点评价产物
@@ -127,9 +127,16 @@
 
 - 对应：C13.1／C13.2，沿用来源`CR-20261008-RAG-EVAL-01`（2026-10-08用户确认转述客户要求）。本轮24题数量、10原生／10社交／4跨集合、中英文各12及AI辅助参考是用户U37与团队实施方案，不新增客户阈值；不关闭C14真实问答要求。
 - 完成记录：2026-10-15，使用当日纽约16:52冻结的本机检索代码及已核验10月8日数据快照，24道新构来源题各完成一次检索，三路72份真实文章排序；486查询—文章对完成AI辅助相关性及原文定位。题目、版本、原始判断／复核／分歧、逐题排序、指标定义和费用回执均保存，未使用客户24题。
-- 判据与证据：[中文报告](docs/rag_retrieval_baseline_24_20261015.zh-CN.md)、[逐题结果](.runtime/retrieval_baseline_24_20261015/root/report.html)、[独立评分复算](.runtime/retrieval_baseline_24_20261015/scoring/results/canonical/independent_verification.json)、[来源与费用审核](.runtime/retrieval_baseline_24_20261015/scoring/audit/source_cost_audit.json)。全部144行／864指标值独立公式与标准评分器一致，8165来源／费用检查通过；621次请求用量计价$0.17048746，0待定收费。核查角色为AI代理，不是具名人审或客户验收。
+- 判据与证据：[中文报告](docs/evaluation/rag_retrieval_baseline_24_20261015.zh-CN.md)、[逐题结果](.runtime/retrieval_baseline_24_20261015/root/report.html)、[独立评分复算](.runtime/retrieval_baseline_24_20261015/scoring/results/canonical/independent_verification.json)、[来源与费用审核](.runtime/retrieval_baseline_24_20261015/scoring/audit/source_cost_audit.json)。全部144行／864指标值独立公式与标准评分器一致，8165来源／费用检查通过；621次请求用量计价$0.17048746，0待定收费。核查角色为AI代理，不是具名人审或客户验收。
 - 实际结果：NDCG@5关键词0.4403／向量0.8015／混合0.7203；Hit@5为16/24、24/24、23/24。三路同为文章选取阶段，混合包含原生标题通道；Hit只指至少一条相关来源。完整@5/@10、按集合／语言分层及已知池Recall见报告；与CF16题目和阶段不同，不算分数增减。
 - 未完成／验收：只完成本次有限检索评价及材料交付，不关闭C13整体、C14、回答可靠性或客户验收。题目由来源派生，相关性是AI辅助参考且保留1个未解决复核分歧；非全库Recall或真实用户分布。主库不可连接，使用历史快照；未测当前线上、生成回答或全媒体。自有源库已停止保留，主库／产品／其它服务未改，无推送发布。阈值、截止日与客户签收仍待定。
+
+## CF18 相关性判定说明与验证材料（C20），点年份列记录（C16）与引文正文高亮（C17）
+
+- 对应：C20（MT5-007／008／009，客户 Matt 要求“怎么判定相关性、怎么知道是对的”，报告 P/R/F1）；C16（MT2-008）、C17（MT2-012）。15 篇×5 题的验证题目、人工标注表的用法和 Claude Docs 形式是团队方案，不是客户阈值。
+- 完成记录：C16／C17 于 2026-10-21 完成（work.md 同日条目）：Data 页三条时间线点某一年列出该年记录并可一键筛选；回答出处的每条引文可跳到记录页并按字符位置标黄。C20 于 2026-10-23 完成：三页说明（How it works、Validation、Reasoning）；验证用客户方 Spark 团队的逐句人工标注（16 篇、517 句、12 类）中 15 篇可读文章，5 道“Which ads…”题各跑 3 轮，第 3 轮 TP 29、FP 8、FN 0，P 0.78、R 1.00、F1 0.88；页面新增“How relevance was judged”折叠区显示每篇判定和推理。
+- 判据与证据：work.md 2026-10-21 与 2026-10-23 条目；`.runtime/rag_validation_20261023/`（对应表、三轮原始结果、指标、附录）；测试 `test_year_drilldown`、`test_quote_links`、`test_relevance_reasoning`；浏览器实测点 2021 年与引文跳转、名单回答显示推理。检查角色为 AI 工程代理与用户本机实测，不是客户签收。费用约 $0.21（验证三轮）+ $0.36（网页实测）。
+- 未完成／验收：客户对说明和数字的反馈未收到；MRR／NDCG 的解释材料见 CF17，未在本次材料里重新讲解；验证只覆盖 15 篇、5 题、判断阶段，不是检索阶段或全库；C16／C17 是本系统的实现，团队另一套看板不在本仓库。
 
 ## 以后如何追加
 

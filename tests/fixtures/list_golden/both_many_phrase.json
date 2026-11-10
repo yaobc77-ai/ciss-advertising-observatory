@@ -1,0 +1,1895 @@
+{
+ "db_calls": {
+  "count_public": {
+   "native": 1,
+   "social": 1
+  },
+  "native": [
+   {
+    "found": [
+     "n1-e9",
+     "n2-e1",
+     "n5-e1",
+     "L01-e1",
+     "L02-e1",
+     "L03-e1",
+     "L04-e1",
+     "L05-e1",
+     "L06-e1",
+     "L07-e1",
+     "L08-e1",
+     "L09-e1",
+     "L10-e1",
+     "L11-e1",
+     "L12-e1",
+     "L13-e1",
+     "L14-e1",
+     "L15-e1",
+     "L16-e1",
+     "L17-e1",
+     "L18-e1",
+     "L19-e1",
+     "L20-e1",
+     "L21-e1",
+     "L22-e1",
+     "L23-e1",
+     "L24-e1",
+     "L25-e1",
+     "L26-e1",
+     "L27-e1",
+     "L28-e1",
+     "L29-e1",
+     "L30-e1",
+     "L31-e1",
+     "L32-e1",
+     "L33-e1",
+     "L34-e1",
+     "L35-e1",
+     "L36-e1",
+     "L37-e1",
+     "L38-e1",
+     "L39-e1",
+     "L40-e1",
+     "L41-e1",
+     "L42-e1",
+     "L43-e1",
+     "L44-e1",
+     "L45-e1"
+    ],
+    "limit_records": 52,
+    "method": "phrase_search",
+    "phrases": [
+     "tidal kite"
+    ]
+   },
+   {
+    "method": "record_passages",
+    "per_record": 8,
+    "records": [
+     "n1",
+     "n2",
+     "n5",
+     "L01",
+     "L02",
+     "L03",
+     "L04",
+     "L05",
+     "L06",
+     "L07",
+     "L08",
+     "L09",
+     "L10",
+     "L11",
+     "L12",
+     "L13",
+     "L14",
+     "L15",
+     "L16",
+     "L17",
+     "L18",
+     "L19",
+     "L20",
+     "L21",
+     "L22",
+     "L23",
+     "L24",
+     "L25",
+     "L26",
+     "L27",
+     "L28",
+     "L29",
+     "L30",
+     "L31",
+     "L32",
+     "L33",
+     "L34",
+     "L35",
+     "L36",
+     "L37",
+     "L38",
+     "L39",
+     "L40",
+     "L41",
+     "L42",
+     "L43",
+     "L44",
+     "L45",
+     "n3"
+    ]
+   },
+   {
+    "method": "record_passages",
+    "per_record": null,
+    "records": [
+     "n5",
+     "L01",
+     "L02",
+     "L04",
+     "L05",
+     "L07",
+     "L08",
+     "L10",
+     "L11",
+     "L13",
+     "L14",
+     "L16",
+     "L17",
+     "L19",
+     "L20",
+     "L22",
+     "L23",
+     "L25",
+     "L26",
+     "L28",
+     "L29",
+     "L31",
+     "L32",
+     "L34",
+     "L35",
+     "L37",
+     "L38",
+     "L40",
+     "L41",
+     "L43",
+     "L44",
+     "n3"
+    ]
+   }
+  ],
+  "public_rows": {
+   "all": 2,
+   "native": 1,
+   "social": 1
+  },
+  "search": [
+   {
+    "chunks_per_record": null,
+    "dataset": "native",
+    "hybrid": false,
+    "limit": 5,
+    "query": "Which ads mention \"tidal kite\" as a source of jobs?",
+    "record_ids": []
+   },
+   {
+    "chunks_per_record": null,
+    "dataset": "social",
+    "hybrid": false,
+    "limit": 5,
+    "query": "Which ads mention \"tidal kite\" as a source of jobs?",
+    "record_ids": []
+   },
+   {
+    "chunks_per_record": 2,
+    "dataset": "native",
+    "hybrid": true,
+    "limit": 120,
+    "query": "Which ads mention \"tidal kite\" as a source of jobs?",
+    "record_ids": []
+   },
+   {
+    "chunks_per_record": 2,
+    "dataset": "social",
+    "hybrid": true,
+    "limit": 120,
+    "query": "Which ads mention \"tidal kite\" as a source of jobs?",
+    "record_ids": []
+   }
+  ],
+  "social": [
+   {
+    "found": [
+     "s1-e1",
+     "s3-e1"
+    ],
+    "limit_records": 5,
+    "method": "phrase_search",
+    "phrases": [
+     "tidal kite"
+    ]
+   },
+   {
+    "method": "record_passages",
+    "per_record": 8,
+    "records": [
+     "s1",
+     "s3",
+     "s2"
+    ]
+   },
+   {
+    "method": "record_passages",
+    "per_record": null,
+    "records": [
+     "s2"
+    ]
+   }
+  ]
+ },
+ "frozen": {
+  "commit": "60775b3",
+  "date": "2026-10-26",
+  "module": "tests/test_list_golden.py"
+ },
+ "ledger": [
+  [
+   "generation",
+   "gpt-5.6-luna",
+   0.00383975,
+   "settled",
+   "list_screening",
+   8e-06,
+   [
+    "A49"
+   ]
+  ],
+  [
+   "generation",
+   "gpt-5.6-luna",
+   0.004878,
+   "settled",
+   "list_screening",
+   8e-06,
+   [
+    "A1",
+    "A2",
+    "A3"
+   ]
+  ],
+  [
+   "generation",
+   "gpt-5.6-luna",
+   0.005444,
+   "settled",
+   "list_screening",
+   8e-06,
+   [
+    "A5",
+    "A6",
+    "A7",
+    "A8"
+   ]
+  ],
+  [
+   "generation",
+   "gpt-5.6-luna",
+   0.005449,
+   "settled",
+   "list_screening",
+   8e-06,
+   [
+    "A13",
+    "A14",
+    "A15",
+    "A16"
+   ]
+  ],
+  [
+   "generation",
+   "gpt-5.6-luna",
+   0.005449,
+   "settled",
+   "list_screening",
+   8e-06,
+   [
+    "A17",
+    "A18",
+    "A19",
+    "A20"
+   ]
+  ],
+  [
+   "generation",
+   "gpt-5.6-luna",
+   0.005449,
+   "settled",
+   "list_screening",
+   8e-06,
+   [
+    "A25",
+    "A26",
+    "A27",
+    "A28"
+   ]
+  ],
+  [
+   "generation",
+   "gpt-5.6-luna",
+   0.005449,
+   "settled",
+   "list_screening",
+   8e-06,
+   [
+    "A29",
+    "A30",
+    "A31",
+    "A32"
+   ]
+  ],
+  [
+   "generation",
+   "gpt-5.6-luna",
+   0.005449,
+   "settled",
+   "list_screening",
+   8e-06,
+   [
+    "A37",
+    "A38",
+    "A39",
+    "A40"
+   ]
+  ],
+  [
+   "generation",
+   "gpt-5.6-luna",
+   0.005449,
+   "settled",
+   "list_screening",
+   8e-06,
+   [
+    "A41",
+    "A42",
+    "A43",
+    "A44"
+   ]
+  ],
+  [
+   "generation",
+   "gpt-5.6-luna",
+   0.00545025,
+   "settled",
+   "list_screening",
+   8e-06,
+   [
+    "A9",
+    "A10",
+    "A11",
+    "A12"
+   ]
+  ],
+  [
+   "generation",
+   "gpt-5.6-luna",
+   0.005453,
+   "settled",
+   "list_screening",
+   8e-06,
+   [
+    "A21",
+    "A22",
+    "A23",
+    "A24"
+   ]
+  ],
+  [
+   "generation",
+   "gpt-5.6-luna",
+   0.005453,
+   "settled",
+   "list_screening",
+   8e-06,
+   [
+    "A33",
+    "A34",
+    "A35",
+    "A36"
+   ]
+  ],
+  [
+   "generation",
+   "gpt-5.6-luna",
+   0.005453,
+   "settled",
+   "list_screening",
+   8e-06,
+   [
+    "A45",
+    "A46",
+    "A47",
+    "A48"
+   ]
+  ],
+  [
+   "generation",
+   "gpt-5.6-luna",
+   0.0055865,
+   "settled",
+   "list_screening",
+   8e-06,
+   [
+    "A1",
+    "A2",
+    "A3",
+    "A4"
+   ]
+  ],
+  [
+   "generation",
+   "gpt-5.6-luna",
+   0.04,
+   "cancelled"
+  ]
+ ],
+ "model_calls": {
+  "native": {
+   "judge": [],
+   "screen": [
+    {
+     "ads": [
+      [
+       "n1",
+       [
+        "A1.1",
+        "A1.2",
+        "A1.3",
+        "A1.4",
+        "A1.5",
+        "A1.6",
+        "A1.7",
+        "A1.8",
+        "A1.9"
+       ]
+      ],
+      [
+       "n2",
+       [
+        "A2.1"
+       ]
+      ],
+      [
+       "n5",
+       [
+        "A3.1"
+       ]
+      ],
+      [
+       "L01",
+       [
+        "A4.1"
+       ]
+      ]
+     ],
+     "first_ref": "A1",
+     "question": "Which ads mention \"tidal kite\" as a source of jobs?"
+    },
+    {
+     "ads": [
+      [
+       "L02",
+       [
+        "A5.1"
+       ]
+      ],
+      [
+       "L03",
+       [
+        "A6.1"
+       ]
+      ],
+      [
+       "L04",
+       [
+        "A7.1"
+       ]
+      ],
+      [
+       "L05",
+       [
+        "A8.1"
+       ]
+      ]
+     ],
+     "first_ref": "A5",
+     "question": "Which ads mention \"tidal kite\" as a source of jobs?"
+    },
+    {
+     "ads": [
+      [
+       "L06",
+       [
+        "A9.1"
+       ]
+      ],
+      [
+       "L07",
+       [
+        "A10.1"
+       ]
+      ],
+      [
+       "L08",
+       [
+        "A11.1"
+       ]
+      ],
+      [
+       "L09",
+       [
+        "A12.1"
+       ]
+      ]
+     ],
+     "first_ref": "A9",
+     "question": "Which ads mention \"tidal kite\" as a source of jobs?"
+    },
+    {
+     "ads": [
+      [
+       "L10",
+       [
+        "A13.1"
+       ]
+      ],
+      [
+       "L11",
+       [
+        "A14.1"
+       ]
+      ],
+      [
+       "L12",
+       [
+        "A15.1"
+       ]
+      ],
+      [
+       "L13",
+       [
+        "A16.1"
+       ]
+      ]
+     ],
+     "first_ref": "A13",
+     "question": "Which ads mention \"tidal kite\" as a source of jobs?"
+    },
+    {
+     "ads": [
+      [
+       "L14",
+       [
+        "A17.1"
+       ]
+      ],
+      [
+       "L15",
+       [
+        "A18.1"
+       ]
+      ],
+      [
+       "L16",
+       [
+        "A19.1"
+       ]
+      ],
+      [
+       "L17",
+       [
+        "A20.1"
+       ]
+      ]
+     ],
+     "first_ref": "A17",
+     "question": "Which ads mention \"tidal kite\" as a source of jobs?"
+    },
+    {
+     "ads": [
+      [
+       "L18",
+       [
+        "A21.1"
+       ]
+      ],
+      [
+       "L19",
+       [
+        "A22.1"
+       ]
+      ],
+      [
+       "L20",
+       [
+        "A23.1"
+       ]
+      ],
+      [
+       "L21",
+       [
+        "A24.1"
+       ]
+      ]
+     ],
+     "first_ref": "A21",
+     "question": "Which ads mention \"tidal kite\" as a source of jobs?"
+    },
+    {
+     "ads": [
+      [
+       "L22",
+       [
+        "A25.1"
+       ]
+      ],
+      [
+       "L23",
+       [
+        "A26.1"
+       ]
+      ],
+      [
+       "L24",
+       [
+        "A27.1"
+       ]
+      ],
+      [
+       "L25",
+       [
+        "A28.1"
+       ]
+      ]
+     ],
+     "first_ref": "A25",
+     "question": "Which ads mention \"tidal kite\" as a source of jobs?"
+    },
+    {
+     "ads": [
+      [
+       "L26",
+       [
+        "A29.1"
+       ]
+      ],
+      [
+       "L27",
+       [
+        "A30.1"
+       ]
+      ],
+      [
+       "L28",
+       [
+        "A31.1"
+       ]
+      ],
+      [
+       "L29",
+       [
+        "A32.1"
+       ]
+      ]
+     ],
+     "first_ref": "A29",
+     "question": "Which ads mention \"tidal kite\" as a source of jobs?"
+    },
+    {
+     "ads": [
+      [
+       "L30",
+       [
+        "A33.1"
+       ]
+      ],
+      [
+       "L31",
+       [
+        "A34.1"
+       ]
+      ],
+      [
+       "L32",
+       [
+        "A35.1"
+       ]
+      ],
+      [
+       "L33",
+       [
+        "A36.1"
+       ]
+      ]
+     ],
+     "first_ref": "A33",
+     "question": "Which ads mention \"tidal kite\" as a source of jobs?"
+    },
+    {
+     "ads": [
+      [
+       "L34",
+       [
+        "A37.1"
+       ]
+      ],
+      [
+       "L35",
+       [
+        "A38.1"
+       ]
+      ],
+      [
+       "L36",
+       [
+        "A39.1"
+       ]
+      ],
+      [
+       "L37",
+       [
+        "A40.1"
+       ]
+      ]
+     ],
+     "first_ref": "A37",
+     "question": "Which ads mention \"tidal kite\" as a source of jobs?"
+    },
+    {
+     "ads": [
+      [
+       "L38",
+       [
+        "A41.1"
+       ]
+      ],
+      [
+       "L39",
+       [
+        "A42.1"
+       ]
+      ],
+      [
+       "L40",
+       [
+        "A43.1"
+       ]
+      ],
+      [
+       "L41",
+       [
+        "A44.1"
+       ]
+      ]
+     ],
+     "first_ref": "A41",
+     "question": "Which ads mention \"tidal kite\" as a source of jobs?"
+    },
+    {
+     "ads": [
+      [
+       "L42",
+       [
+        "A45.1"
+       ]
+      ],
+      [
+       "L43",
+       [
+        "A46.1"
+       ]
+      ],
+      [
+       "L44",
+       [
+        "A47.1"
+       ]
+      ],
+      [
+       "L45",
+       [
+        "A48.1"
+       ]
+      ]
+     ],
+     "first_ref": "A45",
+     "question": "Which ads mention \"tidal kite\" as a source of jobs?"
+    },
+    {
+     "ads": [
+      [
+       "n3",
+       [
+        "A49.1"
+       ]
+      ]
+     ],
+     "first_ref": "A49",
+     "question": "Which ads mention \"tidal kite\" as a source of jobs?"
+    }
+   ]
+  },
+  "shared": [
+   {
+    "role": "embed",
+    "texts": [
+     "Which ads mention \"tidal kite\" as a source of jobs?",
+     "Which ads mention \"tidal kite\" as a source of jobs?"
+    ]
+   },
+   {
+    "one_claim_per_source": false,
+    "question": "Which ads mention \"tidal kite\" as a source of jobs?",
+    "records": [
+     "n1",
+     "n2",
+     "L03",
+     "L06",
+     "L09",
+     "L12"
+    ],
+    "role": "writer"
+   }
+  ],
+  "social": {
+   "judge": [],
+   "screen": [
+    {
+     "ads": [
+      [
+       "s1",
+       [
+        "A1.1"
+       ]
+      ],
+      [
+       "s3",
+       [
+        "A2.1"
+       ]
+      ],
+      [
+       "s2",
+       [
+        "A3.1"
+       ]
+      ]
+     ],
+     "first_ref": "A1",
+     "question": "Which ads mention \"tidal kite\" as a source of jobs?"
+    }
+   ]
+  }
+ },
+ "result": {
+  "answer": "Checked the 49 most relevant of the 51 native ads and the 3 most relevant of the 4 company social posts in your selection: found 17 matching ads and 2 matching posts.\n\nThe ads call the kites a source of jobs: By night, tidal kites power the harbor lights and bring jobs. [1]\n\nMatching ads and posts (19; first 10 listed)\n\n1. Kite notice n1 — Harbor Daily, Tidal Co, 2021-05-04: “By night, tidal kites power the harbor lights and bring jobs” [2]\n\n2. Kite notice n2 — Harbor Daily, Tidal Co, 2021-05-04: “Tidal kites will bring 400 jobs to the harbor” [3]\n\n3. Kite notice L03 — Harbor Daily, Tidal Co, 2021-05-04: “Tidal kite yard 3 brings jobs to the pier” [4]\n\n4. Kite notice L06 — Harbor Daily, Tidal Co, 2021-05-04: “Tidal kite yard 6 brings jobs to the pier” [5]\n\n5. Kite notice L09 — Harbor Daily, Tidal Co, 2021-05-04: “Tidal kite yard 9 brings jobs to the pier” [6]\n\n6. Kite notice L12 — Harbor Daily, Tidal Co, 2021-05-04: “Tidal kite yard 12 brings jobs to the pier” [7]\n\n7. Kite notice L15 — Harbor Daily, Tidal Co, 2021-05-04: “Tidal kite yard 15 brings jobs to the pier” [8]\n\n8. Kite notice L18 — Harbor Daily, Tidal Co, 2021-05-04: “Tidal kite yard 18 brings jobs to the pier” [9]\n\n9. Post by Kite Guild, 2023-07-01: “Every tidal kite farm hires local crews: jobs for the harbor” [10]\n\n10. Post by Kite Guild, 2023-07-01: “Tidal kites: jobs, jobs, jobs. #KitePower” [11]\n\n9 more matching items not shown here.",
+  "answer_mode": "rag",
+  "citations": [
+   [
+    "n1-e9",
+    "By night, tidal kites power the harbor lights and bring jobs."
+   ],
+   [
+    "n1-e9",
+    "By night, tidal kites power the harbor lights and bring jobs"
+   ],
+   [
+    "n2-e1",
+    "Tidal kites will bring 400 jobs to the harbor"
+   ],
+   [
+    "L03-e1",
+    "Tidal kite yard 3 brings jobs to the pier"
+   ],
+   [
+    "L06-e1",
+    "Tidal kite yard 6 brings jobs to the pier"
+   ],
+   [
+    "L09-e1",
+    "Tidal kite yard 9 brings jobs to the pier"
+   ],
+   [
+    "L12-e1",
+    "Tidal kite yard 12 brings jobs to the pier"
+   ],
+   [
+    "L15-e1",
+    "Tidal kite yard 15 brings jobs to the pier"
+   ],
+   [
+    "L18-e1",
+    "Tidal kite yard 18 brings jobs to the pier"
+   ],
+   [
+    "s1-e1",
+    "Every tidal kite farm hires local crews: jobs for the harbor"
+   ],
+   [
+    "s3-e1",
+    "Tidal kites: jobs, jobs, jobs. #KitePower"
+   ],
+   [
+    "L21-e1",
+    "Tidal kite yard 21 brings jobs to the pier"
+   ],
+   [
+    "L24-e1",
+    "Tidal kite yard 24 brings jobs to the pier"
+   ],
+   [
+    "L27-e1",
+    "Tidal kite yard 27 brings jobs to the pier"
+   ],
+   [
+    "L30-e1",
+    "Tidal kite yard 30 brings jobs to the pier"
+   ],
+   [
+    "L33-e1",
+    "Tidal kite yard 33 brings jobs to the pier"
+   ],
+   [
+    "L36-e1",
+    "Tidal kite yard 36 brings jobs to the pier"
+   ],
+   [
+    "L39-e1",
+    "Tidal kite yard 39 brings jobs to the pier"
+   ],
+   [
+    "L42-e1",
+    "Tidal kite yard 42 brings jobs to the pier"
+   ],
+   [
+    "L45-e1",
+    "Tidal kite yard 45 brings jobs to the pier"
+   ]
+  ],
+  "cited_claims": [
+   [
+    "The ads call the kites a source of jobs: By night, tidal kites power the harbor lights and bring jobs.",
+    [
+     1
+    ]
+   ],
+   [
+    "Kite notice n1 — Harbor Daily, Tidal Co, 2021-05-04: “By night, tidal kites power the harbor lights and bring jobs”",
+    [
+     2
+    ]
+   ],
+   [
+    "Kite notice n2 — Harbor Daily, Tidal Co, 2021-05-04: “Tidal kites will bring 400 jobs to the harbor”",
+    [
+     3
+    ]
+   ],
+   [
+    "Kite notice L03 — Harbor Daily, Tidal Co, 2021-05-04: “Tidal kite yard 3 brings jobs to the pier”",
+    [
+     4
+    ]
+   ],
+   [
+    "Kite notice L06 — Harbor Daily, Tidal Co, 2021-05-04: “Tidal kite yard 6 brings jobs to the pier”",
+    [
+     5
+    ]
+   ],
+   [
+    "Kite notice L09 — Harbor Daily, Tidal Co, 2021-05-04: “Tidal kite yard 9 brings jobs to the pier”",
+    [
+     6
+    ]
+   ],
+   [
+    "Kite notice L12 — Harbor Daily, Tidal Co, 2021-05-04: “Tidal kite yard 12 brings jobs to the pier”",
+    [
+     7
+    ]
+   ],
+   [
+    "Kite notice L15 — Harbor Daily, Tidal Co, 2021-05-04: “Tidal kite yard 15 brings jobs to the pier”",
+    [
+     8
+    ]
+   ],
+   [
+    "Kite notice L18 — Harbor Daily, Tidal Co, 2021-05-04: “Tidal kite yard 18 brings jobs to the pier”",
+    [
+     9
+    ]
+   ],
+   [
+    "Post by Kite Guild, 2023-07-01: “Every tidal kite farm hires local crews: jobs for the harbor”",
+    [
+     10
+    ]
+   ],
+   [
+    "Post by Kite Guild, 2023-07-01: “Tidal kites: jobs, jobs, jobs. #KitePower”",
+    [
+     11
+    ]
+   ],
+   [
+    "Kite notice L21 — Harbor Daily, Tidal Co, 2021-05-04: “Tidal kite yard 21 brings jobs to the pier”",
+    [
+     12
+    ]
+   ],
+   [
+    "Kite notice L24 — Harbor Daily, Tidal Co, 2021-05-04: “Tidal kite yard 24 brings jobs to the pier”",
+    [
+     13
+    ]
+   ],
+   [
+    "Kite notice L27 — Harbor Daily, Tidal Co, 2021-05-04: “Tidal kite yard 27 brings jobs to the pier”",
+    [
+     14
+    ]
+   ],
+   [
+    "Kite notice L30 — Harbor Daily, Tidal Co, 2021-05-04: “Tidal kite yard 30 brings jobs to the pier”",
+    [
+     15
+    ]
+   ],
+   [
+    "Kite notice L33 — Harbor Daily, Tidal Co, 2021-05-04: “Tidal kite yard 33 brings jobs to the pier”",
+    [
+     16
+    ]
+   ],
+   [
+    "Kite notice L36 — Harbor Daily, Tidal Co, 2021-05-04: “Tidal kite yard 36 brings jobs to the pier”",
+    [
+     17
+    ]
+   ],
+   [
+    "Kite notice L39 — Harbor Daily, Tidal Co, 2021-05-04: “Tidal kite yard 39 brings jobs to the pier”",
+    [
+     18
+    ]
+   ],
+   [
+    "Kite notice L42 — Harbor Daily, Tidal Co, 2021-05-04: “Tidal kite yard 42 brings jobs to the pier”",
+    [
+     19
+    ]
+   ],
+   [
+    "Kite notice L45 — Harbor Daily, Tidal Co, 2021-05-04: “Tidal kite yard 45 brings jobs to the pier”",
+    [
+     20
+    ]
+   ]
+  ],
+  "cost_usd": 0.002114,
+  "evidence_ids": [
+   "n1-e9",
+   "n2-e1",
+   "L03-e1",
+   "L06-e1",
+   "L09-e1",
+   "L12-e1",
+   "L15-e1",
+   "L18-e1",
+   "s1-e1",
+   "s3-e1",
+   "L21-e1",
+   "L24-e1",
+   "L27-e1",
+   "L30-e1",
+   "L33-e1",
+   "L36-e1",
+   "L39-e1",
+   "L42-e1",
+   "L45-e1",
+   "n1-e1",
+   "n1-e2",
+   "n1-e3",
+   "n1-e4",
+   "n1-e5",
+   "n1-e6",
+   "n1-e7",
+   "n1-e8",
+   "n5-e1",
+   "L01-e1",
+   "L02-e1",
+   "L04-e1",
+   "L05-e1",
+   "L07-e1",
+   "L08-e1",
+   "L10-e1",
+   "L11-e1",
+   "L13-e1",
+   "L14-e1",
+   "L16-e1",
+   "L17-e1",
+   "L19-e1",
+   "L20-e1",
+   "L22-e1",
+   "L23-e1",
+   "L25-e1",
+   "L26-e1",
+   "L28-e1",
+   "L29-e1",
+   "L31-e1",
+   "L32-e1",
+   "L34-e1",
+   "L35-e1",
+   "L37-e1",
+   "L38-e1",
+   "L40-e1",
+   "L41-e1",
+   "L43-e1",
+   "L44-e1",
+   "n3-e1",
+   "s2-e1"
+  ],
+  "external_research": {},
+  "failure_reason": "",
+  "research_trace": {
+   "list_decision": {
+    "planner": null,
+    "rule": true
+   },
+   "list_screening": {
+    "by_dataset": {
+     "native": {
+      "examined": 49,
+      "matches": 17,
+      "scope_total": 51
+     },
+     "social": {
+      "examined": 3,
+      "matches": 2,
+      "scope_total": 4
+     }
+    },
+    "decisions": [
+     {
+      "dataset": "native",
+      "decision": "matches",
+      "evidence_id": "n1-e9",
+      "quote": "By night, tidal kites power the harbor lights and bring jobs",
+      "record_id": "n1",
+      "title": "Kite notice n1"
+     },
+     {
+      "dataset": "native",
+      "decision": "matches",
+      "evidence_id": "n2-e1",
+      "quote": "Tidal kites will bring 400 jobs to the harbor",
+      "record_id": "n2",
+      "title": "Kite notice n2"
+     },
+     {
+      "dataset": "native",
+      "decision": "does_not_match",
+      "record_id": "n5",
+      "title": "Kite notice n5"
+     },
+     {
+      "dataset": "native",
+      "decision": "does_not_match",
+      "record_id": "L01",
+      "title": "Kite notice L01"
+     },
+     {
+      "dataset": "native",
+      "decision": "does_not_match",
+      "record_id": "L02",
+      "title": "Kite notice L02"
+     },
+     {
+      "dataset": "native",
+      "decision": "matches",
+      "evidence_id": "L03-e1",
+      "quote": "Tidal kite yard 3 brings jobs to the pier",
+      "record_id": "L03",
+      "title": "Kite notice L03"
+     },
+     {
+      "dataset": "native",
+      "decision": "does_not_match",
+      "record_id": "L04",
+      "title": "Kite notice L04"
+     },
+     {
+      "dataset": "native",
+      "decision": "does_not_match",
+      "record_id": "L05",
+      "title": "Kite notice L05"
+     },
+     {
+      "dataset": "native",
+      "decision": "matches",
+      "evidence_id": "L06-e1",
+      "quote": "Tidal kite yard 6 brings jobs to the pier",
+      "record_id": "L06",
+      "title": "Kite notice L06"
+     },
+     {
+      "dataset": "native",
+      "decision": "does_not_match",
+      "record_id": "L07",
+      "title": "Kite notice L07"
+     },
+     {
+      "dataset": "native",
+      "decision": "does_not_match",
+      "record_id": "L08",
+      "title": "Kite notice L08"
+     },
+     {
+      "dataset": "native",
+      "decision": "matches",
+      "evidence_id": "L09-e1",
+      "quote": "Tidal kite yard 9 brings jobs to the pier",
+      "record_id": "L09",
+      "title": "Kite notice L09"
+     },
+     {
+      "dataset": "native",
+      "decision": "does_not_match",
+      "record_id": "L10",
+      "title": "Kite notice L10"
+     },
+     {
+      "dataset": "native",
+      "decision": "does_not_match",
+      "record_id": "L11",
+      "title": "Kite notice L11"
+     },
+     {
+      "dataset": "native",
+      "decision": "matches",
+      "evidence_id": "L12-e1",
+      "quote": "Tidal kite yard 12 brings jobs to the pier",
+      "record_id": "L12",
+      "title": "Kite notice L12"
+     },
+     {
+      "dataset": "native",
+      "decision": "does_not_match",
+      "record_id": "L13",
+      "title": "Kite notice L13"
+     },
+     {
+      "dataset": "native",
+      "decision": "does_not_match",
+      "record_id": "L14",
+      "title": "Kite notice L14"
+     },
+     {
+      "dataset": "native",
+      "decision": "matches",
+      "evidence_id": "L15-e1",
+      "quote": "Tidal kite yard 15 brings jobs to the pier",
+      "record_id": "L15",
+      "title": "Kite notice L15"
+     },
+     {
+      "dataset": "native",
+      "decision": "does_not_match",
+      "record_id": "L16",
+      "title": "Kite notice L16"
+     },
+     {
+      "dataset": "native",
+      "decision": "does_not_match",
+      "record_id": "L17",
+      "title": "Kite notice L17"
+     },
+     {
+      "dataset": "native",
+      "decision": "matches",
+      "evidence_id": "L18-e1",
+      "quote": "Tidal kite yard 18 brings jobs to the pier",
+      "record_id": "L18",
+      "title": "Kite notice L18"
+     },
+     {
+      "dataset": "native",
+      "decision": "does_not_match",
+      "record_id": "L19",
+      "title": "Kite notice L19"
+     },
+     {
+      "dataset": "native",
+      "decision": "does_not_match",
+      "record_id": "L20",
+      "title": "Kite notice L20"
+     },
+     {
+      "dataset": "native",
+      "decision": "matches",
+      "evidence_id": "L21-e1",
+      "quote": "Tidal kite yard 21 brings jobs to the pier",
+      "record_id": "L21",
+      "title": "Kite notice L21"
+     },
+     {
+      "dataset": "native",
+      "decision": "does_not_match",
+      "record_id": "L22",
+      "title": "Kite notice L22"
+     },
+     {
+      "dataset": "native",
+      "decision": "does_not_match",
+      "record_id": "L23",
+      "title": "Kite notice L23"
+     },
+     {
+      "dataset": "native",
+      "decision": "matches",
+      "evidence_id": "L24-e1",
+      "quote": "Tidal kite yard 24 brings jobs to the pier",
+      "record_id": "L24",
+      "title": "Kite notice L24"
+     },
+     {
+      "dataset": "native",
+      "decision": "does_not_match",
+      "record_id": "L25",
+      "title": "Kite notice L25"
+     },
+     {
+      "dataset": "native",
+      "decision": "does_not_match",
+      "record_id": "L26",
+      "title": "Kite notice L26"
+     },
+     {
+      "dataset": "native",
+      "decision": "matches",
+      "evidence_id": "L27-e1",
+      "quote": "Tidal kite yard 27 brings jobs to the pier",
+      "record_id": "L27",
+      "title": "Kite notice L27"
+     },
+     {
+      "dataset": "native",
+      "decision": "does_not_match",
+      "record_id": "L28",
+      "title": "Kite notice L28"
+     },
+     {
+      "dataset": "native",
+      "decision": "does_not_match",
+      "record_id": "L29",
+      "title": "Kite notice L29"
+     },
+     {
+      "dataset": "native",
+      "decision": "matches",
+      "evidence_id": "L30-e1",
+      "quote": "Tidal kite yard 30 brings jobs to the pier",
+      "record_id": "L30",
+      "title": "Kite notice L30"
+     },
+     {
+      "dataset": "native",
+      "decision": "does_not_match",
+      "record_id": "L31",
+      "title": "Kite notice L31"
+     },
+     {
+      "dataset": "native",
+      "decision": "does_not_match",
+      "record_id": "L32",
+      "title": "Kite notice L32"
+     },
+     {
+      "dataset": "native",
+      "decision": "matches",
+      "evidence_id": "L33-e1",
+      "quote": "Tidal kite yard 33 brings jobs to the pier",
+      "record_id": "L33",
+      "title": "Kite notice L33"
+     },
+     {
+      "dataset": "native",
+      "decision": "does_not_match",
+      "record_id": "L34",
+      "title": "Kite notice L34"
+     },
+     {
+      "dataset": "native",
+      "decision": "does_not_match",
+      "record_id": "L35",
+      "title": "Kite notice L35"
+     },
+     {
+      "dataset": "native",
+      "decision": "matches",
+      "evidence_id": "L36-e1",
+      "quote": "Tidal kite yard 36 brings jobs to the pier",
+      "record_id": "L36",
+      "title": "Kite notice L36"
+     },
+     {
+      "dataset": "native",
+      "decision": "does_not_match",
+      "record_id": "L37",
+      "title": "Kite notice L37"
+     },
+     {
+      "dataset": "native",
+      "decision": "does_not_match",
+      "record_id": "L38",
+      "title": "Kite notice L38"
+     },
+     {
+      "dataset": "native",
+      "decision": "matches",
+      "evidence_id": "L39-e1",
+      "quote": "Tidal kite yard 39 brings jobs to the pier",
+      "record_id": "L39",
+      "title": "Kite notice L39"
+     },
+     {
+      "dataset": "native",
+      "decision": "does_not_match",
+      "record_id": "L40",
+      "title": "Kite notice L40"
+     },
+     {
+      "dataset": "native",
+      "decision": "does_not_match",
+      "record_id": "L41",
+      "title": "Kite notice L41"
+     },
+     {
+      "dataset": "native",
+      "decision": "matches",
+      "evidence_id": "L42-e1",
+      "quote": "Tidal kite yard 42 brings jobs to the pier",
+      "record_id": "L42",
+      "title": "Kite notice L42"
+     },
+     {
+      "dataset": "native",
+      "decision": "does_not_match",
+      "record_id": "L43",
+      "title": "Kite notice L43"
+     },
+     {
+      "dataset": "native",
+      "decision": "does_not_match",
+      "record_id": "L44",
+      "title": "Kite notice L44"
+     },
+     {
+      "dataset": "native",
+      "decision": "matches",
+      "evidence_id": "L45-e1",
+      "quote": "Tidal kite yard 45 brings jobs to the pier",
+      "record_id": "L45",
+      "title": "Kite notice L45"
+     },
+     {
+      "dataset": "native",
+      "decision": "does_not_match",
+      "record_id": "n3",
+      "title": "Kite notice n3"
+     },
+     {
+      "dataset": "social",
+      "decision": "matches",
+      "evidence_id": "s1-e1",
+      "quote": "Every tidal kite farm hires local crews: jobs for the harbor",
+      "record_id": "s1",
+      "title": ""
+     },
+     {
+      "dataset": "social",
+      "decision": "matches",
+      "evidence_id": "s3-e1",
+      "quote": "Tidal kites: jobs, jobs, jobs. #KitePower",
+      "record_id": "s3",
+      "title": ""
+     },
+     {
+      "dataset": "social",
+      "decision": "does_not_match",
+      "record_id": "s2",
+      "title": ""
+     }
+    ],
+    "does_not_match": 33,
+    "examined": 52,
+    "first_read": 40,
+    "matches": 19,
+    "method": "ai_screening",
+    "policy": "list-screening-v19",
+    "question": "Which ads mention \"tidal kite\" as a source of jobs?",
+    "reread": 0,
+    "review": 0,
+    "scope_total": 55,
+    "unclear": 0,
+    "verified_removed": 0
+   },
+   "list_summary": {
+    "records": [
+     "n1",
+     "n2",
+     "L03",
+     "L06",
+     "L09",
+     "L12"
+    ],
+    "status": "answered"
+   },
+   "media_retrieval": {
+    "groups": [
+     {
+      "image_units": 0,
+      "label": "Native ads",
+      "status": "not_configured",
+      "video_units": 0
+     },
+     {
+      "image_units": 0,
+      "label": "Company posts",
+      "status": "not_configured",
+      "video_units": 0
+     }
+    ],
+    "method": "separate_lexical_media_rrf",
+    "recognition_calls": 0,
+    "source_binding": {
+     "bundle_sha256": "",
+     "configuration_complete": false,
+     "contract": "separate-media-evidence-v1"
+    }
+   },
+   "question_plan": {
+    "agent_route": "direct",
+    "allow_web": false,
+    "clarify_message": null,
+    "coverage_note_rule": true,
+    "datasets": [
+     "native",
+     "social"
+    ],
+    "datasets_requested": [
+     "native",
+     "social"
+    ],
+    "failure_reason": "",
+    "filters": {
+     "accounts": [],
+     "dataset": "all",
+     "date_from": null,
+     "date_presence": "any",
+     "date_to": null,
+     "include_inferred_dates": false,
+     "include_unknown_dates": true,
+     "keywords": [],
+     "labels": [],
+     "platforms": [],
+     "publishers": [],
+     "record_ids": [],
+     "replies": [],
+     "sponsors": []
+    },
+    "list_kind": "screen",
+    "original_metadata": false,
+    "phrases": [
+     "tidal kite"
+    ],
+    "read_sources": false,
+    "reasons": {
+     "allow_web": "rule:list_screened",
+     "datasets": "filters:user",
+     "route": "caller:evidence",
+     "search_query": "default:question",
+     "shape": "rule:requires_complete_list"
+    },
+    "route": "evidence",
+    "search_query": "Which ads mention \"tidal kite\" as a source of jobs?",
+    "shape": "list",
+    "signals": {
+     "collection_only": false,
+     "contract_task": "content_mentions",
+     "original_metadata_only": false,
+     "planner_shape": null,
+     "pure_literal": false,
+     "quoted_phrases": 1,
+     "relation_list": false,
+     "retrieval_groups": false,
+     "rule_list": true
+    },
+    "version": "question-plan-v2",
+    "wants_list": true
+   }
+  },
+  "sections": [
+   [
+    "Key points",
+    [
+     1
+    ]
+   ],
+   [
+    "Matching ads and posts (19; first 10 listed)",
+    [
+     2,
+     3,
+     4,
+     5,
+     6,
+     7,
+     8,
+     9,
+     10,
+     11
+    ]
+   ]
+  ],
+  "status": "answered",
+  "structured_result": {
+   "by_dataset": {
+    "native": {
+     "examined": 49,
+     "matches": 17,
+     "scope_total": 51
+    },
+    "social": {
+     "examined": 3,
+     "matches": 2,
+     "scope_total": 4
+    }
+   },
+   "charts": [
+    {
+     "id": "by_sponsor",
+     "labels": [
+      "Tidal Co",
+      "Kite Guild"
+     ],
+     "omitted_categories": 0,
+     "series": [
+      {
+       "dataset": "native",
+       "name": "Native ads",
+       "values": [
+        17,
+        0
+       ]
+      },
+      {
+       "dataset": "social",
+       "name": "Company posts",
+       "values": [
+        0,
+        2
+       ]
+      }
+     ],
+     "title": "Listed ads and posts by company",
+     "total": 19,
+     "values": [
+      17,
+      2
+     ]
+    },
+    {
+     "id": "by_year",
+     "labels": [
+      "2021",
+      "2023"
+     ],
+     "omitted_categories": 0,
+     "series": [
+      {
+       "dataset": "native",
+       "name": "Native ads",
+       "values": [
+        17,
+        0
+       ]
+      },
+      {
+       "dataset": "social",
+       "name": "Company posts",
+       "values": [
+        0,
+        2
+       ]
+      }
+     ],
+     "title": "Listed ads and posts by publication year",
+     "total": 19,
+     "values": [
+      17,
+      2
+     ]
+    },
+    {
+     "id": "by_outlet",
+     "labels": [
+      "Harbor Daily",
+      "Kite Guild"
+     ],
+     "omitted_categories": 0,
+     "series": [
+      {
+       "dataset": "native",
+       "name": "Native ads",
+       "values": [
+        17,
+        0
+       ]
+      },
+      {
+       "dataset": "social",
+       "name": "Company posts",
+       "values": [
+        0,
+        2
+       ]
+      }
+     ],
+     "title": "Listed ads and posts by outlet or account",
+     "total": 19,
+     "values": [
+      17,
+      2
+     ]
+    }
+   ],
+   "display_citations": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+   ],
+   "examined": 52,
+   "groups": [
+    {
+     "evidence_units": 3,
+     "filters": {
+      "accounts": [],
+      "dataset": "native",
+      "date_from": null,
+      "date_presence": "any",
+      "date_to": null,
+      "include_inferred_dates": false,
+      "include_unknown_dates": true,
+      "keywords": [],
+      "labels": [],
+      "platforms": [],
+      "publishers": [],
+      "record_ids": [],
+      "replies": [],
+      "sponsors": []
+     },
+     "image_units": 0,
+     "label": "Native ads",
+     "media_status": "not_configured",
+     "passages": 3,
+     "query": "Which ads mention \"tidal kite\" as a source of jobs?",
+     "retrieved_evidence_ids": [
+      "n1-e1",
+      "n2-e1",
+      "n3-e1"
+     ],
+     "retrieved_record_ids": [
+      "n1",
+      "n2",
+      "n3"
+     ],
+     "video_units": 0
+    },
+    {
+     "evidence_units": 2,
+     "filters": {
+      "accounts": [],
+      "dataset": "social",
+      "date_from": null,
+      "date_presence": "any",
+      "date_to": null,
+      "include_inferred_dates": false,
+      "include_unknown_dates": true,
+      "keywords": [],
+      "labels": [],
+      "platforms": [],
+      "publishers": [],
+      "record_ids": [],
+      "replies": [],
+      "sponsors": []
+     },
+     "image_units": 0,
+     "label": "Company posts",
+     "media_status": "not_configured",
+     "passages": 2,
+     "query": "Which ads mention \"tidal kite\" as a source of jobs?",
+     "retrieved_evidence_ids": [
+      "s1-e1",
+      "s2-e1"
+     ],
+     "retrieved_record_ids": [
+      "s1",
+      "s2"
+     ],
+     "video_units": 0
+    }
+   ],
+   "kind": "ai_screened_list",
+   "matches": 19,
+   "meaning": "AI check of retrieved passages; not reviewed membership or a complete-collection result.",
+   "method": "ai_screening",
+   "policy": "list-screening-v19",
+   "review": 0,
+   "scope_total": 55,
+   "summary_basis": "Summary drawn from the 6 most relevant matching items.",
+   "summary_records": 6
+  },
+  "summary": [
+   [
+    "Checked the 49 most relevant of the 51 native ads and the 3 most relevant of the 4 company social posts in your selection: found 17 matching ads and 2 matching posts.",
+    []
+   ],
+   [
+    "Tidal Co's ads present the kites as a source of jobs.",
+    [
+     1
+    ]
+   ]
+  ]
+ },
+ "scenario": {
+  "allowed": [
+   [
+    "result",
+    "research_trace",
+    "list_screening",
+    "first_read"
+   ],
+   [
+    "result",
+    "research_trace",
+    "list_screening",
+    "first_read_by_dataset"
+   ]
+  ],
+  "declared_shape": null,
+  "fail_social_screening": false,
+  "filters": {
+   "dataset": "all"
+  },
+  "large_scope": false,
+  "limit_at": null,
+  "many_literal": true,
+  "match": "jobs",
+  "name": "both_many_phrase",
+  "note": "48 phrase hits in the ads, 2 in the posts: each collection's own first reading",
+  "question": "Which ads mention \"tidal kite\" as a source of jobs?",
+  "relation_listing": null,
+  "retrieval_groups": null,
+  "triage": false,
+  "writer": "summary"
+ }
+}

@@ -1,7 +1,9 @@
 """Grounded Responses adapter and persistent embedding cache."""
 
+import contextvars
 import json
 import re
+from contextlib import contextmanager
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import Literal
@@ -11,7 +13,8 @@ from openai import OpenAI
 from psycopg.types.json import Jsonb
 from pydantic import BaseModel, Field, StrictInt, create_model
 
-from .budget import Budget, price
+from .answer_norms import general_norm, load_norms
+from .budget import Budget, LimitReached, price, task_cap_text
 from .db import digest
 from .language import POLICY_VERSION, answer_language, check_claim_languages
 from .models import (
@@ -34,6 +37,22 @@ from .segmentation import sentence_spans, text_regions
 from .source_text_quality import text_quality_context
 
 MAX_QUOTE_WORDS = 60
+# A caller may route generate()'s budget reservation through its own function for the current
+# thread (reserve_through); the writer orders its concurrent shards' reservations with it.
+_RESERVE_HOOK = contextvars.ContextVar("observatory_rag_reserve", default=None)
+
+
+@contextmanager
+def reserve_through(hook):
+    """Within the block, on this thread, generate() reserves its budget by calling
+    `hook(amount, visitor, kind, model) -> reservation id` instead of the budget directly.
+    Everything else (the estimate, settlement, uncertain marking) is unchanged."""
+    token = _RESERVE_HOOK.set(hook)
+    try:
+        yield
+    finally:
+        _RESERVE_HOOK.reset(token)
+
 MAX_SUPPORT_PASSAGES = 5
 MAX_CLAIMS = 6
 MAX_SUMMARY_POINTS = 3
@@ -48,6 +67,7 @@ class AnswerValidationError(ValueError):
     """
 
     def __init__(self, error, *, stage):
+        """Map a validation message to a stable failure reason code and keep audit details."""
         super().__init__(str(error))
         reasons = {
             "Contradictory answer status": "answer_status_contradictory",
@@ -120,6 +140,7 @@ _OBSERVATION_FIELDS = (
 
 
 def _observation_metadata(source):
+    """Source-observation fields for a social passage, or {} for ordinary article text (re-validated)."""
     defaults = {
         "source_observation_id": None, "source_version_id": None, "source_body_hash": None,
         "source_observation_count": 1, "source_conflicts": [], "source_quality_codes": [],
@@ -354,6 +375,12 @@ def _attach_quote_context(catalog):
 
 def selection_schema(catalog):
     # Structured Outputs can restrict identifiers to real passages at generation time.
+    """Structured-output schema in which the model can only pick passage ids that exist in the catalog.
+
+    The model writes paraphrases and chooses Q-numbered passages; it never types quote text.
+    Limits: MAX_CLAIMS claims, MAX_SUPPORT_PASSAGES supports each, MAX_SUMMARY_POINTS summary
+    points and MAX_ANSWER_SECTIONS sections.
+    """
     choices = Literal.__getitem__(tuple(catalog))
     claim = create_model(
         "SelectedClaim",
@@ -515,6 +542,7 @@ def evidence_inventory(evidence, media, catalog):
 
 
 def _selection_supports(selection, source, catalog):
+    """Check a claim's support passages: same source view, no repeats, and the full sentence covered."""
     support_ids = getattr(selection, "support_passage_ids", [])
     if (not isinstance(support_ids, list) or len(support_ids) > MAX_SUPPORT_PASSAGES
             or any(not isinstance(pid, str) or pid not in catalog or pid == selection.passage_id for pid in support_ids)
@@ -565,6 +593,10 @@ def _without_passage_ids(text):
 
 
 def materialize_selections(parsed, catalog):
+    """Turn chosen passage ids into exact quotes; drop claims whose support is unrelated or clips a sentence.
+
+    If any claim is dropped, summary and sections are cleared because they refer to claims by position.
+    """
     _check_answer_state(parsed)
     # Historical replay fixtures may omit the new fields. New strict API output
     # includes them, and an answered response cannot silently omit its overview.
@@ -609,6 +641,26 @@ def materialize_selections(parsed, catalog):
     )
 
 
+def pending_embedding_estimate(rows, batch_size, model):
+    """What indexing ``rows`` would cost, without calling anything: chunk count, UTF-8 bytes, the
+    sum of the per-batch reservations Rag.embed would hold, and (when tiktoken is installed) a
+    cl100k token count with its price. Reservations bound each call; the token price is the estimate."""
+    sizes = [len(row["text"].encode("utf-8")) for row in rows]
+    reserved = sum((price(model, sum(sizes[i:i + batch_size]) + 100)
+                    for i in range(0, len(sizes), batch_size)), Decimal(0))
+    result = {"pending_chunks": len(rows), "calls": -(-len(rows) // batch_size), "batch_size": batch_size,
+              "utf8_bytes": sum(sizes), "reservation_total_usd": float(reserved)}
+    try:
+        import tiktoken
+    except ImportError:
+        result["tokens"] = None
+        return result
+    encoding = tiktoken.get_encoding("cl100k_base")
+    tokens = sum(len(encoding.encode(row["text"], disallowed_special=())) for row in rows)
+    result.update(tokens=tokens, estimated_usd=float(price(model, tokens)), token_basis="tiktoken cl100k_base")
+    return result
+
+
 class Rag:
     def __init__(self, db, settings, client=None):
         self.db = db
@@ -625,7 +677,11 @@ class Rag:
             )
         return self._client
 
-    def embed(self, texts, visitor="maintenance", cost_sink=None):
+    def embed(self, texts, visitor="maintenance", cost_sink=None, *, task_cap=None):
+        """Embed texts with text-embedding-3-small, reusing vectors cached by text hash in `embeddings`.
+
+        ``task_cap`` (with a "task:<name>" visitor) makes the reservation refuse once the task's
+        ledger total would pass it; see Budget.reserve."""
         model = self.settings.embedding_model
         if model != "text-embedding-3-small":
             raise ValueError("Unconfigured embedding price/dimension")
@@ -646,7 +702,10 @@ class Rag:
             estimate = price(
                 model, sum(len(t.encode("utf-8")) for t in missing.values()) + 100
             )
-            rid = self.budget.reserve(estimate, visitor, "embedding", model)
+            if task_cap is None:
+                rid = self.budget.reserve(estimate, visitor, "embedding", model)
+            else:
+                rid = self.budget.reserve(estimate, visitor, "embedding", model, task_cap=task_cap)
             try:
                 response = self.client.embeddings.create(
                     model=model, input=list(missing.values()), dimensions=1536
@@ -675,26 +734,67 @@ class Rag:
                 raise
         return [result[digest(t)] for t in texts]
 
-    def index(self, batch_size=32, *, profile_id=None, visitor="maintenance"):
-        """Fill the selected profile's cache; historical chunks stay untouched."""
+    def index(self, batch_size=32, *, profile_id=None, visitor="maintenance", max_usd=None,
+              dry_run=False):
+        """Fill the selected profile's cache; historical chunks stay untouched.
+
+        ``max_usd`` (needs a "task:<name>" visitor) is a cap on everything the task has reserved,
+        read from the ledger at each reservation, so a resumed run continues from what was spent.
+        When the next batch would pass it, indexing stops before that call and says so.
+        ``dry_run`` only counts what is missing: no API client, no ledger entry, no write.
+        """
         if batch_size < 1:
             raise ValueError("batch_size must be positive")
+        is_task = str(visitor).startswith("task:")
+        if max_usd is not None:
+            max_usd = task_cap_text(max_usd)
+            if not is_task:
+                raise ValueError("--max-usd needs a task")
+        elif is_task and not dry_run:
+            raise ValueError("A task always runs with its approved cap (--max-usd)")
         rows = self.db.pending_embeddings(
             self.settings.embedding_model, profile_id=profile_id
         )
-        processed = 0
+        if dry_run:
+            return {"dry_run": True, **pending_embedding_estimate(rows, batch_size, self.settings.embedding_model),
+                    "model": self.settings.embedding_model, "profile": profile_id or "active",
+                    **({"task": visitor, "task_spent_usd": float(self.budget.task_spent(visitor)),
+                        "recorded_task_caps": self.budget.task_caps(visitor)} if is_task else {}),
+                    **({"max_usd": float(max_usd)} if max_usd is not None else {})}
+        processed, stopped = 0, None
         for start in range(0, len(rows), batch_size):
             group = rows[start : start + batch_size]
-            self.embed([r["text"] for r in group], visitor=visitor)
+            try:
+                self.embed([r["text"] for r in group], visitor=visitor,
+                           **({"task_cap": max_usd} if max_usd is not None else {}))
+            except LimitReached as exc:
+                if max_usd is None:
+                    raise
+                stopped = str(exc)
+                break
             processed += len(group)
-        return {
+        result = {
             "embedded_chunks": processed,
             "model": self.settings.embedding_model,
             "profile": profile_id or "active",
         }
+        if max_usd is not None:
+            result.update(task=visitor, max_usd=float(max_usd), remaining_chunks=len(rows) - processed,
+                          task_spent_usd=float(self.budget.task_spent(visitor)), stopped=stopped)
+        return result
 
     def generate(self, question, evidence, visitor, reservation=None, *, progress=None,
                  media_evidence=(), validate_media=None, one_claim_per_source=False):
+        """Write a grounded answer from the given passages, then check every quote.
+
+        1. Validate evidence against current versions; no evidence means insufficient_evidence.
+        2. Build the quote catalog (<= 60-word passages Q1..Qn with sentence context) and inventory.
+        3. System prompt: ANSWER_SYSTEM + general norm + social, one-claim-per-source, period and
+           language rules as they apply.
+        4. Reserve budget unless the caller passed a reservation; refuse inputs over 100,000 bytes.
+        5. responses.parse with the selection schema, no reasoning, max_output_tokens; no retries.
+        6. Settle cost, store the raw output, materialise quotes and run validate_answer.
+        """
         try:
             media = [MediaAnswerEvidence.model_validate(item) for item in media_evidence]
         except Exception as exc:
@@ -728,13 +828,14 @@ class Rag:
                 self.budget.cancel_unsent(reservation)
             raise ValueError("Media evidence failed source validation")
         try:
+            # The model can only cite these numbered passages; it never writes quote text itself.
             catalog = answer_quote_catalog(evidence, media)
             inventory = evidence_inventory(evidence, media, catalog)
             source_refs = {eid: source["source_ref"] for source in inventory["sources"]
                            for eid in source["evidence_ids"]}
             output_schema = selection_schema(catalog)
             target = answer_language(question)
-            system = SYSTEM
+            system = SYSTEM + general_norm(load_norms(), question)
             if any(_observation_metadata(item) for item in evidence):
                 system += (
                     "\nFor supplied social source observations, attribute claims to the specific observation. "
@@ -866,10 +967,13 @@ class Rag:
         estimate = price(
             self.settings.generation_model, upper_input, self.settings.max_output_tokens
         ) * Decimal("1.25")
-        rid = reservation or self.budget.reserve(
-            estimate, visitor, "generation", self.settings.generation_model
-        )
+        if reservation:
+            rid = reservation
+        else:  # the budget is only touched when this call reserves (callers may pass a reservation and a bare budget)
+            reserve = _RESERVE_HOOK.get() or self.budget.reserve
+            rid = reserve(estimate, visitor, "generation", self.settings.generation_model)
         try:
+            # One structured call, no reasoning and no retries (client max_retries=0).
             response = self.client.responses.parse(
                 model=self.settings.generation_model,
                 input=[
@@ -1003,6 +1107,12 @@ def _check_answer_structure(parsed, summary, sections):
 
 
 def validate_answer(parsed, evidence, cost=0.0, *, target=None, media_evidence=()):
+    """Final checks before an answer is shown, and the Answer object built from them.
+
+    Every quote must be a verbatim substring of its evidence and at most MAX_QUOTE_WORDS words;
+    1-MAX_CLAIMS claims are required; a bad summary/section structure is dropped (claims kept);
+    a confident language mismatch returns service_unavailable. Citations are numbered by first use.
+    """
     _check_answer_state(parsed)
     media = [MediaAnswerEvidence.model_validate(item) for item in media_evidence]
     by_id = {e.evidence_id: e for e in evidence}

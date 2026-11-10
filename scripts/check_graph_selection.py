@@ -32,7 +32,7 @@ from observatory.models import Filters
 from observatory.service import Service
 
 ROOT = Path(__file__).resolve().parents[1]
-REPORT = ROOT / "reports/graph_selection_consistency_v0_4_2_20260930.json"
+REPORT = ROOT / "reports/knowledge_graph/graph_selection_consistency_v0_4_2_20260930.json"
 SOURCE_FILES = [
     "scripts/check_graph_selection.py",
     *[f"src/observatory/{name}.py" for name in (

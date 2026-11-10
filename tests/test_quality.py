@@ -1,14 +1,41 @@
+import pytest
+
 from observatory.models import RecordInput
 from observatory.quality import (
     asset_url_reason,
     inspect_body,
     mark_duplicate_bodies,
     retrieval_boundary,
+    social_hard_blocks,
+    social_text_blockers,
 )
 
 
 def codes(body):
     return {issue.code for issue in inspect_body(body)}
+
+
+@pytest.mark.parametrize("body", [
+    "Win a fuel voucher at Example Energy stations this weekend. Terms and conditions apply.",
+    "Terms and conditions apply: https://t.co/example",
+    "Our new low-carbon blend is here � ask at any Example Energy station today.",
+    "Fill up and save �� every weekend in May at participating Example stations.",
+])
+def test_social_rules_keep_readable_promotions_and_lost_emoji(body):
+    assert codes(body) & {"body_footer_only", "body_garbled"}
+    assert social_text_blockers(body) == social_hard_blocks(body) == set()
+
+
+@pytest.mark.parametrize("body,blocker", [
+    ("privacy policy all rights reserved", "body_footer_only"),
+    ("Terms and conditions applied.", "body_footer_only"),
+    ("�� nor", "body_garbled"),
+    ("", "body_missing"),
+    ("video", "body_video_placeholder"),
+])
+def test_social_rules_still_block_text_that_is_mostly_boilerplate_or_unreadable(body, blocker):
+    assert blocker in social_text_blockers(body)
+    assert ("body_footer_only" in social_hard_blocks(body)) is False
 
 
 def test_placeholders_and_numeric_extraction_are_not_article_text():
@@ -75,3 +102,18 @@ def test_navigation_has_exact_boundary_but_normal_topic_mentions_do_not():
     truncated = "Available passage about energy. " * 91
     assert "body_truncated_suspected" in codes(truncated + "...")
     assert "body_truncated_suspected" not in codes("An intentional pause...")
+
+
+@pytest.mark.parametrize("body", [
+    "This content isn't available right now",
+    "  This content isn\u2019t available in Canada.\n",
+    "THIS CONTENT ISN'T AVAILABLE",
+])
+def test_social_unavailable_notice_is_missing_text(body):
+    assert "body_unavailable_placeholder" in social_hard_blocks(body)
+    assert "body_unavailable_placeholder" in social_text_blockers(body)
+
+
+def test_a_post_that_quotes_the_unavailable_notice_is_still_text():
+    body = "If you see 'This content isn't available right now', update the Example app."
+    assert social_hard_blocks(body) == set()

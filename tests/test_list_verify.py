@@ -61,8 +61,8 @@ def test_the_second_check_removes_a_listed_ad_and_records_why():
     trace = result.research_trace["list_screening"]
     assert trace["verified_removed"] == 1 and trace["matches"] == 1
     removed = next(d for d in trace["decisions"] if d["record_id"] == VAGUE.record_id)
-    assert removed == {"record_id": VAGUE.record_id, "decision": "does_not_match", "reason": "different_thing",
-                       "verified_from": "matches"}
+    assert removed == {"record_id": VAGUE.record_id, "title": VAGUE.title, "decision": "does_not_match",
+                       "reason": "different_thing", "verified_from": "matches"}
 
 
 def test_a_missing_verdict_keeps_the_ad():
