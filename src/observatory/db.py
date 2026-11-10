@@ -204,6 +204,9 @@ READ_CACHE_SECONDS = 300
 # does computes it as before (`refresh_read`, cli.start_health_keeper).
 HEALTH_REFRESH_SECONDS = READ_CACHE_SECONDS - 60
 READ_CACHE_ENTRIES = 32
+# Keyword coverage scope counts kept apart from the reads above, so the many filter
+# combinations of agent searches never evict the health digest.
+SCOPE_COUNT_ENTRIES = 64
 
 
 class Database:
@@ -217,6 +220,9 @@ class Database:
         self._read_cache_guard = threading.Lock()
         self._read_cache_locks = {}
         self._read_cache_generation = 0
+        # Keyword coverage scope counts by scope SQL and parameters (`_scope_counts`).
+        self._scope_counts_cache = OrderedDict()
+        self._scope_counts_guard = threading.Lock()
 
     def connect(self, vector=False):
         if not self.url:
@@ -1540,6 +1546,13 @@ class Database:
             # Vector adapter registration already starts a transaction; finish its
             # catalog lookup before establishing the retrieval snapshot.
             conn.commit()
+            scope_marker = None
+            if _include_diagnostics and getattr(self, "read_cache", False):
+                # Write counters read before the snapshot, so a count is never stored under counters
+                # newer than its data. A write committed in between can still let this request reuse
+                # a count from before it (diagnostics only); the next request recounts.
+                scope_marker = self._write_marker(conn)
+                conn.commit()
             conn.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY")
             channels_by_collection = {}
             for collection in collections:
@@ -1646,7 +1659,8 @@ class Database:
                     for item in evidence:
                         item.matched_terms = item.literal_matched_terms = [query.strip()]
                 else:
-                    diagnostics = self._coverage(conn, terms, join, where, params, evidence)
+                    diagnostics = self._coverage(conn, terms, join, where, params, evidence,
+                                                 scope_counts=lambda: self._scope_counts(conn, join, where, params, scope_marker))
                 return {"evidence": evidence, "diagnostics": diagnostics}
             return evidence
 
@@ -1941,7 +1955,12 @@ class Database:
         ).fetchall()
 
     def search_report(self, query, filters, limit=5):
-        """Read results and scoped keyword coverage within one retrieval snapshot."""
+        """Read results and scoped keyword coverage within one retrieval snapshot.
+
+        In the application process the scope's record and passage counts may come from an earlier
+        snapshot whose write counters were the same (`_scope_counts`), so they can lag a write that
+        commits during this call. Callers that need same-snapshot counts use read_cache=False.
+        """
         return self.search(query, filters, limit=limit, _include_diagnostics=True)
 
     @staticmethod
@@ -1954,8 +1973,37 @@ class Database:
             "scope_records": None, "scope_chunks": None,
         }
 
+    _SCOPE_COUNTS = "SELECT count(DISTINCT r.record_id) AS scope_records,count(*) AS scope_chunks"
+
+    def _scope_counts(self, conn, join, where, params, marker=None):
+        """Records and passages in a keyword scope, reused in the application process.
+
+        The count tests `countable` in every passage's payload (6.5 s on 172k social passages
+        after the 2026-11-09 import) and does not depend on the query, while one research answer
+        searches the same scope up to four times. The application reuses a count for
+        READ_CACHE_SECONDS while the write counters (`_write_marker`, read by `search` just before
+        its snapshot) are unchanged; a count is always computed in the retrieval snapshot that asks
+        for it first. Without the read cache or a marker it is counted in this snapshot each time.
+        """
+        sql = self._SCOPE_COUNTS + join + f" WHERE {where}"
+        if not getattr(self, "read_cache", False) or marker is None:
+            return conn.execute(sql, params).fetchone()
+        key = (sql, json.dumps(params, default=str))
+        with self._scope_counts_guard:
+            hit = self._scope_counts_cache.get(key)
+            if hit and hit[0] == marker and time.monotonic() - hit[1] < READ_CACHE_SECONDS:
+                self._scope_counts_cache.move_to_end(key)
+                return dict(hit[2])
+        counts = dict(conn.execute(sql, params).fetchone())
+        with self._scope_counts_guard:
+            self._scope_counts_cache[key] = (marker, time.monotonic(), counts)
+            self._scope_counts_cache.move_to_end(key)
+            while len(self._scope_counts_cache) > SCOPE_COUNT_ENTRIES:
+                self._scope_counts_cache.popitem(last=False)
+        return dict(counts)
+
     @classmethod
-    def _coverage(cls, conn, terms, join, where, params, evidence):
+    def _coverage(cls, conn, terms, join, where, params, evidence, scope_counts=None):
         """Use the index's exact English tsquery semantics, including stemming.
 
         Missing terms concern eligible indexed passages, never an entire article's
@@ -1982,9 +2030,8 @@ class Database:
             return cls._unavailable_coverage(
                 "No meaningful English search terms remain after index stop-word filtering.", ignored
             )
-        scope = conn.execute(
-            "SELECT count(DISTINCT r.record_id) AS scope_records,count(*) AS scope_chunks"
-            + join + f" WHERE {where}", params,
+        scope = scope_counts() if scope_counts else conn.execute(
+            cls._SCOPE_COUNTS + join + f" WHERE {where}", params,
         ).fetchone()
         # Each term reads only its own text-index matches; filtering the whole scope
         # once per query cost 8 s on 172k social passages (2026-11-09 import).
