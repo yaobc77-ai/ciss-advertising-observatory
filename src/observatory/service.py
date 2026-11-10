@@ -364,21 +364,54 @@ def examples_note(question, result):
             "list; other ads may also match.")
 
 
+def not_about_the_texts_text(question, datasets, *, read=False):
+    """The C24 wording (MT6-015). A list read nothing for the question; another answer (`read`)
+    searched the collection, so it says the question cannot be answered from it instead."""
+    english, chinese = {("native",): ("ads", "广告"), ("social",): ("company posts", "公司社交帖子")}.get(
+        tuple(datasets), ("ads or company posts", "广告或公司社交帖子"))
+    if re.search(r"[一-鿿]", question):
+        return (f"这个问题看起来不是在问{chinese}里的内容，所以{'没法从它们回答' if read else '没有逐条去看'}。"
+                "请换个问法，问它们说了什么或展示了什么，例如某个话题、说法、产品、公司、媒体或时间段。")
+    return (f"This question does not seem to ask about anything the {english} say or show, so "
+            f"{'it cannot be answered from them' if read else 'none of them was read for it'}. Please ask it another "
+            "way: about what they say or show, for example a topic, a claim, a product, a company, an outlet or a period.")
+
+
+# A named sponsor/account absent from the collection is the answer to a question restricted to
+# it; web pages about other companies are not. Integrity failures are never covered up.
+_NO_WEB_REASONS = frozenset({
+    "citation_mismatch", "quote_too_long", "invalid_claim_count", "named_source_not_in_collection",
+    "evidence_version_mismatch", "answer_structure_mismatch", "content_publication_unavailable",
+    "collection_unavailable", "statistics_unavailable", "historical_source_state_unverified",
+    "media_evidence_mismatch", "duplicate_evidence_identity",
+    # A list waiting for the researcher's criterion, and a refused or deferred continuation, are
+    # not evidence shortfalls (step 3).
+    "criterion_confirmation_required", *CONFIRMATION_REFUSALS,
+    # A question that is not about the ads or posts asks for another wording, not for web pages (C24).
+    NOT_ABOUT_THE_TEXTS})
+
+
+def _no_web_help(question, result):
+    """An insufficient answer whose reason is the answer, not a gap for web pages (_ensure_answer)."""
+    from .research_agent import research_failure_status
+
+    reason = result.failure_reason or ""
+    return (not 1 <= len(question.strip()) <= 2000 or reason.startswith("data_changed")
+            or reason in _NO_WEB_REASONS or bool(research_failure_status(reason)))
+
+
+def _scope_datasets(filters):
+    dataset = getattr(filters, "dataset", None)
+    return ("native", "social") if dataset in (None, "all") else (dataset,)
+
+
 def not_about_the_texts(question, datasets, cost):
     """A list question whose criterion draft says it is not about the ads or posts (C24, MT6-015).
 
     Nothing was triaged or screened, so the answer lists nothing and shows no candidate as
     read; it says why and asks for another wording. The draft's cost stays recorded.
     """
-    english, chinese = {("native",): ("ads", "广告"), ("social",): ("company posts", "公司社交帖子")}.get(
-        tuple(datasets), ("ads or company posts", "广告或公司社交帖子"))
-    if re.search(r"[一-鿿]", question):
-        text = (f"这个问题看起来不是在问{chinese}里的内容，所以没有逐条去看。请换个问法，问它们说了什么或展示了什么，"
-                "例如某个话题、说法、产品、公司、媒体或时间段。")
-    else:
-        text = (f"This question does not seem to ask about anything the {english} say or show, so none of them was "
-                "read for it. Please ask it another way: about what they say or show, for example a topic, a claim, "
-                "a product, a company, an outlet or a period.")
+    text = not_about_the_texts_text(question, datasets)
     return Answer(status="insufficient_evidence", answer_mode="clarification", failure_reason=NOT_ABOUT_THE_TEXTS,
                   answer=text, research_trace={"criterion_draft": {"status": NOT_ABOUT_THE_TEXTS, "cost_usd": cost}})
 
@@ -1002,8 +1035,6 @@ class Service:
         Integrity failures below are never covered up; budget and rate limits
         still apply, and a failed web search never invents an answer.
         """
-        from .research_agent import research_failure_status
-
         partial_metadata = (result.status == "answered"
                             and result.answer_mode == "tools"
                             and (result.structured_result or {}).get("kind") == "original_metadata"
@@ -1017,25 +1048,13 @@ class Service:
         if _COLLECTION_ONLY.search(question):
             # The user asked for the collection only: its gap is the answer.
             return result
-        # A named sponsor/account absent from the collection is the answer to a
-        # question restricted to it; web pages about other companies are not.
-        protected = {"citation_mismatch", "quote_too_long", "invalid_claim_count", "named_source_not_in_collection",
-                     "evidence_version_mismatch", "answer_structure_mismatch", "content_publication_unavailable",
-                     "collection_unavailable", "statistics_unavailable", "historical_source_state_unverified",
-                     "media_evidence_mismatch", "duplicate_evidence_identity",
-                     # A list waiting for the researcher's criterion, and a refused or deferred
-                     # continuation, are not evidence shortfalls (step 3).
-                     "criterion_confirmation_required", *CONFIRMATION_REFUSALS,
-                     # A question that is not about the ads or posts asks for another wording, not for
-                     # web pages (C24).
-                     NOT_ABOUT_THE_TEXTS}
-        if (not 1 <= len(question.strip()) <= 2000
-                or result.failure_reason.startswith("data_changed") or result.failure_reason in protected
-                or research_failure_status(result.failure_reason)):
+        if _no_web_help(question, result):
             return result
         research = result.external_research or {}
         # Any prior outcome is a completed attempt, including failures and limits.
         # The evidence route may already have searched: do not charge it again.
+        if not research and self._refuse_if_not_about(question, filters, visitor, result):
+            return result  # C24: a question to rephrase, not one for web pages
         if not research:
             before = self.health()
             attempt = self._search_external(question, filters, visitor, progress=progress)
@@ -1366,7 +1385,8 @@ class Service:
             if collection_first:
                 result.research_trace["collection_first_fallback"] = collection_first
             for key in ("external_web", "media_retrieval", "generation_failure", "list_screening", "coverage_note",
-                        "list_decision", "content_zones", "content_reading", "criterion_draft", "flow_id"):
+                        "list_decision", "content_zones", "content_reading", "criterion_draft", "flow_id",
+                        "about_check"):
                 if key in downstream_trace:
                     result.research_trace[key] = downstream_trace[key]
             self._record_question_plan(result, question, filters, run, plan_scope, plan)
@@ -1905,6 +1925,49 @@ class Service:
     def _draft_criterion(self, question, visitor):
         """The one place a criterion is drafted: from the question alone (relevance_triage.make_criterion)."""
         return make_criterion(self.rag, question, visitor)
+
+    def _refuse_if_not_about(self, question, filters, visitor, result):
+        """C24 for an answer that is not a list (plan step 5b): True when it was turned into the refusal.
+
+        Called where an insufficient answer would next search the web: the evidence route and
+        _ensure_answer. It applies the same exemptions itself (a collection-only question, a reason
+        that never gets web help, a web attempt already made), so neither caller can check what the
+        web step would skip. The same drafting call as a list's (make_criterion: same prompt, same
+        model) says whether the question is about what the ads or posts say or show; only an
+        explicit and valid "no" changes the answer, in place: the C24 wording, no evidence or
+        citations shown, and no web search after it. Its cost is added and the trace keeps what the
+        answer was. A list, a compound answer (its valid parts keep their own outcome) or an answer
+        already checked is never checked; a failed, unusable or refused call (triage off, a limit)
+        leaves the answer as it was. A False return only means "not refused": whether the web is
+        searched stays the caller's decision. Only an answer written from retrieved passages
+        (answer_mode "rag": a question about what the texts say) is checked: the paid check of
+        2026-11-10 called valid count and metadata questions "not about the texts" (3 of 10), so
+        statistics, metadata, tool answers and clarifications keep their outcome.
+        """
+        trace = result.research_trace
+        if (result.status != "insufficient_evidence" or result.answer_mode != "rag"
+                or "list_screening" in trace or "about_check" in trace
+                or result.external_research or (result.structured_result or {}).get("kind") == "composite"
+                or _COLLECTION_ONLY.search(question) or _no_web_help(question, result)
+                or getattr(self, "rag", None) is None):
+            return False
+        try:
+            criterion, cost = self._draft_criterion(question, visitor)
+        except LimitReached:
+            trace["about_check"] = {"status": "limited", "cost_usd": 0.0}
+            return False
+        about = criterion != NOT_ABOUT_THE_TEXTS
+        trace["about_check"] = {"status": ("about" if criterion else "unchecked") if about else NOT_ABOUT_THE_TEXTS,
+                                "cost_usd": cost}
+        result.cost_usd += cost
+        if about:
+            return False
+        trace["about_check"]["replaced"] = {"answer_mode": result.answer_mode, "failure_reason": result.failure_reason}
+        result.answer = not_about_the_texts_text(question, _scope_datasets(filters), read=True)
+        result.answer_mode, result.failure_reason = "clarification", NOT_ABOUT_THE_TEXTS
+        result.evidence, result.media_evidence, result.citations = [], [], []
+        result.structured_result = None
+        return True
 
     def _consistent_version(self, data_version):
         """Nothing is judged on a collection that moved since the retrieval (step 3, S3-c).
@@ -3045,7 +3108,8 @@ class Service:
         # collection, and after a list: a screened list that found no match is a
         # collection finding, and web pages are not advertisements (every list
         # result carries research_trace["list_screening"]; a generated answer never does).
-        if result.status == "insufficient_evidence" and plan.allow_web:
+        if (result.status == "insufficient_evidence" and plan.allow_web
+                and not self._refuse_if_not_about(question, filters, visitor, result)):
             topics = gaps if retrieval_groups else []
             result.external_research = self._search_external(question, filters, visitor, missing_topics=topics, progress=progress)
             result.cost_usd += result.external_research.get("cost_usd", 0.0)
