@@ -708,13 +708,16 @@ def _both_head(chinese, scopes, by_dataset, whole=(), capped=()):
     """Opening line of a list screened in both collections: what was found, and what was read in each.
 
     A collection in `whole` was read in full by the triage; the records it did not read have no text.
-    In a collection in `capped` the question's spending limit stopped the reading.
+    In a collection in `capped` ({dataset: records left unfinished}) the question's spending limit
+    stopped the reading; a whole-scope triage cut by the cap is counted by what it left, not as read.
     """
     found, read, left = [], [], False  # some records in scope were not read
     for dataset in ("native", "social"):
         total, examined, count = scopes[dataset], by_dataset[dataset]["examined"], by_dataset[dataset]["matches"]
         # Records left unread, as opposed to records the triage skipped because they have no text.
         unread = 0 if dataset in whole else max(total - examined, 0)
+        if dataset in capped:
+            unread = capped[dataset] if dataset in whole else max(unread, capped[dataset])
         left = left or bool(unread)
         if chinese:
             unit, name = ("篇" if dataset == "native" else "条"), DATASET_NAMES[dataset][1]
@@ -838,7 +841,8 @@ def list_answer(question, results, evidence, *, scope_total, literal=None, scope
     if scopes:
         whole = {dataset for dataset, item in ((triage or {}).get("by_dataset") or {}).items()
                  if item.get("whole_scope")}
-        capped = {item.get("dataset") for item in results if item.get("reason") == "question_cap"}
+        # Per collection, the records the question's spending cap left unfinished (a human check).
+        capped = Counter(item.get("dataset") for item in results if item.get("reason") == "question_cap")
         head = _both_head(chinese, scopes, by_dataset, whole, capped)
         if literal is not None:
             head += (f"符合指含有“{literal}”（只按字面查找）。" if chinese else

@@ -382,3 +382,17 @@ def test_a_list_without_its_written_summary_says_so_where_the_page_shows_it():
     summary, findings = _grounded_answer_parts(limited.model_dump(mode="json"), limited.answer)
     shown = "\n".join(texts([summary, findings]))
     assert shown.count(summary_limited_line(question)) == 1 and "Kite notice 1" in shown
+
+
+def test_a_whole_scope_reading_cut_by_the_cap_counts_what_it_left_unfinished():
+    # Codex review of the 2026-11-10 merge: a collection read whole by the triage and also cut by the cap
+    # said "0 not finished" and dropped the "may hold more" note. It counts the cap's unfinished records.
+    from observatory.list_screening import _both_head
+
+    scopes = {"native": 6, "social": 4}
+    by_dataset = {"native": {"examined": 3, "matches": 2}, "social": {"examined": 4, "matches": 1}}
+    head = _both_head(False, scopes, by_dataset, whole={"native"}, capped={"native": 2})
+    assert "3 of the 6 native ads, then the question's spending limit stopped the reading (2 not finished)" in head
+    assert "Those not read may hold more matches." in head
+    zh = _both_head(True, scopes, by_dataset, whole={"native"}, capped={"native": 2})
+    assert "6 篇原生广告中看了 3 篇后达到单题花费上限（其余 2 篇没有看完）" in zh and "没看的里面可能还有符合的" in zh
