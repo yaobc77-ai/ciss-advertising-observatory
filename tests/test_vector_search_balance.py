@@ -103,3 +103,48 @@ def test_social_titles_are_not_searched():
     evidence = database(connection).search("harbor ferry timetable", Filters(dataset="social"), limit=5)
     assert [e.record_id for e in evidence] == ["s1"]
     assert not any("title_coverage" in sql for sql in connection.calls)
+
+
+class KeywordConnection(Connection):
+    """Answers the keyword prefix read with `prefix_rows` passages and the filtered read with all."""
+
+    def __init__(self, hits, prefix_rows):
+        super().__init__(hits)
+        self.prefix_rows = prefix_rows
+
+    def execute(self, sql, params=None):
+        if "lexical_coverage" in sql and "r.active AND r.dataset=%s" in sql:
+            self.calls.append(sql)
+            self.prefix_limit = params[4]
+            # The prefix read names its collection; the filter keeps at most the final limit.
+            rows = [r for r in self.hits if r["dataset"] == params[2]][:self.prefix_rows]
+            return Rows(rows[:params[-1]])
+        return super().execute(sql, params)
+
+
+def keyword_reads(connection):
+    return [sql for sql in connection.calls if "lexical_coverage" in sql]
+
+
+def test_keyword_prefix_is_used_when_enough_of_it_passes_the_filter():
+    connection = KeywordConnection([row(f"s{i}", "social") for i in range(60)], prefix_rows=50)
+    evidence = database(connection).search("harbor ferry", Filters(dataset="social"), limit=5)
+    assert len(keyword_reads(connection)) == 1
+    assert connection.prefix_limit == Database.LEXICAL_PREFIX_FACTOR * 50
+    assert [e.record_id for e in evidence] == ["s0", "s1", "s2", "s3", "s4"]
+
+
+def test_a_short_keyword_prefix_falls_back_to_the_filtered_ranking():
+    connection = KeywordConnection([row(f"s{i}", "social") for i in range(60)], prefix_rows=3)
+    evidence = database(connection).search("harbor ferry", Filters(dataset="social"), limit=5)
+    prefix, filtered = keyword_reads(connection)
+    assert "r.active AND r.dataset=%s" in prefix and "r.active AND r.dataset=%s" not in filtered
+    assert [e.record_id for e in evidence] == ["s0", "s1", "s2", "s3", "s4"]
+
+
+def test_each_collection_ranks_its_own_keyword_prefix():
+    hits = [row(f"s{i}", "social") for i in range(60)] + [row(f"n{i}", "native") for i in range(60)]
+    connection = KeywordConnection(hits, prefix_rows=60)
+    evidence = database(connection).search("harbor ferry", Filters(dataset="all"), limit=4)
+    assert len(keyword_reads(connection)) == 2
+    assert [e.record_id for e in evidence] == ["n0", "s0", "n1", "s1"]
