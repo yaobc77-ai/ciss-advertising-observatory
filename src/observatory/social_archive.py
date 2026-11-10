@@ -82,7 +82,9 @@ def _invalid_constant(value):
 
 def _read_source(source: Path) -> tuple[list[dict], dict]:
     source_data = source.read_bytes()
-    receipt = {"source": str(source.resolve()), "source_sha256": _checksum(source_data)}
+    # The file name only: records must not carry this machine's folder layout (the source is
+    # identified by its SHA-256, as import_records does for its JSONL input).
+    receipt = {"source": source.name, "source_sha256": _checksum(source_data)}
     if source.suffix.casefold() == ".zip":
         with ZipFile(source) as archive:
             members = archive.infolist()
