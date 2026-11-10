@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import re
+import threading
 from collections import Counter, defaultdict
 from decimal import Decimal
 from typing import Literal
@@ -447,8 +448,23 @@ CONFIRMED_CRITERION_NOTE = ("\n\n(The researcher confirmed the criterion below f
                             "quote that sentence. {criterion})")
 
 
+class MatchQuota:
+    """Matches wanted by a limited list (C26), counted across the collections screened at the same time."""
+
+    def __init__(self, wanted):
+        self.wanted, self.found, self._lock = wanted, 0, threading.Lock()
+
+    def add(self, count):
+        with self._lock:
+            self.found += count
+
+    def reached(self):
+        with self._lock:
+            return self.found >= self.wanted
+
+
 def screen(rag, question, evidence, visitor, limit=MAX_CANDIDATES, widen_to=None, reread=None, verify=None,
-           criterion=None, cost_sink=None):
+           criterion=None, cost_sink=None, quota=None, narrow=None):
     """Return per-record decisions and the settled cost. One provider call per batch.
 
     The first `limit` ranked ads are always read. Up to `widen_to` are read
@@ -468,6 +484,16 @@ def screen(rag, question, evidence, visitor, limit=MAX_CANDIDATES, widen_to=None
     asked to decide by it (CONFIRMED_CRITERION_NOTE). The quoted phrases that every match
     must contain still come from the question alone, so a rule that quotes a sentence does
     not become a literal requirement.
+
+    `quota` (a MatchQuota; a limited list, C26): every ad up to `widen_to` may be read, with no
+    stopping rule, until the quota, shared by the collections of one list, holds its number of
+    matches; then no further wave is sent. A wave already sent is kept whole (the caller lists
+    only the quota's number). A collection that starts after the quota is full reads nothing.
+    Only a second check (`verify`, off by default) could later remove a counted match.
+
+    `narrow` turns the widening stop rule on or off; by default it is on without a quota. The
+    full list asked from a limited one (list depth "expanded") turns it off, so it reads every
+    candidate up to `widen_to`, never fewer than the limited list did.
     """
     groups = candidates_by_record(evidence, max(limit, widen_to or 0))
     phrases = quoted_phrases(question)
@@ -480,7 +506,8 @@ def screen(rag, question, evidence, visitor, limit=MAX_CANDIDATES, widen_to=None
     starts = list(range(0, len(groups), BATCH_SIZE))
     first_wave = max(1, sum(1 for start in starts if start < limit))
     position, narrowed, refused = 0, False, []
-    while position < len(starts) and not (narrowed or refused):
+    # A wave is sent only while the shared quota is short: the other collection may have filled it.
+    while position < len(starts) and not (narrowed or refused or (quota is not None and quota.reached())):
         wave = starts[position:position + (first_wave if position == 0 else WIDEN_WAVE)]
         outcomes = _run_batches([
             _until_cap(lambda start=start: _judge(rag, question, groups[start:start + BATCH_SIZE], start + 1, phrases,
@@ -493,11 +520,13 @@ def screen(rag, question, evidence, visitor, limit=MAX_CANDIDATES, widen_to=None
                 continue
             found, spent = outcome
             cost += spent  # every dispatched call is paid, kept or not
-            if narrowed or (start >= limit and not any(
+            if narrowed or ((quota is None if narrow is None else narrow) and start >= limit and not any(
                     item["decision"] == "matches" for item in results[-WIDEN_WINDOW:])):
                 narrowed = True
                 continue
             results.extend(found)
+            if quota is not None:
+                quota.add(sum(item["decision"] == "matches" for item in found))
         position += len(wave)
     if refused:
         # Left for a human check: the ads that had to be read (the first `limit`) and were not, and
@@ -750,6 +779,45 @@ def _both_head(chinese, scopes, by_dataset, whole=(), capped=()):
         head = f"Found {found[0]} and {found[1]}. Read: {read[0]}; {read[1]}."
         head += (" Those not read may hold more matches." + NOT_READ_NOTE[zh]) if left else ""
     return head + (REPHRASE_NOTE[zh] if nothing else "")
+
+
+# A limited list (C26, user 2026-11-10): reading stops once this many matches are found;
+# "Show the full list" at the end of the answer asks again at full depth.
+LIMITED_LIST = 20
+FULL_LIST_BUTTON = "Show the full list"
+
+
+def limited_order(matched, both):
+    """The matches a limited list keeps: the first LIMITED_LIST by rank, a fair share of each collection for two."""
+    return (_display_order(matched, LIMITED_LIST) if both else list(matched))[:LIMITED_LIST]
+
+
+def limited_head(chinese, listed, by_dataset, reached):
+    """Opening line of a limited list (C26): what was read, what is listed, and that it is not the full list.
+
+    `by_dataset` is {dataset: {"scope_total", "examined"}} for the collections screened; `reached`
+    says the reading stopped at LIMITED_LIST matches (else every retrieved candidate was read).
+    """
+    zh = int(bool(chinese))
+    names = {"native": (("ad", "ads"), "篇", "原生广告"), "social": (("post", "posts"), "条", "公司社交帖子")}
+    if chinese:
+        read = "、".join(f"{names[d][2]} {v['examined']:,} {names[d][1]}" for d, v in by_dataset.items())
+        total = "、".join(f"{names[d][2]} {v['scope_total']:,} {names[d][1]}" for d, v in by_dataset.items())
+        how = "按和问题的接近程度读了" if reached else "检索挑出的和问题最接近的候选都读了："
+        found = f"列出最先找到的 {listed} 条符合的" if reached else f"找到 {listed} 条符合的"
+        head = (f"这是一份快速名单：{how}{read}，{found}。所选范围共{total}，没读的里面可能还有，"
+                f"所以这不是完整名单；要完整名单，点回答末尾的“{FULL_LIST_BUTTON}”（读得更多，更慢，费用也更高）。")
+    else:
+        read = " and ".join(f"{v['examined']:,} {names[d][0][v['examined'] != 1]}" for d, v in by_dataset.items())
+        total = " and ".join(f"{v['scope_total']:,} {names[d][0][v['scope_total'] != 1]}" for d, v in by_dataset.items())
+        head = ((f"This is a quick list: the {read} closest to the question were read, and the first {listed} "
+                 f"matches found are listed." if reached else
+                 f"This is a quick list: all {read} the search picked as closest to the question were read, and "
+                 f"{listed} {'match' if listed == 1 else 'matches'} {'was' if listed == 1 else 'were'} found.")
+                + f" Your selection has {total}; those not read may hold more, so this is not the full list. "
+                f"For the full list, select “{FULL_LIST_BUTTON}” at the end of the answer (it reads more, takes "
+                f"longer and costs more).")
+    return head + (REPHRASE_NOTE[zh] if not listed else "")
 
 
 def list_answer(question, results, evidence, *, scope_total, literal=None, scopes=None, criterion=None, triage=None):
