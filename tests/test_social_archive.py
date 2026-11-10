@@ -125,6 +125,12 @@ def test_nested_export_maps_exact_source_fields_and_validates_canonical_contract
     assert receipt["output_sha256"] == hashlib.sha256(out.read_bytes()).hexdigest()
     assert receipt == json.loads(report.read_text(encoding="utf-8"))
     assert len(load_records(out, dataset="social").records) == 1
+    # Only the file name is stored: no part of this machine's folder layout reaches the records.
+    assert receipt["source"] == source.name
+    assert str(tmp_path) not in out.read_text(encoding="utf-8")
+    assert str(tmp_path).replace("\\", "\\\\") not in out.read_text(encoding="utf-8")
+    assert record["raw"]["date_source"] == source.name
+    assert {item["source"] for item in record["provenance"]} == {source.name}
     if zipped:
         assert receipt["documentation_sha256"] == hashlib.sha256(b"documentation").hexdigest()
 
