@@ -44,9 +44,13 @@ from .criterion_confirmation import (
 from .db import Database
 from .list_screening import (
     DISPLAY_LIMIT,
+    LIMITED_LIST,
     MAX_CANDIDATES,
     MAX_WIDENED,
+    MatchQuota,
     hidden_line,
+    limited_head,
+    limited_order,
     list_answer,
     literal_results,
     summary_limited_line,
@@ -80,6 +84,9 @@ log = logging.getLogger(__name__)
 COST_BASIS = ("embedding_and_settled_calls; a Decisions reply without usage is charged its estimate; "
               "uncertain charges stay in the budget ledger")
 _FINAL_AUDIT_CONTEXT = ContextVar("observatory_final_answer_audit", default=False)
+# The depth of every screened list in the question being answered (C26): "full" or "limited".
+_LIST_DEPTH = ContextVar("observatory_list_depth", default="full")
+LIST_DEPTHS = ("limited", "full", "expanded")
 
 
 # Run endings caused by planning or title lookup, not by the collection itself.
@@ -902,7 +909,7 @@ class Service:
         return judge_answer(self.rag, question, ads_from_passages(decisions, passages), visitor)
 
     def answer(self, question, filters, visitor, progress=None, *, criterion_confirmation=None, continuation=None,
-               address=None):
+               address=None, list_depth=None):
         """Answer one question (step 3, S3-c: in one or two phases).
 
         `criterion_confirmation` decides how a screened list gets its criterion: "auto" (drafted
@@ -912,14 +919,32 @@ class Service:
         the web passes settings.criterion_confirmation. `continuation` ({"token", "criterion",
         "example_choices"}) continues a card: the token is checked, the flow bound once in the
         registry, and the list judged by the confirmed criterion (_continue_confirmation).
+
+        `list_depth` (C26) is "full" (None, the default for the API and internal callers: every
+        list as before) or "limited" (the web's default, settings.list_depth): a screened list
+        stops reading once LIMITED_LIST matches are found, without the triage or the card, and
+        says it is not the full list (_list_answer). A limited list asks for no confirmation, so
+        "ask" becomes "auto" for it. "expanded" is the full list asked from a limited one (the web's
+        button): a full list whose screening without the triage reads every retrieved candidate,
+        with no widening stop rule, so it never reads fewer than the limited list did. A
+        continuation keeps the depth "full" (its confirmed reading has no stop rule either).
         """
         if criterion_confirmation not in (None, "auto", "ask"):
             raise ValueError("criterion_confirmation must be 'auto' or 'ask'")
+        if list_depth not in (None, *LIST_DEPTHS):
+            raise ValueError("list_depth must be 'limited', 'full' or 'expanded'")
+        depth_name = "full" if continuation is not None else (list_depth or "full")
+        if depth_name == "limited":
+            criterion_confirmation = "auto"
         # `address` (the client's network address, from the web and the API) is counted with the
         # visitor, so a new visitor id or cookie does not reset the question limits.
-        with QUESTIONS.question(visitor, address):
-            return self._answer_question(question, filters, visitor, progress,
-                                         criterion_confirmation=criterion_confirmation or "auto", continuation=continuation)
+        depth = _LIST_DEPTH.set(depth_name)
+        try:
+            with QUESTIONS.question(visitor, address):
+                return self._answer_question(question, filters, visitor, progress,
+                                             criterion_confirmation=criterion_confirmation or "auto", continuation=continuation)
+        finally:
+            _LIST_DEPTH.reset(depth)
 
     def _answer_question(self, question, filters, visitor, progress=None, *, criterion_confirmation="auto", continuation=None):
         """Answer one question: pick the tool path or the legacy path, then add web help and an audit row.
@@ -2035,6 +2060,12 @@ class Service:
                           evidence=list(evidence)), 0.0  # the retrieval candidates, free to browse
         phrases, literal, both = plan.phrases, plan.list_kind == "literal", len(scopes) > 1
         confirmed = criterion is not None or confirmed_condition
+        # C26: a limited list reads in rank order until LIMITED_LIST matches (both collections
+        # together); an exact-text list and a confirmed one are complete as before.
+        limited = _LIST_DEPTH.get() == "limited" and not literal and not confirmed
+        expanded = _LIST_DEPTH.get() == "expanded" and not literal and not confirmed
+        quota = MatchQuota(LIMITED_LIST) if limited else None
+        limited_draft = None
         if confirmed and criterion_source is None:
             criterion_source = "confirmed"  # omitted: taken as given; other labels were checked by the caller
         # Posts selected by a relation satisfy it by their source records, which the
@@ -2117,12 +2148,17 @@ class Service:
                         own = [*own, *self._scope_passages(own, scope)]
                     first = len({e.record_id for e in own})
                     limit = widen_to = first
+                elif limited or expanded:
+                    # Every retrieved candidate may be read, with no stopping rule (until the quota).
+                    first, limit, widen_to = max(MAX_CANDIDATES, records), max(MAX_CANDIDATES, records), max(MAX_WIDENED, records)
                 else:
                     first, limit, widen_to = max(MAX_CANDIDATES, records), max(MAX_CANDIDATES, records), max(MAX_WIDENED, records)
                 self._consistent_version(data_version)  # after the last read, before the first judging call
                 results, cost = screen_list(self.rag, question + hint, own, visitor, limit=limit, widen_to=widen_to,
                                             reread=reader, **({"criterion": criterion} if confirmed else {}),
-                                            **({"cost_sink": cost_sink} if cost_sink is not None else {}))
+                                            **({"cost_sink": cost_sink} if cost_sink is not None else {}),
+                                            **({"quota": quota} if quota is not None else {}),
+                                            **({"narrow": False} if expanded else {}))
                 summary, items = None, [*own, *reread_passages]
                 if not both:
                     read[:] = list({e.evidence_id: e for e in items}.values())
@@ -2148,6 +2184,9 @@ class Service:
                 charged(criterion_cost)
                 if criterion == NOT_ABOUT_THE_TEXTS:
                     return not_about_the_texts(question, plan.datasets, criterion_cost), criterion_cost
+                if limited:
+                    # The draft only checks that the question is about the texts (C24): no triage reads by it.
+                    limited_draft, criterion = criterion, None
                 outcomes = each(lambda scope: judge(prepare(scope)), scopes)
             else:
                 prepared = prepare(scopes[0])
@@ -2155,6 +2194,8 @@ class Service:
                 charged(criterion_cost)
                 if criterion == NOT_ABOUT_THE_TEXTS:
                     return not_about_the_texts(question, plan.datasets, criterion_cost), criterion_cost
+                if limited:
+                    limited_draft, criterion = criterion, None
                 outcomes = [judge(prepared)]
             results, pool, cost, totals, triages, first_reads = [], [], criterion_cost, {}, {}, {}
             for dataset, total, found, spent, items, summary, first_read in outcomes:
@@ -2171,6 +2212,16 @@ class Service:
                 # The one-collection exact-text list showed a post without its account before
                 # the merge; kept as it was (a visible change needs its own approval).
                 results = _with_accounts(results, pool)
+            beyond = 0
+            if limited:
+                # The last wave sent may have found more: only LIMITED_LIST are listed, the rest are
+                # recorded as found beyond the limit (paid for, not shown).
+                matched = [n for n, item in enumerate(results)
+                           if item["decision"] == "matches" and item.get("route", "pass") == "pass"]
+                kept = {id(item) for item in limited_order([results[n] for n in matched], both)}
+                beyond = len(matched) - len(kept)
+                results = [{**item, "route": "beyond_limit"} if n in matched and id(item) not in kept else item
+                           for n, item in enumerate(results)]
             triage = None
             if triages and not both:
                 triage = {**next(iter(triages.values())), "criterion_cost_usd": criterion_cost}
@@ -2184,6 +2235,8 @@ class Service:
             if literal:
                 return result, cost
             trace = result.research_trace["list_screening"]
+            if limited:
+                self._limit_list(question, result, results, totals, quota, beyond)
             trace["first_read"] = max(first_reads.values())
             if both:
                 trace["first_read_by_dataset"] = first_reads
@@ -2191,7 +2244,7 @@ class Service:
             # the model's draft when it is known (drafted here, or handed over with a confirmed one).
             trace["criterion_source"] = criterion_source if confirmed else "draft_unconfirmed" if criterion else "none"
             trace["screening_basis"] = "confirmed_criterion" if confirmed and criterion else "question"
-            draft = criterion_draft if confirmed else criterion
+            draft = criterion_draft if confirmed else criterion or limited_draft
             if draft:
                 trace["criterion_draft"] = draft
             # The API's compact body drops the trace: the source travels in the structured result too.
@@ -2214,6 +2267,34 @@ class Service:
             if read:
                 evidence[:] = read
             raise
+
+    @staticmethod
+    def _limit_list(question, result, results, totals, quota, beyond):
+        """Mark a limited list (C26) in place: its opening line, structured result and trace.
+
+        A list that read every record in scope and dropped no match is the full list: its line is
+        kept and no full list is offered. Otherwise the opening line says what was read and that it
+        is not the full list (the question's spending cap keeps its own line and gains that note).
+        """
+        chinese = bool(re.search(r"[一-鿿]", question))
+        only = next(iter(totals))
+        read = Counter(item.get("dataset", only) for item in results if item.get("reason") != "question_cap")
+        by_dataset = {dataset: {"scope_total": total, "examined": read[dataset]} for dataset, total in totals.items()}
+        listed = result.structured_result["matches"]
+        capped = any(item.get("reason") == "question_cap" for item in results)
+        complete = not beyond and not capped and all(v["examined"] >= v["scope_total"] for v in by_dataset.values())
+        if not complete:
+            head, separator, rest = result.answer.partition("\n\n")
+            if capped:
+                head += "这不是完整名单。" if chinese else " This is not the full list."
+            else:
+                head = limited_head(chinese, listed, by_dataset, quota.reached())
+            result.answer = head + separator + rest
+        result.structured_result = {**result.structured_result, "list_depth": "limited", "full_list_available": not complete}
+        result.research_trace["list_screening"].update({
+            "list_depth": "limited", "full_list_available": not complete,
+            "limited": {"wanted": LIMITED_LIST, "found": quota.found, "listed": listed, "beyond_limit": beyond,
+                        "reached": quota.reached()}})
 
     def _confirmation_card(self, question, plan, scopes, evidence, visitor, filters, version, relation_listing, progress=None,
                            cost_sink=None):

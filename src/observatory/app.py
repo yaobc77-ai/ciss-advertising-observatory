@@ -71,11 +71,13 @@ from .criterion_ui import (
     REFUSAL_NEXT_STEPS,
     REFUSAL_TITLES,
     criterion_from_text,
+    question_key,
     refusal_notice,
     register_criterion_card,
     rules_notice,
 )
 from .criterion_ui import card as criterion_confirmation_card
+from .list_screening import FULL_LIST_BUTTON
 
 UNKNOWN = "(Unknown)"
 NATIVE_COLUMNS = ("url", "publisher", "title", "date", "sponsor", "keyword")
@@ -596,11 +598,13 @@ def _relevance_reasoning(result):
         rows = []
         for decision in call:
             number += 1
-            label = SCREENING_DECISIONS.get(decision.get("decision"), decision.get("decision") or "")
+            beyond = decision.get("route") == "beyond_limit"
+            label = ("Matches, not listed (the quick list stops at its limit)" if beyond else
+                     SCREENING_DECISIONS.get(decision.get("decision"), decision.get("decision") or ""))
             rows.append(html.Li([
                 html.Span(f"A{number}. "), html.Strong(title(decision)),
                 html.Span(f" · {label}", className=f"screen-decision screen-{decision.get('decision')}"),
-                html.Span(" "), route_badge(decision.get("route")),
+                html.Span(" "), None if beyond else route_badge(decision.get("route")),
                 html.Blockquote(decision["quote"], className="screen-quote") if decision.get("quote") else None,
                 html.Div(judge_numbers(decision.get("triage"))) if "triage" in decision else None,
                 list_check(trace, decision.get("record_id"), decision.get("route"))
@@ -1411,6 +1415,35 @@ def _tools_card(result, links_enabled):
                          eyebrow="Read-only data tools", trace=_research_steps(result))
 
 
+def _offers_full_list(result):
+    """A limited list in this answer, or in one of its compound parts, can be asked for in full (C26)."""
+    data = result.get("structured_result") or {}
+    parts = data.get("parts") if data.get("kind") == "composite" else None
+    return bool(data.get("full_list_available")) or any(
+        bool(((_mapping(part.get("answer") or {}).get("structured_result")) or {}).get("full_list_available"))
+        for part in (parts or []) if isinstance(part, dict))
+
+
+def _full_list_offer(result):
+    """The "Show the full list" button under a limited list answer (C26), or None.
+
+    It carries the question and the scope the list was asked with (`list_submission`, set by the
+    web entry), never the page's current ones. A compound answer has one, at its end, for the
+    whole question; never under a part or a replayed answer.
+    """
+    submission = result.get("list_submission")
+    if (not _offers_full_list(result) or result.get("compound_part") or result.get("replay")
+            or not isinstance(submission, dict)):
+        return None
+    key = {"q": question_key(submission.get("question") or ""), "f": "full"}
+    return html.Div([
+        html.Button(FULL_LIST_BUTTON, id={"type": "full-list", **key}, n_clicks=0, className="button"),
+        dcc.Store(id={"type": "full-list-data", **key}, data=submission),
+        html.Small(" Reads more of your selection: it takes longer and costs more. The full list is still bounded by "
+                   "the search and the question's spending limit; its answer says what it read.", className="scope-note"),
+    ], className="full-list-offer")
+
+
 def _render_answer_result(result, links_enabled, service):
     """All answer routes share presentation; failure statuses cannot bypass it."""
     status, mode = result.get("status"), result.get("answer_mode", "rag")
@@ -1443,6 +1476,7 @@ def _render_answer_result(result, links_enabled, service):
         if data.get("failure_message"):
             cards.append(html.P("Why the remaining collection tasks could not be answered: " + data["failure_message"],
                                 className="scope-note"))
+        cards.append(_full_list_offer(result))
         cards.append(_research_steps(result))
         return cards
     if mode == "tools" and data.get("kind") == "original_metadata":
@@ -1535,7 +1569,7 @@ def _render_answer_result(result, links_enabled, service):
             "Partial collection evidence" if partial else "Answer with supporting evidence",
             summary, evidence, _rag_scope_notes(result),
             eyebrow="Generated answer", trace=_research_steps(result), class_name="grounded-answer",
-        ), external]
+        ), _full_list_offer(result), external]
     reason = result.get("failure_reason") or ""
     if reason in REFUSAL_TITLES:
         # Step 3: a refused or deferred confirmation keeps its own explanation, whatever its status.
@@ -2363,6 +2397,7 @@ def create_app(service, settings, record_details=None) -> Dash:
                 dcc.Store(id="research-progress-token", data=secrets.token_urlsafe(24)),
                 dcc.Interval(id="research-progress-poll", interval=600, disabled=True),
                 dcc.Interval(id="criterion-progress-poll", interval=600, disabled=True),
+                dcc.Interval(id="full-list-progress-poll", interval=600, disabled=True),
                 html.A("Skip to content", href="#main", className="skip-link"),
                 html.Header(
                     [
@@ -2465,6 +2500,12 @@ def create_app(service, settings, record_details=None) -> Dash:
                                                             html.Span(className="query-progress-spinner", **{"aria-hidden": "true"}),
                                                             html.Span("Judging each ad by the confirmed rules", id="criterion-progress-label"),
                                                         ], id="criterion-progress", className="query-progress",
+                                                            style={"display": "none"}, role="status",
+                                                            **{"aria-live": "polite", "aria-atomic": "true"}),
+                                                        html.Div([
+                                                            html.Span(className="query-progress-spinner", **{"aria-hidden": "true"}),
+                                                            html.Span("Reading for the full list", id="full-list-progress-label"),
+                                                        ], id="full-list-progress", className="query-progress",
                                                             style={"display": "none"}, role="status",
                                                             **{"aria-live": "polite", "aria-atomic": "true"}),
                                                         html.Div(id="criterion-notice", className="criterion-notice-slot",
@@ -3223,6 +3264,16 @@ def create_app(service, settings, record_details=None) -> Dash:
         return state["label"] if state["status"] == "running" and state["label"] != PREPARING else STAGES["judging"]
 
     @app.callback(
+        Output("full-list-progress-label", "children"),
+        Input("full-list-progress-poll", "n_intervals"),
+        State("research-progress-token", "data"),
+        prevent_initial_call=True,
+    )
+    def show_full_list_progress(_ticks, token):
+        state = progress_registry.snapshot(session.get("visitor_id"), token)
+        return state["label"] if state["status"] == "running" and state["label"] != PREPARING else "Reading for the full list"
+
+    @app.callback(
         Output("research-results", "children"),
         Output("research-submission", "data"),
         Output("criterion-notice", "children"),
@@ -3366,11 +3417,17 @@ def create_app(service, settings, record_details=None) -> Dash:
                         "Please try again later or browse the records in Data.",
                     ),
                 ], None
+        # Step 3 (S3-d): the web asks for the criterion card before any ad is judged, unless
+        # the switch says auto; the API and internal callers never read the switch. A list is
+        # limited on the web (C26) unless the setting says full.
+        return answer_view(question, filters, context, progress,
+                           criterion_confirmation=getattr(settings, "criterion_confirmation", "ask") or "ask",
+                           list_depth=getattr(settings, "list_depth", "limited") or "limited")
+
+    def answer_view(question, filters, context, progress, **options):
+        """(rendered children, the flow id when the answer stopped at a criterion card, else None)."""
         try:
-            # Step 3 (S3-d): the web asks for the criterion card before any ad is judged, unless
-            # the switch says auto; the API and internal callers never read the switch.
-            result = paid_answer(question, filters, progress,
-                                 criterion_confirmation=getattr(settings, "criterion_confirmation", "ask") or "ask")
+            result = paid_answer(question, filters, progress, **options)
             progress("organizing")
             if result.get("status") == "answered" and result.get("answer_mode") in {"statistics", "tools"} and result.get("structured_result"):
                 effective = Filters.model_validate(result["structured_result"].get("filters") or filters.model_dump())
@@ -3382,6 +3439,10 @@ def create_app(service, settings, record_details=None) -> Dash:
                 result = {**result, "card_submission": {"question": question,
                                                         "filters": filters.model_dump(mode="json", exclude_unset=True)}}
                 flow_id = (result.get("structured_result") or {}).get("flow_id")
+            if _offers_full_list(result):
+                # The button asks again with exactly this question and scope (C26).
+                result = {**result, "list_submission": {"question": question,
+                                                        "filters": filters.model_dump(mode="json", exclude_unset=True)}}
             return [context, *_render_answer_result(result, enabled, service)], flow_id
         except Exception as exc:  # noqa: BLE001 - public boundary must hide unexpected service details.
             _boundary_failure("question answer", exc)
@@ -3538,6 +3599,64 @@ def create_app(service, settings, record_details=None) -> Dash:
             # progress block) is admitted only after this response is on its way, and this callback's
             # `running` finaliser normally runs first; the research callback notes the limits.
             progress_registry.finish(owner, token, request_id, status="failed" if failed else "complete")
+
+    @app.callback(
+        Output("research-results", "children", allow_duplicate=True),
+        Output("research-submission", "data", allow_duplicate=True),
+        Output("criterion-notice", "children", allow_duplicate=True),
+        Output("criterion-flow-state", "data", allow_duplicate=True),
+        Input({"type": "full-list", "q": MATCH, "f": MATCH}, "n_clicks"),
+        State({"type": "full-list-data", "q": MATCH, "f": MATCH}, "data"),
+        State("research-progress-token", "data"),
+        State("page-location", "pathname"),
+        prevent_initial_call=True,
+        running=[
+            (Output({"type": "full-list", "q": MATCH, "f": MATCH}, "disabled"), True, False),
+            (Output("full-list-progress", "style"), {}, {"display": "none"}),
+            (Output("full-list-progress-poll", "disabled"), False, True),
+        ],
+    )
+    def full_list(clicks, submission, token, pathname):
+        """C26: ask the limited list's question again in full ("expanded": no widening stop rule), in the
+        scope it was asked with.
+
+        The full list goes through the web's confirmation setting like any question (a card first
+        under "ask"). One submission at a time, as for the other buttons.
+        """
+        if pathname is None or _page(pathname) != "query":
+            raise PreventUpdate
+        if not isinstance(clicks, int) or isinstance(clicks, bool) or clicks <= 0:
+            raise PreventUpdate
+        if not isinstance(submission, dict) or not isinstance(submission.get("filters"), dict):
+            raise PreventUpdate
+        question = str(submission.get("question") or "").strip()
+        if not question or len(question) > 2000:
+            raise PreventUpdate
+        try:
+            filters = Filters.model_validate(submission["filters"])
+        except Exception:  # noqa: BLE001 - a store the browser altered.
+            raise PreventUpdate from None
+        owner = session["visitor_id"]
+        admitted, request_id = progress_registry.try_begin(owner, token)
+        if not admitted:
+            return no_update, no_update, _notice(
+                "Another submission is still running", "Wait for it to finish, then select the button again.", "warning"), no_update
+        progress = progress_registry.reporter(owner, token, request_id)
+        try:
+            try:
+                children, flow_id = answer_view(
+                    question, filters, _search_context(question, filters), progress,
+                    criterion_confirmation=getattr(settings, "criterion_confirmation", "ask") or "ask",
+                    list_depth="expanded")
+            except Exception:
+                progress_registry.finish(owner, token, request_id, status="failed")
+                raise
+            if not progress_registry.is_current(owner, token, request_id):
+                raise PreventUpdate
+            signature = {"question": question, "filters": filters.model_dump(mode="json")}
+            return children, ({**signature, "flow_id": flow_id} if flow_id else signature), None, None
+        finally:
+            progress_registry.finish(owner, token, request_id)
 
     # Registered last: tests and Dash look up the original owners of the shared outputs first.
     from observatory.year_drilldown import register_year_drilldown
