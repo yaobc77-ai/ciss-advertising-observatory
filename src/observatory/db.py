@@ -614,11 +614,22 @@ class Database:
         return {(row["route"], row["verdict"]): row["n"] for row in rows}
 
     def count_public(self, filters: Filters):
-        """Number of public rows in scope, without transferring them."""
+        """Number of public rows in scope, counted without reading any payload column.
+
+        The same rows as _public_query: its WHERE clause is where(), which never refers to the
+        date-inference join, and that LEFT JOIN LATERAL (... LIMIT 1) keeps exactly one output row
+        per record, so the projection and the join are left out here. Whole-collection scopes then
+        have one payload term, `countable`, and with migration 0009 the planner answers them from
+        the countable index alone (2026-11-08: social/all 3 s -> 0.02 s on a replica); scopes that
+        filter on dates, outlets or accounts still read those payloads.
+        """
         def compute():
-            sql, params = self._public_query(filters)
+            where, params = self.where(filters)
             with self.connect() as conn:
-                return conn.execute(f"SELECT count(*) AS n FROM ({sql}) AS scoped", params).fetchone()["n"]
+                return conn.execute(
+                    "SELECT count(*) AS n FROM records r JOIN record_versions v ON v.version_id=r.current_version "
+                    f"WHERE {where}", params,
+                ).fetchone()["n"]
         return self._cached_read(("count_public", filters.model_dump_json()), compute)
 
     def public_rows(self, filters: Filters):
