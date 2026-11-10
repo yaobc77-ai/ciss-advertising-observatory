@@ -124,6 +124,20 @@ def test_rate_limit_and_concurrency_and_reconciliation(db):
     assert budget.summary()[0]["exposure_usd"] == Decimal(".081")
 
 
+def test_daily_budget_counts_settled_cost_and_starts_again_at_utc_midnight(db):
+    budget = Budget(db, Settings(monthly_budget_usd=Decimal("100"), daily_budget_usd=Decimal(".10"),
+                                 requests_per_minute=100))
+    one = budget.reserve(".08", "alice", "generation", "gpt-5.6-luna")
+    with pytest.raises(LimitReached, match="Today's API budget"):
+        budget.reserve(".04", "bob", "generation", "gpt-5.6-luna")
+    budget.settle(one, Decimal(".01"), {"input_tokens": 1})
+    two = budget.reserve(".08", "bob", "generation", "gpt-5.6-luna")
+    with db.connect() as conn:  # move both to the last second of yesterday, UTC
+        conn.execute("UPDATE usage_ledger SET created_at=date_trunc('day', now() AT TIME ZONE 'UTC') "
+                     "AT TIME ZONE 'UTC' - interval '1 second' WHERE reservation_id IN (%s,%s)", (one, two))
+    budget.reserve(".09", "carol", "generation", "gpt-5.6-luna")
+
+
 def test_expired_reservation_never_releases_spend(db):
     budget = Budget(db, Settings(monthly_budget_usd=Decimal(".05")))
     one = budget.reserve(".04", "alice", "generation", "gpt-5.6-luna")

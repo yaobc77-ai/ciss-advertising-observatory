@@ -34,12 +34,11 @@ from __future__ import annotations
 
 import logging
 import os
-from concurrent.futures import ThreadPoolExecutor
 from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from .budget import price
+from .budget import ContextPool, QuestionCapReached, price
 from .relevance_judge import JUDGE_MODEL, MAX_AD_CHARS, _call
 
 log = logging.getLogger(__name__)
@@ -208,8 +207,11 @@ def _ad_text(passages):
     return f"Ad: {head}\n\n" + "\n".join(p.text for p in passages)[:MAX_AD_CHARS]
 
 
-def triage(rag, question, criterion, groups, visitor, workers=WORKERS, cost_sink=None):
-    """{record_id: judge numbers or None} and cost, one Decisions request per ad (in parallel)."""
+def triage(rag, question, criterion, groups, visitor, workers=WORKERS, cost_sink=None, capped=None):
+    """{record_id: judge numbers or None} and cost, one Decisions request per ad (in parallel).
+
+    An ad not judged because the question reached its spending cap is added to `capped` (a set).
+    """
     questions = triage_questions(question, criterion)
 
     def one(passages):
@@ -217,13 +219,17 @@ def triage(rag, question, criterion, groups, visitor, workers=WORKERS, cost_sink
         try:
             response, cost = _call(rag, body, visitor, passages[0].record_id,
                                    **({"cost_sink": cost_sink} if cost_sink is not None else {}))
+        except QuestionCapReached:
+            if capped is not None:
+                capped.add(passages[0].record_id)
+            return None, 0.0
         except Exception as exc:  # noqa: BLE001 - an ad the judge could not read goes to screening as before.
             log.warning("Triage call failed for record %s (%s); the ad goes to screening",
                         passages[0].record_id, type(exc).__name__)
             return None, 0.0
         return read_answers(response), cost
 
-    with ThreadPoolExecutor(max_workers=workers) as pool:
+    with ContextPool(max_workers=workers) as pool:
         outcomes = list(pool.map(one, groups))
     return {group[0].record_id: numbers for group, (numbers, _) in zip(groups, outcomes)}, sum(c for _, c in outcomes)
 
@@ -256,9 +262,12 @@ def triaged_screen(screen, rag, question, evidence, visitor, *, criterion, extra
     for item in [*evidence, *extra]:
         groups.setdefault(item.record_id, []).append(item)
     groups = list(groups.values())[:TRIAGE_MAX]
-    numbers, cost = triage(rag, question, criterion, groups, visitor, cost_sink=cost_sink)
+    capped = set()
+    numbers, cost = triage(rag, question, criterion, groups, visitor, cost_sink=cost_sink, capped=capped)
+    # An ad the cap stopped before the judge read it is not screened either: it goes to a human check.
+    unread = [g for g in groups if g[0].record_id in capped]
     excluded = [g for g in groups if excludable(numbers.get(g[0].record_id))]
-    kept = [g for g in groups if g not in excluded]
+    kept = [g for g in groups if g not in excluded and g[0].record_id not in capped]
     # The likeliest matches are screened first; ties keep the retrieval order.
     kept.sort(key=lambda g: -((numbers.get(g[0].record_id) or {}).get("meets", 0.5)))
     screened, unscreened = kept[:SCREEN_MAX], kept[SCREEN_MAX:]
@@ -269,15 +278,20 @@ def triaged_screen(screen, rag, question, evidence, visitor, *, criterion, extra
     cost += spent
     for item in results:
         item["triage"] = numbers.get(item["record_id"])
-        item["route"] = route(item["decision"], item["triage"])
+        # An ad the cap stopped screening (or its reread or check) is unfinished, never listed or dropped.
+        item["route"] = "review" if item.get("reason") == "question_cap" else route(item["decision"], item["triage"])
     for g in unscreened:
         results.append({"record_id": g[0].record_id, "title": g[0].title, "decision": "unclear",
                         "reason": "not_screened", "triage": numbers.get(g[0].record_id), "route": "review"})
+    for g in unread:
+        results.append({"record_id": g[0].record_id, "title": g[0].title, "decision": "unclear",
+                        "reason": "question_cap", "triage": None, "route": "review"})
     for g in excluded:
         results.append({"record_id": g[0].record_id, "title": g[0].title, "decision": "does_not_match",
                         "reason": "triage_excluded", "triage": numbers[g[0].record_id], "route": "exclude"})
     summary = {"policy": POLICY, "model": JUDGE_MODEL, "exclude_at": EXCLUDE_AT, "rule_guard": RULE_GUARD, "pass_at": PASS_AT,
                "triaged": len(groups), "judged": sum(v is not None for v in numbers.values()),
                "screened": len(screened), "cost_usd": round(float(cost - spent), 6),
+               **({"question_cap": n} if (n := sum(item.get("reason") == "question_cap" for item in results)) else {}),
                **{name: sum(item["route"] == name for item in results) for name in ("pass", "review", "exclude")}}
     return results, float(cost), summary

@@ -677,6 +677,22 @@ summary { cursor: pointer; color: var(--teal); }
 .criterion-rules, .criterion-exclusions { margin: 4px 0 8px; padding-left: 22px; }
 .route-badge { display: inline-block; font-size: 0.75rem; border: 1px solid; border-radius: 10px; padding: 0 7px; }
 .judge-numbers { font-size: 0.8rem; color: #4a5566; }
+/* A cited ad's relevance score on a list answer (Query page), and the rules it is related to. */
+.relevance-score { display: inline-block; margin-left: 6px; padding: 1px 9px; border: 1px solid #2f7d4f; border-radius: 10px;
+  color: #2f7d4f; font-size: 0.8rem; font-weight: 600; white-space: nowrap; vertical-align: middle; }
+.relevance-score-none { border-color: #8a94a3; color: #4a5566; font-weight: 400; }
+.retrieval-score { border-color: #003262; color: #003262; }
+.score-steps { margin: 6px 0; padding-left: 22px; }
+.score-steps > li { margin: 4px 0; }
+.score-steps ul { margin: 2px 0; padding-left: 18px; }
+.related-to { margin: 4px 0 8px; font-size: 0.92rem; }
+.related-to ul { margin: 2px 0 0; padding-left: 20px; }
+.score-method { margin: 0 0 14px; padding: 10px 14px; border-left: 4px solid #2f7d4f; background: #f3f8f4; border-radius: 4px; }
+.score-method p { margin: 4px 0; }
+.score-method > summary { cursor: pointer; font-weight: 600; }
+.related-to > summary { cursor: pointer; font-weight: 600; }
+.demo-banner { margin: 0 0 12px; padding: 10px 14px; border: 1px dashed #b9c0ca; border-radius: 4px; }
+.demo-banner p { margin: 4px 0; }
 .review-section { margin: 12px 0; }
 .review-section summary { cursor: pointer; font-weight: 600; }
 .vote-row { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 4px; }

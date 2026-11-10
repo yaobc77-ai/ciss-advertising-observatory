@@ -48,3 +48,22 @@ def test_ads_inside_the_limit_are_always_read(monkeypatch):
     results, _, _ = _run(monkeypatch, 8, set(), limit=8)
 
     assert [item["record_id"] for item in results] == [f"ad-{n:03d}" for n in range(8)]
+
+
+def test_sixteen_screening_batches_run_at_the_same_time():
+    # The default worker count, not a patched one. Every call waits until all of them have
+    # started: this only finishes if 16 run at once (at 8 the barrier breaks).
+    barrier = threading.Barrier(16, timeout=5)
+
+    def call(n):
+        return lambda: (barrier.wait(), n)[1]
+
+    assert list_screening._run_batches([call(n) for n in range(16)]) == list(range(16))
+
+
+def test_a_widening_step_sends_eight_batches_with_sixteen_workers(monkeypatch):
+    # The default widening step. No match at all: the first widening step is the last, so every
+    # batch of it past the first is discarded but paid. More workers must not make that step larger.
+    _, _, calls = _run(monkeypatch, 16, set(), count=80, limit=8, widen_to=80)
+
+    assert sorted(calls) == [1, 5] + [9 + 4 * n for n in range(8)]
