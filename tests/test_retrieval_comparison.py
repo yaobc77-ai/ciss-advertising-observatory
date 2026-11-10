@@ -128,8 +128,12 @@ def test_query_and_single_channel_rrf_match_current_database_search(question):
     else:
         # First parameter is the plain term list used for lexical coverage ranking.
         # The channel row limit follows the query (F26: 50, or two per requested record).
-        assert captured[0][1] == query == captured[0][-2] and captured[0][-1] == 50
-        assert captured[0][0] == query.replace("\"", "").replace(" OR ", " ")
+        # The first read ranks a collection prefix (dataset, then 4 x 50 rows); it returns
+        # fewer than 50 here, so the second read ranks the filtered scope itself.
+        prefix, filtered = captured[:2]
+        assert prefix[1] == query == prefix[3] and prefix[2] == "native" and prefix[4] == 200 and prefix[-1] == 50
+        assert filtered[1] == query == filtered[-2] and filtered[-1] == 50
+        assert prefix[0] == filtered[0] == query.replace("\"", "").replace(" OR ", " ")
         derived = comparison.select_records([{**row, "chunk_id": row["evidence_id"]} for row in rows], chunks_per_record=3)
         assert [(row.evidence_id, row.score) for row in existing] == [(row["chunk_id"], row["score"]) for row in derived]
         assert len({row["record_id"] for row in derived}) == 5

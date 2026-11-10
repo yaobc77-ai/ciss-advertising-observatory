@@ -1471,16 +1471,10 @@ class Database:
             for collection in collections:
                 scoped_where = where + (" AND r.dataset=%s" if collection else "")
                 scoped_params = [*params, *([collection] if collection else [])]
-                lexical = conn.execute(
-                    select
-                    + ",(SELECT count(*) FROM unnest(tsvector_to_array(to_tsvector('english',%s))) "
-                    "AS query_lexeme(term) WHERE query_lexeme.term=ANY(tsvector_to_array(c.search_vector))) "
-                    "AS lexical_coverage,ts_rank_cd(c.search_vector,websearch_to_tsquery('english',%s)) AS score"
-                    + join
-                    + f" WHERE {scoped_where} AND c.search_vector @@ websearch_to_tsquery('english',%s) "
-                    "ORDER BY lexical_coverage DESC,score DESC,c.chunk_id LIMIT %s",
-                    [" ".join(terms), lexical_query, *scoped_params, lexical_query, channel_rows],
-                ).fetchall() if terms else []
+                lexical = self._lexical_rows(
+                    conn, select, join, scoped_where, scoped_params, collection or filters.dataset,
+                    terms, lexical_query, channel_rows,
+                ) if terms else []
                 semantic = []
                 if vector is not None:
                     semantic = self._semantic_rows(
@@ -1653,6 +1647,56 @@ class Database:
                 if len(first) == 20:
                     break
         return first
+
+    # Keyword passages ranked before the full filter is applied, as a multiple of
+    # the rows the channel returns (see _lexical_rows).
+    LEXICAL_PREFIX_FACTOR = 4
+
+    _LEXICAL_RANK = (
+        "(SELECT count(*) FROM unnest(tsvector_to_array(to_tsvector('english',%s))) "
+        "AS query_lexeme(term) WHERE query_lexeme.term=ANY(tsvector_to_array(c.search_vector))) "
+        "AS lexical_coverage,ts_rank_cd(c.search_vector,websearch_to_tsquery('english',%s)) AS score"
+    )
+
+    @classmethod
+    def _lexical_rows(cls, conn, select, join, where, params, dataset, terms, lexical_query, limit_rows):
+        """Top `limit_rows` keyword passages: most distinct query lexemes, then text-search rank.
+
+        An OR query matches thousands of social passages (11,526 for one 12-word
+        query after the 2026-11-09 import, 1,967 before), and the per-passage
+        version lookup and payload reads made this channel grow with the matches
+        (median 0.74 s before the import, 6.0 s after). So the passages of active
+        current records in the collection are ranked first on chunk columns alone;
+        the full filter and the payload columns are then applied to the first few
+        hundred. The order is total and the prefix scope contains the filtered
+        scope, so when at least `limit_rows` of the prefix pass the filter they are
+        exactly the filtered top rows. A narrower selection falls back to ranking
+        the filtered scope itself, reading payload columns only for the rows kept.
+        """
+        joined_terms = " ".join(terms)
+        match = "c.search_vector @@ websearch_to_tsquery('english',%s)"
+        order = "lexical_coverage DESC,score DESC,c.chunk_id"
+        if dataset in {"native", "social"}:
+            rows = conn.execute(
+                f"WITH ranked AS MATERIALIZED (SELECT c.chunk_id,{cls._LEXICAL_RANK} FROM chunks c "
+                "JOIN records r ON r.current_version=c.version_id AND r.record_id=c.record_id "
+                f"WHERE r.active AND r.dataset=%s AND {match} ORDER BY {order} LIMIT %s) "
+                + select + ",ranked.lexical_coverage,ranked.score" + join
+                + f" JOIN ranked ON ranked.chunk_id=c.chunk_id WHERE {where} "
+                "ORDER BY ranked.lexical_coverage DESC,ranked.score DESC,c.chunk_id LIMIT %s",
+                [joined_terms, lexical_query, dataset, lexical_query, cls.LEXICAL_PREFIX_FACTOR * limit_rows,
+                 *params, limit_rows],
+            ).fetchall()
+            if len(rows) == limit_rows:
+                return rows
+        return conn.execute(
+            f"WITH ranked AS MATERIALIZED (SELECT c.chunk_id,{cls._LEXICAL_RANK}" + join
+            + f" WHERE {where} AND {match} ORDER BY {order} LIMIT %s) "
+            + select + ",ranked.lexical_coverage,ranked.score" + join
+            + " JOIN ranked ON ranked.chunk_id=c.chunk_id "
+            "ORDER BY ranked.lexical_coverage DESC,ranked.score DESC,c.chunk_id",
+            [joined_terms, lexical_query, *params, lexical_query, limit_rows],
+        ).fetchall()
 
     @staticmethod
     def _semantic_rows(conn, select, join, where, params, vector, model, *, approximate, limit_rows=50):
