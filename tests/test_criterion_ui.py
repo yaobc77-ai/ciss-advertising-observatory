@@ -264,14 +264,14 @@ def test_progress_labels_for_the_two_new_stages():
 def test_generate_answer_asks_for_the_card_first_and_records_its_flow():
     app, client, service = card_app()
     children, card, submitted = shown_card(app, client, service)
-    assert service.options == [{"criterion_confirmation": "ask", "address": "127.0.0.1"}]  # the web passes its address on
+    assert service.options == [{"criterion_confirmation": "ask", "list_depth": "limited", "address": "127.0.0.1"}]  # the web passes its address on
     assert card["token"] == TOKEN and card["question"] == QUESTION and card["filters"]["dataset"] == "native"
     assert "include_inferred_dates" not in card["filters"]  # left to the service's default, as in phase 1
     assert submitted["flow_id"] == FLOW and submitted["question"] == QUESTION
     assert "Judge by these rules" in json.dumps(children)
     app, client, service = card_app(mode="auto")
     callback(app, client, "research-results.children", research_values() | {"answer-paid.n_clicks": 1}, "answer-paid.n_clicks")
-    assert service.options == [{"criterion_confirmation": "auto", "address": "127.0.0.1"}]
+    assert service.options == [{"criterion_confirmation": "auto", "list_depth": "limited", "address": "127.0.0.1"}]
 
 
 def test_a_fresh_card_is_not_marked_stale_by_its_flow_id():

@@ -75,6 +75,10 @@ class Settings:
     # web entry only; the API and internal callers stay "auto" unless a request asks (user
     # decision 2026-10-27).
     criterion_confirmation: str = "ask"
+    # Depth of a screened list on the web (C26, user 2026-11-10): "limited" (the default) reads in
+    # rank order until 20 matches and offers the full list at the end of the answer; "full" reads
+    # as before. The API and internal callers stay "full" unless a request asks.
+    list_depth: str = "limited"
     # /compare runs the same question with and without retrieval (paid); demo only.
     compare_demo_enabled: bool = False
     # `observatory api`: JSON-only backend for a separate frontend.
@@ -134,6 +138,7 @@ class Settings:
             list_without_agent=os.getenv("OBS_LIST_WITHOUT_AGENT", "true").lower() == "true",
             question_intent_enabled=os.getenv("OBS_QUESTION_INTENT_ENABLED", "false").lower() == "true",
             criterion_confirmation="auto" if os.getenv("OBS_CRITERION_CONFIRMATION", "ask").strip().lower() == "auto" else "ask",
+            list_depth="full" if os.getenv("OBS_LIST_DEPTH", "limited").strip().lower() == "full" else "limited",
             compare_demo_enabled=os.getenv("OBS_COMPARE_DEMO_ENABLED", "false").lower() == "true",
             api_port=int(os.getenv("OBS_API_PORT", "18060")),
             api_cors_origins=tuple(o.strip() for o in os.getenv(

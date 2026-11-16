@@ -44,9 +44,13 @@ from .criterion_confirmation import (
 from .db import Database
 from .list_screening import (
     DISPLAY_LIMIT,
+    LIMITED_LIST,
     MAX_CANDIDATES,
     MAX_WIDENED,
+    MatchQuota,
     hidden_line,
+    limited_head,
+    limited_order,
     list_answer,
     literal_results,
     summary_limited_line,
@@ -80,6 +84,9 @@ log = logging.getLogger(__name__)
 COST_BASIS = ("embedding_and_settled_calls; a Decisions reply without usage is charged its estimate; "
               "uncertain charges stay in the budget ledger")
 _FINAL_AUDIT_CONTEXT = ContextVar("observatory_final_answer_audit", default=False)
+# The depth of every screened list in the question being answered (C26): "full" or "limited".
+_LIST_DEPTH = ContextVar("observatory_list_depth", default="full")
+LIST_DEPTHS = ("limited", "full", "expanded")
 
 
 # Run endings caused by planning or title lookup, not by the collection itself.
@@ -357,21 +364,54 @@ def examples_note(question, result):
             "list; other ads may also match.")
 
 
+def not_about_the_texts_text(question, datasets, *, read=False):
+    """The C24 wording (MT6-015). A list read nothing for the question; another answer (`read`)
+    searched the collection, so it says the question cannot be answered from it instead."""
+    english, chinese = {("native",): ("ads", "广告"), ("social",): ("company posts", "公司社交帖子")}.get(
+        tuple(datasets), ("ads or company posts", "广告或公司社交帖子"))
+    if re.search(r"[一-鿿]", question):
+        return (f"这个问题看起来不是在问{chinese}里的内容，所以{'没法从它们回答' if read else '没有逐条去看'}。"
+                "请换个问法，问它们说了什么或展示了什么，例如某个话题、说法、产品、公司、媒体或时间段。")
+    return (f"This question does not seem to ask about anything the {english} say or show, so "
+            f"{'it cannot be answered from them' if read else 'none of them was read for it'}. Please ask it another "
+            "way: about what they say or show, for example a topic, a claim, a product, a company, an outlet or a period.")
+
+
+# A named sponsor/account absent from the collection is the answer to a question restricted to
+# it; web pages about other companies are not. Integrity failures are never covered up.
+_NO_WEB_REASONS = frozenset({
+    "citation_mismatch", "quote_too_long", "invalid_claim_count", "named_source_not_in_collection",
+    "evidence_version_mismatch", "answer_structure_mismatch", "content_publication_unavailable",
+    "collection_unavailable", "statistics_unavailable", "historical_source_state_unverified",
+    "media_evidence_mismatch", "duplicate_evidence_identity",
+    # A list waiting for the researcher's criterion, and a refused or deferred continuation, are
+    # not evidence shortfalls (step 3).
+    "criterion_confirmation_required", *CONFIRMATION_REFUSALS,
+    # A question that is not about the ads or posts asks for another wording, not for web pages (C24).
+    NOT_ABOUT_THE_TEXTS})
+
+
+def _no_web_help(question, result):
+    """An insufficient answer whose reason is the answer, not a gap for web pages (_ensure_answer)."""
+    from .research_agent import research_failure_status
+
+    reason = result.failure_reason or ""
+    return (not 1 <= len(question.strip()) <= 2000 or reason.startswith("data_changed")
+            or reason in _NO_WEB_REASONS or bool(research_failure_status(reason)))
+
+
+def _scope_datasets(filters):
+    dataset = getattr(filters, "dataset", None)
+    return ("native", "social") if dataset in (None, "all") else (dataset,)
+
+
 def not_about_the_texts(question, datasets, cost):
     """A list question whose criterion draft says it is not about the ads or posts (C24, MT6-015).
 
     Nothing was triaged or screened, so the answer lists nothing and shows no candidate as
     read; it says why and asks for another wording. The draft's cost stays recorded.
     """
-    english, chinese = {("native",): ("ads", "广告"), ("social",): ("company posts", "公司社交帖子")}.get(
-        tuple(datasets), ("ads or company posts", "广告或公司社交帖子"))
-    if re.search(r"[一-鿿]", question):
-        text = (f"这个问题看起来不是在问{chinese}里的内容，所以没有逐条去看。请换个问法，问它们说了什么或展示了什么，"
-                "例如某个话题、说法、产品、公司、媒体或时间段。")
-    else:
-        text = (f"This question does not seem to ask about anything the {english} say or show, so none of them was "
-                "read for it. Please ask it another way: about what they say or show, for example a topic, a claim, "
-                "a product, a company, an outlet or a period.")
+    text = not_about_the_texts_text(question, datasets)
     return Answer(status="insufficient_evidence", answer_mode="clarification", failure_reason=NOT_ABOUT_THE_TEXTS,
                   answer=text, research_trace={"criterion_draft": {"status": NOT_ABOUT_THE_TEXTS, "cost_usd": cost}})
 
@@ -902,7 +942,7 @@ class Service:
         return judge_answer(self.rag, question, ads_from_passages(decisions, passages), visitor)
 
     def answer(self, question, filters, visitor, progress=None, *, criterion_confirmation=None, continuation=None,
-               address=None):
+               address=None, list_depth=None):
         """Answer one question (step 3, S3-c: in one or two phases).
 
         `criterion_confirmation` decides how a screened list gets its criterion: "auto" (drafted
@@ -912,14 +952,32 @@ class Service:
         the web passes settings.criterion_confirmation. `continuation` ({"token", "criterion",
         "example_choices"}) continues a card: the token is checked, the flow bound once in the
         registry, and the list judged by the confirmed criterion (_continue_confirmation).
+
+        `list_depth` (C26) is "full" (None, the default for the API and internal callers: every
+        list as before) or "limited" (the web's default, settings.list_depth): a screened list
+        stops reading once LIMITED_LIST matches are found, without the triage or the card, and
+        says it is not the full list (_list_answer). A limited list asks for no confirmation, so
+        "ask" becomes "auto" for it. "expanded" is the full list asked from a limited one (the web's
+        button): a full list whose screening without the triage reads every retrieved candidate,
+        with no widening stop rule, so it never reads fewer than the limited list did. A
+        continuation keeps the depth "full" (its confirmed reading has no stop rule either).
         """
         if criterion_confirmation not in (None, "auto", "ask"):
             raise ValueError("criterion_confirmation must be 'auto' or 'ask'")
+        if list_depth not in (None, *LIST_DEPTHS):
+            raise ValueError("list_depth must be 'limited', 'full' or 'expanded'")
+        depth_name = "full" if continuation is not None else (list_depth or "full")
+        if depth_name == "limited":
+            criterion_confirmation = "auto"
         # `address` (the client's network address, from the web and the API) is counted with the
         # visitor, so a new visitor id or cookie does not reset the question limits.
-        with QUESTIONS.question(visitor, address):
-            return self._answer_question(question, filters, visitor, progress,
-                                         criterion_confirmation=criterion_confirmation or "auto", continuation=continuation)
+        depth = _LIST_DEPTH.set(depth_name)
+        try:
+            with QUESTIONS.question(visitor, address):
+                return self._answer_question(question, filters, visitor, progress,
+                                             criterion_confirmation=criterion_confirmation or "auto", continuation=continuation)
+        finally:
+            _LIST_DEPTH.reset(depth)
 
     def _answer_question(self, question, filters, visitor, progress=None, *, criterion_confirmation="auto", continuation=None):
         """Answer one question: pick the tool path or the legacy path, then add web help and an audit row.
@@ -977,8 +1035,6 @@ class Service:
         Integrity failures below are never covered up; budget and rate limits
         still apply, and a failed web search never invents an answer.
         """
-        from .research_agent import research_failure_status
-
         partial_metadata = (result.status == "answered"
                             and result.answer_mode == "tools"
                             and (result.structured_result or {}).get("kind") == "original_metadata"
@@ -992,25 +1048,13 @@ class Service:
         if _COLLECTION_ONLY.search(question):
             # The user asked for the collection only: its gap is the answer.
             return result
-        # A named sponsor/account absent from the collection is the answer to a
-        # question restricted to it; web pages about other companies are not.
-        protected = {"citation_mismatch", "quote_too_long", "invalid_claim_count", "named_source_not_in_collection",
-                     "evidence_version_mismatch", "answer_structure_mismatch", "content_publication_unavailable",
-                     "collection_unavailable", "statistics_unavailable", "historical_source_state_unverified",
-                     "media_evidence_mismatch", "duplicate_evidence_identity",
-                     # A list waiting for the researcher's criterion, and a refused or deferred
-                     # continuation, are not evidence shortfalls (step 3).
-                     "criterion_confirmation_required", *CONFIRMATION_REFUSALS,
-                     # A question that is not about the ads or posts asks for another wording, not for
-                     # web pages (C24).
-                     NOT_ABOUT_THE_TEXTS}
-        if (not 1 <= len(question.strip()) <= 2000
-                or result.failure_reason.startswith("data_changed") or result.failure_reason in protected
-                or research_failure_status(result.failure_reason)):
+        if _no_web_help(question, result):
             return result
         research = result.external_research or {}
         # Any prior outcome is a completed attempt, including failures and limits.
         # The evidence route may already have searched: do not charge it again.
+        if not research and self._refuse_if_not_about(question, filters, visitor, result):
+            return result  # C24: a question to rephrase, not one for web pages
         if not research:
             before = self.health()
             attempt = self._search_external(question, filters, visitor, progress=progress)
@@ -1341,7 +1385,8 @@ class Service:
             if collection_first:
                 result.research_trace["collection_first_fallback"] = collection_first
             for key in ("external_web", "media_retrieval", "generation_failure", "list_screening", "coverage_note",
-                        "list_decision", "content_zones", "content_reading", "criterion_draft", "flow_id"):
+                        "list_decision", "content_zones", "content_reading", "criterion_draft", "flow_id",
+                        "about_check"):
                 if key in downstream_trace:
                     result.research_trace[key] = downstream_trace[key]
             self._record_question_plan(result, question, filters, run, plan_scope, plan)
@@ -1881,6 +1926,49 @@ class Service:
         """The one place a criterion is drafted: from the question alone (relevance_triage.make_criterion)."""
         return make_criterion(self.rag, question, visitor)
 
+    def _refuse_if_not_about(self, question, filters, visitor, result):
+        """C24 for an answer that is not a list (plan step 5b): True when it was turned into the refusal.
+
+        Called where an insufficient answer would next search the web: the evidence route and
+        _ensure_answer. It applies the same exemptions itself (a collection-only question, a reason
+        that never gets web help, a web attempt already made), so neither caller can check what the
+        web step would skip. The same drafting call as a list's (make_criterion: same prompt, same
+        model) says whether the question is about what the ads or posts say or show; only an
+        explicit and valid "no" changes the answer, in place: the C24 wording, no evidence or
+        citations shown, and no web search after it. Its cost is added and the trace keeps what the
+        answer was. A list, a compound answer (its valid parts keep their own outcome) or an answer
+        already checked is never checked; a failed, unusable or refused call (triage off, a limit)
+        leaves the answer as it was. A False return only means "not refused": whether the web is
+        searched stays the caller's decision. Only an answer written from retrieved passages
+        (answer_mode "rag": a question about what the texts say) is checked: the paid check of
+        2026-11-10 called valid count and metadata questions "not about the texts" (3 of 10), so
+        statistics, metadata, tool answers and clarifications keep their outcome.
+        """
+        trace = result.research_trace
+        if (result.status != "insufficient_evidence" or result.answer_mode != "rag"
+                or "list_screening" in trace or "about_check" in trace
+                or result.external_research or (result.structured_result or {}).get("kind") == "composite"
+                or _COLLECTION_ONLY.search(question) or _no_web_help(question, result)
+                or getattr(self, "rag", None) is None):
+            return False
+        try:
+            criterion, cost = self._draft_criterion(question, visitor)
+        except LimitReached:
+            trace["about_check"] = {"status": "limited", "cost_usd": 0.0}
+            return False
+        about = criterion != NOT_ABOUT_THE_TEXTS
+        trace["about_check"] = {"status": ("about" if criterion else "unchecked") if about else NOT_ABOUT_THE_TEXTS,
+                                "cost_usd": cost}
+        result.cost_usd += cost
+        if about:
+            return False
+        trace["about_check"]["replaced"] = {"answer_mode": result.answer_mode, "failure_reason": result.failure_reason}
+        result.answer = not_about_the_texts_text(question, _scope_datasets(filters), read=True)
+        result.answer_mode, result.failure_reason = "clarification", NOT_ABOUT_THE_TEXTS
+        result.evidence, result.media_evidence, result.citations = [], [], []
+        result.structured_result = None
+        return True
+
     def _consistent_version(self, data_version):
         """Nothing is judged on a collection that moved since the retrieval (step 3, S3-c).
 
@@ -2035,6 +2123,12 @@ class Service:
                           evidence=list(evidence)), 0.0  # the retrieval candidates, free to browse
         phrases, literal, both = plan.phrases, plan.list_kind == "literal", len(scopes) > 1
         confirmed = criterion is not None or confirmed_condition
+        # C26: a limited list reads in rank order until LIMITED_LIST matches (both collections
+        # together); an exact-text list and a confirmed one are complete as before.
+        limited = _LIST_DEPTH.get() == "limited" and not literal and not confirmed
+        expanded = _LIST_DEPTH.get() == "expanded" and not literal and not confirmed
+        quota = MatchQuota(LIMITED_LIST) if limited else None
+        limited_draft = None
         if confirmed and criterion_source is None:
             criterion_source = "confirmed"  # omitted: taken as given; other labels were checked by the caller
         # Posts selected by a relation satisfy it by their source records, which the
@@ -2117,12 +2211,17 @@ class Service:
                         own = [*own, *self._scope_passages(own, scope)]
                     first = len({e.record_id for e in own})
                     limit = widen_to = first
+                elif limited or expanded:
+                    # Every retrieved candidate may be read, with no stopping rule (until the quota).
+                    first, limit, widen_to = max(MAX_CANDIDATES, records), max(MAX_CANDIDATES, records), max(MAX_WIDENED, records)
                 else:
                     first, limit, widen_to = max(MAX_CANDIDATES, records), max(MAX_CANDIDATES, records), max(MAX_WIDENED, records)
                 self._consistent_version(data_version)  # after the last read, before the first judging call
                 results, cost = screen_list(self.rag, question + hint, own, visitor, limit=limit, widen_to=widen_to,
                                             reread=reader, **({"criterion": criterion} if confirmed else {}),
-                                            **({"cost_sink": cost_sink} if cost_sink is not None else {}))
+                                            **({"cost_sink": cost_sink} if cost_sink is not None else {}),
+                                            **({"quota": quota} if quota is not None else {}),
+                                            **({"narrow": False} if expanded else {}))
                 summary, items = None, [*own, *reread_passages]
                 if not both:
                     read[:] = list({e.evidence_id: e for e in items}.values())
@@ -2148,6 +2247,9 @@ class Service:
                 charged(criterion_cost)
                 if criterion == NOT_ABOUT_THE_TEXTS:
                     return not_about_the_texts(question, plan.datasets, criterion_cost), criterion_cost
+                if limited:
+                    # The draft only checks that the question is about the texts (C24): no triage reads by it.
+                    limited_draft, criterion = criterion, None
                 outcomes = each(lambda scope: judge(prepare(scope)), scopes)
             else:
                 prepared = prepare(scopes[0])
@@ -2155,6 +2257,8 @@ class Service:
                 charged(criterion_cost)
                 if criterion == NOT_ABOUT_THE_TEXTS:
                     return not_about_the_texts(question, plan.datasets, criterion_cost), criterion_cost
+                if limited:
+                    limited_draft, criterion = criterion, None
                 outcomes = [judge(prepared)]
             results, pool, cost, totals, triages, first_reads = [], [], criterion_cost, {}, {}, {}
             for dataset, total, found, spent, items, summary, first_read in outcomes:
@@ -2171,6 +2275,16 @@ class Service:
                 # The one-collection exact-text list showed a post without its account before
                 # the merge; kept as it was (a visible change needs its own approval).
                 results = _with_accounts(results, pool)
+            beyond = 0
+            if limited:
+                # The last wave sent may have found more: only LIMITED_LIST are listed, the rest are
+                # recorded as found beyond the limit (paid for, not shown).
+                matched = [n for n, item in enumerate(results)
+                           if item["decision"] == "matches" and item.get("route", "pass") == "pass"]
+                kept = {id(item) for item in limited_order([results[n] for n in matched], both)}
+                beyond = len(matched) - len(kept)
+                results = [{**item, "route": "beyond_limit"} if n in matched and id(item) not in kept else item
+                           for n, item in enumerate(results)]
             triage = None
             if triages and not both:
                 triage = {**next(iter(triages.values())), "criterion_cost_usd": criterion_cost}
@@ -2184,6 +2298,8 @@ class Service:
             if literal:
                 return result, cost
             trace = result.research_trace["list_screening"]
+            if limited:
+                self._limit_list(question, result, results, totals, quota, beyond)
             trace["first_read"] = max(first_reads.values())
             if both:
                 trace["first_read_by_dataset"] = first_reads
@@ -2191,7 +2307,7 @@ class Service:
             # the model's draft when it is known (drafted here, or handed over with a confirmed one).
             trace["criterion_source"] = criterion_source if confirmed else "draft_unconfirmed" if criterion else "none"
             trace["screening_basis"] = "confirmed_criterion" if confirmed and criterion else "question"
-            draft = criterion_draft if confirmed else criterion
+            draft = criterion_draft if confirmed else criterion or limited_draft
             if draft:
                 trace["criterion_draft"] = draft
             # The API's compact body drops the trace: the source travels in the structured result too.
@@ -2214,6 +2330,34 @@ class Service:
             if read:
                 evidence[:] = read
             raise
+
+    @staticmethod
+    def _limit_list(question, result, results, totals, quota, beyond):
+        """Mark a limited list (C26) in place: its opening line, structured result and trace.
+
+        A list that read every record in scope and dropped no match is the full list: its line is
+        kept and no full list is offered. Otherwise the opening line says what was read and that it
+        is not the full list (the question's spending cap keeps its own line and gains that note).
+        """
+        chinese = bool(re.search(r"[一-鿿]", question))
+        only = next(iter(totals))
+        read = Counter(item.get("dataset", only) for item in results if item.get("reason") != "question_cap")
+        by_dataset = {dataset: {"scope_total": total, "examined": read[dataset]} for dataset, total in totals.items()}
+        listed = result.structured_result["matches"]
+        capped = any(item.get("reason") == "question_cap" for item in results)
+        complete = not beyond and not capped and all(v["examined"] >= v["scope_total"] for v in by_dataset.values())
+        if not complete:
+            head, separator, rest = result.answer.partition("\n\n")
+            if capped:
+                head += "这不是完整名单。" if chinese else " This is not the full list."
+            else:
+                head = limited_head(chinese, listed, by_dataset, quota.reached())
+            result.answer = head + separator + rest
+        result.structured_result = {**result.structured_result, "list_depth": "limited", "full_list_available": not complete}
+        result.research_trace["list_screening"].update({
+            "list_depth": "limited", "full_list_available": not complete,
+            "limited": {"wanted": LIMITED_LIST, "found": quota.found, "listed": listed, "beyond_limit": beyond,
+                        "reached": quota.reached()}})
 
     def _confirmation_card(self, question, plan, scopes, evidence, visitor, filters, version, relation_listing, progress=None,
                            cost_sink=None):
@@ -2964,7 +3108,8 @@ class Service:
         # collection, and after a list: a screened list that found no match is a
         # collection finding, and web pages are not advertisements (every list
         # result carries research_trace["list_screening"]; a generated answer never does).
-        if result.status == "insufficient_evidence" and plan.allow_web:
+        if (result.status == "insufficient_evidence" and plan.allow_web
+                and not self._refuse_if_not_about(question, filters, visitor, result)):
             topics = gaps if retrieval_groups else []
             result.external_research = self._search_external(question, filters, visitor, missing_topics=topics, progress=progress)
             result.cost_usd += result.external_research.get("cost_usd", 0.0)
