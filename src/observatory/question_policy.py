@@ -760,12 +760,16 @@ def restricts_to_named_source(question: str, name: str) -> bool:
         return False
     text = " ".join(question.translate(str.maketrans({"’": "'"})).split())
     n = re.escape(name)
+    if any(_framed_alone(text, match) for match in re.finditer(_framed_dated_source(n), text, re.IGNORECASE)):
+        # The question opens on one dated source: "According to Hess's September 2024 post", "What do
+        # X's October 10, 2022 posts say".
+        return True
     return bool(re.search(
         rf"\b(?:sponsored|paid\s+for|published|posted|placed|run)\s+by\s+(?:the\s+)?{n}(?![\w-])"
         rf"|\b(?:account|accounts|sponsor|sponsors|publisher|outlet|company|advertiser)\s+(?:named\s+|called\s+)?[\"']?{n}(?![\w-])"
-        rf"|(?<![\w-]){n}(?:'s|')?\s+(?:native\s+|social\s+)?(?:ads?|advertisements?|posts?|account|accounts|sponsored)\b"
+        rf"|(?<![\w-]){n}(?:'s|')?\s+(?:native\s+|social\s+)?(?:ads?|advertisements?|posts?|account|accounts|sponsored)(?![\w-])"
         # "Chevron's October 2020 posts", "TotalEnergies' CNBC advertisements" (B1K-Q009).
-        rf"|(?<![\w-]){n}(?:'s|')\s+(?:[\w.-]+\s+){{1,3}}?(?:native\s+|social\s+)?(?:ads|advertisements|posts|tweets)\b"
+        rf"|(?<![\w-]){n}(?:'s|')\s+(?:[\w.-]+\s+){{1,3}}?(?:native\s+|social\s+)?(?:ads|advertisements|posts|tweets)(?![\w-])"
         rf"|(?:账号|赞助方|赞助商|媒体|广告主)\s*[“\"「]?{n}|{n}[”\"」]?\s*(?:赞助|账号|发布|刊登|投放)",
         text, re.IGNORECASE))
 
@@ -776,14 +780,18 @@ def question_source_scope(question: str, context: dict, dataset: str) -> dict:
     Only a name in a source role counts ("Chevron's October 2020 posts",
     "ads sponsored by X", "X 发布的帖子"); a name the ads talk about ("ads that
     mention Chevron") is content, not scope. A period counts when the question
-    states exactly one with a preposition and it is not in the future, so a
-    target year ("net zero in 2050") is not read as a publication date.
+    states exactly one, with a preposition, as a month naming the sources
+    ("October 2020 posts") or as the dated source the question opens on
+    ("According to X's April 2025 post", "What do X's October 10, 2022 posts
+    say"), and it is not in the future, so a target year ("net zero in 2050")
+    is not read as a publication date. Two periods, a range or joined dates
+    add none: the rule cannot tell which one is the publication date.
     Returns {dimension: [stored values]} plus date_from/date_to when stated.
     A content search that omitted these answered for the wrong records (B1K-Q009).
     """
     dimensions = {"native": ("sponsors",), "social": ("sponsors", "accounts")}.get(dataset, ("sponsors", "accounts"))
     folded = question.casefold()
-    found = {}
+    found, named = {}, set()
     for dimension in dimensions:
         items = context.get(dimension) or []
         if isinstance(items, dict):
@@ -793,9 +801,10 @@ def question_source_scope(question: str, context: dict, dataset: str) -> dict:
             spellings = {item.get("value"), item.get("display")} - {None, ""}
             if dimension != "accounts":
                 spellings |= set(_entity_keys(item["value"], dimension))
-            if any(len(s) >= 2 and s.casefold() in folded and restricts_to_named_source(question, s)
-                   for s in spellings):
+            hits = [s for s in spellings if len(s) >= 2 and s.casefold() in folded and restricts_to_named_source(question, s)]
+            if hits:
                 found.setdefault(item["value"], set()).add(dimension)
+                named.update(hits)
     scope = {}
     for value, dims in found.items():
         if len(dims) > 1:
@@ -804,12 +813,30 @@ def question_source_scope(question: str, context: dict, dataset: str) -> dict:
             dims = {"accounts"} if re.search(rf"\baccounts?\s+(?:named\s+|called\s+)?[\"'“]?{n}|{n}[\"'”]?\s+account|账号\s*[“\"]?{n}",
                                              question, re.I) else {"sponsors"}
         scope.setdefault(dims.pop(), []).append(value)
+    text = " ".join(question.translate(str.maketrans({"’": "'"})).split())
+    if _JOINED_DATES.search(_QUOTED_LITERAL.sub(" ", text)):
+        # "April and May 2025 posts", "posts from 2019 to 2021": several periods or a range this
+        # rule does not read, so no period is added.
+        return scope
     periods = stated_periods(question)
-    for match in _SOURCE_MONTH.finditer(question):
-        # "October 2020 posts": a month naming the sources needs no preposition.
-        year, month = int(match["year"]), _MONTHS[match["month"].casefold()]
-        period = {"text": match.group(0), "date_from": date(year, month, 1).isoformat(),
-                  "date_to": date(year, month, calendar.monthrange(year, month)[1]).isoformat()}
+    # "October 2020 posts": a month naming the sources needs no preposition; nor does the dated
+    # source of a named source the question opens on ("According to X's April 2025 post").
+    framed = [match for spelling in sorted(named)
+              for match in re.finditer(_framed_dated_source(re.escape(" ".join(spelling.split()))), text, re.I)
+              if _framed_alone(text, match)]
+    # Inside a framed source the month is part of its date ("X's 3 March 2021 posts" is one day); elsewhere
+    # a number before the month may be a count ("exactly 3 March 2021 posts"), so it stays the month.
+    months = [match for match in _SOURCE_MONTH.finditer(text)
+              if not any(item.start() <= match.start() < item.end() for item in framed)]
+    for match in [*months, *framed]:
+        try:
+            year, month = int(match["year"]), _MONTHS[match["month"].casefold()]
+            day = match.groupdict().get("day") or match.groupdict().get("day2")
+            start = date(year, month, int(day) if day else 1)
+            end = start if day else date(year, month, calendar.monthrange(year, month)[1])
+        except (KeyError, ValueError):
+            continue
+        period = {"text": match.group(0), "date_from": start.isoformat(), "date_to": end.isoformat()}
         if all((p["date_from"], p["date_to"]) != (period["date_from"], period["date_to"]) for p in periods):
             periods.append(period)
     if len(periods) == 1 and periods[0]["date_from"] <= date.today().isoformat():
@@ -841,6 +868,58 @@ _STATED_PERIOD = re.compile(
 
 _SOURCE_MONTH = re.compile(
     rf"(?<![\w-])(?P<month>{_MONTH})\.?\s+(?P<year>(?:19|20)\d\d)\s+(?:native\s+|social\s+)?(?:ads|advertisements|posts|tweets)(?![\w-])",
+    re.IGNORECASE)
+# How a question opens on the sources it reads: "According to", "In", "What did", "How do", "Summarize".
+_QUESTION_FRAME = (r"(?:^|[.;:?!]\s+)(?:according\s+to|in|on|from|(?:what|how|why|when|where|who)\s+"
+                   r"(?:did|do|does|was|were|is|are|will|would)|did|does|do|was|were|summari[sz]e|quote|cite|describe|list)"
+                   r"\s+(?:the\s+)?")
+# One or several sources and the day or month they were published: "September 2024 post", "October 10, 2022
+# posts", "3 March 2021 ad".
+_DATED_SOURCE = (rf"(?:the\s+)?(?:(?P<day>\d{{1,2}})\s+)?(?P<month>{_MONTH})\.?\s+(?:(?P<day2>\d{{1,2}}),?\s+)?"
+                 rf"(?P<year>(?:19|20)\d\d)\s+(?:native\s+|social\s+)?(?:ads?|advertisements?|posts?|tweets?)(?![\w-])")
+# What may follow the source noun: punctuation, the end, or what the sources say ("post say", "posts on").
+# "the April 2025 ad spending" is spending, not an ad.
+_SOURCE_END = (r"(?=\s*(?:[,.;:?!)]|$)|\s+(?:say|says|said|mention\w*|announce\w*|describe\w*|claim\w*|state\w*|"
+               r"note\w*|discuss\w*|highlight\w*|report\w*|show\w*|reveal\w*|tell|told|about|on|regarding|that|"
+               r"in|from|by|to|for|with)\b)")
+
+
+def _framed_dated_source(name_pattern: str) -> str:
+    """The question opens on this named source's dated ads or posts: "According to X's April 2025 post,"."""
+    return rf"{_QUESTION_FRAME}{name_pattern}(?:'s|')\s+{_DATED_SOURCE}{_SOURCE_END}"
+
+
+_ANY_DATED_SOURCE = re.compile(rf"(?<![\w-]){_DATED_SOURCE}", re.IGNORECASE)
+
+
+_SOURCE_WORD = re.compile(r"(?<![\w-])(?:ads?|advertisements?|posts?|tweets?)(?![\w-])", re.IGNORECASE)
+# The one way another ads/posts word may refer back to the framed source: a citation request, "Cite the
+# post.", "Cite each post that mentions them." Anything else ("the posts that other accounts published")
+# may be other sources, so the framed form is not used.
+_BACK_REFERENCE = re.compile(r"\b(?:cite|quote)\s+(?:the|this|that|these|those|each|every|both|all)\s+$", re.IGNORECASE)
+_BACK_REFERENCE_END = re.compile(r"\s*(?:[.?!]|$)|\s+that\s+(?:mention|address|discuss|describe|refer\s+to)s?\s+"
+                                 r"(?:it|them|this|these|the\s+topic)\s*(?:[.?!]|$)", re.IGNORECASE)
+_COMPARISON = re.compile(r"\b(?:compar\w*|versus|vs|than|differ\w*|contrast\w*|between)\b", re.IGNORECASE)
+
+
+def _framed_alone(text: str, match) -> bool:
+    """The framed dated source is the only source the question reads.
+
+    Not when the question compares ("compared with Y's latest post"), has another dated source ("X's
+    April post and Y's May post"), or names other ads or posts; "the post" or "each post" refer back
+    to it ("Cite the post").
+    """
+    if _COMPARISON.search(text) or len(_ANY_DATED_SOURCE.findall(text)) > 1:
+        return False
+    return all(match.start() <= word.start() < match.end()
+               or (_BACK_REFERENCE.search(text, 0, word.start()) and _BACK_REFERENCE_END.match(text, word.end()))
+               for word in _SOURCE_WORD.finditer(text))
+
+
+# A month or year joined to another date: "April and May 2025", "2019 to 2021", "April 2019 - June 2020".
+_JOINED_DATES = re.compile(
+    rf"(?:(?<![\w-])(?:{_MONTH})|(?<![\w-])(?:19|20)\d\d)\.?\s*(?:,|and|or|to|through|until|[-–/])\s*"
+    rf"(?:(?:19|20)\d\d|\d{{1,2}}\s+(?:{_MONTH})(?![\w-])|(?:{_MONTH})(?![\w-]))",
     re.IGNORECASE)
 
 
