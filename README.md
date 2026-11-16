@@ -51,12 +51,33 @@ Open [localhost:8050](http://127.0.0.1:8050). Source datasets and attachment bun
 
 | File | Purpose |
 | --- | --- |
-| [User guide](docs/guide.md) | Pages, filters, records, and answers |
-| [Architecture](docs/architecture.md) | Application components and data flow |
-| [Data dictionary](docs/data_dictionary.md) | Record fields and counting units |
-| [Tool contract](docs/mcp_research_tools.md) | Available tools, scope, and failure states |
-| [Operations](docs/operations.md) | Import, configuration, and deployment |
+| [User guide](docs/operations/guide.md) | Pages, filters, records, and answers |
+| [Architecture](docs/architecture/architecture.md) | Application components and data flow |
+| [Data dictionary](docs/data/data_dictionary.md) | Record fields and counting units |
+| [Tool contract](docs/architecture/mcp_research_tools.md) | Available tools, scope, and failure states |
+| [Operations](docs/operations/operations.md) | Import, configuration, and deployment |
 | [Document index](docs/DOCUMENT_INDEX.zh-CN.md) | Short directory of project documentation |
+
+## Repository layout
+
+| Folder | Contents |
+| --- | --- |
+| `src/`, `tests/`, `scripts/`, `config/`, `templates/` | Application code, automated tests, command-line tools, and configuration |
+| `eval/` | Question sets and review sheets used for evaluation |
+| `docs/architecture/` | System design: components, question routing, research tools, entities |
+| `docs/data/` | Data sources, import, cleaning, field definitions, and social and CLAIMS data |
+| `docs/knowledge_graph/` | Knowledge graph and co-occurrence maps |
+| `docs/evaluation/` | Test methods, accuracy experiments, root-cause reviews, and the fault register |
+| `docs/operations/` | Running, deployment, handoff, and collaboration |
+| `docs/client/` | Client review and testing materials |
+| `docs/history/` | Superseded planning documents kept for reference |
+| `reports/rag_experiments/` | Retrieval, chunking, citation, and answer-quality runs |
+| `reports/data_audits/` | Source and text-recovery audits |
+| `reports/knowledge_graph/`, `reports/ui/` | Graph and interface validation, with screenshots |
+| `reports/requirements/` | Requirement and client-feedback audits |
+| `reports/releases/` | Release, restore, and reproduction records |
+| `reports/reviews/` | Independent code and work reviews |
+| `deliverables/` | Slides, demo scripts, client requests, and archived release bundles |
 
 ## Requirements updates
 

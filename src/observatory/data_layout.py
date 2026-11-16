@@ -11,6 +11,7 @@ from .historical_theme_ui import historical_theme_panel
 from .knowledge_ui import knowledge_panel
 from .network import network_figure
 from .research_explorer import explorer_panel
+from .year_drilldown import year_panel
 
 
 def record_sidebar(prefix, title):
@@ -122,7 +123,8 @@ def data_panel(dataset, links_enabled, empty_figure):
             html.Div(chart("platforms-chart", "Which platforms appear?", "Top 10 · current selection"),
                      style={"display": "none"} if native else {}),
             chart("timeline-chart", "When were the ads published?" if native else "When were the posts published?",
-                  "Annual records in this collection; unknown dates are shown separately.", wide=True),
+                  "Annual records in this collection; unknown dates are shown separately. Click a year to list its records below.", wide=True),
+            year_panel(dataset),
             html.Div([
                 chart("labels-chart", "Which historical labels appear?" if native else "Historical source states by code",
                       "Earlier automated classifications; not verified themes. Select a bar to read its articles." if native else

@@ -1,0 +1,717 @@
+{
+ "db_calls": {
+  "count_public": {
+   "native": 1,
+   "social": 1
+  },
+  "native": [
+   {
+    "method": "record_passages",
+    "per_record": 8,
+    "records": [
+     "n1",
+     "n2",
+     "n3"
+    ]
+   },
+   {
+    "method": "record_passages",
+    "per_record": null,
+    "records": [
+     "n1",
+     "n3"
+    ]
+   }
+  ],
+  "public_rows": {
+   "all": 2,
+   "native": 1,
+   "social": 1
+  },
+  "search": [
+   {
+    "chunks_per_record": null,
+    "dataset": "native",
+    "hybrid": false,
+    "limit": 5,
+    "query": "Which ads present tidal kites as a source of jobs?",
+    "record_ids": []
+   },
+   {
+    "chunks_per_record": null,
+    "dataset": "social",
+    "hybrid": false,
+    "limit": 5,
+    "query": "Which ads present tidal kites as a source of jobs?",
+    "record_ids": []
+   },
+   {
+    "chunks_per_record": 2,
+    "dataset": "native",
+    "hybrid": true,
+    "limit": 120,
+    "query": "Which ads present tidal kites as a source of jobs?",
+    "record_ids": []
+   },
+   {
+    "chunks_per_record": 2,
+    "dataset": "social",
+    "hybrid": true,
+    "limit": 120,
+    "query": "Which ads present tidal kites as a source of jobs?",
+    "record_ids": []
+   }
+  ],
+  "social": [
+   {
+    "method": "record_passages",
+    "per_record": 8,
+    "records": [
+     "s1",
+     "s2"
+    ]
+   },
+   {
+    "method": "record_passages",
+    "per_record": null,
+    "records": [
+     "s2"
+    ]
+   }
+  ]
+ },
+ "frozen": {
+  "commit": "60775b3",
+  "date": "2026-10-26",
+  "module": "tests/test_list_golden.py"
+ },
+ "ledger": [
+  [
+   "generation",
+   "gpt-5.6-luna",
+   0.00396775,
+   "settled",
+   "list_screening_reread",
+   8e-06,
+   [
+    "A4"
+   ]
+  ],
+  [
+   "generation",
+   "gpt-5.6-luna",
+   0.00432825,
+   "settled",
+   "list_screening",
+   8e-06,
+   [
+    "A1",
+    "A2"
+   ]
+  ],
+  [
+   "generation",
+   "gpt-5.6-luna",
+   0.00495275,
+   "settled",
+   "list_screening",
+   8e-06,
+   [
+    "A1",
+    "A2",
+    "A3"
+   ]
+  ],
+  [
+   "generation",
+   "gpt-5.6-luna",
+   0.04,
+   "cancelled"
+  ]
+ ],
+ "model_calls": {
+  "native": {
+   "judge": [],
+   "screen": [
+    {
+     "ads": [
+      [
+       "n1",
+       [
+        "A1.1",
+        "A1.2",
+        "A1.3",
+        "A1.4",
+        "A1.5",
+        "A1.6",
+        "A1.7",
+        "A1.8"
+       ]
+      ],
+      [
+       "n2",
+       [
+        "A2.1"
+       ]
+      ],
+      [
+       "n3",
+       [
+        "A3.1"
+       ]
+      ]
+     ],
+     "first_ref": "A1",
+     "question": "Which ads present tidal kites as a source of jobs?"
+    },
+    {
+     "ads": [
+      [
+       "n1",
+       [
+        "A4.1",
+        "A4.2",
+        "A4.3",
+        "A4.4",
+        "A4.5",
+        "A4.6",
+        "A4.7",
+        "A4.8",
+        "A4.9"
+       ]
+      ]
+     ],
+     "first_ref": "A4",
+     "question": "Which ads present tidal kites as a source of jobs?"
+    }
+   ]
+  },
+  "shared": [
+   {
+    "role": "embed",
+    "texts": [
+     "Which ads present tidal kites as a source of jobs?",
+     "Which ads present tidal kites as a source of jobs?"
+    ]
+   },
+   {
+    "one_claim_per_source": false,
+    "question": "Which ads present tidal kites as a source of jobs?",
+    "records": [
+     "n1",
+     "n2",
+     "s1"
+    ],
+    "role": "writer"
+   }
+  ],
+  "social": {
+   "judge": [],
+   "screen": [
+    {
+     "ads": [
+      [
+       "s1",
+       [
+        "A1.1"
+       ]
+      ],
+      [
+       "s2",
+       [
+        "A2.1"
+       ]
+      ]
+     ],
+     "first_ref": "A1",
+     "question": "Which ads present tidal kites as a source of jobs?"
+    }
+   ]
+  }
+ },
+ "result": {
+  "answer": "Checked the 3 most relevant of the 6 native ads and the 2 most relevant of the 4 company social posts in your selection: found 2 matching ads and 1 matching post.\n\nThe ads call the kites a source of jobs: By night, tidal kites power the harbor lights and bring jobs. [1]\n\nMatching ads and posts (3)\n\n1. Kite notice n1 — Harbor Daily, Tidal Co, 2021-05-04: “By night, tidal kites power the harbor lights and bring jobs” [2]\n\n2. Kite notice n2 — Harbor Daily, Tidal Co, 2021-05-04: “Tidal kites will bring 400 jobs to the harbor” [3]\n\n3. Post by Kite Guild, 2023-07-01: “Every tidal kite farm hires local crews: jobs for the harbor” [4]",
+  "answer_mode": "rag",
+  "citations": [
+   [
+    "n1-e9",
+    "By night, tidal kites power the harbor lights and bring jobs."
+   ],
+   [
+    "n1-e9",
+    "By night, tidal kites power the harbor lights and bring jobs"
+   ],
+   [
+    "n2-e1",
+    "Tidal kites will bring 400 jobs to the harbor"
+   ],
+   [
+    "s1-e1",
+    "Every tidal kite farm hires local crews: jobs for the harbor"
+   ]
+  ],
+  "cited_claims": [
+   [
+    "The ads call the kites a source of jobs: By night, tidal kites power the harbor lights and bring jobs.",
+    [
+     1
+    ]
+   ],
+   [
+    "Kite notice n1 — Harbor Daily, Tidal Co, 2021-05-04: “By night, tidal kites power the harbor lights and bring jobs”",
+    [
+     2
+    ]
+   ],
+   [
+    "Kite notice n2 — Harbor Daily, Tidal Co, 2021-05-04: “Tidal kites will bring 400 jobs to the harbor”",
+    [
+     3
+    ]
+   ],
+   [
+    "Post by Kite Guild, 2023-07-01: “Every tidal kite farm hires local crews: jobs for the harbor”",
+    [
+     4
+    ]
+   ]
+  ],
+  "cost_usd": 0.002026,
+  "evidence_ids": [
+   "n1-e9",
+   "n2-e1",
+   "s1-e1",
+   "n1-e1",
+   "n1-e2",
+   "n1-e3",
+   "n1-e4",
+   "n1-e5",
+   "n1-e6",
+   "n1-e7",
+   "n1-e8",
+   "n3-e1",
+   "s2-e1"
+  ],
+  "external_research": {},
+  "failure_reason": "",
+  "research_trace": {
+   "list_decision": {
+    "planner": null,
+    "rule": true
+   },
+   "list_screening": {
+    "by_dataset": {
+     "native": {
+      "examined": 3,
+      "matches": 2,
+      "scope_total": 6
+     },
+     "social": {
+      "examined": 2,
+      "matches": 1,
+      "scope_total": 4
+     }
+    },
+    "decisions": [
+     {
+      "dataset": "native",
+      "decision": "matches",
+      "evidence_id": "n1-e9",
+      "quote": "By night, tidal kites power the harbor lights and bring jobs",
+      "record_id": "n1",
+      "reread_from": "does_not_match",
+      "title": "Kite notice n1"
+     },
+     {
+      "dataset": "native",
+      "decision": "matches",
+      "evidence_id": "n2-e1",
+      "quote": "Tidal kites will bring 400 jobs to the harbor",
+      "record_id": "n2",
+      "title": "Kite notice n2"
+     },
+     {
+      "dataset": "native",
+      "decision": "does_not_match",
+      "record_id": "n3",
+      "title": "Kite notice n3"
+     },
+     {
+      "dataset": "social",
+      "decision": "matches",
+      "evidence_id": "s1-e1",
+      "quote": "Every tidal kite farm hires local crews: jobs for the harbor",
+      "record_id": "s1",
+      "title": ""
+     },
+     {
+      "dataset": "social",
+      "decision": "does_not_match",
+      "record_id": "s2",
+      "title": ""
+     }
+    ],
+    "does_not_match": 2,
+    "examined": 5,
+    "first_read": 40,
+    "matches": 3,
+    "method": "ai_screening",
+    "policy": "list-screening-v19",
+    "question": "Which ads present tidal kites as a source of jobs?",
+    "reread": 1,
+    "review": 0,
+    "scope_total": 10,
+    "unclear": 0,
+    "verified_removed": 0
+   },
+   "list_summary": {
+    "records": [
+     "n1",
+     "n2",
+     "s1"
+    ],
+    "status": "answered"
+   },
+   "media_retrieval": {
+    "groups": [
+     {
+      "image_units": 0,
+      "label": "Native ads",
+      "status": "not_configured",
+      "video_units": 0
+     },
+     {
+      "image_units": 0,
+      "label": "Company posts",
+      "status": "not_configured",
+      "video_units": 0
+     }
+    ],
+    "method": "separate_lexical_media_rrf",
+    "recognition_calls": 0,
+    "source_binding": {
+     "bundle_sha256": "",
+     "configuration_complete": false,
+     "contract": "separate-media-evidence-v1"
+    }
+   },
+   "question_plan": {
+    "agent_route": "direct",
+    "allow_web": false,
+    "clarify_message": null,
+    "coverage_note_rule": true,
+    "datasets": [
+     "native",
+     "social"
+    ],
+    "datasets_requested": [
+     "native",
+     "social"
+    ],
+    "failure_reason": "",
+    "filters": {
+     "accounts": [],
+     "dataset": "all",
+     "date_from": null,
+     "date_presence": "any",
+     "date_to": null,
+     "include_inferred_dates": false,
+     "include_unknown_dates": true,
+     "keywords": [],
+     "labels": [],
+     "platforms": [],
+     "publishers": [],
+     "record_ids": [],
+     "replies": [],
+     "sponsors": []
+    },
+    "list_kind": "screen",
+    "original_metadata": false,
+    "phrases": [],
+    "read_sources": false,
+    "reasons": {
+     "allow_web": "rule:list_screened",
+     "datasets": "filters:user",
+     "route": "caller:evidence",
+     "search_query": "default:question",
+     "shape": "rule:requires_complete_list"
+    },
+    "route": "evidence",
+    "search_query": "Which ads present tidal kites as a source of jobs?",
+    "shape": "list",
+    "signals": {
+     "collection_only": false,
+     "contract_task": "content_framing",
+     "original_metadata_only": false,
+     "planner_shape": null,
+     "pure_literal": false,
+     "quoted_phrases": 0,
+     "relation_list": false,
+     "retrieval_groups": false,
+     "rule_list": true
+    },
+    "version": "question-plan-v2",
+    "wants_list": true
+   }
+  },
+  "sections": [
+   [
+    "Key points",
+    [
+     1
+    ]
+   ],
+   [
+    "Matching ads and posts (3)",
+    [
+     2,
+     3,
+     4
+    ]
+   ]
+  ],
+  "status": "answered",
+  "structured_result": {
+   "by_dataset": {
+    "native": {
+     "examined": 3,
+     "matches": 2,
+     "scope_total": 6
+    },
+    "social": {
+     "examined": 2,
+     "matches": 1,
+     "scope_total": 4
+    }
+   },
+   "charts": [
+    {
+     "id": "by_sponsor",
+     "labels": [
+      "Tidal Co",
+      "Kite Guild"
+     ],
+     "omitted_categories": 0,
+     "series": [
+      {
+       "dataset": "native",
+       "name": "Native ads",
+       "values": [
+        2,
+        0
+       ]
+      },
+      {
+       "dataset": "social",
+       "name": "Company posts",
+       "values": [
+        0,
+        1
+       ]
+      }
+     ],
+     "title": "Listed ads and posts by company",
+     "total": 3,
+     "values": [
+      2,
+      1
+     ]
+    },
+    {
+     "id": "by_year",
+     "labels": [
+      "2021",
+      "2023"
+     ],
+     "omitted_categories": 0,
+     "series": [
+      {
+       "dataset": "native",
+       "name": "Native ads",
+       "values": [
+        2,
+        0
+       ]
+      },
+      {
+       "dataset": "social",
+       "name": "Company posts",
+       "values": [
+        0,
+        1
+       ]
+      }
+     ],
+     "title": "Listed ads and posts by publication year",
+     "total": 3,
+     "values": [
+      2,
+      1
+     ]
+    },
+    {
+     "id": "by_outlet",
+     "labels": [
+      "Harbor Daily",
+      "Kite Guild"
+     ],
+     "omitted_categories": 0,
+     "series": [
+      {
+       "dataset": "native",
+       "name": "Native ads",
+       "values": [
+        2,
+        0
+       ]
+      },
+      {
+       "dataset": "social",
+       "name": "Company posts",
+       "values": [
+        0,
+        1
+       ]
+      }
+     ],
+     "title": "Listed ads and posts by outlet or account",
+     "total": 3,
+     "values": [
+      2,
+      1
+     ]
+    }
+   ],
+   "display_citations": [
+    1,
+    2,
+    3,
+    4
+   ],
+   "examined": 5,
+   "groups": [
+    {
+     "evidence_units": 3,
+     "filters": {
+      "accounts": [],
+      "dataset": "native",
+      "date_from": null,
+      "date_presence": "any",
+      "date_to": null,
+      "include_inferred_dates": false,
+      "include_unknown_dates": true,
+      "keywords": [],
+      "labels": [],
+      "platforms": [],
+      "publishers": [],
+      "record_ids": [],
+      "replies": [],
+      "sponsors": []
+     },
+     "image_units": 0,
+     "label": "Native ads",
+     "media_status": "not_configured",
+     "passages": 3,
+     "query": "Which ads present tidal kites as a source of jobs?",
+     "retrieved_evidence_ids": [
+      "n1-e1",
+      "n2-e1",
+      "n3-e1"
+     ],
+     "retrieved_record_ids": [
+      "n1",
+      "n2",
+      "n3"
+     ],
+     "video_units": 0
+    },
+    {
+     "evidence_units": 2,
+     "filters": {
+      "accounts": [],
+      "dataset": "social",
+      "date_from": null,
+      "date_presence": "any",
+      "date_to": null,
+      "include_inferred_dates": false,
+      "include_unknown_dates": true,
+      "keywords": [],
+      "labels": [],
+      "platforms": [],
+      "publishers": [],
+      "record_ids": [],
+      "replies": [],
+      "sponsors": []
+     },
+     "image_units": 0,
+     "label": "Company posts",
+     "media_status": "not_configured",
+     "passages": 2,
+     "query": "Which ads present tidal kites as a source of jobs?",
+     "retrieved_evidence_ids": [
+      "s1-e1",
+      "s2-e1"
+     ],
+     "retrieved_record_ids": [
+      "s1",
+      "s2"
+     ],
+     "video_units": 0
+    }
+   ],
+   "kind": "ai_screened_list",
+   "matches": 3,
+   "meaning": "AI check of retrieved passages; not reviewed membership or a complete-collection result.",
+   "method": "ai_screening",
+   "policy": "list-screening-v19",
+   "review": 0,
+   "scope_total": 10,
+   "summary_basis": "Summary drawn from the 3 most relevant matching items.",
+   "summary_records": 3
+  },
+  "summary": [
+   [
+    "Checked the 3 most relevant of the 6 native ads and the 2 most relevant of the 4 company social posts in your selection: found 2 matching ads and 1 matching post.",
+    []
+   ],
+   [
+    "Tidal Co's ads present the kites as a source of jobs.",
+    [
+     1
+    ]
+   ]
+  ]
+ },
+ "scenario": {
+  "allowed": [
+   [
+    "result",
+    "research_trace",
+    "list_screening",
+    "first_read"
+   ],
+   [
+    "result",
+    "research_trace",
+    "list_screening",
+    "first_read_by_dataset"
+   ]
+  ],
+  "declared_shape": null,
+  "fail_social_screening": false,
+  "filters": {
+   "dataset": "all"
+  },
+  "large_scope": false,
+  "limit_at": null,
+  "many_literal": false,
+  "match": "jobs",
+  "name": "both_screen",
+  "note": "ads and posts screened apart, one summary",
+  "question": "Which ads present tidal kites as a source of jobs?",
+  "relation_listing": null,
+  "retrieval_groups": null,
+  "triage": false,
+  "writer": "summary"
+ }
+}

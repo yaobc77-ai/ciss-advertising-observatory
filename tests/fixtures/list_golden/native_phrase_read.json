@@ -1,0 +1,464 @@
+{
+ "db_calls": {
+  "count_public": {},
+  "native": [
+   {
+    "found": [
+     "n1-e9",
+     "n2-e1",
+     "n5-e1"
+    ],
+    "limit_records": 7,
+    "method": "phrase_search",
+    "phrases": [
+     "tidal kite"
+    ]
+   },
+   {
+    "method": "record_passages",
+    "per_record": 8,
+    "records": [
+     "n1",
+     "n2",
+     "n5",
+     "n3"
+    ]
+   },
+   {
+    "method": "record_passages",
+    "per_record": null,
+    "records": [
+     "n5",
+     "n3"
+    ]
+   }
+  ],
+  "public_rows": {
+   "native": 5
+  },
+  "search": [
+   {
+    "chunks_per_record": null,
+    "dataset": "native",
+    "hybrid": false,
+    "limit": 5,
+    "query": "Which ads mention \"tidal kite\" and what do they say about jobs?",
+    "record_ids": []
+   },
+   {
+    "chunks_per_record": 2,
+    "dataset": "native",
+    "hybrid": true,
+    "limit": 120,
+    "query": "Which ads mention \"tidal kite\" and what do they say about jobs?",
+    "record_ids": []
+   }
+  ],
+  "social": []
+ },
+ "frozen": {
+  "commit": "60775b3",
+  "date": "2026-10-26",
+  "module": "tests/test_list_golden.py"
+ },
+ "ledger": [
+  [
+   "generation",
+   "gpt-5.6-luna",
+   0.0055675,
+   "settled",
+   "list_screening",
+   8e-06,
+   [
+    "A1",
+    "A2",
+    "A3",
+    "A4"
+   ]
+  ],
+  [
+   "generation",
+   "gpt-5.6-luna",
+   0.04,
+   "cancelled"
+  ]
+ ],
+ "model_calls": {
+  "native": {
+   "judge": [],
+   "screen": [
+    {
+     "ads": [
+      [
+       "n1",
+       [
+        "A1.1",
+        "A1.2",
+        "A1.3",
+        "A1.4",
+        "A1.5",
+        "A1.6",
+        "A1.7",
+        "A1.8",
+        "A1.9"
+       ]
+      ],
+      [
+       "n2",
+       [
+        "A2.1"
+       ]
+      ],
+      [
+       "n5",
+       [
+        "A3.1"
+       ]
+      ],
+      [
+       "n3",
+       [
+        "A4.1"
+       ]
+      ]
+     ],
+     "first_ref": "A1",
+     "question": "Which ads mention \"tidal kite\" and what do they say about jobs?"
+    }
+   ]
+  },
+  "shared": [
+   {
+    "role": "embed",
+    "texts": [
+     "Which ads mention \"tidal kite\" and what do they say about jobs?"
+    ]
+   },
+   {
+    "one_claim_per_source": true,
+    "question": "Which ads mention \"tidal kite\" and what do they say about jobs?",
+    "records": [
+     "n1",
+     "n2"
+    ],
+    "role": "writer"
+   },
+   {
+    "one_claim_per_source": true,
+    "question": "Which ads mention \"tidal kite\" and what do they say about jobs?",
+    "records": [
+     "n2"
+    ],
+    "role": "writer"
+   }
+  ],
+  "social": {
+   "judge": [],
+   "screen": []
+  }
+ },
+ "result": {
+  "answer": "Found 2 matching ads among the 4 most relevant of the 6 in your selection; the other 2 were not checked.\n\nThe ad says: By night, tidal kites power the harbor lights and bring jobs. [1]\n\nThe ad says: Tidal kites will bring 400 jobs to the harbor. [2]\n\n1 of the 2 matching ads were only partly read or not described, so this may be incomplete.",
+  "answer_mode": "rag",
+  "citations": [
+   [
+    "n1-e9",
+    "By night, tidal kites power the harbor lights and bring jobs."
+   ],
+   [
+    "n2-e1",
+    "Tidal kites will bring 400 jobs to the harbor."
+   ]
+  ],
+  "cited_claims": [
+   [
+    "The ad says: By night, tidal kites power the harbor lights and bring jobs.",
+    [
+     1
+    ]
+   ],
+   [
+    "The ad says: Tidal kites will bring 400 jobs to the harbor.",
+    [
+     2
+    ]
+   ]
+  ],
+  "cost_usd": 0.004009,
+  "evidence_ids": [
+   "n1-e9",
+   "n2-e1",
+   "n1-e1",
+   "n1-e2",
+   "n1-e3",
+   "n1-e4",
+   "n1-e5",
+   "n1-e6",
+   "n1-e7",
+   "n1-e8",
+   "n5-e1",
+   "n3-e1"
+  ],
+  "external_research": {},
+  "failure_reason": "",
+  "research_trace": {
+   "content_reading": {
+    "cited_records": 2,
+    "matched_records": 2,
+    "partial_records": 1,
+    "records": [
+     {
+      "available_passages": 9,
+      "cited_by_writer": true,
+      "gaps": [
+       "retrieval_cap_reached"
+      ],
+      "record_id": "n1",
+      "retrieval_cap_reached": true,
+      "sent_passages": 9
+     },
+     {
+      "available_passages": 1,
+      "cited_by_writer": true,
+      "gaps": [],
+      "record_id": "n2",
+      "retrieval_cap_reached": false,
+      "sent_passages": 1
+     }
+    ],
+    "sent_records": 2,
+    "status": "partial"
+   },
+   "content_zones": [
+    {
+     "kind": "shard",
+     "records": [
+      "n1",
+      "n2"
+     ],
+     "status": "answered"
+    },
+    {
+     "kind": "follow_up",
+     "records": [
+      "n2"
+     ],
+     "status": "answered"
+    }
+   ],
+   "list_decision": {
+    "planner": null,
+    "rule": true
+   },
+   "list_screening": {
+    "decisions": [
+     {
+      "decision": "matches",
+      "evidence_id": "n1-e9",
+      "quote": "By night, tidal kites power the harbor lights and bring jobs",
+      "record_id": "n1",
+      "title": "Kite notice n1"
+     },
+     {
+      "decision": "matches",
+      "evidence_id": "n2-e1",
+      "quote": "Tidal kites will bring 400 jobs to the harbor",
+      "record_id": "n2",
+      "title": "Kite notice n2"
+     },
+     {
+      "decision": "does_not_match",
+      "record_id": "n5",
+      "title": "Kite notice n5"
+     },
+     {
+      "decision": "does_not_match",
+      "record_id": "n3",
+      "title": "Kite notice n3"
+     }
+    ],
+    "does_not_match": 2,
+    "examined": 4,
+    "first_read": 40,
+    "matches": 2,
+    "method": "ai_screening",
+    "policy": "list-screening-v19",
+    "question": "Which ads mention \"tidal kite\" and what do they say about jobs?",
+    "reread": 0,
+    "review": 0,
+    "scope_total": 6,
+    "unclear": 0,
+    "verified_removed": 0
+   },
+   "media_retrieval": {
+    "groups": [
+     {
+      "image_units": 0,
+      "label": "Current selection",
+      "status": "not_configured",
+      "video_units": 0
+     }
+    ],
+    "method": "separate_lexical_media_rrf",
+    "recognition_calls": 0,
+    "source_binding": {
+     "bundle_sha256": "",
+     "configuration_complete": false,
+     "contract": "separate-media-evidence-v1"
+    }
+   },
+   "question_plan": {
+    "agent_route": "direct",
+    "allow_web": false,
+    "clarify_message": null,
+    "coverage_note_rule": true,
+    "datasets": [
+     "native"
+    ],
+    "datasets_requested": [
+     "native"
+    ],
+    "failure_reason": "",
+    "filters": {
+     "accounts": [],
+     "dataset": "native",
+     "date_from": null,
+     "date_presence": "any",
+     "date_to": null,
+     "include_inferred_dates": false,
+     "include_unknown_dates": true,
+     "keywords": [],
+     "labels": [],
+     "platforms": [],
+     "publishers": [],
+     "record_ids": [],
+     "replies": [],
+     "sponsors": []
+    },
+    "list_kind": "screen",
+    "original_metadata": false,
+    "phrases": [
+     "tidal kite"
+    ],
+    "read_sources": true,
+    "reasons": {
+     "allow_web": "rule:list_screened",
+     "datasets": "filters:user",
+     "route": "caller:evidence",
+     "search_query": "default:question",
+     "shape": "rule:requires_complete_list"
+    },
+    "route": "evidence",
+    "search_query": "Which ads mention \"tidal kite\" and what do they say about jobs?",
+    "shape": "list",
+    "signals": {
+     "collection_only": false,
+     "contract_task": "content_framing",
+     "original_metadata_only": false,
+     "planner_shape": null,
+     "pure_literal": false,
+     "quoted_phrases": 1,
+     "relation_list": false,
+     "retrieval_groups": false,
+     "rule_list": true
+    },
+    "version": "question-plan-v2",
+    "wants_list": true
+   }
+  },
+  "sections": [
+   [
+    "What the matching ads say",
+    [
+     1,
+     2
+    ]
+   ]
+  ],
+  "status": "answered",
+  "structured_result": {
+   "charts": [],
+   "content_reading": {
+    "cited_records": 2,
+    "matched_records": 2,
+    "partial_records": 1,
+    "sent_records": 2,
+    "status": "partial"
+   },
+   "display_citations": [
+    1,
+    2
+   ],
+   "examined": 4,
+   "groups": [
+    {
+     "evidence_units": 3,
+     "filters": {
+      "accounts": [],
+      "dataset": "native",
+      "date_from": null,
+      "date_presence": "any",
+      "date_to": null,
+      "include_inferred_dates": false,
+      "include_unknown_dates": true,
+      "keywords": [],
+      "labels": [],
+      "platforms": [],
+      "publishers": [],
+      "record_ids": [],
+      "replies": [],
+      "sponsors": []
+     },
+     "image_units": 0,
+     "label": "Current selection",
+     "media_status": "not_configured",
+     "passages": 3,
+     "query": "Which ads mention \"tidal kite\" and what do they say about jobs?",
+     "retrieved_evidence_ids": [
+      "n1-e1",
+      "n2-e1",
+      "n3-e1"
+     ],
+     "retrieved_record_ids": [
+      "n1",
+      "n2",
+      "n3"
+     ],
+     "video_units": 0
+    }
+   ],
+   "kind": "ai_screened_list",
+   "matches": 2,
+   "meaning": "AI check of retrieved passages; not reviewed membership or a complete-collection result.",
+   "method": "ai_screening",
+   "policy": "list-screening-v19",
+   "review": 0,
+   "scope_total": 6
+  },
+  "summary": [
+   [
+    "Found 2 matching ads among the 4 most relevant of the 6 in your selection; the other 2 were not checked. 1 of the 2 matching ads were only partly read or not described, so this may be incomplete.",
+    []
+   ]
+  ]
+ },
+ "scenario": {
+  "allowed": [],
+  "declared_shape": null,
+  "fail_social_screening": false,
+  "filters": {
+   "dataset": "native"
+  },
+  "large_scope": false,
+  "limit_at": null,
+  "many_literal": false,
+  "match": "jobs",
+  "name": "native_phrase_read",
+  "note": "quoted phrase read first, no criterion, matched ads read by the writer",
+  "question": "Which ads mention \"tidal kite\" and what do they say about jobs?",
+  "relation_listing": null,
+  "retrieval_groups": null,
+  "triage": true,
+  "writer": "read"
+ }
+}

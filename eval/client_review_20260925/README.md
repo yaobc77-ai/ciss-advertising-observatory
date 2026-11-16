@@ -40,7 +40,7 @@ Do not copy existing development questions into this empty packet and call them 
    Boolean confirmations merely to make the checker pass. `expected_data_version` is the exact
    `/healthz` data version of the reviewed corpus, not the source-file count or Git commit.
 4. Run the readiness check and, once ready, the source check/freeze described in the
-   [frozen evaluation instructions](../../docs/frozen_evaluation.md). Format-2 manifests bind the
+   [frozen evaluation instructions](../../docs/evaluation/frozen_evaluation.md). Format-2 manifests bind the
    original packet, located supports, copied previously used questions and fixed collection/index
    identity. The evaluator consumes them explicitly with `--frozen-manifest`; no manifest means draft mode.
 5. After execution, fill `answer_review.csv` with the run ID and case ID, reviewer, findings on

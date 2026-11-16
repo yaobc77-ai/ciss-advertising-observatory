@@ -252,6 +252,20 @@
    "review_status": "ai_proposed"
   },
   {
+   "id": "org:arch_resources",
+   "name": "Arch Resources",
+   "type": "company",
+   "aliases": [],
+   "former_names": [],
+   "source_values": {
+    "social.sponsor": [
+     "Arch Resources"
+    ]
+   },
+   "basis": "Single source spelling, first seen in claims_twitter_fb_ig_sample.json (2026-11-05, not yet imported): Facebook 7 rows. US coal producer; not ARC Resources (a Canadian gas producer).",
+   "review_status": "ai_proposed"
+  },
+  {
    "id": "org:arpel",
    "name": "ARPEL",
    "type": "trade_association",
@@ -266,6 +280,22 @@
     "social.sponsor": 27
    },
    "basis": "Single source spelling.",
+   "review_status": "ai_proposed"
+  },
+  {
+   "id": "org:ascope",
+   "name": "ASEAN Council on Petroleum (ASCOPE)",
+   "type": "trade_association",
+   "aliases": [
+    "ASCOPE"
+   ],
+   "former_names": [],
+   "source_values": {
+    "social.sponsor": [
+     "ASEAN Council on Petroleum (ASCOPE)"
+    ]
+   },
+   "basis": "Single source spelling, first seen in claims_twitter_fb_ig_sample.json (2026-11-05, not yet imported): Instagram 62 rows.",
    "review_status": "ai_proposed"
   },
   {
@@ -297,13 +327,28 @@
    "former_names": [],
    "source_values": {
     "social.sponsor": [
-     "Australian Energy Producers (AEP)"
+     "Australian Energy Producers (AEP)",
+     "Australian Energy Producers"
     ]
    },
    "record_counts": {
     "social.sponsor": 15
    },
-   "basis": "Single source spelling.",
+   "basis": "Two source spellings; 'Australian Energy Producers' in claims_twitter_fb_ig_sample.json (2026-11-05, not yet imported) (119 Facebook rows) is the same association without the '(AEP)' suffix.",
+   "review_status": "ai_proposed"
+  },
+  {
+   "id": "org:banpu",
+   "name": "Banpu",
+   "type": "company",
+   "aliases": [],
+   "former_names": [],
+   "source_values": {
+    "social.sponsor": [
+     "Banpu"
+    ]
+   },
+   "basis": "Single source spelling, first seen in claims_twitter_fb_ig_sample.json (2026-11-05, not yet imported): Instagram 41 rows.",
    "review_status": "ai_proposed"
   },
   {
@@ -383,6 +428,20 @@
    "review_status": "ai_proposed"
   },
   {
+   "id": "org:brazilian_petroleum_and_gas_institute",
+   "name": "Brazilian Petroleum and Gas Institute (IBP)",
+   "type": "trade_association",
+   "aliases": [],
+   "former_names": [],
+   "source_values": {
+    "social.sponsor": [
+     "Brazilian Petroleum and Gas Institute (IBP)"
+    ]
+   },
+   "basis": "Single source spelling, first seen in claims_twitter_fb_ig_sample.json (2026-11-05, not yet imported): Facebook 4 rows.",
+   "review_status": "ai_proposed"
+  },
+  {
    "id": "org:bumi_resources",
    "name": "Bumi Resources",
    "type": "company",
@@ -452,6 +511,20 @@
     "social.sponsor": 188
    },
    "basis": "Single source spelling.",
+   "review_status": "ai_proposed"
+  },
+  {
+   "id": "org:cemex",
+   "name": "Cemex",
+   "type": "company",
+   "aliases": [],
+   "former_names": [],
+   "source_values": {
+    "social.sponsor": [
+     "Cemex"
+    ]
+   },
+   "basis": "Single source spelling, first seen in claims_twitter_fb_ig_sample.json (2026-11-05, not yet imported): Twitter 3,356, Facebook 1,246, Instagram 457 rows. Cement and building-materials company; whether it belongs to the fossil-fuel scope is undecided. Not Pemex.",
    "review_status": "ai_proposed"
   },
   {
@@ -531,6 +604,20 @@
     "social.sponsor": 1075
    },
    "basis": "Case-insensitive identical spelling across collections.",
+   "review_status": "ai_proposed"
+  },
+  {
+   "id": "org:china_huaneng_group",
+   "name": "China Huaneng Group",
+   "type": "company",
+   "aliases": [],
+   "former_names": [],
+   "source_values": {
+    "social.sponsor": [
+     "China Huaneng Group"
+    ]
+   },
+   "basis": "Single source spelling, first seen in claims_twitter_fb_ig_sample.json (2026-11-05, not yet imported): Facebook 3 rows.",
    "review_status": "ai_proposed"
   },
   {
@@ -642,6 +729,20 @@
     "social.sponsor": 9
    },
    "basis": "Single source spelling.",
+   "review_status": "ai_proposed"
+  },
+  {
+   "id": "org:crh",
+   "name": "CRH",
+   "type": "company",
+   "aliases": [],
+   "former_names": [],
+   "source_values": {
+    "social.sponsor": [
+     "CRH"
+    ]
+   },
+   "basis": "Single source spelling, first seen in claims_twitter_fb_ig_sample.json (2026-11-05, not yet imported): Instagram 63, Twitter 24, Facebook 5 rows. Cement and building-materials company; whether it belongs to the fossil-fuel scope is undecided.",
    "review_status": "ai_proposed"
   },
   {
@@ -998,6 +1099,20 @@
    "review_status": "ai_proposed"
   },
   {
+   "id": "org:heidelberg_materials",
+   "name": "Heidelberg Materials",
+   "type": "company",
+   "aliases": [],
+   "former_names": [],
+   "source_values": {
+    "social.sponsor": [
+     "Heidelberg Materials"
+    ]
+   },
+   "basis": "Single source spelling, first seen in claims_twitter_fb_ig_sample.json (2026-11-05, not yet imported): Twitter 1,427, Facebook 497, Instagram 187 rows. Cement and building-materials company; whether it belongs to the fossil-fuel scope is undecided.",
+   "review_status": "ai_proposed"
+  },
+  {
    "id": "org:hess_corporation",
    "name": "Hess Corporation",
    "type": "company",
@@ -1012,6 +1127,34 @@
     "social.sponsor": 145
    },
    "basis": "Single source spelling.",
+   "review_status": "ai_proposed"
+  },
+  {
+   "id": "org:holcim_group",
+   "name": "Holcim Group",
+   "type": "company",
+   "aliases": [],
+   "former_names": [],
+   "source_values": {
+    "social.sponsor": [
+     "Holcim Group"
+    ]
+   },
+   "basis": "Single source spelling, first seen in claims_twitter_fb_ig_sample.json (2026-11-05, not yet imported): Twitter 2,269, Instagram 408, Facebook 384 rows. Cement and building-materials company; whether it belongs to the fossil-fuel scope is undecided.",
+   "review_status": "ai_proposed"
+  },
+  {
+   "id": "org:huadian_coal_industry_group",
+   "name": "Huadian Coal Industry Group",
+   "type": "company",
+   "aliases": [],
+   "former_names": [],
+   "source_values": {
+    "social.sponsor": [
+     "Huadian Coal Industry Group"
+    ]
+   },
+   "basis": "Single source spelling, first seen in claims_twitter_fb_ig_sample.json (2026-11-05, not yet imported): Facebook 6 rows.",
    "review_status": "ai_proposed"
   },
   {
@@ -1288,6 +1431,20 @@
     "social.sponsor": 559
    },
    "basis": "Single source spelling.",
+   "review_status": "ai_proposed"
+  },
+  {
+   "id": "org:north_american_coal",
+   "name": "North American Coal",
+   "type": "company",
+   "aliases": [],
+   "former_names": [],
+   "source_values": {
+    "social.sponsor": [
+     "North American Coal"
+    ]
+   },
+   "basis": "Single source spelling, first seen in claims_twitter_fb_ig_sample.json (2026-11-05, not yet imported): Facebook 91 rows.",
    "review_status": "ai_proposed"
   },
   {
@@ -1575,6 +1732,20 @@
    "review_status": "ai_proposed"
   },
   {
+   "id": "org:polska_grupa_gornicza",
+   "name": "Polska Grupa Gornicza (PGG)",
+   "type": "company",
+   "aliases": [],
+   "former_names": [],
+   "source_values": {
+    "social.sponsor": [
+     "Polska Grupa Gornicza (PGG)"
+    ]
+   },
+   "basis": "Single source spelling, first seen in claims_twitter_fb_ig_sample.json (2026-11-05, not yet imported): Facebook 21 rows.",
+   "review_status": "ai_proposed"
+  },
+  {
    "id": "org:ptt",
    "name": "PTT",
    "type": "company",
@@ -1589,6 +1760,22 @@
     "native.sponsor": 1
    },
    "basis": "Single source spelling.",
+   "review_status": "ai_proposed"
+  },
+  {
+   "id": "org:pttep",
+   "name": "PTTEP",
+   "type": "company",
+   "aliases": [
+    "PTT Exploration and Production"
+   ],
+   "former_names": [],
+   "source_values": {
+    "social.sponsor": [
+     "PTTEP"
+    ]
+   },
+   "basis": "Single source spelling, first seen in claims_twitter_fb_ig_sample.json (2026-11-05, not yet imported): Facebook 13 rows. PTT's exploration subsidiary, kept apart from org:ptt.",
    "review_status": "ai_proposed"
   },
   {
@@ -1678,6 +1865,20 @@
     "social.sponsor": 2
    },
    "basis": "Single source spelling.",
+   "review_status": "ai_proposed"
+  },
+  {
+   "id": "org:russian_coal",
+   "name": "Russian Coal",
+   "type": "company",
+   "aliases": [],
+   "former_names": [],
+   "source_values": {
+    "social.sponsor": [
+     "Russian Coal"
+    ]
+   },
+   "basis": "Single source spelling, first seen in claims_twitter_fb_ig_sample.json (2026-11-05, not yet imported): Instagram 1 rows.",
    "review_status": "ai_proposed"
   },
   {
@@ -1803,6 +2004,20 @@
    "review_status": "ai_proposed"
   },
   {
+   "id": "org:shanxi_coking_coal_group",
+   "name": "Shanxi Coking Coal Group",
+   "type": "company",
+   "aliases": [],
+   "former_names": [],
+   "source_values": {
+    "social.sponsor": [
+     "Shanxi Coking Coal Group"
+    ]
+   },
+   "basis": "Single source spelling, first seen in claims_twitter_fb_ig_sample.json (2026-11-05, not yet imported): Facebook 26 rows.",
+   "review_status": "ai_proposed"
+  },
+  {
    "id": "org:shell",
    "name": "Shell",
    "type": "company",
@@ -1862,6 +2077,34 @@
     "social.sponsor": 404
    },
    "basis": "Single source spelling.",
+   "review_status": "ai_proposed"
+  },
+  {
+   "id": "org:sm_energy",
+   "name": "SM Energy",
+   "type": "company",
+   "aliases": [],
+   "former_names": [],
+   "source_values": {
+    "social.sponsor": [
+     "SM Energy"
+    ]
+   },
+   "basis": "Single source spelling, first seen in claims_twitter_fb_ig_sample.json (2026-11-05, not yet imported): Facebook 6 rows.",
+   "review_status": "ai_proposed"
+  },
+  {
+   "id": "org:sonangol",
+   "name": "Sonangol",
+   "type": "company",
+   "aliases": [],
+   "former_names": [],
+   "source_values": {
+    "social.sponsor": [
+     "Sonangol"
+    ]
+   },
+   "basis": "Single source spelling, first seen in claims_twitter_fb_ig_sample.json (2026-11-05, not yet imported): Instagram 1 rows.",
    "review_status": "ai_proposed"
   },
   {
@@ -1947,6 +2190,20 @@
     "social.sponsor": 480
    },
    "basis": "Single source spelling.",
+   "review_status": "ai_proposed"
+  },
+  {
+   "id": "org:taiheiyo_cement",
+   "name": "Taiheiyo Cement",
+   "type": "company",
+   "aliases": [],
+   "former_names": [],
+   "source_values": {
+    "social.sponsor": [
+     "Taiheiyo Cement"
+    ]
+   },
+   "basis": "Single source spelling, first seen in claims_twitter_fb_ig_sample.json (2026-11-05, not yet imported): Facebook 34 rows. Cement and building-materials company; whether it belongs to the fossil-fuel scope is undecided.",
    "review_status": "ai_proposed"
   },
   {
@@ -2043,6 +2300,34 @@
    "review_status": "ai_proposed"
   },
   {
+   "id": "org:turkmengaz",
+   "name": "TurkmenGaz",
+   "type": "company",
+   "aliases": [],
+   "former_names": [],
+   "source_values": {
+    "social.sponsor": [
+     "TurkmenGaz"
+    ]
+   },
+   "basis": "Single source spelling, first seen in claims_twitter_fb_ig_sample.json (2026-11-05, not yet imported): Twitter 1 rows.",
+   "review_status": "ai_proposed"
+  },
+  {
+   "id": "org:ultratech_cement",
+   "name": "UltraTech Cement",
+   "type": "company",
+   "aliases": [],
+   "former_names": [],
+   "source_values": {
+    "social.sponsor": [
+     "UltraTech Cement"
+    ]
+   },
+   "basis": "Single source spelling, first seen in claims_twitter_fb_ig_sample.json (2026-11-05, not yet imported): Twitter 378, Instagram 86, Facebook 26 rows. Cement and building-materials company; whether it belongs to the fossil-fuel scope is undecided.",
+   "review_status": "ai_proposed"
+  },
+  {
    "id": "org:vale",
    "name": "Vale",
    "type": "company",
@@ -2125,13 +2410,28 @@
    "former_names": [],
    "source_values": {
     "social.sponsor": [
-     "Woodside Energy"
+     "Woodside Energy",
+     "Woodside Engergy"
     ]
    },
    "record_counts": {
     "social.sponsor": 19
    },
-   "basis": "Single source spelling.",
+   "basis": "Two source spellings; 'Woodside Engergy' in claims_twitter_fb_ig_sample.json (2026-11-05, not yet imported) (105 Facebook rows) is a misspelling of Woodside Energy.",
+   "review_status": "ai_proposed"
+  },
+  {
+   "id": "org:xuzhou_coal_mining_group",
+   "name": "Xuzhou Coal Mining Group",
+   "type": "company",
+   "aliases": [],
+   "former_names": [],
+   "source_values": {
+    "social.sponsor": [
+     "Xuzhou Coal Mining Group"
+    ]
+   },
+   "basis": "Single source spelling, first seen in claims_twitter_fb_ig_sample.json (2026-11-05, not yet imported): Instagram 73 rows.",
    "review_status": "ai_proposed"
   },
   {

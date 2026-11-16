@@ -55,14 +55,21 @@ def test_the_list_states_how_many_ads_were_read_and_that_it_is_not_a_review():
                 "published_at": None}]
     answer = list_answer("Which ads mention tidal kites?", results, [KITE, OTHER], scope_total=263)
     assert answer.status == "answered"
-    assert answer.answer.startswith("Found 1 matching ad among the 2 most relevant of the 263 in your selection; "
-                                  "the other 261 were not checked.")
+    # Plain wording (client meeting MT6-016): what was read, why not the rest, and what to do.
+    assert answer.answer.startswith(
+        "1 of the 2 ads that were read matches the question. Your selection has 263 ads; the search picked the 2 "
+        "closest to the question for reading, and the other 261 were not read, so there may be more matches. "
+        "Narrowing the selection (company, date or platform) lets a larger share be read.\n\n")
     assert "1. Kite notice r1 — Harbor Daily, Tidal Co, 2021-05-04: “Tidal kites will supply cheap power to the harbor.” [1]" in answer.answer
     assert answer.citations[0].evidence_id == KITE.evidence_id
     assert answer.structured_result["kind"] == "ai_screened_list"
-    assert "其余 261 篇未检查" in list_answer("哪些广告提到潮汐风筝？", results, [KITE, OTHER], scope_total=263).answer
+    assert "其余 261 篇没有看，所以可能还有符合的。缩小范围" in list_answer("哪些广告提到潮汐风筝？", results, [KITE, OTHER], scope_total=263).answer
     # A selection read whole says so instead of naming unchecked ads.
-    assert "among the 2 in your selection (all checked)." in list_answer("Which ads mention tidal kites?", results, [KITE, OTHER], scope_total=2).answer
+    assert "1 of the 2 ads in your selection matches the question; every ad was read.\n\n" in list_answer("Which ads mention tidal kites?", results, [KITE, OTHER], scope_total=2).answer
+    # Nothing came up in the search: nothing was read, and the reader is told how to try again.
+    assert list_answer("Which ads mention tidal kites?", [], [], scope_total=263).answer == (
+        "None of the 263 ads in your selection was read: the search found nothing related to the question. "
+        "If you expected matches, try asking the question another way.")
 
 
 def keep_all(request):
@@ -131,7 +138,9 @@ def test_a_screened_list_without_matches_answers_none_found_and_does_not_search_
                                       for n in (1, 2, 3)])
     result = service._answer_evidence("Which ads mention tidal kites?", Filters(dataset="native"), "offline", audit=False)
     assert result.status == "answered"
-    assert result.status == "answered" and result.answer.startswith("Found 0 matching ads among the 3 most relevant")
+    assert result.status == "answered" and result.answer.startswith("0 of the 3 ads that were read match the question.")
+    # No match: the reader is told how to try again (client meeting MT6-015).
+    assert result.answer.endswith("If you expected matches, try asking the question another way.")
     service._search_external.assert_not_called()
 
 

@@ -50,7 +50,7 @@ def test_matched_ads_are_read_by_the_writer_and_merged_with_the_screened_list():
     assert first.kwargs["one_claim_per_source"] is True
     # The skipped ad gets one call of its own.
     assert {p.record_id for p in follow_up.args[1]} == {"r3"}
-    assert result.answer.startswith("Found 2 matching ads among the 3 most relevant")
+    assert result.answer.startswith("2 of the 3 ads that were read match the question.")
     assert "The ad says: Tidal kites will supply cheap power to the harbor. [1]" in result.answer
     # Still not described: it keeps its screening quote under a renumbered citation.
     assert "Other matching ads (screening quote only):" in result.answer and "the gallery” [2]" in result.answer and "[2] [2]" not in result.answer

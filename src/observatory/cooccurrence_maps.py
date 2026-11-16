@@ -112,7 +112,7 @@ def project(units, *, view, unit_kind, node_kind, edge_meaning, labels=None, top
     }
 
 
-def semantic_projection(items, vectors, *, neighbours=5, label="名称语义相近，不是共同出现"):
+def semantic_projection(items, vectors, *, neighbours=5, label="Similar names (not co-occurrence)"):
     """PCA of name embeddings to 2-D with each item's nearest names by cosine.
 
     ``items`` are dicts with at least id/label/kind, in the same order as ``vectors``.

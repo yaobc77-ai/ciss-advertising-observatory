@@ -1,0 +1,207 @@
+# Implementation and acceptance status
+
+## Current local work — 6 October 2026
+
+The latest local scope is recorded in [goal.md](../../goal.md) and [plan.md](../../plan.md).
+The dated release receipts below keep their original scope; they do not verify
+the later uncommitted changes or their deployment.
+
+| Area | Current evidence | Remaining work |
+| --- | --- | --- |
+| Social input and exploration | The Twitter export and field information were received. All 37,082 prepared rows passed full import and repeat import in an owned isolated database, with every payload, body, annotation and current version reconciled; the repeat added zero versions. Account filtering, record details and 13 historical source-label distributions are implemented locally. | Confirm post/paid-ad scope and duplicate counting, then admit and import the approved scope into the application, deploy, and evaluate real user tasks. The isolated database was removed and both admission flags remain False; storage verification does not establish admission or label accuracy. Do not request the received export again. |
+| Content questions and CLAIMS | All 24 client questions are retained. [Current-source materials](../data/native_truncated_text_update_20261006.md) were separately refreshed after the nineteen latest TXT updates: 263 records, 6,312 pending judgments, 254 ready requests and nine not requested. Source positions and bindings passed files-only checks; 37 legacy classification candidates remain on hold. | Obtain approval for the bounded real-model pilot, confirm definitions and semantic judgments with a named reviewer, and publish approved results separately. No real model response, approved classification or quality score was created; older frozen packets retain their own versions. |
+| Video placeholders | The [video plan](../data/video_recovery_plan.zh-CN.md) covers 14 originally countable placeholders. Six supplied page TXT files have received recorded AI engineering reviews and were adopted in the local database; 23 lexical chunks use only reviewed ranges. Full TXT, metadata, counting and old versions are preserved; exact repeat adds zero versions. | Obtain actual captions or speech transcripts, add time-linked evidence, and measure effort. These six files are partial saved page text, not recovered videos, verified publisher pages, reviewed classifications or customer approval. New embeddings and remote publication remain separate. |
+| Truncated nonvideo texts | The [latest twenty-candidate review](../data/native_truncated_text_update_20261006.md) adopted nineteen supplied texts after AI full-text/source review; source79 replacement was rejected to retain current disclosure/footnote. Full TXT is preserved with explicit retrieval ranges. Guarded local import added nineteen versions and 74 lexical passages, exact repeat zero; nineteen detail reads passed. The earlier two-text batch is retained separately. | Publisher-page completeness, other source defects, source79 navigation cleanup, semantics, embeddings and publication remain pending. A literal domain-word probe did not match; source probes are not retrieval scores. No video-only accuracy tradeoff was applied. Latest source/request materials were rebound with 6,312 judgments still unknown/pending; the earlier 1,844 application checks retain their former source scope. |
+| User-facing evaluation | The local Evaluation page provides 16 definitions and a version-bound report interface. No reviewed real report is configured. | Run the agreed tasks, retain failures, complete independent review and publish scores for the recorded versions. |
+| Source handoff | The [latest local candidate](../data/current_source_candidate_20261006.md#latest-candidate-after-saved-txt-and-statistics-preflight) has 598 payloads, including all 84 runtime files, 140 tests, 44 maintenance files and 19 evaluation files. It includes saved-TXT notes, the statistics preflight and current planning records. Its extracted-source wheel passed 72 module imports, ten help entries and 469 selected installed checks; three Windows link-creation cases were skipped. Final nondocument bytes match the tested source; earlier archives retain their own evidence. | Obtain publication approval, reproduce with another implementer, and complete the dual-dataset demonstration and customer acceptance. This installation used the same machine and cached dependencies; no real model or database was evaluated, and source data, review packets and service configuration require separate handoff. |
+
+No full-project acceptance is established. The historical statements below that
+social material was still missing describe their recorded dates.
+
+The local evidence is retained privately in
+`.runtime/social_full_import_20261006/import_receipt-02.json` and
+`.runtime/current_source_handoff_storage_20261006/verification.json`.
+The latter binds the source archive, extracted files, installed runtime and
+tested wheel; neither receipt establishes a published release, semantic
+performance or customer acceptance. The original input and older receipts are
+preserved.
+
+Current local totals after the nineteen-text batch are 263 countable native records,
+232 retrievable records and 622 active-profile chunks. Its transaction, repeat
+and readers are in `.runtime/native_truncated_review_20261006/`.
+The earlier two-text transaction,
+repeat and readers are in `.runtime/native_text_review_20261006/`. The six-text
+local transaction, repeat and public-detail checks are retained in
+`.runtime/video_text_review_20261006/`; those stages had 582 and 579 active chunks
+respectively. New lexical chunks have no new embeddings. Other-record checks cover current-version bindings and
+active status; selected historical checks cover body and payload, not a full
+database content audit. The 169 selected offline tests and separate files-only
+review do not establish semantic performance, recovered video or publication.
+
+The earlier [six-text source refresh](../data/content_source_refresh_20261006.md)
+retain all 24 questions and 6,312 pending judgments. A separately observed
+read-only database reference matched all 275 metadata rows in the same full
+source snapshot; 1,844 explicit application checks passed for matrix members,
+relationships, graph source paths, year ties and period boundaries. Source,
+index and usage/answer/output/embedding fingerprints stayed unchanged. The
+first offline-reference identity error is retained separately; natural-language
+interpretation, semantic scores and customer acceptance remain unevaluated.
+
+The [selected PDF-265 attachment is now hosted](../../reports/releases/RECORD_ASSETS_HOSTED_20260930.en.md). Complete mounted-file checks passed in two different deployments; local and hosted HTTP checks matched the body, PDF, download and preview bytes and verified cross-record isolation. Browser inspection showed the preview and source controls. This covers one engineering-reviewed capture, not complete archive coverage, new CLAIMS publication or client acceptance.
+
+## 0.4.10 native exports and runtime — 1 October 2026
+
+The [publication receipt](../../reports/releases/citation_v0_4_10_publication_20261001.json) records the installed artifact, CI and hosted release. The [actual hosted export reconciliation](../../reports/data_audits/native_export_reconciliation_20261001.json) checked four downloaded CSV files: 263 distinct full-selection records and all 160 cross-tab cells, followed by three filtered records and one matching cell.
+
+The [installed runtime rehearsal](../../reports/releases/native_runtime_handoff_20261001.json) combined the wheel, existing verified restored database and copied PDF-265 bundle outside the checkout. Selected company relationships, free biogas search, the preview and HTTP attachments passed before and after an owned-process restart; four inventories preserved all 21 tables. There were no paid model calls or database writes. Windows process termination is recorded separately from graceful shutdown. This is the same implementer and machine, not independent reproduction or complete service recovery.
+
+See the [combined report](../../reports/releases/NATIVE_EXPORT_AND_RUNTIME_HANDOFF_20261001.en.md). The Edge PDF download remains blocked. Real social data, approved CLAIMS publication, independent semantic/client review and another implementer's reproduction remain pending.
+
+## 0.4.10 full native import and client review preparation — 1 October 2026
+
+The [complete-input installed CLI rehearsal](../../reports/data_audits/NATIVE_FULL_IMPORT_20261001.en.md) created a new dedicated test database: first import 275 new versions, repeat zero new and 275 unchanged. Counts matched 275 stored, 263 countable and 226 retrievable. Existing databases, sequence states and private configuration stayed unchanged. Only the new test database was populated; no model calls occurred. Its default `legacy600-v1` profile has 558 passages and zero embeddings, so this is not current production-index or answer-history reproduction.
+
+The [native client review preparation](../../reports/data_audits/NATIVE_CLIENT_REVIEW_PREPARATION_20261001.en.md) assembled six previously used examples with complete record lists, two saved answers and four original quotations. All human verdicts remain blank; the packet has not been sent or approved. It does not replace the independent frozen questions, real social/cross-collection review or customer acceptance.
+
+## Railway-origin logical recovery — 1 October 2026 UTC
+
+The [Railway recovery report](../../reports/releases/RAILWAY_DATABASE_RECOVERY_20261001.en.md) and [receipt](../../reports/releases/railway_database_recovery_20261001.json) record a full cloud backup and recovery into a fresh database on the same PostgreSQL 18.6 service. All 21 tables and schema matched, including owners, permissions and extension versions; migration version 3 and its checksums matched with no pending migration. The cloud snapshot contains 275 records, 828 text versions, 2,071 stored passages, 1,053 embeddings, 120 saved answers, 112 generation outputs and 177 usage entries. All 757 evidence references and 190 citations locate correctly. The active profile still has 556 passages; total stored passages include historical profiles.
+
+Four sequence states matched the initial source, restored copy and final source observation. This is a stable non-MVCC observation, not an atomic sequence snapshot. Separate live retrieval probes matched using stored vectors, with no model request or new embedding. The private downloaded archive passed checksum checks; local and cloud application connections and private configuration stayed unchanged. These are Railway counts, not replacements for the different earlier local snapshot counts.
+
+Six CLAIMS2 tables remain empty. Nonempty classification history recovery, independent-machine or whole-service recovery, global roles/passwords, complete source-archive and attachment recovery, another implementer's reproduction, frozen human semantic review, real social data and client acceptance remain pending. The later runtime rehearsal copied and ran only the selected PDF-265 bundle. This logical recovery does not complete production disaster recovery or project acceptance.
+
+## 0.4.7 maintenance implementation — 30 September 2026
+
+The separate [local restore](../../reports/releases/DATABASE_RESTORE_V0_4_7_20260930.en.md) passed with all 21 tables and migration version 3, preserving its own snapshot of vectors, histories and usage. Its six CLAIMS2 tables are empty; that check does not establish nonempty classification recovery or independent-machine recovery. Railway-origin logical recovery is recorded above with its own counts and boundaries. A [private archive comparison](../../reports/data_audits/claims_legacy_source_candidate_20260930.json) supports a CNBC/SunPower source candidate for legacy input 2. Punctuation differences are explicit and its identity decision remains pending; no labels were published and no model calls were made.
+
+The [private source review packet](../data/claims_source_discovery.md#create-a-private-source-review-packet) binds saved lookup bytes to the original CLAIMS paragraph and optionally compares captured UTF-8 text. It records exact or whitespace-only locations and leaves every source decision pending. The [maintenance receipt](../../reports/data_audits/claims_source_review_v0_4_7_20260930.json) records 1,650 installed-wheel offline tests, including 61 packet tests, and a passed package inventory check; one case was skipped and 87 database/live cases were excluded. The actual packet contains five existing candidate URLs, zero captured pages and no new paid calls. The original article URL remains unresolved; no real classification was imported or published.
+
+Both repositories' CI passed and the local and hosted applications were verified at **0.4.7**. The [publication receipt](../../reports/releases/source_review_v0_4_7_publication_20260930.json) records unchanged source data and retrieval index identities; both [source archives](../../reports/releases/source_handoff_v0_4_7_20260930.json) have verified hashes and exclude private materials. The following release records retain their version-specific scope; none establishes source recovery or client acceptance.
+
+## 0.4.6 implementation — 30 September 2026
+
+CLAIMS2 read-only views are implemented for Overview, article detail, Query and
+the article-provenance graph. They show exact source quotations, taxonomy
+definitions and the selected assignment's relationships. The matching-page JSON
+export separates its page from whole-selection counts. An absent assignment is
+not a negative classification.
+
+All 37 real saved-result candidates remain on hold. No new real classification
+has been imported or published. Authority, source identity and semantic review
+still need approval.
+
+Legacy article URL discovery checks exact local text first. Its maintenance MCP
+tool is hidden by default and can make at most one paid web search when explicitly
+enabled. Returned URLs are candidates for review; the tool changes usage
+accounting only, not article or classification data. See [read-only views](../data/claims_read_views.md)
+and [source discovery](../data/claims_source_discovery.md).
+
+The [engineering receipt](../../reports/data_audits/claims_read_engineering_v0_4_6_20260930.json)
+records 1,589 installed-wheel offline tests, 33 isolated database tests and one
+paid source search whose original article URL remains unresolved. Both
+repositories' CI and the 0.4.6 deployment passed the checks in the
+[publication receipt](../../reports/releases/release_v0_4_6_publication_20260930.json).
+The [source archives](../../reports/releases/source_handoff_v0_4_6_20260930.json) were verified.
+These checks do not establish source recovery, classification accuracy or client
+acceptance. Real social data and customer review materials remain deferred TODOs.
+
+## Earlier implementation and acceptance records
+
+Dated records below retain their original language and verification scope. Earlier
+statements about pending interfaces are superseded by the 0.4.6 implementation above.
+
+**0.4.5 工程推进（2026-09-30）**：已实现来源审核后的 CLAIMS2 导入、独立表、分批批准、追加人工复核版本、原文更新阻断及显式撤销。实际 37 项候选均在私有模板中 hold，权威分类批次与客户审核仍待确认；新标签没有发布。M6 已补 format-2 双集合冻结／评估接口，M8 源码包补齐 Docker、Railway、CI 与资源文件，并带提交和逐文件哈希；工程实现不代替真实社交数据、人工语义和客户验收。详见 [CLAIMS 导入](../data/claims_result_import.md)和[冻结输入](../evaluation/frozen_evaluation.md)。
+
+0.4.5 的安装包离线 1,406 项、独立隔离库 22 项均通过；两个仓库 CI 成功，生产部署及迁移3已核对，原文／索引不变。两个源码包的清单和哈希已验证。证据分别见[工程](../../reports/data_audits/claims_import_engineering_v0_4_5_20260930.json)、[发布](../../reports/releases/release_v0_4_5_publication_20260930.json)与[源码包](../../reports/releases/source_handoff_v0_4_5_20260930.json)，均不替代分类语义／客户验收。
+
+## 2026-09-30 — historical 0.4.4 status
+
+**CLAIMS 来源接入推进（0.4.4 维护工具）：** [只读来源审计与结果适配](../../reports/data_audits/CLAIMS_SOURCE_LINKAGE_20260930.zh-CN.md)已完成。810 个输入段落中有 806 条保存结果；显式上游字符投影得到 8 篇文章关联候选、84 条可用段落候选、37 个唯一原文分类引文候选。全部保留为未批准状态，没有导入新标签或调用模型。当时权威 taxonomy／批次、来源确认、语义审查、结果导入和网页／MCP 读取仍待完成；当前接口状态见上方 0.4.6 段落。以下发布记录属于各自检查范围。
+
+线上已核对 **0.4.4 / e01edc9**，来源与句界索引标识未变，275 条原生记录、556 个活动片段。两个仓库 CI 各通过 1,258 项、跳过 1 项；本机安装包通过 1,258 项、跳过 1 项，62 项 integration／live 未运行。[0.4.4 发布回执](../../reports/releases/release_v0_4_4_publication_20260930.json)绑定实际代码提交与检查范围；新 CLAIMS 标签没有导入或发布。下面旧标题中的“当前”属于对应日期与版本。
+
+此前维护代码 **0.4.3** 已通过两个仓库的 CI 并部署到 Railway：独立私有附件目录和哈希绑定 bundle、双集合评价的来源约束、显式模型计数路径评价，以及完整数据库恢复工具。[发布回执](../../reports/releases/release_v0_4_3_publication_20260930.json)记录实际提交与检查范围；附件文件和真实社交数据仍未部署，新的 CLAIMS 结果仍未导入。
+
+| 模块 | 当前证据 | 剩余工作 |
+|---|---|---|
+| M1 导入 | 稳定记录／正文版本、原生与社交适配器、增量 upsert 与坏行报告 | 真实社交映射和对账列为待办；不拿旧研究样本代替指定导出 |
+| M2 正文与材料 | 263 可统计／226 可检索；原文定位和质量提示；已审核 PDF-265 与预览上线，挂载文件、HTTP 与新容器后文件检查通过 | 只覆盖一篇工程审核的来源快照；其余候选、客户来源审查和归档缺口保留 |
+| M3 原生 Dashboard | 0.4.2 已发布，逐个选取的命名关系／精确文章集合／占比／CSV 已验；公司媒体矩阵和时间筛选可用 | 客户使用验收和公司／协会／活动统计口径列为待办 |
+| M4 社交 | 独立导入与未接入状态存在 | **真实社交数据及客户字段说明：待办** |
+| M5 问答 | 线上模型理解和受约束工具；统计来自数据库，内容回答带原文证据 | 新问题的语义评价、真实社交／跨集合验证待办；未把历史标签当已证实漂绿 |
+| M6 评价 | 当前 evaluator 不再将支持来源锁死为 native；可显式额外评价模型计数路径，默认免费对账保留 | 独立冻结问题与人工审查待办；本轮未运行付费评价，代码测试不填语义成绩 |
+| M7 部署与恢复 | Railway 和 GitHub Pages 可达；[本机恢复](../../reports/releases/DATABASE_RESTORE_V0_4_7_20260930.en.md)及[Railway 来源恢复](../../reports/releases/RAILWAY_DATABASE_RECOVERY_20261001.en.md)分别核对各自的 21 表／向量／历史答案／账本固定快照，迁移3校验和匹配；云端同 PostgreSQL 18.6 集群新库恢复及私有下载哈希已核对；6 张 CLAIMS2 表仍为空 | 非空分类恢复、异机／整服务灾备、全局角色及密码、PDF／预览文件恢复与另一网络验收仍需另证；工程恢复不替代人工语义或客户验收 |
+| M8 交接 | 新英文[交接说明](../current_handoff.md)、[客户审查草案](../client/CLIENT_REVIEW_V0_4_2.md)、[当前原生演示](../../deliverables/demo_scripts/native_demo_v0_4_2.en.md) | 另一实施者复现、双集合最终演示和客户签收待办 |
+
+**最新范围变更：** 用户转述客户要求处理 CLAIMS 接入，因此已加入当前[接入计划](../data/claims_integration_plan.md)，不再只列原文未来工作。已提供 GitHub ZIP 优先复用；先确认具体 NC／SC 批次与原文绑定，再做离线结果导入、网页和工具查询。分类重训、无审核 taxonomy 自动修改和已证实漂绿判定没有被默认加入。本期社交和客户材料依用户要求设为待办；完整双集合交付仍未验收完成。
+
+## 历史阶段记录
+
+**2026-09-30 当前 0.4.1：** 已通过 GitHub CI 并上线 Railway，本机同步完成。修复首屏空画布，安装制品 956 项工程测试通过；实际浏览器核对无需 Reset 的首屏、展开、直接节点选择、占比表下钻、正文详情与 CSV／PNG 导出。源／索引标识和 275／556 规模不变，实际记录见[发布报告](../../reports/releases/RELEASE_V0_4_0_20260930.zh-CN.md)与[生产回执](../../reports/releases/release_v0_4_1_publication_20260930.json)。
+**2026-09-30 0.4.0 阶段记录：** 安装包与隔离数据库复现通过，随后完成 GitHub／Railway 发布及三个客户统计问题试用；37,000 条合成记录基准只测数据库方法。历史段落中的“未发布／未复现”仅指该日期的阶段状态；客户语义、组织口径、正式社交、核验原始材料与当前全库恢复验收仍未完成。
+
+**2026-09-29 原件、会议、邮件合并核对：** 当前要求和缺口以[合并核对报告](../../reports/requirements/REQUIREMENTS_CONSOLIDATED_AUDIT_20260929.zh-CN.md)为准。原生数据本机已实现图谱／占比／统计探索；真实社交、独立语义／用户／规模验收、当前版本复现及交接未完成。只读 HTTP 检查发现 Railway 健康版本与本机一致，但缺少新增图谱／占比／历史标签下钻组件。正式 CLAIMS 后端与动物农业仍是原文未来工作，会议／邮件未取消这个边界。本次没有重跑测试、付费调用、数据修改、推送或部署。
+
+以下按日期保留已有实施回执；较早条目中的“当前”只指该条目的版本。最新图谱中的 19 个非空来源赞助方名称，与早期矩阵含 Unknown 的 20 个赞助方类别不是两次不同的公司数量；缺赞助方记录没有被删除，也不造 Unknown 公司节点。
+
+**2026-09-29 图谱详情第二版（本机）：** 点击公司／媒体可看完整占比环图、数量／占比名单及对应文章；点扇区或名称后下钻当前范围，并可展开确切文章来源路径。新增真实记录点阵、可检索正文／仅元数据外环、关系标签、组织类型提示和对象计数 CSV。Overview 历史标签已支持条形／键盘选择到文章的下钻，仍标为自动、未核验、可重叠。8 个真实范围的分类与 SQL 数量一致，来源及索引未改，本轮模型调用 0。工程与网页证据见 [第二版报告](../../reports/knowledge_graph/GRAPH_DETAILS_V2_20260929.zh-CN.md)。Q1–Q3 的现有数据交互已可试用，Q4 仅支持现有历史标签；真实社交、正式 CLAIMS、身份／研究口径审核、线上同步和客户验收仍待完成。
+
+**2026-09-29 大幅交互图谱（本机）**：Data 默认进入 Knowledge graph，全范围 Entities 展示 27 个来源实体与 35 条计数关联；Articles 可展开当前选择的文章路径，完整选择为 290 节点／525 条源字段边。选中对象后旁栏显示精确数量、所有关联对象及分页文章；原版本／材料／历史标注检查器折叠保留。来源数据与 556 个句界片段未改，六个真实范围的图谱计数与交叉表一致。工程测试和界面证据见[图谱报告](../../reports/knowledge_graph/COLLECTION_KNOWLEDGE_GRAPH_20260929.zh-CN.md)；关系是来源共同列出，不独立证明商业合作。未推送／部署，用户验收、组织身份裁决、正式 CLAIMS 和社交材料仍待完成。
+
+**2026-09-29 后续本机修正：模型理解与 MCP**：Query 已启用模型选择只读工具，七个共享工具涵盖实体、统计、正文、来源及图谱。真正的 stdio MCP 已验证独立进程和真实数据库调用。模型理解有 API 费用；先前段落的免费固定句式统计说明保留为基础版对照。本次三个真实问题检查与工程测试见 [新验证报告](../../reports/rag_experiments/MCP_RESEARCH_IMPLEMENTATION_20260929.zh-CN.md)，不代表客户语义验收。未推送或部署，正式 CLAIMS、社交及核验附件适配器仍未接入。
+
+**2026-09-29 Michelle 反馈修正（本机）**：Overview 已加入完整公司／赞助方 ↔ 媒体条形图、计数表和相邻匹配记录；Query 将字段计数及媒体／赞助方名单路由到免费数据库统计，内容解释仍走 RAG。真实库核对：NYT 19，ExxonMobil 15／4 媒体，Washington Post 18／7 赞助方类别。没有重新导入、修改记录、调用付费模型、推送或部署；客户语义与使用验收仍待完成。完整验证与限制见[本机修正报告](../../reports/requirements/MICHELLE_IMPLEMENTATION_20260929.zh-CN.md)。以下旧日期的测试数字保留作阶段记录。
+
+**2026-09-25 本机雏形补充**：按新会议要求实现原生广告交互关系网络、服务端分页、SQL 统计、有序数据库迁移、默认 upsert 和 canonical JSONL 导入。客户评价材料检查／冻结工具已提供，当前材料为空，状态为 pending。完整工程回归 505 项通过；后续网络焦点保留修正另通过 63 项 UI 回归。来源记录和检索版本未变，当前迁移版本为 2。本轮未运行付费模型、未推送 GitHub 或更新 Railway。详见[雏形报告](../../reports/ui/MEETING_PROTOTYPE_20260925.zh-CN.md)。以下较早日期内容保留为历史阶段记录，不代表新雏形已经通过客户验收。
+
+**2026-09-24 部署补充**：用户已将预览部署到 [Railway](https://ciss-advertising-observatory-production.up.railway.app/data)。本日只读检查确认数据页 HTTP 200、health=ok，275 条 native、556 块及数据／索引标识与先前一致；没有执行线上完整用户流程或付费评价。下面的 436 项测试属于 2026-09-17 的本地工程记录，不代替当前部署验收。下一步按[客户测试与材料计划](../client/CLIENT_TESTING_AND_MATERIALS_20260924.zh-CN.md)推进。
+
+## 以下为 2026-09-17 的 0.3.1 历史基线
+
+基线日期：2026-09-17。0.3.1 研究界面修订当时在本机启用，最终非 live 回归 436 项通过；浏览器与数据核对见 [0.3.1 修订报告](../../reports/ui/research_ui_v0_3_1_20260917.zh-CN.md)。0.3.0 的句界索引是有意发布，详见 [0.3.0 发布报告](../../reports/releases/release_v0_3_0_20260917.zh-CN.md)。源数据版本 `source_data_version=5114ebc1cf9afe59cdaa715e3ea45166` 未变；active profile 为 `sentence600-v1`，556 个片段。`health.data_version` 同时包含源数据和检索索引版本，旧 `legacy600-v1` 的 558 块保留。0.3.1 不改原文、不重新导入数据、不调用付费模型。此表按当时模块状态保存；当前新增能力与缺口见顶部合并核对。
+
+| 模块 | 当前证据 | 尚未完成 |
+|---|---|---|
+| M1 数据 | 275 条收录；12 项候选的 7/4/1 决定已应用；0.2.3 数据发布仅 1 个新正文版本、274 不变，重复导入 275 unchanged；原值和旧版本保留 | 社交真实映射、待核候选补证及持续维护 |
+| M2 正文 | 263 可统计、226 可检索；原文与检索区间保留；556 个句界片段已激活，558 个 legacy 片段留存；新增记录详情呈现原正文、质量说明和源链接；PDF-265 可预览、下载 | 原有 94 项截断限制中仅 1 篇有限恢复；图像与遮挡文字仍缺失；归档覆盖仅 1 条已核验本地 PDF，不能称统一归档已完成 |
+| M3 Dashboard | 默认原生选择的完整 20×8 赞助方/媒体热图显示格子数字与色标；全量交叉表及 CSV；12 个历史标签分布；年度柱图含 Unknown；赞助方显示规范名称，保留原筛选键；Query/Data 英文主导航，线框图改页脚入口；共享筛选、旧结果提示沿用 | CERAWeek 活动/系列是否纳入公司研究口径仍待客户确认；历史标签不是新主题发现，也未验证为金标准；真实用户验收及持续回归 |
+| M4 社交 | 独立适配器、字段映射样例和 not connected 说明；未接入时隐藏空筛选、卡片、图表及表格 | 真实社交导出、统计对账与问答验收；隐藏空组件不是接入完成 |
+| M5 RAG | 关键词/向量检索与引用约束沿用；日期、排序与检索词覆盖可见，技术哈希折叠；覆盖诊断区分返回结果缺词与整个筛选索引缺词；句界切分、引用去重、原子 profile 切换与跨版本拦截沿用 | 排序不是置信度；OR/词干匹配仍可能返回只命中部分查询的片段；语义充分性、回答聚焦、语言不确定性与跨库验证仍待完成 |
+| M6 评价 | 20 开发题＋20 验收草案保留；0.3.0 的 366 项测试及两题付费 smoke 保留为历史证据；0.3.1 验证结果另见本次报告，不新增付费模型运行 | 草案审题、冻结与独立人工语义验收；7 个社交/跨库题尚未运行；工程和界面检查不证明检索或生成泛化质量 |
+| M7 部署 | Railway 预览已部署，2026-09-24 数据页和健康接口只读可达；本机 sentence profile 与 legacy 回退依据保留；预算与限额实现保留 | 线上筛选、导出、附件、问答、持久化和另一网络的用户验收；旧 0.2.4 恢复证据不覆盖新增 profile 表及服务器环境 |
+| M8 交接 | 0.3.1 使用指南、界面修订说明与归档覆盖边界；0.3.0 索引发布及 0.2.4/0.2.5 安装、空库复现证据保留历史口径；0.2.2 演示未重做 | 源码包交付以最终 manifest 核对；指定 GitHub、完整双数据集最终展示、客户与交接验收 |
+
+## 本次界面与数据口径
+
+1. **公司×媒体数量**：交叉表和热图使用当前筛选后的可计数记录，不局限 Top 8。默认 20 个赞助方类别包含 CERAWeek 等现有类别，不等于 20 家已独立核验的公司。CERAWeek 已标活动/系列，尚未擅自删除、改归公司或改变计数资格。
+2. **记录详情与归档**：`/records/<record_id>` 展示不可变正文、缺失/截断等质量提示、原文、公开归档状态及核验本地 PDF。263 条可计数记录中，公开 archive URL 为 0；1 条有已核验本地 PDF；另外 254 条只有按标题关联的候选；8 条没有已核验或候选映射。候选不升级为可靠归档，缺文件或哈希变化时不提供该 PDF。此为统一呈现的工程实现，归档材料本身仍大量待核。
+3. **主题与时间**：12 个历史自动标签支持分布探索；43 条没有历史标签，不能解释为没有主题。标签可重叠，不是本次训练或运行的新主题模型。默认年度柱图含 22 条 Unknown 日期，筛选后数字按当前选择变化。
+4. **检索透明度**：`carbon capture and storage biogas` 的前五个结果未出现 biogas，不等于整个可检索集合没有 biogas。当前索引中有 3 条记录匹配该词，页面分别报告返回范围与整个筛选索引范围。诊断按英文词干计算，不能替代语义审核，也没有借此承诺召回率提升。
+5. **页面范围**：主导航统一英文 Query/Data，设计线框图移到页脚；技术标识收进折叠区；未接入社交数据时保留说明并隐藏空内容。0.3.1 工程和浏览器检查结果统一记录在本次报告中，此处不预填通过数量。
+
+## 历史生成与交接验证
+
+0.3.0 的 [发布报告](../../reports/releases/release_v0_3_0_20260917.zh-CN.md)记录当时切分、引用去重、索引发布及三页面改造，366 项工程测试通过。当时两次付费 smoke 的原文定位检查有效，但仍需人工判断引文是否充分支持回答；中文输出发现选定短引文之外的地点实体及重复使用引文，不能记为语义通过。0.3.1 没有新增付费调用，也未将界面修订当作上述生成问题已修复的证据。
+
+页面切换不会触发查询或付费调用。问题和有效筛选变化会提示旧结果，需要用户重新提交。源或索引版本在回答过程中变化时，结果会被阻断；已发模型请求的费用与审计保留。
+
+以下保留历史审计：0.2.5 的 [Dashboard 修复报告](../../reports/rag_experiments/dashboard_consistency_v0_2_5.md)记录旧界面回归；[0.2.4 备份恢复报告](../../reports/releases/backup_restore_v0_2_4.md)记录当时旧版本引用和账本保留，不能替代新增 profile 状态表的恢复验证。
+
+见 [0.2.4 报告](../../reports/rag_experiments/quote_context_v0_2_4.md)、[AI 审阅](../../reports/rag_experiments/assisted_semantic_review_v0_2_4.md)和 [21 条人工审查表](../../reports/rag_experiments/citation_review_v0_2_4.csv)。原开发集 13 题运行、7 题 pending；19/19 引文定位、2/2 计数、3/3 无证据拒答。独立 PDF 两题的完整引文已改善，行动主体归因错误仍未消除。人审列为空，整体尚未验收。下文 0.2.3/0.2.2 结果保留历史口径。
+
+## 查看证据
+
+- [沿用的 PDF-265 局部恢复](../../reports/data_audits/pdf265_body_recovery.md)、[0.2.3 发布与定位检查](../../outputs/pdf265_publication_validation_20260916.json)。原 PDF 和抽取文本需另行提供，哈希与提取命令见恢复报告。
+- [历史数据修订与测试](../../reports/data_audits/data_revision_v0_2.md)、[历史重复导入](../../outputs/native_import_v0_2_published_repeat_20260916.json)、[历史源数据验证](../../outputs/source_revision_v0_2_20260916.json)。
+- [12 URL 审阅](../../reports/data_audits/additional_url_review.md)、[20 正文边界审阅](../../reports/data_audits/prefix_boundary_review.md)。报告记录审阅当时的建议；本期应用结果见上述修订报告。
+- [AI 语义复核](../../reports/rag_experiments/assisted_semantic_review_v0_2.md)、[14 行人工复核表](../../reports/rag_experiments/citation_review_v0_2.csv)：人工列空白。
+- [0.2.1 语言修复及开发诊断](../../reports/rag_experiments/language_guard_v0_2_1.md)、[本次 AI 复核](../../reports/rag_experiments/assisted_semantic_review_v0_2_1.md)、[16 行人工复核表](../../reports/rag_experiments/citation_review_v0_2_1.csv)：人工列仍空白。
+- [运行与交接](handoff.md)、[数据字典](../data/data_dictionary.md)、[评价协议](../evaluation/evaluation_protocol.md)。
+- [0.2.2 改动与结果](../../reports/rag_experiments/claim_contract_v0_2_2.md)、[本次 AI 复核](../../reports/rag_experiments/assisted_semantic_review_v0_2_2.md)、[16 行人工表](../../reports/rag_experiments/citation_review_v0_2_2.csv)、[94 项截断预检](../../reports/data_audits/truncation_recovery_preflight.md)。
+
+0.2.3 [两题定向 smoke](../../outputs/pdf265_recovery_paid_smoke_20260916.json) 的 run_id 为 `6c250056841b47feab178ffcc95bf2bd`，绑定 `5114…` 源快照及当时的 legacy 索引。两题 answered，支持段 2/2、证据定位 6/6、引用定位 2/2、语言 match 2，`overall_pass=null`。第二答仍把展示技术的主体写成 `the advertisement has shown`，不能标为语义通过。该运行使用独立文件 `eval/pdf265_recovery_smoke.jsonl`；即使模板 `suite=development`，也不属于原 20 题开发集，不替代 20 题验收草案或人审。
+
+历史 0.2.2 付费诊断 `d26eb540a6114cfe9672a755c43f39a7` 绑定旧数据 `d85…`：记录命中 8/8、支持片段 13/13、引用定位 16/16、拒答 3/3；语言 8 match，`overall_pass=null`。该轮 dev-01/07 补上了归因和蓝氢对象，但回答聚焦与完整性仍有审阅项。0.2.2 的 52 项针对性测试、0.2.1 的 164 项全套测试均保留历史口径。较早错语及表达失败不删除，不能称已完成语义验收。
+
+0.2.2 PPTX／讲稿中的 554 块属于旧快照；0.2.3–0.2.5 使用 558 块；0.3.0 发布的 556 块句界索引在 0.3.1 沿用，未重做演示稿或改写旧评估数据。Railway 已部署；真实社交、线上端到端、指定 GitHub 交接、人工与最终项目验收仍需完成或确认；社交数据为空不计为通过。

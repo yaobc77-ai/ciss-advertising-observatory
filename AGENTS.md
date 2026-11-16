@@ -44,4 +44,4 @@ This project is worked on in parallel by Codex and Claude Code. Follow docs/AGEN
 - Apply local changes onto the current remote version. Review overlapping UI changes hunk by hunk; do not resolve conflicts by replacing entire files with either side. Keep uncommitted and active peer work outside the upload unless explicitly handed off.
 - Validate the exact candidate in its isolated checkout. Fetch again immediately before pushing, reconcile any new remote commits, and repeat affected checks. Never force-push shared branches.
 - Upload to a dedicated branch and link a PR for review unless the user explicitly requests merging/publishing to the default branch. Verify the remote commit, PR diff and CI after upload; uploading a branch is not an application deployment.
-- Follow [Git collaboration](docs/git_collaboration.md). These rules do not create a scheduled automation or authorize paid model calls.
+- Follow [Git collaboration](docs/operations/git_collaboration.md). These rules do not create a scheduled automation or authorize paid model calls.

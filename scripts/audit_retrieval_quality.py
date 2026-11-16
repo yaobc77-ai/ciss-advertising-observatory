@@ -347,7 +347,7 @@ def collect_snapshot(conn, *, embedding_model, review_limit=12):
     result["social_units"] = _rows(conn, """SELECT count(*) AS counted_social_records,
         count(*) FILTER(WHERE payload#>>'{raw,social_admission,scheme}'='collected-company-posts-unique-url-v1'
         AND payload#>>'{raw,social_admission,scope}'='collected_company_posts'
-        AND payload#>>'{raw,social_admission,count_unit}'='platform_canonical_original_post_url') AS admitted_unique_post_units,
+        AND payload#>>'{raw,social_admission,count_unit}' IN ('platform_canonical_original_post_url','platform_source_post_uid')) AS admitted_unique_post_units,
         COALESCE(sum(CASE WHEN jsonb_typeof(payload#>'{raw,source_variants}')='array' THEN jsonb_array_length(payload#>'{raw,source_variants}') ELSE 0 END),0)::bigint AS preserved_source_observations,
         count(*) FILTER(WHERE payload#>>'{raw,social_admission,paid_ad_status}'='unknown') AS admission_paid_status_unknown
         FROM eligible WHERE dataset='social'""")[0]

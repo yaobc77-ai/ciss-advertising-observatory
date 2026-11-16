@@ -17,6 +17,7 @@ from .models import (
     Evidence,
     Filters,
     ImportBatch,
+    SameTextPost,
     validate_historical_label_scope,
     validate_postgres_text,
 )
@@ -42,6 +43,66 @@ from .social_annotations import (
 
 def digest(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def record_payload_version(record):
+    """A record's stored payload and its version id: the hash of the canonical payload JSON."""
+    payload = record.model_dump(mode="json")
+    serialized = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return payload, digest(serialized)
+
+
+def _same_text_key(row):
+    """A social post with text whose passage comes from its current body: posts sharing its body
+    hash share one search place (C22). A passage bound to a source body other than the current
+    one (a known handful) stays on its own."""
+    return (row.get("dataset") == "social" and bool(row.get("body_hash")) and bool((row.get("text") or "").strip())
+            and row.get("source_body_hash") in (None, row.get("body_hash")))
+
+
+def _first_per_text(queue, text_of):
+    """A ranked queue of record_ids keeping the first post of each text (posts without a key all stay)."""
+    seen, kept = set(), []
+    for record_id in queue:
+        key = text_of.get(record_id)
+        if key is not None:
+            if key in seen:
+                continue
+            seen.add(key)
+        kept.append(record_id)
+    return kept
+
+
+def _exact_passages(rows, picked):
+    """The representative's passages with exactly the chosen passages' texts, or None when one is missing."""
+    pool, found = list(rows), []
+    for item in picked:
+        match = next((row for row in pool if row["text"] == item.text), None)
+        if match is None:
+            return None
+        pool.remove(match)
+        found.append(match)
+    return found
+
+
+def _clear_mixed_texts(conn, rows):
+    """Clear the text identity of social posts with a passage from another source text (C22).
+
+    A post admitted from several saved observations can carry passages of a body other than its
+    current one; such a post is never grouped with posts of its current text. One indexed query.
+    """
+    ids = sorted({row["record_id"] for row in rows if row.get("dataset") == "social" and row.get("body_hash")})
+    if not ids:
+        return
+    mixed = {row["record_id"] for row in conn.execute(
+        "SELECT DISTINCT c.record_id FROM chunks c JOIN records r ON r.current_version=c.version_id "
+        "AND r.record_id=c.record_id JOIN record_versions v ON v.version_id=c.version_id "
+        "WHERE c.record_id=ANY(%s) AND c.source_body_hash IS NOT NULL AND c.source_body_hash<>v.body_hash",
+        [ids],
+    ).fetchall()}
+    for row in rows:
+        if row["record_id"] in mixed:
+            row["body_hash"] = ""
 
 
 class ImportPreconditionFailed(ValueError):
@@ -72,10 +133,9 @@ def _guarded_import_inputs(batch, snapshot_dataset, expected_current):
                 or supplied["dataset"] != record.dataset):
             raise ValueError("Invalid expected current source binding")
         bindings[record.record_id] = dict(supplied)
-        payload = record.model_dump(mode="json")
-        serialized = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        payload, version = record_payload_version(record)
         targets[record.record_id] = {
-            "payload": payload, "version_id": digest(serialized), "body_sha256": digest(record.body),
+            "payload": payload, "version_id": version, "body_sha256": digest(record.body),
         }
     return frozen, bindings, targets
 
@@ -139,7 +199,14 @@ INFERRED_DATE = ("(SELECT d.inferred_date FROM date_inferences d WHERE d.version
 # embeddings is therefore seen within READ_CACHE_SECONDS, not at once.
 READ_CACHE_VOLATILE_TABLES = ("usage_ledger", "answer_runs", "generation_outputs", "embeddings")
 READ_CACHE_SECONDS = 300
+# The health digest (8-10 s on the whole collection, 2026-11-05) is recomputed in the background
+# this long after it was stored, so a request seldom finds it past READ_CACHE_SECONDS; one that
+# does computes it as before (`refresh_read`, cli.start_health_keeper).
+HEALTH_REFRESH_SECONDS = READ_CACHE_SECONDS - 60
 READ_CACHE_ENTRIES = 32
+# Keyword coverage scope counts kept apart from the reads above, so the many filter
+# combinations of agent searches never evict the health digest.
+SCOPE_COUNT_ENTRIES = 64
 
 
 class Database:
@@ -147,6 +214,15 @@ class Database:
         self.url = url
         # Only the running application reuses reads; tools and tests read live.
         self.read_cache = read_cache
+        # The read cache's state, created once here so a request and the health keeper that first
+        # use it at the same time share one guard and one generation counter.
+        self._read_cache = OrderedDict()
+        self._read_cache_guard = threading.Lock()
+        self._read_cache_locks = {}
+        self._read_cache_generation = 0
+        # Keyword coverage scope counts by scope SQL and parameters (`_scope_counts`).
+        self._scope_counts_cache = OrderedDict()
+        self._scope_counts_guard = threading.Lock()
 
     def connect(self, vector=False):
         if not self.url:
@@ -166,13 +242,16 @@ class Database:
         ).fetchone()
         return (row["writes"], row["tables"])
 
+    def _begin_computation(self):
+        """A number per computation, taken right before it starts; the later start wins when two store."""
+        with self._read_cache_guard:
+            self._read_cache_generation += 1
+            return self._read_cache_generation
+
     def _cached_read(self, key, compute):
+        """Reuse a read for READ_CACHE_SECONDS until any table's write counters change (app process only)."""
         if not getattr(self, "read_cache", False):
             return compute()
-        if not hasattr(self, "_read_cache"):
-            self._read_cache = OrderedDict()
-            self._read_cache_guard = threading.Lock()
-            self._read_cache_locks = {}
         with self.connect() as conn:
             marker = self._write_marker(conn)
         with self._read_cache_guard:
@@ -184,19 +263,48 @@ class Database:
                 if hit and hit[0] == marker and time.monotonic() - hit[1] < READ_CACHE_SECONDS:
                     self._read_cache.move_to_end(key)
                     return copy.deepcopy(hit[2])
+            generation = self._begin_computation()
             try:
                 value = compute()
             except BaseException:
                 with self._read_cache_guard:
                     self._read_cache_locks.pop(key, None)
                 raise
-            with self._read_cache_guard:
-                self._read_cache[key] = (marker, time.monotonic(), value)
-                self._read_cache.move_to_end(key)
-                while len(self._read_cache) > READ_CACHE_ENTRIES:
-                    evicted, _ = self._read_cache.popitem(last=False)
-                    self._read_cache_locks.pop(evicted, None)
+            self._store_read(key, marker, value, generation)
             return copy.deepcopy(value)
+
+    def _store_read(self, key, marker, value, generation):
+        """Store the entry unless a computation that started later already stored this key (one critical
+        section decides and writes). The entry's time is the storing moment, as before."""
+        with self._read_cache_guard:
+            hit = self._read_cache.get(key)
+            if hit and hit[3] > generation:
+                return False
+            self._read_cache[key] = (marker, time.monotonic(), value, generation)
+            self._read_cache.move_to_end(key)
+            while len(self._read_cache) > READ_CACHE_ENTRIES:
+                evicted, _ = self._read_cache.popitem(last=False)
+                self._read_cache_locks.pop(evicted, None)
+            return True
+
+    def refresh_read(self, key, compute):
+        """Recompute a cached read on the caller's (background) thread without blocking readers.
+
+        For the health keeper (cli.start_health_keeper). Readers keep their own path and window: a
+        request that finds the entry past READ_CACHE_SECONDS computes it as before, and whichever
+        computation started later is the one kept (`_store_read`), so neither a slow refresh nor a
+        slow request replaces a fresher value. With the cache off it just computes.
+        """
+        if not getattr(self, "read_cache", False):
+            return compute()
+        with self.connect() as conn:
+            marker = self._write_marker(conn)
+        generation = self._begin_computation()
+        value = compute()
+        self._store_read(key, marker, value, generation)
+        return value
+    def refresh_health(self):
+        return self.refresh_read(("health",), self._compute_health)
 
     def initialize(self):
         from .indexing import bootstrap
@@ -210,7 +318,18 @@ class Database:
     def import_batch(
         self, batch: ImportBatch, snapshot_dataset=None, *,
         expected_current: dict[str, dict[str, str]] | None = None,
+        review=None,
     ):
+        """Write a batch of records as new immutable versions, with chunks, annotations and profile updates.
+
+        A version id is the hash of the record payload, so a changed payload is a new version; an
+        unchanged one only re-activates the record. With expected_current, every target must still be
+        at its reviewed version before anything is written (guarded corrections). With review
+        (import_review.review_gate), the reviewed plan is re-checked on this transaction before any
+        write; it returns the records to write and snapshot members, so a record kept at its old
+        version is never retired. Runs under advisory lock 54901 so imports and retrieval
+        preparation never interleave.
+        """
         from .chunking import retrieval_spans
         from .indexing import (
             SOCIAL_OBSERVATION_PROFILE,
@@ -227,6 +346,8 @@ class Database:
         validate_postgres_text([item.model_dump() for item in batch.rejected])
         validate_postgres_text(batch.candidates)
         validate_postgres_text(batch.source_hashes)
+        if review is not None and expected_current is not None:
+            raise ValueError("A reviewed import and a guarded update cannot be combined")
         bindings, targets = None, None
         if expected_current is not None:
             batch, bindings, targets = _guarded_import_inputs(batch, snapshot_dataset, expected_current)
@@ -255,19 +376,19 @@ class Database:
             if bindings is not None:
                 report["already_applied"] = _check_current_import_sources(conn, bindings, targets)
                 report["precondition_checked"] = len(bindings)
+            records, members = batch.records, [r.record_id for r in batch.records]
+            if review is not None:
+                records, review_receipt = review(conn, batch)
+                report["review"] = review_receipt
             profile_id = active_profile(conn)
             touched_profiles = {profile_id}
-            for record in batch.records:
+            for record in records:
                 # Records are mutable after validation; reject invalid edited ranges
                 # even when this particular record is not currently retrievable.
                 if record.retrieval_ranges is not None:
                     retrieval_spans(record.body, retrieval_ranges=record.retrieval_ranges)
                 if targets is None:
-                    payload = record.model_dump(mode="json")
-                    serialized = json.dumps(
-                        payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")
-                    )
-                    version = digest(serialized)
+                    payload, version = record_payload_version(record)
                 else:
                     payload = targets[record.record_id]["payload"]
                     version = targets[record.record_id]["version_id"]
@@ -322,7 +443,7 @@ class Database:
             if snapshot_dataset:
                 retired = conn.execute(
                     "UPDATE records SET active=false WHERE dataset=%s AND active AND NOT (record_id=ANY(%s)) RETURNING record_id",
-                    (snapshot_dataset, [r.record_id for r in batch.records]),
+                    (snapshot_dataset, members),
                 ).fetchall()
                 report["deactivated"] = [r["record_id"] for r in retired]
             for prepared_profile in sorted(touched_profiles):
@@ -334,6 +455,11 @@ class Database:
     @staticmethod
     def where(filters: Filters):
         # model_copy and direct assignment can bypass the model validator.
+        """SQL WHERE clause for Filters: active countable records, exact stored values, dates and labels.
+
+        Name fields match stored values exactly (empty counts as '(Unknown)'). With
+        include_inferred_dates, a usable day-level inferred date fills a missing source date.
+        """
         validate_historical_label_scope(filters.dataset, filters.labels)
         if filters.accounts and filters.dataset != "social":
             raise ValueError("Account filters require the social collection")
@@ -395,6 +521,7 @@ class Database:
         return " AND ".join(terms), params
 
     def _public_query(self, filters: Filters):
+        """SELECT of the public record fields (effective date, labels, social states) under where()."""
         where, params = self.where(filters)
         source_date = "NULLIF(v.payload->>'published_at','')"
         effective_date = (f"COALESCE({source_date},di.inferred_date::text)"
@@ -422,8 +549,9 @@ class Database:
          CASE WHEN r.dataset='social' AND v.payload#>>'{{raw,social_admission,scheme}}'
                    ='collected-company-posts-unique-url-v1'
                    AND v.payload#>>'{{raw,social_admission,scope}}'='collected_company_posts'
-                   AND v.payload#>>'{{raw,social_admission,count_unit}}'='platform_canonical_original_post_url'
-              THEN 'platform_canonical_original_post_url'
+                   AND v.payload#>>'{{raw,social_admission,count_unit}}'
+                       IN ('platform_canonical_original_post_url','platform_source_post_uid')
+              THEN v.payload#>>'{{raw,social_admission,count_unit}}'
               WHEN r.dataset='social' THEN 'source_record' END AS count_unit,
          CASE WHEN r.dataset='social' THEN 'not_verified' END AS paid_ad_status,
          CASE WHEN NULLIF(v.payload->>'published_at','') IS NOT NULL THEN 'source'
@@ -456,16 +584,58 @@ class Database:
         def compute():
             select, params = self._public_query(filters)
             with self.connect() as conn:
-                rows = conn.execute(f"SELECT record_id,dataset,title FROM ({select}) AS titled", params)
+                rows = conn.execute(f"SELECT record_id,dataset,title FROM ({select}) AS titled", params).fetchall()
                 return [(row["record_id"], row["dataset"], row["title"] or "") for row in rows]
         return self._cached_read(("public_titles", filters.model_dump_json()), compute)
 
+    # A visitor's checks per UTC day; enough for a careful reader, not for flooding the table.
+    RELEVANCE_REVIEWS_PER_DAY = 300
+
+    def save_relevance_review(self, visitor_hash, question, record_id, route, verdict, policy):
+        """Insert or replace one reader check (migration 0008). False when the daily cap is reached."""
+        import hashlib
+        from uuid import uuid4
+
+        question_sha = hashlib.sha256(question.encode("utf-8")).hexdigest()
+        with self.connect() as conn:
+            today = conn.execute(
+                "SELECT count(*) AS n FROM relevance_reviews WHERE visitor_hash=%s "
+                "AND created_at>=date_trunc('day',now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'", (visitor_hash,),
+            ).fetchone()["n"]
+            if today >= self.RELEVANCE_REVIEWS_PER_DAY:
+                return False
+            conn.execute(
+                "INSERT INTO relevance_reviews(review_id,visitor_hash,question,question_sha256,record_id,route,verdict,policy) "
+                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT (visitor_hash,question_sha256,record_id) "
+                "DO UPDATE SET verdict=EXCLUDED.verdict,route=EXCLUDED.route,policy=EXCLUDED.policy,created_at=now()",
+                (uuid4().hex, visitor_hash, question, question_sha, record_id, route, verdict, policy),
+            )
+        return True
+
+    def relevance_review_counts(self):
+        """Reader checks by route and verdict, e.g. {("pass", "relevant"): 12}."""
+        with self.connect() as conn:
+            rows = conn.execute(
+                "SELECT route,verdict,count(*) AS n FROM relevance_reviews GROUP BY route,verdict").fetchall()
+        return {(row["route"], row["verdict"]): row["n"] for row in rows}
+
     def count_public(self, filters: Filters):
-        """Number of public rows in scope, without transferring them."""
+        """Number of public rows in scope, counted without reading any payload column.
+
+        The same rows as _public_query: its WHERE clause is where(), which never refers to the
+        date-inference join, and that LEFT JOIN LATERAL (... LIMIT 1) keeps exactly one output row
+        per record, so the projection and the join are left out here. Whole-collection scopes then
+        have one payload term, `countable`, and with migration 0009 the planner answers them from
+        the countable index alone (2026-11-08: social/all 3 s -> 0.02 s on a replica); scopes that
+        filter on dates, outlets or accounts still read those payloads.
+        """
         def compute():
-            sql, params = self._public_query(filters)
+            where, params = self.where(filters)
             with self.connect() as conn:
-                return conn.execute(f"SELECT count(*) AS n FROM ({sql}) AS scoped", params).fetchone()["n"]
+                return conn.execute(
+                    "SELECT count(*) AS n FROM records r JOIN record_versions v ON v.version_id=r.current_version "
+                    f"WHERE {where}", params,
+                ).fetchone()["n"]
         return self._cached_read(("count_public", filters.model_dump_json()), compute)
 
     def public_rows(self, filters: Filters):
@@ -930,6 +1100,7 @@ class Database:
         return self._cached_read(("facets", dataset), lambda: self._compute_facets(dataset))
 
     def _compute_facets(self, dataset):
+        """Distinct filter values and counts for one collection."""
         select, params = self._public_query(Filters(dataset=dataset))
         # This CTE is used twice and is materialized. Keep only facet fields
         # so PostgreSQL can prune body-bound social annotation validation and
@@ -997,6 +1168,7 @@ class Database:
         )
 
     def _compute_dashboard(self, filters: Filters, offset=0, limit=20, sort_by="date", descending=True):
+        """Totals, chart aggregates and one page of records for the data page."""
         from .analytics import LABEL_NOTE, sponsor_publisher_matrix_from_counts
 
         offset, limit = self._page_bounds(offset, limit)
@@ -1215,6 +1387,7 @@ class Database:
         return self._cached_read(("health",), self._compute_health)
 
     def _compute_health(self):
+        """Record counts, active retrieval profile, index and data versions in one snapshot."""
         from .indexing import profile_snapshot
 
         with self.connect() as conn:
@@ -1285,7 +1458,7 @@ class Database:
     c.start_char AS start,c.end_char AS end,c.paragraph_ids,
     c.source_observation_id,c.source_version_id,c.source_body_hash,
     CASE WHEN c.source_observation_id IS NOT NULL THEN v.payload END AS observation_payload,
-    CASE WHEN r.dataset='native' THEN v.payload->'issues' END AS source_text_issues"""
+    CASE WHEN r.dataset='native' THEN v.payload->'issues' END AS source_text_issues,v.body_hash"""
     _SEARCH_JOIN = (
         " FROM chunks c JOIN records r ON r.current_version=c.version_id "
         "AND r.record_id=c.record_id JOIN record_versions v ON v.version_id=c.version_id "
@@ -1302,7 +1475,23 @@ class Database:
         model="text-embedding-3-small",
         chunks_per_record=1,
         _include_diagnostics=False,
+        fold_same_text=False,
     ):
+        """Hybrid passage search over current versions of the active retrieval profile.
+
+        1. Terms: lower-cased word/hyphen tokens minus stop words and single letters, at most 40.
+        2. dataset 'all' ranks native and social separately (social is ~130x larger).
+        3. Channels, each max(50, 2*limit) rows: English full-text (ordered by distinct terms matched,
+           then ts_rank_cd); pgvector cosine (HNSW, 400 candidates, exact fallback) when a vector is
+           given; native titles with >= 2 terms; and a social literal substring only if all are empty.
+        4. Reciprocal rank fusion, 1/(60+rank) per channel, equal weights.
+        5. Take `limit` distinct records, alternating between collections, and keep at most
+           `chunks_per_record` passages each; social passages are bound to their source observation.
+        6. With `fold_same_text` (C22, MT6-009; RAG answers only), social posts with exactly the same
+           current text take one place: the first ranked is chosen and the rest are skipped, then the
+           earliest published post in the selection with the same passages stands for them
+           (_fold_same_text). Every other caller keeps one place per post.
+        """
         where, params = self.where(filters)
         select = self._SEARCH_SELECT
         join = self._SEARCH_JOIN
@@ -1330,7 +1519,11 @@ class Database:
             "this",
             "with",
         }
-        terms = list(dict.fromkeys(t for t in tokens if len(t) > 1 and t not in stop))[:40]
+        kept = list(dict.fromkeys(t for t in tokens if len(t) > 1 and t not in stop))
+        terms = kept[:40]
+        # Shown to the reader (retrieval_explain): words dropped as common or one letter, and words
+        # past the first 40, which are not searched.
+        dropped, cut = [t for t in dict.fromkeys(tokens) if t not in kept], kept[40:]
         literal_allowed = (filters.dataset in {"social", "all"}
                            and 4 <= len(query.strip()) <= 2000
                            and len(re.findall(r"\w+", query)) >= 2)
@@ -1340,6 +1533,7 @@ class Database:
                     "No meaningful search terms remain after stop-word filtering.", tokens
                 )}
             return []
+        # Terms are OR-ed for websearch_to_tsquery; ranking first rewards matching more distinct terms.
         lexical_query = " OR ".join('"' + t + '"' for t in terms)
         # Each channel returns at least 50 passages, and enough for two per
         # requested record: a list read of 120 ads was cut near 50 ads when
@@ -1352,21 +1546,22 @@ class Database:
             # Vector adapter registration already starts a transaction; finish its
             # catalog lookup before establishing the retrieval snapshot.
             conn.commit()
+            scope_marker = None
+            if _include_diagnostics and getattr(self, "read_cache", False):
+                # Write counters read before the snapshot, so a count is never stored under counters
+                # newer than its data. A write committed in between can still let this request reuse
+                # a count from before it (diagnostics only); the next request recounts.
+                scope_marker = self._write_marker(conn)
+                conn.commit()
             conn.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY")
             channels_by_collection = {}
             for collection in collections:
                 scoped_where = where + (" AND r.dataset=%s" if collection else "")
                 scoped_params = [*params, *([collection] if collection else [])]
-                lexical = conn.execute(
-                    select
-                    + ",(SELECT count(*) FROM unnest(tsvector_to_array(to_tsvector('english',%s))) "
-                    "AS query_lexeme(term) WHERE query_lexeme.term=ANY(tsvector_to_array(c.search_vector))) "
-                    "AS lexical_coverage,ts_rank_cd(c.search_vector,websearch_to_tsquery('english',%s)) AS score"
-                    + join
-                    + f" WHERE {scoped_where} AND c.search_vector @@ websearch_to_tsquery('english',%s) "
-                    "ORDER BY lexical_coverage DESC,score DESC,c.chunk_id LIMIT %s",
-                    [" ".join(terms), lexical_query, *scoped_params, lexical_query, channel_rows],
-                ).fetchall() if terms else []
+                lexical = self._lexical_rows(
+                    conn, select, join, scoped_where, scoped_params, collection or filters.dataset,
+                    terms, lexical_query, channel_rows,
+                ) if terms else []
                 semantic = []
                 if vector is not None:
                     semantic = self._semantic_rows(
@@ -1391,8 +1586,15 @@ class Database:
                 ).fetchall()
                 channels_by_collection["social" if filters.dataset == "all" else None].append(("literal", literal))
             # Reciprocal-rank fusion within each collection.
-            by_id, channels, ordered = {}, {}, {}
+            by_id, channels, ordered, routes, routes_run = {}, {}, {}, {}, {}
+            lexemes = self._term_lexemes(conn, terms)
             for collection, sources in channels_by_collection.items():
+                # The routes that ran, for the reader's score (retrieval_explain): no meaning route
+                # without a vector, no word route without words, and a title needs two meaningful
+                # words, so a one-word question has no title route.
+                ran = {"keyword": bool(terms), "vector": vector is not None, "literal": True,
+                       "title": sum(bool(v) for v in lexemes.values()) >= self.TITLE_MIN_TERMS}
+                routes_run[collection] = [channel for channel, _ in sources if ran[channel]]
                 ranking = {}
                 for channel, rows in sources:
                     for rank, row in enumerate(rows, 1):
@@ -1400,11 +1602,20 @@ class Database:
                         ranking[eid] = ranking.get(eid, 0) + 1 / (60 + rank)
                         by_id[eid] = row
                         channels.setdefault(eid, []).append(channel)
+                        routes.setdefault(eid, {})[channel] = {
+                            "rank": rank, **({"similarity": round(float(row["score"]), 3)} if channel == "vector" else {})}
                 ordered[collection] = [(eid, ranking[eid]) for eid in sorted(ranking, key=lambda k: (-ranking[k], k))]
+            _clear_mixed_texts(conn, list(by_id.values()))  # every caller's text identity (C22)
             # Choose distinct records first, alternating between collections by
             # rank; a collection with fewer hits leaves its places to the other.
             records = []
             queues = [list(dict.fromkeys(by_id[eid]["record_id"] for eid, _ in items)) for items in ordered.values()]
+            if fold_same_text:
+                # Posts with the same text share one place: each ranked queue keeps the first
+                # post of each text before the collections alternate. Candidates beyond the
+                # channels' rows are not fetched, so fewer than `limit` texts may remain.
+                text_of = {row["record_id"]: row["body_hash"] for row in by_id.values() if _same_text_key(row)}
+                queues = [_first_per_text(queue, text_of) for queue in queues]
             for position in range(max((len(queue) for queue in queues), default=0)):
                 for queue in queues:
                     if position < len(queue) and len(records) < limit and queue[position] not in records:
@@ -1423,12 +1634,19 @@ class Database:
                     row["score"] = score
                     row["retrieval_rank"] = rank
                     row["retrieval_sources"] = channels[eid]
-                    group.append(bind_search_row(row))
+                    row["retrieval_routes"] = {"run": routes_run[collection], **routes[eid]}
+                    row["retrieval_search"] = {"terms": terms, "dropped": dropped, "cut": cut,
+                                               "unindexed": [t for t in terms if t in lexemes and not lexemes[t]]}
+                    group.append(row)
+            self._route_words(conn, selected, lexemes)
+            selected = {rid: [bind_search_row(row) for row in rows] for rid, rows in selected.items()}
             evidence = [
                 evidence
                 for group in selected.values()
                 for evidence in sorted(group, key=lambda e: (e.source_observation_id or "", e.start))
             ]
+            if fold_same_text:
+                evidence = self._fold_same_text(conn, select, join, where, params, evidence)
             if _include_diagnostics:
                 if literal:
                     diagnostics = {
@@ -1441,9 +1659,80 @@ class Database:
                     for item in evidence:
                         item.matched_terms = item.literal_matched_terms = [query.strip()]
                 else:
-                    diagnostics = self._coverage(conn, terms, join, where, params, evidence)
+                    diagnostics = self._coverage(conn, terms, join, where, params, evidence,
+                                                 scope_counts=lambda: self._scope_counts(conn, join, where, params, scope_marker))
                 return {"evidence": evidence, "diagnostics": diagnostics}
             return evidence
+
+    def _fold_same_text(self, conn, select, join, where, params, evidence):
+        """Each social post chosen for its text, with the other posts in the selection that share it.
+
+        Two queries, whatever the number of texts: every post in the selection with exactly the
+        chosen text (earliest first: missing dates last, then record_id; dates are days), leaving out
+        posts with passages of another source text; and the quotable passages (same scope and
+        retrieval profile, source text = current body) of those posts. The earliest post is the
+        group's first post (user 2026-11-08). The citation moves to it only when it has every chosen
+        passage's exact text, so the retrieved content stays whole; otherwise to the earliest post
+        that has, else it stays on the chosen post. The cited post lists the others in
+        `same_text_posts` and, when it is not the earliest, names it in `same_text_first_post`.
+        """
+        from .social_source_binding import bind_search_row
+
+        chosen = {}
+        for item in evidence:
+            if _same_text_key({"dataset": item.dataset, "body_hash": item.body_hash, "text": item.text,
+                               "source_body_hash": item.source_body_hash}):
+                chosen.setdefault(item.body_hash, {}).setdefault(item.record_id, []).append(item)
+        if not chosen:
+            return evidence
+        hashes = sorted(chosen)
+        members = {}  # body hash -> member rows, earliest first
+        for row in conn.execute(
+            "SELECT r.record_id,v.body_hash,COALESCE(v.payload->>'account','') AS account,"
+            "COALESCE(v.payload->>'platform','') AS platform,(v.payload->>'published_at')::date AS published_at "
+            "FROM records r JOIN record_versions v ON v.version_id=r.current_version AND v.record_id=r.record_id "
+            f"WHERE {where} AND r.dataset='social' AND v.body_hash=ANY(%s) "
+            "AND NOT EXISTS (SELECT 1 FROM chunks x WHERE x.record_id=r.record_id AND x.version_id=v.version_id "
+            "AND x.source_body_hash IS NOT NULL AND x.source_body_hash<>v.body_hash) "
+            "ORDER BY (v.payload->>'published_at')::date NULLS LAST,r.record_id",
+            [*params, hashes],
+        ).fetchall():
+            members.setdefault(row["body_hash"], []).append(row)
+        passages = {}  # record_id -> its quotable passage rows, in text order
+        for row in conn.execute(
+            select + join + f" WHERE {where} AND r.dataset='social' AND v.body_hash=ANY(%s) "
+            "AND (c.source_body_hash IS NULL OR c.source_body_hash=v.body_hash) "
+            "ORDER BY c.record_id,c.start_char,c.chunk_id",
+            [*params, hashes],
+        ).fetchall():
+            passages.setdefault(row["record_id"], []).append(row)
+
+        def post(row):
+            return SameTextPost(record_id=row["record_id"], account=row["account"], platform=row["platform"],
+                                published_at=row["published_at"])
+
+        replaced = {}
+        for key, by_record in chosen.items():
+            ((record_id, picked),) = by_record.items()  # one place per text
+            group = members.get(key) or []
+            cited, rows = record_id, None
+            for member in group:
+                if member["record_id"] == record_id:
+                    break  # no earlier post carries the chosen passages exactly
+                rows = _exact_passages(passages.get(member["record_id"], []), picked)
+                if rows is not None:
+                    cited = member["record_id"]
+                    break
+            update = {"same_text_posts": [post(m) for m in group if m["record_id"] != cited],
+                      "same_text_first_post": (post(group[0]) if group and group[0]["record_id"] != cited else None)}
+            if cited == record_id:
+                new = [item.model_copy(update=update) for item in picked]
+            else:
+                new = [bind_search_row({**row, "score": item.score, "retrieval_rank": item.retrieval_rank,
+                                        "retrieval_sources": list(item.retrieval_sources)}).model_copy(update=update)
+                       for item, row in zip(picked, rows)]
+            replaced.update({item.evidence_id: replacement for item, replacement in zip(picked, new)})
+        return [replaced.get(item.evidence_id, item) for item in evidence]
 
     def phrase_search(self, phrases, filters: Filters, limit_records=80):
         """The first passage of every record whose indexed text contains each quoted phrase.
@@ -1471,6 +1760,7 @@ class Database:
                 "ORDER BY c.record_id,c.start_char LIMIT %s",
                 [*params, *patterns, limit_records],
             ).fetchall()
+            _clear_mixed_texts(conn, rows)
         return [bind_search_row({**row, "retrieval_rank": rank, "retrieval_sources": ["phrase"]})
                 for rank, row in enumerate(rows, 1)]
 
@@ -1495,6 +1785,7 @@ class Database:
                 + f" WHERE {where} AND c.record_id = ANY(%s) ORDER BY c.record_id,c.start_char,c.chunk_id",
                 [*params, ids],
             ).fetchall()
+            _clear_mixed_texts(conn, rows)
         grouped = {rid: [] for rid in ids}
         for row in rows:
             group = grouped.get(row["record_id"])
@@ -1512,6 +1803,44 @@ class Database:
     # A title must share at least this many distinct query lexemes to count as a
     # match; one common word ("energy") would otherwise match most titles.
     TITLE_MIN_TERMS = 2
+
+    @staticmethod
+    def _term_lexemes(conn, terms):
+        """Each search word's English index lexemes; an index stop word has none."""
+        if not terms:
+            return {}
+        rows = conn.execute(
+            "SELECT input.term,tsvector_to_array(to_tsvector('english',input.term)) AS lexemes "
+            "FROM unnest(%s::text[]) WITH ORDINALITY AS input(term,ordinal) ORDER BY ordinal", (terms,),
+        ).fetchall()
+        return {row["term"]: list(row["lexemes"] or []) for row in rows}
+
+    @classmethod
+    def _route_words(cls, conn, selected, lexemes):
+        """Name, for the reader, the search words a returned passage's text and its title contain.
+
+        The same English lexemes the keyword and title routes match, mapped back to the
+        question's own words; a route that did not find the passage gets no words.
+        """
+        rows = [row for group in selected.values() for row in group]
+        wanted = sorted({lexeme for values in lexemes.values() for lexeme in values})
+        if not rows or not wanted:
+            return
+        found = {item["evidence_id"]: item for item in conn.execute(
+            "SELECT c.chunk_id AS evidence_id,"
+            "ARRAY(SELECT l FROM unnest(%s::text[]) AS l WHERE l=ANY(tsvector_to_array(c.search_vector))) AS text_hits,"
+            "ARRAY(SELECT l FROM unnest(%s::text[]) AS l WHERE l=ANY(tsvector_to_array("
+            "to_tsvector('english',coalesce(v.payload->>'title',''))))) AS title_hits"
+            " FROM chunks c JOIN record_versions v ON v.version_id=c.version_id WHERE c.chunk_id=ANY(%s)",
+            [wanted, wanted, [row["evidence_id"] for row in rows]],
+        ).fetchall()}
+        for row in rows:
+            hits = found.get(row["evidence_id"]) or {}
+            for route, column in (("keyword", "text_hits"), ("title", "title_hits")):
+                if route in row["retrieval_routes"]:
+                    present = set(hits.get(column) or [])
+                    row["retrieval_routes"][route]["terms"] = [
+                        term for term, values in lexemes.items() if values and present.intersection(values)]
 
     @classmethod
     def _title_rows(cls, conn, select, join, where, params, terms, lexical_query):
@@ -1539,6 +1868,56 @@ class Database:
                 if len(first) == 20:
                     break
         return first
+
+    # Keyword passages ranked before the full filter is applied, as a multiple of
+    # the rows the channel returns (see _lexical_rows).
+    LEXICAL_PREFIX_FACTOR = 4
+
+    _LEXICAL_RANK = (
+        "(SELECT count(*) FROM unnest(tsvector_to_array(to_tsvector('english',%s))) "
+        "AS query_lexeme(term) WHERE query_lexeme.term=ANY(tsvector_to_array(c.search_vector))) "
+        "AS lexical_coverage,ts_rank_cd(c.search_vector,websearch_to_tsquery('english',%s)) AS score"
+    )
+
+    @classmethod
+    def _lexical_rows(cls, conn, select, join, where, params, dataset, terms, lexical_query, limit_rows):
+        """Top `limit_rows` keyword passages: most distinct query lexemes, then text-search rank.
+
+        An OR query matches thousands of social passages (11,526 for one 12-word
+        query after the 2026-11-09 import, 1,967 before), and the per-passage
+        version lookup and payload reads made this channel grow with the matches
+        (median 0.74 s before the import, 6.0 s after). So the passages of active
+        current records in the collection are ranked first on chunk columns alone;
+        the full filter and the payload columns are then applied to the first few
+        hundred. The order is total and the prefix scope contains the filtered
+        scope, so when at least `limit_rows` of the prefix pass the filter they are
+        exactly the filtered top rows. A narrower selection falls back to ranking
+        the filtered scope itself, reading payload columns only for the rows kept.
+        """
+        joined_terms = " ".join(terms)
+        match = "c.search_vector @@ websearch_to_tsquery('english',%s)"
+        order = "lexical_coverage DESC,score DESC,c.chunk_id"
+        if dataset in {"native", "social"}:
+            rows = conn.execute(
+                f"WITH ranked AS MATERIALIZED (SELECT c.chunk_id,{cls._LEXICAL_RANK} FROM chunks c "
+                "JOIN records r ON r.current_version=c.version_id AND r.record_id=c.record_id "
+                f"WHERE r.active AND r.dataset=%s AND {match} ORDER BY {order} LIMIT %s) "
+                + select + ",ranked.lexical_coverage,ranked.score" + join
+                + f" JOIN ranked ON ranked.chunk_id=c.chunk_id WHERE {where} "
+                "ORDER BY ranked.lexical_coverage DESC,ranked.score DESC,c.chunk_id LIMIT %s",
+                [joined_terms, lexical_query, dataset, lexical_query, cls.LEXICAL_PREFIX_FACTOR * limit_rows,
+                 *params, limit_rows],
+            ).fetchall()
+            if len(rows) == limit_rows:
+                return rows
+        return conn.execute(
+            f"WITH ranked AS MATERIALIZED (SELECT c.chunk_id,{cls._LEXICAL_RANK}" + join
+            + f" WHERE {where} AND {match} ORDER BY {order} LIMIT %s) "
+            + select + ",ranked.lexical_coverage,ranked.score" + join
+            + " JOIN ranked ON ranked.chunk_id=c.chunk_id "
+            "ORDER BY ranked.lexical_coverage DESC,ranked.score DESC,c.chunk_id",
+            [joined_terms, lexical_query, *params, lexical_query, limit_rows],
+        ).fetchall()
 
     @staticmethod
     def _semantic_rows(conn, select, join, where, params, vector, model, *, approximate, limit_rows=50):
@@ -1576,7 +1955,12 @@ class Database:
         ).fetchall()
 
     def search_report(self, query, filters, limit=5):
-        """Read results and scoped keyword coverage within one retrieval snapshot."""
+        """Read results and scoped keyword coverage within one retrieval snapshot.
+
+        In the application process the scope's record and passage counts may come from an earlier
+        snapshot whose write counters were the same (`_scope_counts`), so they can lag a write that
+        commits during this call. Callers that need same-snapshot counts use read_cache=False.
+        """
         return self.search(query, filters, limit=limit, _include_diagnostics=True)
 
     @staticmethod
@@ -1589,8 +1973,37 @@ class Database:
             "scope_records": None, "scope_chunks": None,
         }
 
+    _SCOPE_COUNTS = "SELECT count(DISTINCT r.record_id) AS scope_records,count(*) AS scope_chunks"
+
+    def _scope_counts(self, conn, join, where, params, marker=None):
+        """Records and passages in a keyword scope, reused in the application process.
+
+        The count tests `countable` in every passage's payload (6.5 s on 172k social passages
+        after the 2026-11-09 import) and does not depend on the query, while one research answer
+        searches the same scope up to four times. The application reuses a count for
+        READ_CACHE_SECONDS while the write counters (`_write_marker`, read by `search` just before
+        its snapshot) are unchanged; a count is always computed in the retrieval snapshot that asks
+        for it first. Without the read cache or a marker it is counted in this snapshot each time.
+        """
+        sql = self._SCOPE_COUNTS + join + f" WHERE {where}"
+        if not getattr(self, "read_cache", False) or marker is None:
+            return conn.execute(sql, params).fetchone()
+        key = (sql, json.dumps(params, default=str))
+        with self._scope_counts_guard:
+            hit = self._scope_counts_cache.get(key)
+            if hit and hit[0] == marker and time.monotonic() - hit[1] < READ_CACHE_SECONDS:
+                self._scope_counts_cache.move_to_end(key)
+                return dict(hit[2])
+        counts = dict(conn.execute(sql, params).fetchone())
+        with self._scope_counts_guard:
+            self._scope_counts_cache[key] = (marker, time.monotonic(), counts)
+            self._scope_counts_cache.move_to_end(key)
+            while len(self._scope_counts_cache) > SCOPE_COUNT_ENTRIES:
+                self._scope_counts_cache.popitem(last=False)
+        return dict(counts)
+
     @classmethod
-    def _coverage(cls, conn, terms, join, where, params, evidence):
+    def _coverage(cls, conn, terms, join, where, params, evidence, scope_counts=None):
         """Use the index's exact English tsquery semantics, including stemming.
 
         Missing terms concern eligible indexed passages, never an entire article's
@@ -1617,20 +2030,20 @@ class Database:
             return cls._unavailable_coverage(
                 "No meaningful English search terms remain after index stop-word filtering.", ignored
             )
-        scope = conn.execute(
-            "SELECT count(DISTINCT r.record_id) AS scope_records,count(*) AS scope_chunks"
-            + join + f" WHERE {where}", params,
+        scope = scope_counts() if scope_counts else conn.execute(
+            cls._SCOPE_COUNTS + join + f" WHERE {where}", params,
         ).fetchone()
+        # Each term reads only its own text-index matches; filtering the whole scope
+        # once per query cost 8 s on 172k social passages (2026-11-09 import).
         coverage = conn.execute(
-            "WITH scope AS MATERIALIZED (SELECT c.chunk_id,r.record_id,c.search_vector"
-            + join + f" WHERE {where}) "
-            "SELECT input.term,count(DISTINCT scope.record_id) AS matching_records,"
-            "array_agg(DISTINCT scope.chunk_id) FILTER (WHERE scope.chunk_id=ANY(%s::text[])) "
-            "AS returned_ids FROM unnest(%s::text[]) WITH ORDINALITY AS input(term,ordinal) "
-            "LEFT JOIN scope ON scope.search_vector @@ "
-            "websearch_to_tsquery('english', '\"' || input.term || '\"') "
-            "GROUP BY input.term,input.ordinal ORDER BY input.ordinal",
-            [*params, [row.evidence_id for row in evidence], meaningful],
+            "SELECT input.term,hit.matching_records,hit.returned_ids "
+            "FROM unnest(%s::text[]) WITH ORDINALITY AS input(term,ordinal) CROSS JOIN LATERAL ("
+            "SELECT count(DISTINCT r.record_id) AS matching_records,"
+            "array_agg(DISTINCT c.chunk_id) FILTER (WHERE c.chunk_id=ANY(%s::text[])) AS returned_ids"
+            + join + f" WHERE {where} AND c.search_vector @@ "
+            "websearch_to_tsquery('english', '\"' || input.term || '\"')) AS hit "
+            "ORDER BY input.ordinal",
+            [meaningful, [row.evidence_id for row in evidence], *params],
         ).fetchall()
         lexemes = {row["term"]: row["lexemes"] for row in analyzed}
         for row in evidence:
@@ -1661,6 +2074,7 @@ class Database:
         }
 
     def validate_evidence(self, evidence: Evidence):
+        """Confirm a passage still belongs to the record's current active version and matches its text."""
         with self.connect() as conn:
             row = conn.execute(
                 "SELECT c.*,v.body,v.body_hash,v.payload,r.dataset,"

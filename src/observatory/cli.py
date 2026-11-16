@@ -16,6 +16,74 @@ def emit(value, out=None):
         print(text)
 
 
+def start_health_keeper(service, interval=None, log=None, stop=None):
+    """Keep the health digest fresh in the background: compute it right after start, then again
+    every `interval` seconds (db.HEALTH_REFRESH_SECONDS, inside the read cache's window), so a
+    question seldom pays the 8-10 s digest (2026-11-05). Readers are never blocked by it and keep
+    their own path: a request that still finds the entry expired computes it as before. A failure
+    is logged and the next round tries again. Returns the daemon thread; `stop` (an Event) ends it.
+    Without the read cache (tools, tests) nothing would reuse the result, so no keeper is started.
+    """
+    import logging
+    import threading
+
+    from .db import HEALTH_REFRESH_SECONDS
+
+    log = log or logging.getLogger(__name__)
+    if not getattr(service.db, "read_cache", False):
+        return None
+    stop = stop or threading.Event()
+    interval = HEALTH_REFRESH_SECONDS if interval is None else interval
+
+    def keep():
+        while not stop.is_set():
+            try:
+                service.db.refresh_health()
+            except Exception as exc:  # noqa: BLE001 - the keeper must never stop the server
+                log.warning("Health refresh failed (%s); the next request computes it", type(exc).__name__)
+            if stop.wait(interval):
+                return
+
+    thread = threading.Thread(target=keep, name="health-keeper", daemon=True)
+    thread.start()
+    return thread
+
+
+def add_review_arguments(command):
+    """Imports that change, re-activate or retire records stop until a person approves the plan."""
+    command.add_argument("--review-dir", type=Path,
+                         help="New directory for the comparison report and decisions template "
+                              "(default .runtime/import_review/<UTC time>)")
+    command.add_argument("--approve", choices=["all-latest"],
+                         help="Take the batch's version for every changed record of the reviewed plan")
+    command.add_argument("--fingerprint",
+                         help="The reviewed plan's fingerprint: with --approve all-latest, or alone to import a "
+                              "reviewed batch that needs no approval only while it still matches")
+    command.add_argument("--decisions", type=Path,
+                         help="Per-record decisions ('latest' or 'keep') for the reviewed plan")
+    command.add_argument("--approve-retire", action="store_true",
+                         help="Also approve the reviewed plan's snapshot retirements (needs --fingerprint)")
+    command.add_argument("--review-only", action="store_true",
+                         help="Write the comparison report and new_records.json, then stop; nothing is imported")
+
+
+def run_import(db, batch, snapshot_dataset, args):
+    from datetime import datetime, timezone
+
+    from .import_review import reviewed_import
+
+    review_dir = args.review_dir or Path(".runtime/import_review") / datetime.now(timezone.utc).strftime(
+        "%Y%m%dT%H%M%S%fZ")
+    code, report = reviewed_import(db, batch, snapshot_dataset, review_dir=review_dir,
+                                   approve=args.approve, fingerprint=args.fingerprint,
+                                   decisions=args.decisions, approve_retire=args.approve_retire,
+                                   review_only=getattr(args, "review_only", False))
+    emit(report, args.out)
+    if code:
+        print(report["alert"])
+        raise SystemExit(code)
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="CISS Observatory local administration"
@@ -31,17 +99,20 @@ def main():
     infer.add_argument("--record-ids", nargs="*", default=None, help="Limit web search to these records")
     sub.add_parser("health")
     sub.add_parser("serve")
+    sub.add_parser("api", help="Serve the JSON API only (no web pages) for a separate frontend")
     sub.add_parser("budget")
     imp = sub.add_parser("import-native")
     imp.add_argument("--root", type=Path, default=Path.cwd())
     imp.add_argument("--out", default="outputs/native_import.json")
     imp.add_argument("--mode", choices=["upsert", "snapshot"], default="upsert",
                      help="Upsert preserves other records; snapshot retires missing native records")
+    add_review_arguments(imp)
     social = sub.add_parser("import-social")
     social.add_argument("path", type=Path)
     social.add_argument("--mapping", type=Path, required=True)
     social.add_argument("--out", default="outputs/social_import.json")
     social.add_argument("--mode", choices=["upsert", "snapshot"], default="upsert")
+    add_review_arguments(social)
     prepare_social = sub.add_parser("prepare-social", help="Prepare supplied nested social JSON or ZIP offline; no database or model calls")
     prepare_social.add_argument("path", type=Path)
     prepare_social.add_argument("--out", type=Path, required=True, help="New private canonical JSONL output")
@@ -53,6 +124,7 @@ def main():
     records.add_argument("--mode", choices=["upsert", "snapshot"], default="upsert")
     records.add_argument("--dry-run", action="store_true", help="Validate every row without opening the database")
     records.add_argument("--out", default="outputs/records_import.json")
+    add_review_arguments(records)
     claims = sub.add_parser("claims-audit", help="Read saved CLAIMS outputs and original versions without publishing labels")
     claims.add_argument("--bundle", type=Path, required=True, help="Upstream paragraph src/data directory")
     claims.add_argument("--out", type=Path, required=True, help="New private output directory")
@@ -93,7 +165,13 @@ def main():
     retract.add_argument("--reason", required=True)
     retract.add_argument("--reviewed-at", required=True, help="ISO timestamp with timezone")
     retract.add_argument("--out")
-    sub.add_parser("index")
+    index = sub.add_parser("index", help="Embed the active profile's chunks that have no vector yet (paid)")
+    index.add_argument("--task", help="Persistent task name; its ledger total is what --max-usd caps")
+    index.add_argument("--max-usd", type=float,
+                       help="Cap on everything the task has reserved (settled, pending, uncertain); needs --task")
+    index.add_argument("--dry-run", action="store_true",
+                       help="Only count the missing chunks, bytes, reservations and tokens; no API call")
+    index.add_argument("--batch-size", type=int, default=32)
     for command in ("index-prepare", "index-status", "index-activate"):
         p = sub.add_parser(command)
         p.add_argument("profile", nargs="?" if command == "index-status" else None)
@@ -208,24 +286,21 @@ def main():
     elif args.command == "import-native":
         from .ingest import load_native
 
-        emit(
-            db.import_batch(
-                load_native(
-                    args.root, require_admissions=True, require_body_reviews=True,
-                    require_body_recoveries=True,
-                ),
-                snapshot_dataset="native" if args.mode == "snapshot" else None,
+        run_import(
+            db,
+            load_native(
+                args.root, require_admissions=True, require_body_reviews=True,
+                require_body_recoveries=True,
             ),
-            args.out,
+            "native" if args.mode == "snapshot" else None,
+            args,
         )
     elif args.command == "import-social":
         from .ingest import load_social
 
         mapping = json.loads(args.mapping.read_text(encoding="utf-8"))
         batch = load_social(args.path, mapping)
-        emit(db.import_batch(
-            batch, snapshot_dataset="social" if args.mode == "snapshot" else None,
-        ), args.out)
+        run_import(db, batch, "social" if args.mode == "snapshot" else None, args)
     elif args.command == "import-records":
         from .import_records import load_records
 
@@ -240,13 +315,17 @@ def main():
                 "source_hashes": batch.source_hashes,
             }, args.out)
         else:
-            emit(db.import_batch(
-                batch, snapshot_dataset=args.dataset if args.mode == "snapshot" else None,
-            ), args.out)
+            run_import(db, batch, args.dataset if args.mode == "snapshot" else None, args)
     elif args.command == "index":
         from .rag import Rag
 
-        emit(Rag(db, settings).index())
+        if args.max_usd is not None and not args.task:
+            parser.error("--max-usd needs --task")
+        if args.task and args.max_usd is None and not args.dry_run:
+            parser.error("--task needs its approved --max-usd")
+        visitor = f"task:{args.task}" if args.task else "maintenance"
+        emit(Rag(db, settings).index(args.batch_size, visitor=visitor, max_usd=args.max_usd,
+                                     dry_run=args.dry_run))
     elif args.command in ("index-prepare", "index-status", "index-activate"):
         from .indexing import IndexManager
 
@@ -271,6 +350,17 @@ def main():
             else service.answer(args.question, filters, "local-maintainer").model_dump()
         )
         emit(result, args.out)
+    elif args.command == "api":
+        from waitress import serve
+
+        from .api import create_api
+        from .service import Service
+
+        service = Service(settings)
+        api = create_api(service, settings)
+        start_health_keeper(service)
+        print(f"nativeADS JSON API on http://{settings.host}:{settings.api_port}/api/v1", flush=True)
+        serve(api, host=settings.host, port=settings.api_port, threads=8)
     elif args.command == "serve":
         from waitress import serve
 
@@ -279,7 +369,9 @@ def main():
 
         if settings.secure_cookies and not settings.cookie_secret:
             raise SystemExit("OBS_COOKIE_SECRET is required when OBS_SECURE_COOKIES=true")
-        app = create_app(Service(settings), settings)
+        service = Service(settings)
+        app = create_app(service, settings)
+        start_health_keeper(service)
         proxy = {}
         if settings.trusted_proxy:
             # Honour X-Forwarded-Proto/For only from the hosting platform's proxy.

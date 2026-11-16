@@ -29,7 +29,7 @@ def test_a_list_answer_opens_with_a_written_answer_then_lists_every_match():
     passages = service.rag.generate.call_args.args[1]
     assert {p.record_id for p in passages} == {"r1", "r3"}  # matched ads only, most relevant first
     # Summary: the coverage line, then the writer's summary.
-    assert result.summary[0].text.startswith("Found 2 matching ads among the 3 most relevant") and not result.summary[0].citation_indices
+    assert result.summary[0].text.startswith("2 of the 3 ads that were read match the question.") and not result.summary[0].citation_indices
     assert result.summary[1].text == "Tidal Co ads call the kites quiet."
     assert [s.title for s in result.sections] == ["Key points", "Matching ads (2)"]
     # Writer citations first, then the screened list renumbered after them.
@@ -62,7 +62,7 @@ def test_a_what_do_they_say_list_is_shown_in_sections_too():
     service.rag.generate = Mock(return_value=written((KITE, "They are quiet.")))
     result = service._answer_evidence(SAYS_ASK, Filters(dataset="native"), "offline", audit=False,
                                       declared_shape="every_matching_source")
-    assert result.summary[0].text.startswith("Found 2 matching ads among the 3 most relevant")
+    assert result.summary[0].text.startswith("2 of the 3 ads that were read match the question.")
     assert [s.title for s in result.sections] == ["What the matching ads say", "Other matching ads (screening quote only)"]
 
 

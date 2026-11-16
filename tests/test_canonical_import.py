@@ -113,12 +113,14 @@ def test_dry_run_has_no_database_connection(tmp_path, monkeypatch, capsys):
 
 @pytest.mark.parametrize("mode,expected", [(None, None), ("upsert", None), ("snapshot", "native")])
 def test_native_snapshot_must_be_explicit(tmp_path, monkeypatch, mode, expected):
-    from observatory import ingest
+    from observatory import import_review, ingest
     from observatory.models import ImportBatch
 
     calls = []
     monkeypatch.setattr(ingest, "load_native", lambda *args, **kwargs: ImportBatch())
-    monkeypatch.setattr(cli.Database, "import_batch", lambda self, batch, snapshot_dataset: calls.append(snapshot_dataset) or {})
+    # The CLI imports through the review step (import_review.reviewed_import) since 2026-11-05.
+    monkeypatch.setattr(import_review, "reviewed_import",
+                        lambda db, batch, snapshot_dataset, **kwargs: calls.append(snapshot_dataset) or (0, {}))
     args = ["observatory", "import-native", "--out", str(tmp_path / "report.json")]
     monkeypatch.setattr(sys, "argv", args + (["--mode", mode] if mode else []))
     cli.main()
@@ -174,3 +176,15 @@ def test_mutated_batch_with_nul_fails_before_database_connection(monkeypatch, wh
     monkeypatch.setattr(Database, "connect", lambda *args: pytest.fail("Invalid batch connected to the DB"))
     with pytest.raises(ValueError, match=r"U\+0000"):
         Database("unused").import_batch(batch)
+
+
+@pytest.mark.parametrize("separator", ["\u2028", "\u2029", "\x85"])
+def test_unescaped_line_separator_inside_a_body_stays_one_record(tmp_path, separator):
+    # JSON writers leave these unescaped; str.splitlines() would cut the record in two.
+    body = f"First sentence.{separator}Second sentence."
+    rows = [record(record_id=f"native:2026:00{n}", body=body) for n in (1, 2)]
+    path = tmp_path / "separators.jsonl"
+    path.write_bytes(b"\r\n".join(json.dumps(row, ensure_ascii=False).encode("utf-8") for row in rows) + b"\r\n")
+    batch = load_records(path)
+    assert [item.body for item in batch.records] == [body, body]
+    assert [item.provenance[-1]["row"] for item in batch.records] == [1, 2]

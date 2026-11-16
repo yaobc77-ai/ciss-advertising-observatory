@@ -30,6 +30,7 @@ mcp = ["mcp>=2.2,<3"]
 
 [project.scripts]
 observatory = "observatory.cli:main"
+nativeads = "observatory.cli:main"
 
 [build-system]
 requires = ["hatchling"]

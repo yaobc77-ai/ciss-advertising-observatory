@@ -74,7 +74,7 @@ def test_the_semantic_projection_is_reproducible_and_labelled_as_names_not_co_oc
     items = [{"id": f"t{n}", "label": f"tag {n}", "kind": "hashtag"} for n in range(4)]
     vectors = [[1, 0, 0], [0.9, 0.1, 0], [0, 1, 0], [0, 0.9, 0.1]]
     first, again = semantic_projection(items, vectors), semantic_projection(items, vectors)
-    assert first == again and first["label"] == "名称语义相近，不是共同出现"
+    assert first == again and first["label"] == "Similar names (not co-occurrence)"
     assert first["nodes"][0]["neighbours"][0]["id"] == "t1"
 
 
@@ -99,3 +99,68 @@ def test_the_panel_reads_the_latest_build_and_explains_an_edge(tmp_path):
     text = str(detail_for(view, ["edge", 0]))
     assert "3 / (3 + 5 − 3) = 0.600" in text and "/records/post-0" in text
     assert detail_for(view, ["edge", 9]) == "Click an edge midpoint or a node for details."
+
+
+def test_name_similarity_word_cloud_sizes_by_use_and_never_overlaps():
+    from observatory.cooccurrence_ui import (
+        CLOUD_H,
+        CLOUD_W,
+        cloud_figure,
+        detail_for,
+        figure_for,
+        word_cloud,
+    )
+
+    names = [f"#kite{i}" for i in range(40)]
+    view = {"view": "semantic", "nodes": [{"id": n, "label": n, "kind": "hashtag", "x": (i % 7) / 7, "y": (i % 5) / 5,
+                                           "neighbours": [{"id": names[(i + 1) % 40], "cosine": 0.5}]}
+                                          for i, n in enumerate(names)]}
+    counts = {n: 100 - i for i, n in enumerate(names)}
+    counts["#unused"] = 5  # a count for a name the view does not hold is ignored
+    words = word_cloud(view, counts, limit=30)
+    assert len(words) == 30 and words[0]["label"] == "#kite0" and words[0]["size"] > words[-1]["size"]
+    boxes = [(w["x"] - (0.56 * w["size"] * len(w["label"]) + 4) / 2, w["y"] - 0.6 * w["size"],
+              w["x"] + (0.56 * w["size"] * len(w["label"]) + 4) / 2, w["y"] + 0.6 * w["size"]) for w in words]
+    for i, a in enumerate(boxes):
+        assert 0 <= a[0] and a[2] <= CLOUD_W and 0 <= a[1] and a[3] <= CLOUD_H
+        for b in boxes[i + 1:]:
+            assert not (a[0] + 0.01 < b[2] and b[0] + 0.01 < a[2] and a[1] + 0.01 < b[3] and b[1] + 0.01 < a[3])
+    figure = figure_for(view, "community_id", counts)
+    assert figure.data[0].mode == "text" and sum(len(t.text) for t in figure.data) == len(word_cloud(view, counts))
+    assert len(cloud_figure(words).data) == 1
+    detail = str(detail_for(view, ["node", "#kite0", 100, "#kite1"]))
+    assert "Used 100 times" in detail and "#kite1" in detail
+
+
+@pytest.mark.parametrize("label, kind, topic", [
+    ("#netzerokites", "hashtag", "transition"),
+    ("#harborjobs", "hashtag", "people"),
+    ("#kitefestival", "hashtag", "events"),
+    ("#oil", "hashtag", "oil_gas"),
+    ("green labels.kite references", "historical label", "historical_labels"),
+    ("#zqx", "hashtag", "other"),
+])
+def test_names_are_grouped_by_reviewed_topic_rules(label, kind, topic):
+    from observatory.cooccurrence_ui import name_topic
+
+    assert name_topic({"label": label, "kind": kind}) == topic
+
+
+def test_each_topic_is_one_legend_entry_and_words_of_a_topic_stay_together():
+    from observatory.cooccurrence_ui import cloud_figure, word_cloud
+
+    names = [f"#netzero{i}" for i in range(12)] + [f"#harborjobs{i}" for i in range(12)]
+    view = {"view": "semantic", "nodes": [{"id": n, "label": n, "kind": "hashtag", "x": i % 3, "y": i % 4,
+                                           "neighbours": []} for i, n in enumerate(names)]}
+    counts = {n: 50 - i for i, n in enumerate(names)}
+    words = word_cloud(view, counts)
+    figure = cloud_figure(words)
+    assert sorted(trace.name for trace in figure.data) == ["Energy transition and climate (12)",
+                                                            "People, community and safety (12)"]
+    centre = {t: (sum(w["x"] for w in words if w["topic"] == t) / 12, sum(w["y"] for w in words if w["topic"] == t) / 12)
+              for t in ("transition", "people")}
+    closer = 0
+    for w in words:  # nearly every word is closer to its own topic's centre than to the other one
+        own, other = centre[w["topic"]], centre["people" if w["topic"] == "transition" else "transition"]
+        closer += (w["x"] - own[0]) ** 2 + (w["y"] - own[1]) ** 2 < (w["x"] - other[0]) ** 2 + (w["y"] - other[1]) ** 2
+    assert closer >= 0.9 * len(words)

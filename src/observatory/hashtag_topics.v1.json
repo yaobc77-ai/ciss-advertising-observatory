@@ -1,0 +1,245 @@
+{
+ "version": "hashtag-topics-v1-draft",
+ "status": "draft_pending_review",
+ "method": "A name is lower-cased and stripped of '#', spaces and punctuation, then given the first topic (in this order) that lists it exactly or contains one of the topic's fragments. Company names come from the organization registry. Historical labels keep their own group. Anything else is Other.",
+ "topics": [
+  {
+   "id": "historical_labels",
+   "label": "Historical ad labels",
+   "kinds": [
+    "historical label"
+   ]
+  },
+  {
+   "id": "companies",
+   "label": "Companies and their campaigns",
+   "registry": true,
+   "exact": [
+    "livetheimpossible",
+    "youareenergy",
+    "poweringprogress",
+    "poweringpossibility",
+    "energyfortoday",
+    "energyfortomorrow",
+    "energyforlife",
+    "energynowandnext",
+    "newenergyworld",
+    "passionateaboutprogress",
+    "theleaderschoice",
+    "movetheworldforward",
+    "startstronggrowstronger",
+    "yourenergytransitionpartner",
+    "energyliveshere",
+    "energyandyou",
+    "makethefuture",
+    "futuresasol",
+    "banyanabanyana",
+    "gemilangkanlagi",
+    "excelliumracing100",
+    "mhigroup",
+    "tilengaproject",
+    "pdo",
+    "ippl",
+    "omanshell",
+    "bp",
+    "omvresults",
+    "earnings",
+    "maharatna"
+   ],
+   "fragments": []
+  },
+  {
+   "id": "events",
+   "label": "Events and sponsorships",
+   "exact": [
+    "wec",
+    "ieweek",
+    "lemans24"
+   ],
+   "fragments": [
+    "week",
+    "ceraweek",
+    "summit",
+    "forum",
+    "expo",
+    "conference",
+    "league",
+    "racing",
+    "motorsport",
+    "lemans",
+    "sebring",
+    "cup",
+    "jubilee",
+    "anniversary",
+    "day",
+    "olympic",
+    "festival",
+    "award",
+    "challenge",
+    "champs"
+   ]
+  },
+  {
+   "id": "transition",
+   "label": "Energy transition and climate",
+   "exact": [
+    "esg",
+    "ccs",
+    "ccus",
+    "sustainable",
+    "renewable",
+    "environment",
+    "rfs"
+   ],
+   "fragments": [
+    "transition",
+    "sustainab",
+    "netzero",
+    "zero",
+    "emission",
+    "carbon",
+    "climate",
+    "decarbon",
+    "clean",
+    "renewab",
+    "solar",
+    "wind",
+    "hydrogen",
+    "lowcarbon",
+    "green",
+    "biofuel",
+    "biogas",
+    "bioplastic",
+    "circular",
+    "recycl",
+    "electric",
+    "battery",
+    "ethanol"
+   ]
+  },
+  {
+   "id": "oil_gas",
+   "label": "Oil, gas and coal",
+   "exact": [
+    "oil",
+    "gas",
+    "lng",
+    "coal",
+    "shale",
+    "offshore",
+    "upstream",
+    "downstream"
+   ],
+   "fragments": [
+    "oilandgas",
+    "natgas",
+    "naturalgas",
+    "petroleum",
+    "fracking",
+    "refin",
+    "crude",
+    "drilling",
+    "pipeline",
+    "lpg",
+    "gasoline",
+    "diesel",
+    "fuel"
+   ]
+  },
+  {
+   "id": "industry",
+   "label": "Industry and materials",
+   "exact": [
+    "ai",
+    "stem",
+    "technology",
+    "innovation"
+   ],
+   "fragments": [
+    "mining",
+    "copper",
+    "cement",
+    "steel",
+    "chemical",
+    "petrochemical",
+    "plastic",
+    "fertili",
+    "agricultur",
+    "manufactur",
+    "industr",
+    "technolog",
+    "innovat",
+    "digital"
+   ]
+  },
+  {
+   "id": "people",
+   "label": "People, community and safety",
+   "exact": [
+    "csr",
+    "jobs",
+    "hiring",
+    "education",
+    "community"
+   ],
+   "fragments": [
+    "safety",
+    "safe",
+    "women",
+    "career",
+    "hiring",
+    "job",
+    "skill",
+    "school",
+    "student",
+    "community",
+    "together",
+    "health",
+    "covid",
+    "volunteer",
+    "foundation",
+    "charity",
+    "employee"
+   ]
+  },
+  {
+   "id": "places",
+   "label": "Places and markets",
+   "exact": [
+    "india",
+    "qatar",
+    "gcc",
+    "nga",
+    "canada",
+    "oman",
+    "nigeria",
+    "uganda",
+    "malaysia",
+    "brazil",
+    "usa",
+    "uk",
+    "europe",
+    "africa",
+    "asia",
+    "china",
+    "texas",
+    "houston",
+    "permian",
+    "melbswest"
+   ],
+   "fragments": []
+  },
+  {
+   "id": "energy_general",
+   "label": "Energy in general",
+   "exact": [
+    "energy",
+    "power",
+    "electricity"
+   ],
+   "fragments": [
+    "energy"
+   ]
+  }
+ ]
+}

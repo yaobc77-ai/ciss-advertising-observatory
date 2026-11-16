@@ -36,17 +36,52 @@ def test_the_opening_line_counts_what_was_read_and_found_in_each_collection():
                row(POST_OTHER, "does_not_match")]
     answer = list_answer(QUESTION, results, [AD_OTHER, POST_JOBS, POST_OTHER], scope_total=268,
                          scopes={"native": 263, "social": 5})
+    # Plain wording (client meeting MT6-016): found, read and not read in each collection, and what to do.
     assert answer.answer.startswith(
-        "Checked the 1 most relevant of the 263 native ads and the 2 most relevant of the 5 company social posts "
-        "in your selection: found 0 matching ads and 1 matching post.")
+        "Found 0 matching ads and 1 matching post. Read: the 1 native ad closest to the question, out of 263 "
+        "(262 not read); the 2 company social posts closest to the question, out of 5 (3 not read). Those not "
+        "read may hold more matches. Narrowing the selection (company, date or platform) lets a larger share "
+        "be read.\n\n")
     assert "Post by Kite Guild, 2023-07-01: “jobs for the harbor.” [1]" in answer.answer
     assert answer.structured_result["by_dataset"] == {
         "native": {"scope_total": 263, "examined": 1, "matches": 0},
         "social": {"scope_total": 5, "examined": 2, "matches": 1}}
     chinese = list_answer("哪些广告把潮汐风筝说成能带来就业？", results, [AD_OTHER, POST_JOBS, POST_OTHER],
                           scope_total=268, scopes={"native": 263, "social": 5}).answer
-    assert chinese.startswith("检查了所选范围内263 篇原生广告中最相关的 1 篇，以及5 条公司社交帖子中最相关的 2 条：")
-    assert "找到符合的原生广告 0 篇、公司社交帖子 1 条。" in chinese
+    assert chinese.startswith("找到符合的原生广告 0 篇、公司社交帖子 1 条。看过的范围：263 篇原生广告中和问题最接近的 1 篇"
+                              "（其余 262 篇没有看）；5 条公司社交帖子中和问题最接近的 2 条（其余 3 条没有看）。"
+                              "没看的里面可能还有符合的；缩小范围（公司、日期或平台）可以看得更全。\n\n")
+
+
+def test_the_opening_line_says_what_was_left_unread_when_one_collection_was_read_whole():
+    # Ads read whole, posts not reached by the search at all: the unread posts still get the note.
+    results = [row(AD_JOBS, "does_not_match"), row(AD_OTHER, "does_not_match")]
+    scopes = {"native": 2, "social": 40}
+    english = list_answer(QUESTION, results, [AD_JOBS, AD_OTHER], scope_total=42, scopes=scopes).answer
+    assert english == (
+        "Found 0 matching ads and 0 matching posts. Read: all 2 native ads; none of the 40 company social posts "
+        "(the search found nothing related). Those not read may hold more matches. Narrowing the selection "
+        "(company, date or platform) lets a larger share be read. If you expected matches, try asking the "
+        "question another way.")
+    chinese = list_answer("哪些广告把潮汐风筝说成能带来就业？", results, [AD_JOBS, AD_OTHER], scope_total=42,
+                          scopes=scopes).answer
+    assert chinese == ("找到符合的原生广告 0 篇、公司社交帖子 0 条。看过的范围：全部 2 篇原生广告；"
+                       "公司社交帖子一条也没看（40 条里检索没找到相关的）。没看的里面可能还有符合的；"
+                       "缩小范围（公司、日期或平台）可以看得更全。如果觉得应该有结果，可以换个问法再问。")
+    # Posts read in part, ads whole: only the posts' unread count is named.
+    results = [row(AD_OTHER, "does_not_match"), row(POST_JOBS, "matches", "jobs for the harbor.")]
+    english = list_answer(QUESTION, results, [AD_OTHER, POST_JOBS], scope_total=11,
+                          scopes={"native": 1, "social": 10}).answer
+    assert english.startswith(
+        "Found 0 matching ads and 1 matching post. Read: the 1 native ad; the 1 company social post closest to "
+        "the question, out of 10 (9 not read). Those not read may hold more matches.")
+    assert "try asking the question another way" not in english
+    # Read whole by the triage: records without text are not "not read".
+    whole = list_answer(QUESTION, results, [AD_OTHER, POST_JOBS], scope_total=13,
+                        scopes={"native": 3, "social": 10},
+                        triage={"by_dataset": {"native": {"whole_scope": True}, "social": {"whole_scope": True}}}).answer
+    assert whole.startswith("Found 0 matching ads and 1 matching post. Read: the 1 native ad with text (2 have none); "
+                            "the 1 company social post with text (9 have none).\n\n")
 
 
 def test_shown_matches_keep_a_fair_share_of_posts_when_ads_are_many():
@@ -96,8 +131,9 @@ def test_a_list_over_both_collections_screens_ads_and_posts_separately():
     service.rag.embed = Mock(return_value=[[0.0], [0.0]])
     result = service._answer_evidence(QUESTION, Filters(dataset="all"), "offline", audit=False)
     assert parse.call_count == 2  # one batch per collection
-    assert result.answer.startswith("Checked the 1 most relevant of the 263 native ads and the 2 most relevant of "
-                                    "the 5 company social posts in your selection: found 0 matching ads and 1 matching post.")
+    assert result.answer.startswith("Found 0 matching ads and 1 matching post. Read: the 1 native ad closest to "
+                                    "the question, out of 263 (262 not read); the 2 company social posts closest to the "
+                                    "question, out of 5 (3 not read).")
     assert [c.evidence_id for c in result.citations] == [POST_JOBS.evidence_id]
     assert [g["label"] for g in result.structured_result["groups"]] == ["Native ads", "Company posts"]
 

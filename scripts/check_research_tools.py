@@ -71,7 +71,7 @@ def main():
     report = {"data_version": after, "source_records_unchanged": True,
               "checks": checks, "paid_smoke": paid,
               "semantic_benchmark": False, "client_acceptance": False}
-    target = Path("reports/research_tools_smoke_20260929.json")
+    target = Path("reports/rag_experiments/research_tools_smoke_20260929.json")
     target.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(report, ensure_ascii=False, indent=2))
 

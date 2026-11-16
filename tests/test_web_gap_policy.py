@@ -9,6 +9,7 @@ from observatory.service import Service
 
 class Harness:
     _ensure_answer = Service._ensure_answer
+    _refuse_if_not_about = Service._refuse_if_not_about  # C24: no model client here, so never a check
 
     def __init__(self):
         self.calls = 0

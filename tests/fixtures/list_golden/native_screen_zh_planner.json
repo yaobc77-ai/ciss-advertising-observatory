@@ -1,0 +1,399 @@
+{
+ "db_calls": {
+  "count_public": {},
+  "native": [
+   {
+    "method": "record_passages",
+    "per_record": 8,
+    "records": [
+     "n1",
+     "n2",
+     "n3"
+    ]
+   },
+   {
+    "method": "record_passages",
+    "per_record": null,
+    "records": [
+     "n1",
+     "n3"
+    ]
+   }
+  ],
+  "public_rows": {
+   "native": 5
+  },
+  "search": [
+   {
+    "chunks_per_record": null,
+    "dataset": "native",
+    "hybrid": false,
+    "limit": 5,
+    "query": "讲潮汐风筝的广告都是哪几篇？",
+    "record_ids": []
+   },
+   {
+    "chunks_per_record": 2,
+    "dataset": "native",
+    "hybrid": true,
+    "limit": 120,
+    "query": "讲潮汐风筝的广告都是哪几篇？",
+    "record_ids": []
+   }
+  ],
+  "social": []
+ },
+ "frozen": {
+  "commit": "60775b3",
+  "date": "2026-10-26",
+  "module": "tests/test_list_golden.py"
+ },
+ "ledger": [
+  [
+   "generation",
+   "gpt-5.6-luna",
+   0.00396575,
+   "settled",
+   "list_screening_reread",
+   8e-06,
+   [
+    "A4"
+   ]
+  ],
+  [
+   "generation",
+   "gpt-5.6-luna",
+   0.00495075,
+   "settled",
+   "list_screening",
+   8e-06,
+   [
+    "A1",
+    "A2",
+    "A3"
+   ]
+  ],
+  [
+   "generation",
+   "gpt-5.6-luna",
+   0.04,
+   "cancelled"
+  ]
+ ],
+ "model_calls": {
+  "native": {
+   "judge": [],
+   "screen": [
+    {
+     "ads": [
+      [
+       "n1",
+       [
+        "A1.1",
+        "A1.2",
+        "A1.3",
+        "A1.4",
+        "A1.5",
+        "A1.6",
+        "A1.7",
+        "A1.8"
+       ]
+      ],
+      [
+       "n2",
+       [
+        "A2.1"
+       ]
+      ],
+      [
+       "n3",
+       [
+        "A3.1"
+       ]
+      ]
+     ],
+     "first_ref": "A1",
+     "question": "讲潮汐风筝的广告都是哪几篇？"
+    },
+    {
+     "ads": [
+      [
+       "n1",
+       [
+        "A4.1",
+        "A4.2",
+        "A4.3",
+        "A4.4",
+        "A4.5",
+        "A4.6",
+        "A4.7",
+        "A4.8",
+        "A4.9"
+       ]
+      ]
+     ],
+     "first_ref": "A4",
+     "question": "讲潮汐风筝的广告都是哪几篇？"
+    }
+   ]
+  },
+  "shared": [
+   {
+    "role": "embed",
+    "texts": [
+     "讲潮汐风筝的广告都是哪几篇？"
+    ]
+   },
+   {
+    "one_claim_per_source": false,
+    "question": "讲潮汐风筝的广告都是哪几篇？",
+    "records": [
+     "n1",
+     "n2"
+    ],
+    "role": "writer"
+   }
+  ],
+  "social": {
+   "judge": [],
+   "screen": []
+  }
+ },
+ "result": {
+  "answer": "在所选的 6 篇广告中，检查了最相关的 3 篇，找到 2 篇符合；其余 3 篇未检查。\n\n1. Kite notice n1 — Harbor Daily, Tidal Co, 2021-05-04: “By night, tidal kites power the harbor lights and bring jobs” [1]\n\n2. Kite notice n2 — Harbor Daily, Tidal Co, 2021-05-04: “Tidal kites will bring 400 jobs to the harbor” [2]",
+  "answer_mode": "rag",
+  "citations": [
+   [
+    "n1-e9",
+    "By night, tidal kites power the harbor lights and bring jobs"
+   ],
+   [
+    "n2-e1",
+    "Tidal kites will bring 400 jobs to the harbor"
+   ]
+  ],
+  "cited_claims": [
+   [
+    "Kite notice n1 — Harbor Daily, Tidal Co, 2021-05-04: “By night, tidal kites power the harbor lights and bring jobs” [1]",
+    [
+     1
+    ]
+   ],
+   [
+    "Kite notice n2 — Harbor Daily, Tidal Co, 2021-05-04: “Tidal kites will bring 400 jobs to the harbor” [2]",
+    [
+     2
+    ]
+   ]
+  ],
+  "cost_usd": 1.7e-05,
+  "evidence_ids": [
+   "n1-e9",
+   "n2-e1",
+   "n1-e1",
+   "n1-e2",
+   "n1-e3",
+   "n1-e4",
+   "n1-e5",
+   "n1-e6",
+   "n1-e7",
+   "n1-e8",
+   "n3-e1"
+  ],
+  "external_research": {},
+  "failure_reason": "",
+  "research_trace": {
+   "list_decision": {
+    "planner": "every_matching_source",
+    "rule": false
+   },
+   "list_screening": {
+    "decisions": [
+     {
+      "decision": "matches",
+      "evidence_id": "n1-e9",
+      "quote": "By night, tidal kites power the harbor lights and bring jobs",
+      "record_id": "n1",
+      "reread_from": "does_not_match",
+      "title": "Kite notice n1"
+     },
+     {
+      "decision": "matches",
+      "evidence_id": "n2-e1",
+      "quote": "Tidal kites will bring 400 jobs to the harbor",
+      "record_id": "n2",
+      "title": "Kite notice n2"
+     },
+     {
+      "decision": "does_not_match",
+      "record_id": "n3",
+      "title": "Kite notice n3"
+     }
+    ],
+    "does_not_match": 1,
+    "examined": 3,
+    "first_read": 40,
+    "matches": 2,
+    "method": "ai_screening",
+    "policy": "list-screening-v19",
+    "question": "讲潮汐风筝的广告都是哪几篇？",
+    "reread": 1,
+    "review": 0,
+    "scope_total": 6,
+    "unclear": 0,
+    "verified_removed": 0
+   },
+   "list_summary": {
+    "reason": "ValueError",
+    "status": "failed"
+   },
+   "media_retrieval": {
+    "groups": [
+     {
+      "image_units": 0,
+      "label": "Current selection",
+      "status": "not_configured",
+      "video_units": 0
+     }
+    ],
+    "method": "separate_lexical_media_rrf",
+    "recognition_calls": 0,
+    "source_binding": {
+     "bundle_sha256": "",
+     "configuration_complete": false,
+     "contract": "separate-media-evidence-v1"
+    }
+   },
+   "question_plan": {
+    "agent_route": "direct",
+    "allow_web": false,
+    "clarify_message": null,
+    "coverage_note_rule": false,
+    "datasets": [
+     "native"
+    ],
+    "datasets_requested": [
+     "native"
+    ],
+    "failure_reason": "",
+    "filters": {
+     "accounts": [],
+     "dataset": "native",
+     "date_from": null,
+     "date_presence": "any",
+     "date_to": null,
+     "include_inferred_dates": false,
+     "include_unknown_dates": true,
+     "keywords": [],
+     "labels": [],
+     "platforms": [],
+     "publishers": [],
+     "record_ids": [],
+     "replies": [],
+     "sponsors": []
+    },
+    "list_kind": "screen",
+    "original_metadata": false,
+    "phrases": [],
+    "read_sources": false,
+    "reasons": {
+     "allow_web": "rule:list_screened",
+     "datasets": "filters:user",
+     "route": "caller:evidence",
+     "search_query": "default:question",
+     "shape": "planner:answer_shape"
+    },
+    "route": "evidence",
+    "search_query": "讲潮汐风筝的广告都是哪几篇？",
+    "shape": "list",
+    "signals": {
+     "collection_only": false,
+     "contract_task": "metadata_or_unspecified",
+     "original_metadata_only": false,
+     "planner_shape": "every_matching_source",
+     "pure_literal": false,
+     "quoted_phrases": 0,
+     "relation_list": false,
+     "retrieval_groups": false,
+     "rule_list": false
+    },
+    "version": "question-plan-v2",
+    "wants_list": true
+   }
+  },
+  "sections": [],
+  "status": "answered",
+  "structured_result": {
+   "charts": [],
+   "display_citations": [
+    1,
+    2
+   ],
+   "examined": 3,
+   "groups": [
+    {
+     "evidence_units": 3,
+     "filters": {
+      "accounts": [],
+      "dataset": "native",
+      "date_from": null,
+      "date_presence": "any",
+      "date_to": null,
+      "include_inferred_dates": false,
+      "include_unknown_dates": true,
+      "keywords": [],
+      "labels": [],
+      "platforms": [],
+      "publishers": [],
+      "record_ids": [],
+      "replies": [],
+      "sponsors": []
+     },
+     "image_units": 0,
+     "label": "Current selection",
+     "media_status": "not_configured",
+     "passages": 3,
+     "query": "讲潮汐风筝的广告都是哪几篇？",
+     "retrieved_evidence_ids": [
+      "n1-e1",
+      "n2-e1",
+      "n3-e1"
+     ],
+     "retrieved_record_ids": [
+      "n1",
+      "n2",
+      "n3"
+     ],
+     "video_units": 0
+    }
+   ],
+   "kind": "ai_screened_list",
+   "matches": 2,
+   "meaning": "AI check of retrieved passages; not reviewed membership or a complete-collection result.",
+   "method": "ai_screening",
+   "policy": "list-screening-v19",
+   "review": 0,
+   "scope_total": 6
+  },
+  "summary": []
+ },
+ "scenario": {
+  "allowed": [],
+  "declared_shape": "every_matching_source",
+  "fail_social_screening": false,
+  "filters": {
+   "dataset": "native"
+  },
+  "large_scope": false,
+  "limit_at": null,
+  "many_literal": false,
+  "match": "tidal kite",
+  "name": "native_screen_zh_planner",
+  "note": "planner-declared list, Chinese wording",
+  "question": "讲潮汐风筝的广告都是哪几篇？",
+  "relation_listing": null,
+  "retrieval_groups": null,
+  "triage": false,
+  "writer": "fail"
+ }
+}

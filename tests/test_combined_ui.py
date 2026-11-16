@@ -167,7 +167,7 @@ def test_layout_shared_fields_record_types_and_navigation(unified_app):
     assert {"record_type", "channel", "account", "date", "url", "archive_status"} <= set(columns)
     assert "not verified paid advertising" in columns["sponsor"]["headerTooltip"]
     tabs = callback(app, client, "all-overview.hidden", {"all-view.value": "records"}, "all-view.value")
-    assert tabs == {"all-overview": {"hidden": True}, "all-records": {"hidden": False}}
+    assert tabs == {"all-overview": {"hidden": True}, "all-records": {"hidden": False}, "all-compare": {"hidden": True}}
 
 
 def test_company_values_merge_case_but_not_different_names():

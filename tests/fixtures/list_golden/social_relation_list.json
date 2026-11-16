@@ -1,0 +1,361 @@
+{
+ "db_calls": {
+  "count_public": {},
+  "native": [],
+  "public_rows": {
+   "social": 5
+  },
+  "search": [
+   {
+    "chunks_per_record": null,
+    "dataset": "social",
+    "hybrid": false,
+    "limit": 5,
+    "query": "Which posts use #KitePower?",
+    "record_ids": [
+     "s1",
+     "s3",
+     "s4"
+    ]
+   },
+   {
+    "chunks_per_record": 2,
+    "dataset": "social",
+    "hybrid": true,
+    "limit": 120,
+    "query": "Which posts use #KitePower?",
+    "record_ids": [
+     "s1",
+     "s3",
+     "s4"
+    ]
+   }
+  ],
+  "social": [
+   {
+    "method": "record_passages",
+    "per_record": 1,
+    "records": [
+     "s1",
+     "s3",
+     "s4"
+    ]
+   }
+  ]
+ },
+ "frozen": {
+  "commit": "60775b3",
+  "date": "2026-10-26",
+  "module": "tests/test_list_golden.py"
+ },
+ "ledger": [
+  [
+   "generation",
+   "gpt-5.6-luna",
+   0.04,
+   "cancelled"
+  ]
+ ],
+ "model_calls": {
+  "native": {
+   "judge": [],
+   "screen": []
+  },
+  "shared": [
+   {
+    "role": "embed",
+    "texts": [
+     "Which posts use #KitePower?"
+    ]
+   }
+  ],
+  "social": {
+   "judge": [],
+   "screen": []
+  }
+ },
+ "result": {
+  "answer": "3 posts have this relation in their source records (hashtags: #KitePower); all are listed. This is a source-record field, not a judgment of the post's content; a mention or hashtag does not mean endorsement or affiliation.\n\n1.  — Kite Guild, (Unknown), 2023-07-01: “Every tidal kite farm hires local crews: jobs for the harbor.” [1]\n\n2.  — Kite Guild, (Unknown), 2023-07-01: “Tidal kites: jobs, jobs, jobs.” [2]",
+  "answer_mode": "rag",
+  "citations": [
+   [
+    "s1-e1",
+    "Every tidal kite farm hires local crews: jobs for the harbor."
+   ],
+   [
+    "s3-e1",
+    "Tidal kites: jobs, jobs, jobs."
+   ],
+   [
+    "s4-e1",
+    "Harbor power is cheap tonight."
+   ]
+  ],
+  "cited_claims": [
+   [
+    " — Kite Guild, (Unknown), 2023-07-01: “Every tidal kite farm hires local crews: jobs for the harbor.” [1]",
+    [
+     1
+    ]
+   ],
+   [
+    " — Kite Guild, (Unknown), 2023-07-01: “Tidal kites: jobs, jobs, jobs.” [2]",
+    [
+     2
+    ]
+   ],
+   [
+    " — Tidal Co Harbor, (Unknown), 2023-07-01: “Harbor power is cheap tonight.” [3]",
+    [
+     3
+    ]
+   ]
+  ],
+  "cost_usd": 1e-06,
+  "evidence_ids": [
+   "s1-e1",
+   "s3-e1",
+   "s4-e1"
+  ],
+  "external_research": {},
+  "failure_reason": "",
+  "research_trace": {
+   "list_decision": {
+    "planner": null,
+    "rule": true
+   },
+   "list_screening": {
+    "decisions": [
+     {
+      "decision": "matches",
+      "evidence_id": "s1-e1",
+      "quote": "Every tidal kite farm hires local crews: jobs for the harbor.",
+      "record_id": "s1",
+      "title": ""
+     },
+     {
+      "decision": "matches",
+      "evidence_id": "s3-e1",
+      "quote": "Tidal kites: jobs, jobs, jobs.",
+      "record_id": "s3",
+      "title": ""
+     },
+     {
+      "decision": "matches",
+      "evidence_id": "s4-e1",
+      "quote": "Harbor power is cheap tonight.",
+      "record_id": "s4",
+      "title": ""
+     }
+    ],
+    "does_not_match": 0,
+    "examined": 3,
+    "matches": 3,
+    "method": "relation_selection",
+    "policy": "list-screening-v19",
+    "question": "Which posts use #KitePower?",
+    "relations": [
+     {
+      "matched_posts": 3,
+      "relations": {
+       "hashtags": [
+        "#KitePower"
+       ]
+      }
+     }
+    ],
+    "reread": 0,
+    "review": 0,
+    "scope_total": 3,
+    "unclear": 0,
+    "verified_removed": 0
+   },
+   "media_retrieval": {
+    "groups": [
+     {
+      "image_units": 0,
+      "label": "Current selection",
+      "status": "not_configured",
+      "video_units": 0
+     }
+    ],
+    "method": "separate_lexical_media_rrf",
+    "recognition_calls": 0,
+    "source_binding": {
+     "bundle_sha256": "",
+     "configuration_complete": false,
+     "contract": "separate-media-evidence-v1"
+    }
+   },
+   "question_plan": {
+    "agent_route": "direct",
+    "allow_web": false,
+    "clarify_message": null,
+    "coverage_note_rule": true,
+    "datasets": [
+     "social"
+    ],
+    "datasets_requested": [
+     "social"
+    ],
+    "failure_reason": "",
+    "filters": {
+     "accounts": [],
+     "dataset": "social",
+     "date_from": null,
+     "date_presence": "any",
+     "date_to": null,
+     "include_inferred_dates": false,
+     "include_unknown_dates": true,
+     "keywords": [],
+     "labels": [],
+     "platforms": [],
+     "publishers": [],
+     "record_ids": [
+      "s1",
+      "s3",
+      "s4"
+     ],
+     "replies": [],
+     "sponsors": []
+    },
+    "list_kind": "relation",
+    "original_metadata": false,
+    "phrases": [],
+    "read_sources": false,
+    "reasons": {
+     "allow_web": "rule:list_screened",
+     "datasets": "filters:user",
+     "route": "caller:evidence",
+     "search_query": "default:question",
+     "shape": "planner:relation_listing"
+    },
+    "route": "evidence",
+    "search_query": "Which posts use #KitePower?",
+    "shape": "list",
+    "signals": {
+     "collection_only": false,
+     "contract_task": "content_unspecified",
+     "original_metadata_only": false,
+     "planner_shape": null,
+     "pure_literal": false,
+     "quoted_phrases": 0,
+     "relation_list": true,
+     "retrieval_groups": false,
+     "rule_list": true
+    },
+    "version": "question-plan-v2",
+    "wants_list": true
+   }
+  },
+  "sections": [],
+  "status": "answered",
+  "structured_result": {
+   "charts": [
+    {
+     "id": "by_outlet",
+     "labels": [
+      "Kite Guild",
+      "Tidal Co Harbor"
+     ],
+     "omitted_categories": 0,
+     "title": "Listed ads by outlet",
+     "total": 3,
+     "values": [
+      2,
+      1
+     ]
+    }
+   ],
+   "display_citations": [
+    1,
+    2,
+    3
+   ],
+   "examined": 3,
+   "groups": [
+    {
+     "evidence_units": 1,
+     "filters": {
+      "accounts": [],
+      "dataset": "social",
+      "date_from": null,
+      "date_presence": "any",
+      "date_to": null,
+      "include_inferred_dates": false,
+      "include_unknown_dates": true,
+      "keywords": [],
+      "labels": [],
+      "platforms": [],
+      "publishers": [],
+      "record_ids": [
+       "s1",
+       "s3",
+       "s4"
+      ],
+      "replies": [],
+      "sponsors": []
+     },
+     "image_units": 0,
+     "label": "Current selection",
+     "media_status": "not_configured",
+     "passages": 1,
+     "query": "Which posts use #KitePower?",
+     "retrieved_evidence_ids": [
+      "s1-e1"
+     ],
+     "retrieved_record_ids": [
+      "s1"
+     ],
+     "video_units": 0
+    }
+   ],
+   "kind": "relation_list",
+   "matched_posts": 3,
+   "matches": 3,
+   "meaning": "Posts selected by a source-row relation field; content is not judged.",
+   "method": "relation_selection",
+   "policy": "list-screening-v19",
+   "review": 0,
+   "scope_total": 3,
+   "unquoted_posts": 0
+  },
+  "summary": []
+ },
+ "scenario": {
+  "allowed": [],
+  "declared_shape": null,
+  "fail_social_screening": false,
+  "filters": {
+   "dataset": "social",
+   "record_ids": [
+    "s1",
+    "s3",
+    "s4"
+   ]
+  },
+  "large_scope": false,
+  "limit_at": null,
+  "many_literal": false,
+  "match": "jobs",
+  "name": "social_relation_list",
+  "note": "every selected post listed without a model call",
+  "question": "Which posts use #KitePower?",
+  "relation_listing": {
+   "list_all": true,
+   "selections": [
+    {
+     "matched_posts": 3,
+     "relations": {
+      "hashtags": [
+       "#KitePower"
+      ]
+     }
+    }
+   ]
+  },
+  "retrieval_groups": null,
+  "triage": false,
+  "writer": "summary"
+ }
+}
